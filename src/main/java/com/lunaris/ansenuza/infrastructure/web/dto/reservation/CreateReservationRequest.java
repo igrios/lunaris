@@ -15,6 +15,10 @@ public record CreateReservationRequest(
 
         String destination,
 
+        Boolean roundTrip,
+
+        LocalDate returnDate,
+
         Boolean paymentVerified,
 
         String notes

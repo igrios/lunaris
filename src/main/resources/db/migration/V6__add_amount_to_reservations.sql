@@ -1,0 +1,2 @@
+ALTER TABLE reservations
+ADD COLUMN amount NUMERIC(12,2);

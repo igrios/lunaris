@@ -1,9 +1,9 @@
 package com.lunaris.ansenuza.infrastructure.web.dto.reservation;
 
+import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -19,7 +19,7 @@ public class CreateReservationForm {
 
     private String phone;
 
-  
+
     // Datos viaje
 
     private LocalDate travelDate;
@@ -29,6 +29,10 @@ public class CreateReservationForm {
     private String pickupAddress;
 
     private String destination;
+
+    private Boolean roundTrip = false;
+
+    private LocalDate returnDate;
 
     private Boolean paymentVerified;
 

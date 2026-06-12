@@ -8,6 +8,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #dee2e6;
+    }
+
+    .card {
+      border: none;
+    }
+
+    .card-body {
+      padding: 2rem;
+    }
+
+    h2,
+    h4 {
+      color: #343a40;
+    }
+  </style>
 </head>
 
 <body class="bg-light">
@@ -17,6 +36,32 @@
     <h1 class="text-center mb-4">
       🚐 Viajes del Día
     </h1>
+    <div class="mb-3 d-flex gap-2">
+
+      <button type="button" class="btn btn-outline-primary flex-fill" onclick="selectAllReservations()">
+
+        ☑ Seleccionar Todos
+
+      </button>
+
+      <button type="button" class="btn btn-outline-secondary flex-fill" onclick="unselectAllReservations()">
+
+        ☐ Deseleccionar Todos
+
+      </button>
+
+    </div>
+
+
+    <div class="mb-3">
+
+      <button type="button" class="btn btn-success w-100" onclick="copySelectedReservations()">
+
+        📋 Copiar Seleccionados para Chofer
+
+      </button>
+
+    </div>
 
     <div class="card shadow mb-3">
 
@@ -30,14 +75,46 @@
 
     </div>
 
-    <div th:each="reservation : ${reservations}" class="card shadow-sm mb-3">
+    <div th:each="reservation : ${reservations}" th:class="${reservation.roundTrip}
+         ? 'card shadow-sm mb-3 border-success bg-success-subtle'
+         : 'card shadow-sm mb-3'">
 
       <div class="card-body">
 
+        <div class="form-check mb-3">
+
+          <input class="form-check-input reservation-checkbox" type="checkbox">
+
+          <label class="form-check-label">
+            Seleccionar para chofer
+          </label>
+
+        </div>
+
+        <div class="reservation-data d-none"
+     th:data-name="${reservation.passenger.firstName + ' ' + reservation.passenger.lastName}"
+     th:data-phone="${reservation.passenger.phone}"
+     th:data-locality="${reservation.pickupLocality}"
+     th:data-destination="${reservation.destination}"
+     th:data-address="${reservation.pickupAddress}"
+     th:data-return="${reservation.returnDate}"
+     th:data-roundtrip="${reservation.roundTrip}">
+</div>
+
         <h5>
+
           👤
+
           <span th:text="${reservation.passenger.firstName}"></span>
+
           <span th:text="${reservation.passenger.lastName}"></span>
+
+          <span th:if="${reservation.roundTrip}" class="badge bg-success ms-2">
+
+            🔄 Ida y Vuelta
+
+          </span>
+
         </h5>
 
         <p>
@@ -50,6 +127,12 @@
           🏁
           <strong>Destino:</strong>
           <span th:text="${reservation.destination}"></span>
+        </p>
+
+        <p th:if="${reservation.roundTrip}">
+          🔄
+          <strong>Regreso:</strong>
+          <span th:text="${reservation.returnDate}"></span>
         </p>
 
         <p th:if="${reservation.pickupAddress != null and !reservation.pickupAddress.isBlank()}">
@@ -87,6 +170,99 @@
     </a>
 
   </div>
+
+  <script>
+
+   function selectAllReservations() {
+
+    document
+        .querySelectorAll(".reservation-checkbox")
+        .forEach(checkbox => checkbox.checked = true);
+}
+
+function unselectAllReservations() {
+
+    document
+        .querySelectorAll(".reservation-checkbox")
+        .forEach(checkbox => checkbox.checked = false);
+}
+
+function copySelectedReservations() {
+
+    let text = "🚐 VIAJES DEL DÍA\n\n";
+
+    let count = 1;
+
+    document
+        .querySelectorAll(".reservation-checkbox")
+        .forEach(checkbox => {
+
+            if (!checkbox.checked) {
+                return;
+            }
+
+            const card =
+                checkbox.closest(".card");
+
+            const data =
+                card.querySelector(".reservation-data");
+
+            const destination =
+                data.dataset.destination;
+
+            text += count + ") " + data.dataset.name + "\n";
+
+            text += "📍 Retiro: "
+                 + data.dataset.locality
+                 + "\n";
+
+            text += "🏁 Destino: "
+                 + destination
+                 + "\n";
+
+            if (data.dataset.address) {
+
+                text += "🏠 "
+                     + data.dataset.address
+                     + "\n";
+            }
+
+            text += "📞 "
+                 + data.dataset.phone
+                 + "\n";
+
+            if (data.dataset.roundtrip === "true") {
+
+                text += "🔄 Regresa: "
+                     + data.dataset.return
+                     + "\n";
+            }
+
+            text += "\n";
+
+            count++;
+        });
+
+    navigator.clipboard.writeText(text);
+
+    alert("Listado copiado al portapapeles");
+}
+
+    function selectAllReservations() {
+
+      document
+        .querySelectorAll(".reservation-checkbox")
+        .forEach(checkbox => checkbox.checked = true);
+    }
+
+    function unselectAllReservations() {
+
+      document
+        .querySelectorAll(".reservation-checkbox")
+        .forEach(checkbox => checkbox.checked = false);
+    }
+
+  </script>
 
 </body>
 

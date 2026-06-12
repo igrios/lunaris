@@ -1,10 +1,21 @@
 package com.lunaris.ansenuza.domain.model;
 
-import jakarta.persistence.*;
-import lombok.*;
-
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "reservations")
@@ -35,6 +46,18 @@ public class Reservation {
 
     @Column(name = "destination", nullable = false)
     private String destination;
+
+    @Column(name = "amount")
+    private BigDecimal amount;
+
+    @Column(name = "round_trip")
+    private Boolean roundTrip;
+
+    @Column(name = "return_date")
+    private LocalDate returnDate;
+
+    @Column(name = "extra_amount")
+    private BigDecimal extraAmount;
 
     @Column(name = "payment_verified", nullable = false)
     private Boolean paymentVerified;

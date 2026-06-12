@@ -49,6 +49,8 @@ public class ReservationViewController {
                                 .pickupLocality(form.getPickupLocality())
                                 .pickupAddress(form.getPickupAddress())
                                 .destination(form.getDestination())
+                                .roundTrip(Boolean.TRUE.equals(form.getRoundTrip()))
+                                .returnDate(form.getReturnDate())
                                 .paymentVerified(Boolean.TRUE.equals(form.getPaymentVerified()))
                                 .notes(form.getNotes()).build();
 
