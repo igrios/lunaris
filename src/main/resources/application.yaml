@@ -21,7 +21,7 @@ springdoc:
 
 whatsapp:
   phone-number-id: 1160685710458679
-  access-token:  ${WHATSAPP_ACCESS_TOKEN:}
+  access-token:  EAAOpuc7IAZCYBRh79fhEF0fsKLCFRoEbDGvlVN6oUnN1PsJUE01vTQhUsyhKlP0naCpSyK4yZC096ZAPyExRxZC8LqsYeHXg7ZAUyPtpiD0rf9pHGu5G7uVkw7uRdZCZBLjFigYb63oCRkuHGxEXiI0pWpjU8uxffAUiOizgCCMtZBqfiqQXryz7YP9z2FbS4MZCEL9M69CQ5L74HvwDOz8ZBpHt9QGEkqqnMCZAFjDuZAf5Cna527KbXxaEb5GZC2qavmjJcWAbqMIbn104iADtvSJBVibMZD
 
 
 server:
