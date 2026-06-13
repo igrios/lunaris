@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +14,10 @@ import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm;
+import jakarta.validation.Valid;
+import org.springframework.validation.BindingResult;
+import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 
 @Controller
@@ -35,28 +40,48 @@ public class ReservationViewController {
                 return "reservation-form";
         }
 
-        @PostMapping("/new")
-        public String createReservation(@ModelAttribute CreateReservationForm form) {
+       @PostMapping("/new")
+public String createReservation(
+        @Valid @ModelAttribute("reservation") CreateReservationForm form,
+        BindingResult bindingResult,
+        Model model) {
 
-                Passenger passenger = Passenger.builder().firstName(form.getFirstName())
-                                .lastName(form.getLastName()).phone(form.getPhone())
-                                .cuil(form.getCuil()).build();
+    if (bindingResult.hasErrors()) {
 
-                passenger = passengerRepository.save(passenger);
+        model.addAttribute(
+                "localities",
+                localityRepository.findAll());
 
-                Reservation reservation = Reservation.builder().passenger(passenger)
-                                .travelDate(form.getTravelDate())
-                                .pickupLocality(form.getPickupLocality())
-                                .pickupAddress(form.getPickupAddress())
-                                .destination(form.getDestination())
-                                .roundTrip(Boolean.TRUE.equals(form.getRoundTrip()))
-                                .returnDate(form.getReturnDate())
-                                .paymentVerified(Boolean.TRUE.equals(form.getPaymentVerified()))
-                                .notes(form.getNotes()).build();
+        return "reservation-form";
+    }
 
-                reservationRepository.save(reservation);
+    Passenger passenger =
+            Passenger.builder()
+                    .firstName(form.getFirstName())
+                    .lastName(form.getLastName())
+                    .phone(form.getPhone())
+                    .cuil(form.getCuil())
+                    .build();
 
-                return "redirect:/dashboard";
-        }
+    passenger =
+            passengerRepository.save(passenger);
+
+    Reservation reservation =
+            Reservation.builder()
+                    .passenger(passenger)
+                    .travelDate(form.getTravelDate())
+                    .pickupLocality(form.getPickupLocality())
+                    .pickupAddress(form.getPickupAddress())
+                    .destination(form.getDestination())
+                    .roundTrip(Boolean.TRUE.equals(form.getRoundTrip()))
+                    .returnDate(form.getReturnDate())
+                    .paymentVerified(Boolean.TRUE.equals(form.getPaymentVerified()))
+                    .notes(form.getNotes())
+                    .build();
+
+    reservationRepository.save(reservation);
+
+    return "redirect:/dashboard";
+}
 
 }

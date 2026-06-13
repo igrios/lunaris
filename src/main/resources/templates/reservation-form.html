@@ -1,8 +1,10 @@
 <!DOCTYPE html>
+
 <html xmlns:th="http://www.thymeleaf.org">
 
 <head>
 
+    ```
     <title>Nueva Reserva</title>
 
     <meta charset="UTF-8">
@@ -10,26 +12,25 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-<style>
+    <style>
+        body {
+            background-color: #dee2e6;
+        }
 
-body {
-    background-color: #dee2e6;
-}
+        .card {
+            border: none;
+        }
 
-.card {
-    border: none;
-}
+        .card-body {
+            padding: 2rem;
+        }
 
-.card-body {
-    padding: 2rem;
-}
-
-h2, h4 {
-    color: #343a40;
-}
-
-</style>
-
+        h2,
+        h4 {
+            color: #343a40;
+        }
+    </style>
+    ```
 
 </head>
 
@@ -37,6 +38,7 @@ h2, h4 {
 
     <div class="container mt-4 mb-5">
 
+        ```
         <div class="card shadow">
 
             <div class="card-body">
@@ -46,6 +48,12 @@ h2, h4 {
                 </h2>
 
                 <form th:action="@{/reservations/new}" th:object="${reservation}" method="post">
+
+                    <div class="alert alert-danger" th:if="${#fields.hasAnyErrors()}">
+
+                        Por favor complete todos los campos obligatorios.
+
+                    </div>
 
                     <h4 class="mb-3">
                         Datos del Pasajero
@@ -59,6 +67,9 @@ h2, h4 {
 
                         <input type="text" class="form-control" th:field="*{firstName}">
 
+                        <div class="text-danger" th:errors="*{firstName}">
+                        </div>
+
                     </div>
 
                     <div class="mb-3">
@@ -69,6 +80,9 @@ h2, h4 {
 
                         <input type="text" class="form-control" th:field="*{lastName}">
 
+                        <div class="text-danger" th:errors="*{lastName}">
+                        </div>
+
                     </div>
 
                     <div class="mb-3">
@@ -77,7 +91,10 @@ h2, h4 {
                             Teléfono
                         </label>
 
-                        <input type="text" class="form-control" th:field="*{phone}">
+                        <input type="text" class="form-control" th:field="*{phone}" maxlength="15" inputmode="numeric"
+                            pattern="[0-9]{10,15}" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <div class="text-danger" th:errors="*{phone}">
+                        </div>
 
                     </div>
 
@@ -87,7 +104,11 @@ h2, h4 {
                             CUIL (opcional)
                         </label>
 
-                        <input type="text" class="form-control" th:field="*{cuil}">
+                        <input type="text" class="form-control" th:field="*{cuil}" maxlength="11" inputmode="numeric"
+                            pattern="[0-9]{11}" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+
+                        <div class="text-danger" th:errors="*{cuil}">
+                        </div>
 
                     </div>
 
@@ -104,6 +125,9 @@ h2, h4 {
                         </label>
 
                         <input type="date" class="form-control" th:field="*{travelDate}">
+
+                        <div class="text-danger" th:errors="*{travelDate}">
+                        </div>
 
                     </div>
 
@@ -169,6 +193,9 @@ h2, h4 {
 
                         </select>
 
+                        <div class="text-danger" th:errors="*{pickupLocality}">
+                        </div>
+
                     </div>
 
                     <div class="mb-3">
@@ -178,6 +205,9 @@ h2, h4 {
                         </label>
 
                         <input type="text" class="form-control" th:field="*{pickupAddress}">
+
+                        <div class="text-danger" th:errors="*{pickupAddress}">
+                        </div>
 
                     </div>
 
@@ -199,6 +229,9 @@ h2, h4 {
 
                         </select>
 
+                        <div class="text-danger" th:errors="*{destination}">
+                        </div>
+
                     </div>
 
                     <div class="form-check mb-3">
@@ -218,7 +251,7 @@ h2, h4 {
                         </label>
 
                         <textarea class="form-control" rows="3" th:field="*{notes}">
-                    </textarea>
+                </textarea>
 
                     </div>
 
@@ -233,46 +266,45 @@ h2, h4 {
             </div>
 
         </div>
+        ```
 
     </div>
 
-<script>
+    <script>
 
-function toggleReturnDate() {
+        function toggleReturnDate() {
 
-    const idaVuelta =
-        document.getElementById("idaVuelta");
+            const idaVuelta =
+                document.getElementById("idaVuelta");
 
-    const container =
-        document.getElementById("returnDateContainer");
+            const container =
+                document.getElementById("returnDateContainer");
 
-    if (idaVuelta.checked) {
+            if (idaVuelta.checked) {
 
-        container.style.display = "block";
+                container.style.display = "block";
 
-    } else {
+            } else {
 
-        container.style.display = "none";
+                container.style.display = "none";
 
-    }
-}
+            }
+        }
 
-document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("DOMContentLoaded", () => {
 
-    toggleReturnDate();
+            toggleReturnDate();
 
-    document
-        .getElementById("soloIda")
-        .addEventListener("change", toggleReturnDate);
+            document
+                .getElementById("soloIda")
+                .addEventListener("change", toggleReturnDate);
 
-    document
-        .getElementById("idaVuelta")
-        .addEventListener("change", toggleReturnDate);
-});
+            document
+                .getElementById("idaVuelta")
+                .addEventListener("change", toggleReturnDate);
+        });
 
-</script>
-
-
+    </script>
 
 </body>
 
