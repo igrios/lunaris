@@ -1,0 +1,2 @@
+ALTER TABLE passengers
+ALTER COLUMN cuil DROP NOT NULL;

@@ -1,13 +1,13 @@
 package com.lunaris.ansenuza.infrastructure.whatsapp;
 
 import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 @Service
@@ -35,9 +35,7 @@ public class WhatsAppService {
                 new HttpHeaders();
 
         headers.setBearerAuth(accessToken);
-
-        headers.setContentType(
-                MediaType.APPLICATION_JSON);
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
         Map<String, Object> body =
                 Map.of(
@@ -61,20 +59,36 @@ public class WhatsAppService {
             System.out.println("=================================");
 
             System.out.println("URL: " + url);
-System.out.println("BODY: " + body);
+            System.out.println("BODY: " + body);
+
             ResponseEntity<String> response =
                     restTemplate.postForEntity(
                             url,
                             request,
                             String.class);
 
+            System.out.println("=================================");
             System.out.println("STATUS: "
                     + response.getStatusCode());
-
             System.out.println("BODY: "
                     + response.getBody());
+            System.out.println("=================================");
+
+        } catch (HttpClientErrorException e) {
+
+            System.out.println("=================================");
+            System.out.println("ERROR STATUS: "
+                    + e.getStatusCode());
+            System.out.println("ERROR BODY:");
+            System.out.println(
+                    e.getResponseBodyAsString());
+            System.out.println("=================================");
 
         } catch (Exception e) {
+
+            System.out.println("=================================");
+            System.out.println("ERROR INESPERADO");
+            System.out.println("=================================");
 
             e.printStackTrace();
         }
