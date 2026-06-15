@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,9 +37,9 @@ public class WhatsAppWebhookController {
         private final ConversationSessionRepository conversationSessionRepository;
         private final LocalityRepository localityRepository;
 
-private final PassengerRepository passengerRepository;
+        private final PassengerRepository passengerRepository;
 
-private final ReservationRepository reservationRepository;
+        private final ReservationRepository reservationRepository;
 
 
         @GetMapping("/webhook")
@@ -76,7 +78,36 @@ private final ReservationRepository reservationRepository;
 
                         String from = (String) message.get("from");
 
+                        String type = (String) message.get("type");
+
+                        System.out.println("TIPO MENSAJE: " + type);
+
                         Map<String, Object> text = (Map<String, Object>) message.get("text");
+                        if ("image".equals(type)) {
+
+
+                                String destination = normalizeWhatsAppNumber(from);
+                                System.out.println("=================================");
+
+                                System.out.println("XXXXXXXXXXXXXXXXXXXXXXXX");
+                                System.out.println("MESSAGE COMPLETO:");
+                                System.out.println(message);
+                                System.out.println("XXXXXXXXXXXXXXXXXXXXXXXX");
+
+                                System.out.println("FROM: " + from);
+
+                                System.out.println("=================================");
+
+                                whatsAppService.sendMessage(destination,
+                                                """
+                                                                ✅ Comprobante recibido.
+
+                                                                Nuestro equipo verificará el pago y confirmará la reserva a la brevedad.
+                                                                """);
+
+                                return ResponseEntity.ok().build();
+                        }
+
 
                         if (text == null) {
                                 return ResponseEntity.ok().build();
@@ -125,21 +156,45 @@ private final ReservationRepository reservationRepository;
 
                 if ("hola".equals(body)) {
 
+                        Optional<Passenger> passenger =
+                                        passengerRepository.findByPhone(phoneNumber);
+
+                        String welcomeMessage;
+
+                        if (passenger.isPresent()) {
+
+                                welcomeMessage = """
+                                                🚐 Bienvenido nuevamente %s
+
+                                                1️⃣ Reservar viaje
+
+                                                2️⃣ Consultar reserva
+
+                                                3️⃣ Hablar con Martín
+
+                                                Responda con el número.
+                                                """.formatted(passenger.get().getFirstName());
+
+                        } else {
+
+                                welcomeMessage = """
+                                                🚐 Bienvenido a Lunaris Ansenuza
+
+                                                1️⃣ Reservar viaje
+
+                                                2️⃣ Consultar reserva
+
+                                                3️⃣ Hablar con Martín
+
+                                                Responda con el número.
+                                                """;
+                        }
+
                         session.setCurrentStep("MAIN_MENU");
 
                         conversationSessionRepository.save(session);
 
-                        whatsAppService.sendMessage(phoneNumber, """
-                                        🚐 Bienvenido a Lunaris Ansenuza
-
-                                        1️⃣ Reservar viaje
-
-                                        2️⃣ Consultar reserva
-
-                                        3️⃣ Hablar con Martín
-
-                                        Responda con el número.
-                                        """);
+                        whatsAppService.sendMessage(phoneNumber, welcomeMessage);
 
                         return;
                 }
@@ -148,11 +203,153 @@ private final ReservationRepository reservationRepository;
 
                 if ("1".equals(body) && "MAIN_MENU".equals(session.getCurrentStep())) {
 
+                        Passenger passenger =
+                                        passengerRepository.findByPhone(phoneNumber).orElse(null);
+
+                        if (passenger != null) {
+
+                                session.setPickupLocality(passenger.getLocality());
+
+                                session.setPickupAddress(passenger.getAddress());
+
+                                session.setCurrentStep("CONFIRM_SAVED_ADDRESS");
+
+                                conversationSessionRepository.save(session);
+
+                                whatsAppService.sendMessage(phoneNumber, """
+                                                📍 Encontramos sus datos guardados.
+
+                                                Localidad: %s
+                                                Dirección: %s
+
+                                                ¿Desea utilizarlos?
+
+                                                1️⃣ Sí
+                                                2️⃣ Modificar
+                                                """.formatted(passenger.getLocality(),
+                                                passenger.getAddress()));
+
+                                return;
+                        }
+
                         session.setCurrentStep("ASK_LOCALITY");
 
                         conversationSessionRepository.save(session);
 
                         whatsAppService.sendMessage(phoneNumber, buildLocalitiesMenu());
+
+                        return;
+                }
+                if ("2".equals(body) && "MAIN_MENU".equals(session.getCurrentStep())) {
+
+                        Passenger passenger =
+                                        passengerRepository.findByPhone(phoneNumber).orElse(null);
+
+                        if (passenger == null) {
+
+                                whatsAppService.sendMessage(phoneNumber, """
+                                                No encontramos reservas asociadas a este número.
+                                                """);
+
+                                return;
+                        }
+
+                        List<Reservation> reservations = reservationRepository
+                                        .findByPassengerOrderByTravelDateAsc(passenger);
+
+                        reservations = reservations.stream()
+                                        .filter(r -> !r.getTravelDate().isBefore(LocalDate.now()))
+                                        .collect(Collectors.toList());
+
+                        if (reservations.isEmpty()) {
+
+                                whatsAppService.sendMessage(phoneNumber, """
+                                                No posee reservas registradas.
+                                                """);
+
+                                return;
+                        }
+
+                        StringBuilder response = new StringBuilder("📋 Sus reservas\n\n");
+
+                        int index = 1;
+
+                        for (Reservation reservation : reservations) {
+                                String paymentStatus = Boolean.TRUE.equals(
+                                                reservation.getPaymentVerified()) ? "✅ Confirmada"
+                                                                : "⏳ Pendiente de pago";
+
+                                response.append(index++).append(")\n").append("Fecha: ")
+                                                .append(reservation.getTravelDate()).append("\n")
+                                                .append("Origen: ")
+                                                .append(reservation.getPickupLocality())
+                                                .append("\n").append("Destino: ")
+                                                .append(reservation.getDestination()).append("\n")
+                                                .append("Estado: ").append(paymentStatus)
+                                                .append("\n\n");
+                        }
+
+                        whatsAppService.sendMessage(phoneNumber, response.toString());
+
+                        return;
+                }
+
+                if ("CONFIRM_SAVED_ADDRESS".equals(session.getCurrentStep())) {
+
+                        if ("1".equals(body)) {
+
+                                Passenger passenger = passengerRepository.findByPhone(phoneNumber)
+                                                .orElse(null);
+
+                                if (passenger != null) {
+
+                                        session.setPassengerName(passenger.getFirstName() + " "
+                                                        + passenger.getLastName());
+                                }
+
+                                session.setCurrentStep("ASK_DESTINATION");
+
+                                conversationSessionRepository.save(session);
+
+                                whatsAppService.sendMessage(phoneNumber, """
+                                                🎯 Seleccione el destino:
+
+                                                1) Aeropuerto Córdoba
+                                                2) Córdoba Capital
+
+                                                Responda con el número.
+                                                """);
+
+                                return;
+                        }
+
+                        if ("2".equals(body)) {
+
+                                Passenger passenger = passengerRepository.findByPhone(phoneNumber)
+                                                .orElse(null);
+
+                                if (passenger != null) {
+
+                                        session.setPassengerName(passenger.getFirstName() + " "
+                                                        + passenger.getLastName());
+                                }
+
+                                session.setCurrentStep("ASK_LOCALITY");
+
+                                conversationSessionRepository.save(session);
+
+                                whatsAppService.sendMessage(phoneNumber, buildLocalitiesMenu());
+
+                                return;
+                        }
+
+
+                        whatsAppService.sendMessage(phoneNumber, """
+                                        Opción inválida.
+
+                                        1️⃣ Sí
+                                        2️⃣ Modificar
+                                        """);
 
                         return;
                 }
@@ -179,16 +376,33 @@ private final ReservationRepository reservationRepository;
 
                                 session.setPickupLocality(selected.getName());
 
-                                session.setCurrentStep("ASK_NAME");
+                                if (session.getPassengerName() != null
+                                                && !session.getPassengerName().isBlank()) {
 
-                                conversationSessionRepository.save(session);
+                                        session.setCurrentStep("ASK_ADDRESS");
 
-                                whatsAppService.sendMessage(phoneNumber, """
-                                                👤 Indique nombre y apellido del pasajero.
+                                        conversationSessionRepository.save(session);
 
-                                                Ejemplo:
-                                                Juan Pérez
-                                                """);
+                                        whatsAppService.sendMessage(phoneNumber, """
+                                                        📍 Indique la dirección de retiro.
+
+                                                        Ejemplo:
+                                                        Belgrano 123
+                                                        """);
+
+                                } else {
+
+                                        session.setCurrentStep("ASK_NAME");
+
+                                        conversationSessionRepository.save(session);
+
+                                        whatsAppService.sendMessage(phoneNumber, """
+                                                        👤 Indique nombre y apellido del pasajero.
+
+                                                        Ejemplo:
+                                                        Juan Pérez
+                                                        """);
+                                }
 
                                 return;
 
@@ -413,124 +627,116 @@ private final ReservationRepository reservationRepository;
                         return;
                 }
 
-                        if ("ASK_CUIL".equals(session.getCurrentStep())) {
-        
-                                session.setCuil(body);
-        
-                                session.setCurrentStep("ASK_CONFIRMATION");
-        
-                                conversationSessionRepository.save(session);
-        
-                                sendReservationSummary(phoneNumber, session);
-        
+                if ("ASK_CUIL".equals(session.getCurrentStep())) {
+
+                        session.setCuil(body);
+
+                        session.setCurrentStep("ASK_CONFIRMATION");
+
+                        conversationSessionRepository.save(session);
+
+                        sendReservationSummary(phoneNumber, session);
+
+                        return;
+                }
+
+                if ("ASK_CONFIRMATION".equals(session.getCurrentStep())) {
+                        System.out.println("ENTRO A ASK_CONFIRMATION");
+                        if ("1".equals(body)) {
+
+                                System.out.println("BUSCANDO PASSENGER");
+                                Passenger passenger = passengerRepository.findByPhone(phoneNumber)
+                                                .orElseGet(() -> {
+                                                        System.out.println("CREANDO PASSENGER");
+                                                        String[] names = session.getPassengerName()
+                                                                        .trim().split("\\s+", 2);
+
+                                                        String firstName = names[0];
+
+                                                        String lastName =
+                                                                        names.length > 1 ? names[1]
+                                                                                        : "";
+                                                        System.out.println("CREANDO RESERVATION");
+                                                        Passenger newPassenger = Passenger.builder()
+                                                                        .firstName(firstName)
+                                                                        .lastName(lastName)
+                                                                        .phone(phoneNumber)
+                                                                        .cuil(session.getCuil())
+                                                                        .address(session.getPickupAddress())
+                                                                        .locality(session
+                                                                                        .getPickupLocality())
+                                                                        .build();
+
+                                                        return passengerRepository
+                                                                        .save(newPassenger);
+                                                });
+
+                                Reservation reservation = Reservation.builder().passenger(passenger)
+                                                .travelDate(session.getTravelDate())
+                                                .pickupLocality(session.getPickupLocality())
+                                                .pickupAddress(session.getPickupAddress())
+                                                .destination(session.getDestination())
+                                                .roundTrip(session.getRoundTrip())
+                                                .paymentVerified(false).amount(BigDecimal.ZERO)
+                                                .build();
+
+                                System.out.println("RESERVATION ID: " + reservation.getId());
+                                reservationRepository.save(reservation);
+                                System.out.println("RESERVA PERSISTIDA CORRECTAMENTE");
+
+                                conversationSessionRepository.delete(session);
+
+                                whatsAppService.sendMessage(phoneNumber,
+                                                """
+                                                                ✅ Reserva registrada correctamente
+
+                                                                Su solicitud fue recibida y quedó registrada en nuestro sistema.
+
+                                                                💳 Datos para transferencia
+
+                                                                Titular:
+                                                                Martín Fernando Manuel Cuestaz
+
+                                                                Alias:
+                                                                cuestazm.bna
+
+                                                                CBU:
+                                                                01103739330037363119529
+
+                                                                Una vez realizado el pago, envíe el comprobante por este mismo medio para verificar la operación.
+
+                                                                📞 Nos comunicaremos con usted a la brevedad para coordinar los detalles del viaje y confirmar definitivamente la reserva.
+
+                                                                Gracias por elegir Lunaris Ansenuza 🚐
+                                                                """);
+
                                 return;
                         }
 
-if ("ASK_CONFIRMATION".equals(session.getCurrentStep())) {
+                        if ("2".equals(body)) {
 
-    if ("1".equals(body)) {
+                                conversationSessionRepository.delete(session);
 
-        Passenger passenger =
-                passengerRepository
-                        .findByPhone(phoneNumber)
-                        .orElseGet(() -> {
+                                whatsAppService.sendMessage(phoneNumber, """
+                                                ❌ Reserva cancelada.
 
-                            String[] names =
-                                    session.getPassengerName()
-                                            .trim()
-                                            .split("\\s+", 2);
+                                                Si desea realizar una nueva reserva envíe:
 
-                            String firstName =
-                                    names[0];
+                                                Hola
+                                                """);
 
-                            String lastName =
-                                    names.length > 1
-                                            ? names[1]
-                                            : "";
+                                return;
+                        }
 
-                            Passenger newPassenger =
-                                    Passenger.builder()
-                                            .firstName(firstName)
-                                            .lastName(lastName)
-                                            .phone(phoneNumber)
-                                            .cuil(session.getCuil())
-                                            .address(session.getPickupAddress())
-                                            .locality(session.getPickupLocality())
-                                            .build();
+                        whatsAppService.sendMessage(phoneNumber, """
+                                        Opción inválida.
 
-                            return passengerRepository
-                                    .save(newPassenger);
-                        });
+                                        1) Confirmar
+                                        2) Cancelar
+                                        """);
 
-        Reservation reservation =
-                Reservation.builder()
-                        .passenger(passenger)
-                        .travelDate(session.getTravelDate())
-                        .pickupLocality(session.getPickupLocality())
-                        .pickupAddress(session.getPickupAddress())
-                        .destination(session.getDestination())
-                        .roundTrip(session.getRoundTrip())
-                        .paymentVerified(false)
-                        .amount(BigDecimal.ZERO)
-                        .build();
-
-        reservationRepository.save(reservation);
-
-        conversationSessionRepository.delete(session);
-
-        whatsAppService.sendMessage(
-                phoneNumber,
-                """
-                ✅ Reserva registrada correctamente
-
-                Su solicitud fue recibida y quedó registrada en nuestro sistema.
-
-                💳 Alias para transferencia:
-                LUNARIS.ANSENUZA
-
-                Una vez realizado el pago, envíe el comprobante por este mismo medio para verificar la operación.
-
-                📞 Nos comunicaremos con usted a la brevedad para coordinar los detalles del viaje y confirmar definitivamente la reserva.
-
-                Gracias por elegir Lunaris Ansenuza 🚐
-                """
-        );
-
-        return;
-    }
-
-    if ("2".equals(body)) {
-
-        conversationSessionRepository.delete(session);
-
-        whatsAppService.sendMessage(
-                phoneNumber,
-                """
-                ❌ Reserva cancelada.
-
-                Si desea realizar una nueva reserva envíe:
-
-                Hola
-                """
-        );
-
-        return;
-    }
-
-    whatsAppService.sendMessage(
-            phoneNumber,
-            """
-            Opción inválida.
-
-            1) Confirmar
-            2) Cancelar
-            """
-    );
-
-    return;
-}
-
-
+                        return;
+                }
 
 
 

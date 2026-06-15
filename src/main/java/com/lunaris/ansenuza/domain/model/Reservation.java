@@ -62,6 +62,9 @@ public class Reservation {
     @Column(name = "payment_verified", nullable = false)
     private Boolean paymentVerified;
 
+@Column(name = "status")
+private String status;
+
     @Column(name = "notes")
     private String notes;
 }

@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.domain.repository;
 
+import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.time.LocalDate;
@@ -11,4 +12,11 @@ public interface ReservationRepository
 
 
           List<Reservation> findByTravelDate(LocalDate travelDate);
+
+          List<Reservation> findByPassengerOrderByTravelDateAsc(
+        Passenger passenger);
+
+          List<Reservation> findByPassenger(Passenger passenger);
+
+
 }
