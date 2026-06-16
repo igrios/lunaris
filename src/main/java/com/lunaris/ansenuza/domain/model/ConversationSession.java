@@ -33,25 +33,32 @@ public class ConversationSession {
     @Column(name = "current_step")
     private String currentStep;
 
-   
-
     @Column(name = "last_interaction")
     private LocalDateTime lastInteraction;
 
     private String pickupLocality;
-
-     private String passengerName;
-
+    private String passengerName;
     private String pickupAddress;
+    private String destination;
+    private Boolean roundTrip;
+    private LocalDate travelDate;
+    private Boolean requiresInvoice;
+    private String cuil;
 
-private String destination;
+    // Nuevos campos para control de acompañantes individuales y plazas
+    @Column(name = "passenger_count")
+    private Integer passengerCount;
 
-private Boolean roundTrip;
+    @Column(name = "companion_names", length = 500)
+    private String companionNames;
 
-private LocalDate travelDate;
+    @Column(name = "current_companion_index")
+    private Integer currentCompanionIndex;
 
-private Boolean requiresInvoice;
+    @Column(name = "total_companions")
+    private Integer totalCompanions;
 
-private String cuil;
-
+    // Nuevo campo para retener la fecha de regreso temporalmente
+    @Column(name = "return_date")
+    private LocalDate returnDate;
 }

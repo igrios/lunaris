@@ -15,7 +15,7 @@ public class WhatsAppController {
     public String test() {
 
         whatsAppService.sendMessage(
-                "543512282251",
+                "543562553866",
                 "Hola desde Lunaris 🚐");
 
         return "Mensaje enviado";
