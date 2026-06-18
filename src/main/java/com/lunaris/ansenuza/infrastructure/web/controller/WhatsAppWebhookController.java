@@ -98,13 +98,13 @@ public class WhatsAppWebhookController {
                                                 processMessage(destination, finalDerivedBody);
                                         }
                                 } catch (Exception ex) {
-                                        log.error("Error asincrónico: ", ex);
+                                        log.error("Error asincrónico crítico: ", ex);
                                 }
                         });
 
                         return ResponseEntity.ok().build();
                 } catch (Exception e) {
-                        log.error("Error crítico: ", e);
+                        log.error("Error crítico general: ", e);
                         return ResponseEntity.ok().build();
                 }
         }
@@ -145,9 +145,6 @@ public class WhatsAppWebhookController {
 
                 boolean isGreeting = "hola".equals(body) || "buen dia".equals(body) || "buenas".equals(body) || "menu".equals(body);
 
-                // =====================================================================
-                // PASO 1: SALUDO INTELIGENTE Y LISTADO DE PUEBLOS
-                // =====================================================================
                 if ("START".equals(session.getCurrentStep()) || isGreeting) {
                         session.setCurrentStep("ASK_LOCALITY");
                         conversationSessionRepository.saveAndFlush(session);
@@ -161,9 +158,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 2: COTIZACIÓN Y HORARIOS DE PASO
-                // =====================================================================
                 if ("ASK_LOCALITY".equals(session.getCurrentStep())) {
                         try {
                                 int option = Integer.parseInt(body);
@@ -175,21 +169,35 @@ public class WhatsAppWebhookController {
                                 }
 
                                 Locality selected = localities.get(option - 1);
+                                BigDecimal baseFare;
+
+                                try {
+                                        // 💰 Intentamos calcular el precio usando la regla de negocio
+                                        baseFare = pricingAndScheduleService.calculateTripPrice(selected.getName(), true, 1);
+                                } catch (IllegalArgumentException ex) {
+                                        // 🛑 CAPTURA DE ERROR EXPLICITA: Si no encuentra tarifa (Ej: Marull), avisa sin colgarse
+                                        log.warn("Falta tarifa en base para la localidad seleccionada: {}", selected.getName());
+                                        whatsAppService.sendMessage(phoneNumber, "⚠️ Lo sentimos, actualmente *no hay tarifa para esa ciudad* de forma automatizada.\n\nPor favor, escribinos para coordinar el viaje de forma manual o seleccioná otra opción ingresando 'Hola'.");
+                                        
+                                        // Reseteamos el estado de la sesión para que no quede trabado en bucle
+                                        session.setCurrentStep("START");
+                                        conversationSessionRepository.saveAndFlush(session);
+                                        return;
+                                }
+
+                                // Si la tarifa existe, avanzamos con el flujo normal del sistema
                                 session.setPickupLocality(selected.getName());
                                 session.setCurrentStep("ASK_MARKETING_CONFIRMATION");
                                 conversationSessionRepository.saveAndFlush(session);
 
-                               BigDecimal baseFare = pricingAndScheduleService.calculateTripPrice(selected.getName(), false, 1);
                                 String primerHorario = pricingAndScheduleService.calculateEstimatedPickupTime(selected.getName(), "03:00");
                                 String segundoHorario = pricingAndScheduleService.calculateEstimatedPickupTime(selected.getName(), "08:00");
 
-                                // 🎲 Generamos un número aleatorio dinámico entre 1 y 4
-                                
-                                int lugaresDisponibles = new java.util.Random().nextInt(3) + 1;
+                                int lugaresDisponibles = new java.util.Random().nextInt(4) + 1;
 
                                 String text = """
-                                                💰 *Cotización para %s:*
-                                                El valor base hacia Córdoba es de *$%,.0f*.
+                                                💰 *Tarifa base para %s:*
+                                                El valor de referencia (Ida y Vuelta) es de *$%,.0f*.
                                                 
                                                 ⏱️ *Horarios de paso por tu localidad:*
                                                 • Primer horario: *%s*
@@ -199,20 +207,21 @@ public class WhatsAppWebhookController {
                                                 
                                                 ¿Deseás realizar tu reserva ahora mismo?
                                                 """.formatted(selected.getName(), baseFare, primerHorario, segundoHorario, lugaresDisponibles);
+
                                 whatsAppService.sendInteractiveButtons(phoneNumber, "LUNARIS - Cotización", text, List.of(
                                         Map.of("id", "yes_reserve", "title", "Reservar ✅"),
                                         Map.of("id", "no_cancel", "title", "En otro momento ❌")
                                 ));
                                 return;
-                        } catch (Exception e) {
+                        } catch (NumberFormatException e) {
                                 whatsAppService.sendMessage(phoneNumber, "⚠️ Por favor, respondé únicamente con el número correlativo de tu localidad.");
+                                return;
+                        } catch (Exception e) {
+                                log.error("Error en ASK_LOCALITY: ", e);
                                 return;
                         }
                 }
 
-                // =====================================================================
-                // PASO 3: RESPUESTA GATILLO COMERCIAL
-                // =====================================================================
                 if ("ASK_MARKETING_CONFIRMATION".equals(session.getCurrentStep())) {
                         if ("yes_reserve".equals(body)) {
                                 session.setCurrentStep("SELECT_SCHEDULE");
@@ -240,14 +249,11 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 4: CAPTURA DEL HORARIO (Mapeado a currentCompanionIndex para seguridad)
-                // =====================================================================
                 if ("SELECT_SCHEDULE".equals(session.getCurrentStep())) {
                         if ("time_0300".equals(body)) {
-                                session.setCurrentCompanionIndex(3); // Codificamos 3:00 AM
+                                session.setCurrentCompanionIndex(3); 
                         } else if ("time_0800".equals(body)) {
-                                session.setCurrentCompanionIndex(8); // Codificamos 8:00 AM
+                                session.setCurrentCompanionIndex(8); 
                         } else {
                                 return;
                         }
@@ -257,7 +263,7 @@ public class WhatsAppWebhookController {
                                 session.setPassengerName(existingPassenger.get().getFirstName() + " " + existingPassenger.get().getLastName());
                                 session.setCurrentStep("ASK_COMPANIONS_COUNT");
                                 conversationSessionRepository.saveAndFlush(session);
-                                whatsAppService.sendMessage(phoneNumber, "🔢 *¿Cuántos acompañantes viajan con vos?*\n\n_(Si viajás solo, respondé 0)_");
+                                whatsAppService.sendMessage(phoneNumber, "🔢 *Escribí cuántas personas viajan con vos, o 0 si estás solo (0)*");
                         } else {
                                 session.setCurrentStep("ASK_NAME");
                                 conversationSessionRepository.saveAndFlush(session);
@@ -266,20 +272,14 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 5: CAPTURA NOMBRE (Solo clientes nuevos)
-                // =====================================================================
                 if ("ASK_NAME".equals(session.getCurrentStep())) {
                         session.setPassengerName(message.trim());
                         session.setCurrentStep("ASK_COMPANIONS_COUNT");
                         conversationSessionRepository.saveAndFlush(session);
-                        whatsAppService.sendMessage(phoneNumber, "🔢 *¿Cuántos acompañantes viajan con vos?*\n\n_(Si viajás solo, respondé 0)_");
+                        whatsAppService.sendMessage(phoneNumber, "🔢 *Escribí cuántas personas viajan con vos, o 0 si estás solo (0)*");
                         return;
                 }
 
-                // =====================================================================
-                // PASO 5b: CANTIDAD DE ACOMPAÑANTES
-                // =====================================================================
                 if ("ASK_COMPANIONS_COUNT".equals(session.getCurrentStep())) {
                         try {
                                 int count = Integer.parseInt(body);
@@ -291,31 +291,13 @@ public class WhatsAppWebhookController {
                                 if (count == 0) {
                                         session.setPassengerCount(1);
                                         session.setCompanionNames(null);
-                                        
-                                        // Verificamos si ya tenemos una dirección histórica guardada
-                                        Optional<Passenger> passenger = passengerRepository.findByPhone(phoneNumber);
-                                        if (passenger.isPresent() && passenger.get().getAddress() != null) {
-                                                session.setPickupAddress(passenger.get().getAddress());
-                                                session.setCurrentStep("CONFIRM_ADDRESS_BUTTONS");
-                                                conversationSessionRepository.saveAndFlush(session);
-                                                
-                                                whatsAppService.sendInteractiveButtons(phoneNumber, "Dirección de Retiro", 
-                                                        "📍 *Detectamos tu domicilio habitual:*\n" + passenger.get().getAddress() + "\n\n¿Pasamos a buscarte por acá?", List.of(
-                                                        Map.of("id", "addr_yes", "title", "Sí, pasar por acá ✅"),
-                                                        Map.of("id", "addr_no", "title", "Nueva Dirección 🏠")
-                                                ));
-                                        } else {
-                                                session.setCurrentStep("ASK_ADDRESS_TEXT");
-                                                conversationSessionRepository.saveAndFlush(session);
-                                                whatsAppService.sendMessage(phoneNumber, "🏠 *¿Por qué dirección exacta pasamos a buscarte?*\n\n_Ejemplo: Av. San Martín 450_");
-                                        }
+                                        evaluarDireccionPasajero(phoneNumber, session);
                                 } else {
                                         session.setTotalCompanions(count);
-                                        session.setPassengerCount(1 + count);
+                                        session.setPassengerCount(1); 
                                         session.setCurrentStep("ASK_INDIVIDUAL_COMPANION");
                                         session.setCompanionNames(""); 
-                                        // Usamos id temporalmente para llevar la cuenta del bucle (arranca en 1)
-                                        session.setId(1L); 
+                                        session.setCuil("1"); 
                                         conversationSessionRepository.saveAndFlush(session);
                                         whatsAppService.sendMessage(phoneNumber, "👤 *Ingresá Nombre y Apellido de tu acompañante 1:*");
                                 }
@@ -326,47 +308,32 @@ public class WhatsAppWebhookController {
                         }
                 }
 
-                // =====================================================================
-                // PASO 5c: BUCLE MULTI-ACOMPAÑANTE
-                // =====================================================================
                 if ("ASK_INDIVIDUAL_COMPANION".equals(session.getCurrentStep())) {
                         String currentName = message.trim();
                         String accumulated = session.getCompanionNames();
-                        accumulated = (accumulated == null || accumulated.isBlank()) ? currentName : accumulated + ", " + currentName;
+                        
+                        if (accumulated == null || accumulated.isBlank()) {
+                                accumulated = currentName;
+                        } else {
+                                accumulated = accumulated + ", " + currentName;
+                        }
                         session.setCompanionNames(accumulated);
+                        session.setPassengerCount(session.getPassengerCount() + 1); 
 
-                        int currentIndex = session.getId().intValue();
+                        int currentIndex = Integer.parseInt(session.getCuil());
                         int nextIndex = currentIndex + 1;
 
-                        if (nextIndex > session.getTotalCompanions()) {
-                                // Terminó el bucle, pasamos a validar dirección habitual
-                                Optional<Passenger> passenger = passengerRepository.findByPhone(phoneNumber);
-                                if (passenger.isPresent() && passenger.get().getAddress() != null) {
-                                        session.setPickupAddress(passenger.get().getAddress());
-                                        session.setCurrentStep("CONFIRM_ADDRESS_BUTTONS");
-                                        conversationSessionRepository.saveAndFlush(session);
-                                        
-                                        whatsAppService.sendInteractiveButtons(phoneNumber, "Dirección de Retiro", 
-                                                "📍 *Detectamos tu domicilio habitual:*\n" + passenger.get().getAddress() + "\n\n¿Pasamos a buscarte por acá?", List.of(
-                                                Map.of("id", "addr_yes", "title", "Sí, pasar por acá ✅"),
-                                                Map.of("id", "addr_no", "title", "Nueva Dirección 🏠")
-                                        ));
-                                } else {
-                                        session.setCurrentStep("ASK_ADDRESS_TEXT");
-                                        conversationSessionRepository.saveAndFlush(session);
-                                        whatsAppService.sendMessage(phoneNumber, "🏠 *¿Por qué dirección exacta pasamos a buscarte?*\n\n_Ejemplo: Belgrano 780_");
-                                }
+                        if (currentIndex >= session.getTotalCompanions()) {
+                                session.setCuil(null); 
+                                evaluarDireccionPasajero(phoneNumber, session);
                         } else {
-                                session.setId((long) nextIndex);
+                                session.setCuil(String.valueOf(nextIndex)); 
                                 conversationSessionRepository.saveAndFlush(session);
                                 whatsAppService.sendMessage(phoneNumber, "👤 *Ingresá Nombre y Apellido de tu acompañante " + nextIndex + ":*");
                         }
                         return;
                 }
 
-                // =====================================================================
-                // PASO 6a: PROCESAMIENTO BOTONES DIRECCIÓN HABITUAL
-                // =====================================================================
                 if ("CONFIRM_ADDRESS_BUTTONS".equals(session.getCurrentStep())) {
                         if ("addr_yes".equals(body)) {
                                 session.setCurrentStep("ASK_DESTINATION");
@@ -386,9 +353,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 6b: CAPTURA DIRECCIÓN TEXTO DIRECTO
-                // =====================================================================
                 if ("ASK_ADDRESS_TEXT".equals(session.getCurrentStep())) {
                         session.setPickupAddress(message);
                         session.setCurrentStep("ASK_DESTINATION");
@@ -401,9 +365,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 7: DESTINO COBERTURA CÓRDOBA
-                // =====================================================================
                 if ("ASK_DESTINATION".equals(session.getCurrentStep())) {
                         String dest = "dest_aeropuerto".equals(body) ? "Aeropuerto Córdoba" : "dest_capital".equals(body) ? "Córdoba" : null;
                         if (dest == null) return;
@@ -419,9 +380,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 8: COBERTURA TRAMO
-                // =====================================================================
                 if ("ASK_TRIP_TYPE".equals(session.getCurrentStep())) {
                         if ("trip_ida".equals(body)) {
                                 session.setRoundTrip(false);
@@ -437,9 +395,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 9: FECHA IDA + MENÚ DE VUELTA FIJA/ABIERTA
-                // =====================================================================
                 if ("ASK_DATE".equals(session.getCurrentStep())) {
                         try {
                                 LocalDate travelDate = LocalDate.parse(message, dateFormatter);
@@ -461,7 +416,7 @@ public class WhatsAppWebhookController {
                                 } else {
                                         session.setCurrentStep("ASK_DNI_REQUIRED");
                                         conversationSessionRepository.saveAndFlush(session);
-                                        whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números, sin espacios ni guiones):");
+                                        whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números):");
                                 }
                                 return;
                         } catch (Exception e) {
@@ -470,9 +425,6 @@ public class WhatsAppWebhookController {
                         }
                 }
 
-                // =====================================================================
-                // PASO 9b: SELECCIÓN VUELTA ABIERTA O CERRADA
-                // =====================================================================
                 if ("ASK_RETURN_DATE_TYPE".equals(session.getCurrentStep())) {
                         if ("return_fixed".equals(body)) {
                                 session.setCurrentStep("ASK_RETURN_DATE");
@@ -481,18 +433,15 @@ public class WhatsAppWebhookController {
                                 return;
                         }
                         if ("return_open".equals(body)) {
-                                session.setReturnDate(null); // Seteado como abierto
+                                session.setReturnDate(null); 
                                 session.setCurrentStep("ASK_DNI_REQUIRED");
                                 conversationSessionRepository.saveAndFlush(session);
-                                whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números, sin espacios ni guiones):");
+                                whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números):");
                                 return;
                         }
                         return;
                 }
 
-                // =====================================================================
-                // PASO 10: CAPTURA FECHA REGRESO FIJO
-                // =====================================================================
                 if ("ASK_RETURN_DATE".equals(session.getCurrentStep())) {
                         try {
                                 LocalDate returnDate = LocalDate.parse(message, dateFormatter);
@@ -503,7 +452,7 @@ public class WhatsAppWebhookController {
                                 session.setReturnDate(returnDate);
                                 session.setCurrentStep("ASK_DNI_REQUIRED");
                                 conversationSessionRepository.saveAndFlush(session);
-                                whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números, sin espacios ni guiones):");
+                                whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números):");
                                 return;
                         } catch (Exception e) {
                                 whatsAppService.sendMessage(phoneNumber, "❌ *Formato erróneo.* Ingresalo siguiendo el ejemplo: 25/06/2026");
@@ -511,9 +460,6 @@ public class WhatsAppWebhookController {
                         }
                 }
 
-                // =====================================================================
-                // PASO 10b: CAPTURA OBLIGATORIA DE DNI/CUIT (Inmune a saltos)
-                // =====================================================================
                 if ("ASK_DNI_REQUIRED".equals(session.getCurrentStep())) {
                         String cleanDni = body.replaceAll("[^0-9]", "");
                         if (cleanDni.length() < 7 || cleanDni.length() > 11) {
@@ -527,9 +473,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // =====================================================================
-                // PASO 11: CONFIRMACIÓN FINAL Y RECORTE DE OBSERVACIONES
-                // =====================================================================
                 if ("ASK_CONFIRMATION".equals(session.getCurrentStep())) {
                         if ("confirm_ok".equals(body)) {
                                 Passenger passenger = passengerRepository.findByPhone(phoneNumber).orElseGet(() -> {
@@ -540,29 +483,34 @@ public class WhatsAppWebhookController {
                                                         .locality(session.getPickupLocality()).cuil(session.getCuil()).build());
                                 });
 
-                                // Si el pasajero habitual cambió de domicilio, actualizamos su ficha maestra
-                                if (!session.getPickupAddress().equalsIgnoreCase(passenger.getAddress())) {
+                                if (!session.getPickupAddress().equalsIgnoreCase(passenger.getAddress()) || 
+                                    !session.getPickupLocality().equalsIgnoreCase(passenger.getLocality())) {
                                         passenger.setAddress(session.getPickupAddress());
+                                        passenger.setLocality(session.getPickupLocality());
                                         passengerRepository.saveAndFlush(passenger);
                                 }
 
                                 int totalAsientos = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
-                                BigDecimal price = pricingAndScheduleService.calculateTripPrice(session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
+                                
+                                BigDecimal price = pricingAndScheduleService.calculateTripPrice(
+                                        session.getPickupLocality(), 
+                                        session.getRoundTrip(), 
+                                        totalAsientos
+                                );
                                 
                                 String baseHour = (session.getCurrentCompanionIndex() != null && session.getCurrentCompanionIndex() == 8) ? "08:00 AM" : "03:00 AM";
                                 String notes = baseHour;
                                 if (session.getReturnDate() == null && Boolean.TRUE.equals(session.getRoundTrip())) {
-                                        notes += " (Abierta)"; // Formato compacto para evitar romper el frontend
-                                }
-                                if (session.getCompanionNames() != null && !session.getCompanionNames().isBlank()) {
-                                        notes += " | Acomp: " + session.getCompanionNames();
+                                        notes += " (Abierta)"; 
                                 }
 
                                 reservationRepository.saveAndFlush(Reservation.builder()
                                                 .passenger(passenger).travelDate(session.getTravelDate()).returnDate(session.getReturnDate())
                                                 .pickupLocality(session.getPickupLocality()).pickupAddress(session.getPickupAddress())
                                                 .destination(session.getDestination()).roundTrip(session.getRoundTrip())
-                                                .paymentVerified(false).amount(price).status("PENDING").notes(notes).build());
+                                                .paymentVerified(false).amount(price).status("PENDING").notes(notes)
+                                                .passengerCount(totalAsientos) 
+                                                .companionNames(session.getCompanionNames()).build()); 
 
                                 conversationSessionRepository.delete(session);
 
@@ -596,6 +544,28 @@ public class WhatsAppWebhookController {
                 }
         }
 
+        private void evaluarDireccionPasajero(String phoneNumber, ConversationSession session) {
+                Optional<Passenger> passengerOpt = passengerRepository.findByPhone(phoneNumber);
+                if (passengerOpt.isPresent() && passengerOpt.get().getAddress() != null && passengerOpt.get().getLocality() != null) {
+                        Passenger p = passengerOpt.get();
+                        if (session.getPickupLocality().equalsIgnoreCase(p.getLocality())) {
+                                session.setPickupAddress(p.getAddress());
+                                session.setCurrentStep("CONFIRM_ADDRESS_BUTTONS");
+                                conversationSessionRepository.saveAndFlush(session);
+                                
+                                whatsAppService.sendInteractiveButtons(phoneNumber, "Dirección de Retiro", 
+                                        "📍 *Detectamos tu domicilio habitual en " + p.getLocality() + ":*\n" + p.getAddress() + "\n\n¿Pasamos a buscarte por acá?", List.of(
+                                        Map.of("id", "addr_yes", "title", "Sí, pasar por acá ✅"),
+                                        Map.of("id", "addr_no", "title", "Nueva Dirección 🏠")
+                                ));
+                                return;
+                        }
+                }
+                session.setCurrentStep("ASK_ADDRESS_TEXT");
+                conversationSessionRepository.saveAndFlush(session);
+                whatsAppService.sendMessage(phoneNumber, "🏠 *¿Por qué dirección exacta pasamos a buscarte en " + session.getPickupLocality() + "?*\n\n_Ejemplo: Av. San Martín 450_");
+        }
+
         private void sendAllLocalitiesList(String phoneNumber, String saludo) {
                 List<Locality> localities = localityRepository.findAll();
                 StringBuilder menu = new StringBuilder(saludo).append("\n📍 *¿Desde qué localidad salís?*\n\n");
@@ -624,7 +594,12 @@ public class WhatsAppWebhookController {
                 String estimatedPickupTime = pricingAndScheduleService.calculateEstimatedPickupTime(session.getPickupLocality(), (session.getCurrentCompanionIndex() != null && session.getCurrentCompanionIndex() == 8) ? "08:00" : "03:00");
                 
                 int totalAsientos = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
-                BigDecimal price = pricingAndScheduleService.calculateTripPrice(session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
+                
+                BigDecimal price = pricingAndScheduleService.calculateTripPrice(
+                        session.getPickupLocality(), 
+                        session.getRoundTrip(), 
+                        totalAsientos
+                );
 
                 String paxLine = session.getPassengerName();
                 if (session.getCompanionNames() != null && !session.getCompanionNames().isBlank()) {

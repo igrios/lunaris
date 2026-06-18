@@ -1,0 +1,1 @@
+ALTER TABLE reservations ADD COLUMN passenger_count INTEGER DEFAULT 1;

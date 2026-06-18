@@ -20,7 +20,7 @@
   <div class="container mt-4">
 
     <h1 class="text-center mb-4">
-      辨 Viajes del Día
+      🚐 Viajes del Día
     </h1>
     
     <div class="mb-3 d-flex gap-2">
@@ -75,7 +75,9 @@
                  th:data-address="${reservation.pickupAddress}"
                  th:data-return="${reservation.returnDate}"
                  th:data-roundtrip="${reservation.roundTrip}"
-                 th:data-notes="${reservation.notes}">
+                 th:data-notes="${reservation.notes}"
+                 th:data-passengercount="${reservation.passengerCount != null ? reservation.passengerCount : 1}"
+                 th:data-companionnames="${reservation.companionNames}">
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-3">
@@ -93,6 +95,16 @@
                 🏠 <strong>Dirección:</strong> <span th:text="${reservation.pickupAddress}"></span>
             </p>
             <p>📞 <strong>Teléfono:</strong> <span th:text="${reservation.passenger.phone}"></span></p>
+            
+            <p>
+                🔢 <strong>Asientos totales:</strong> 
+                <span class="badge bg-primary fs-6" th:text="${reservation.passengerCount != null ? reservation.passengerCount : 1}">1</span>
+            </p>
+
+            <p th:if="${reservation.companionNames != null and reservation.companionNames != ''}">
+                👥 <strong>Acompañantes:</strong> <span class="text-muted" th:text="${reservation.companionNames}"></span>
+            </p>
+
             <p th:if="${reservation.returnDate != null}">🔄 <strong>Regreso:</strong> <span th:text="${reservation.returnDate}"></span></p>
             <p th:if="${reservation.amount != null}">💰 <strong>Importe:</strong> $<span th:text="${reservation.amount}"></span></p>
 
@@ -180,23 +192,19 @@
             return;
         }
 
-        // 1. Buscamos todos los checkboxes tildados
         const checkboxes = document.querySelectorAll('.reservation-checkbox:checked');
         if (checkboxes.length === 0) {
             alert("Por favor, selecciona al menos un pasajero para armar la hoja de ruta.");
             return;
         }
 
-        // 2. Extraemos los IDs de las reservas desde las tarjetas correspondientes
         const reservationIds = [];
         checkboxes.forEach(checkbox => {
             const card = checkbox.closest(".card");
-            // El ID de la tarjeta está formateado como 'reservation-card-UUID', nos quedamos con el UUID:
             const id = card.id.replace("reservation-card-", "");
             reservationIds.push(id);
         });
 
-        // 3. Le pegamos al nuevo endpoint de Java pasando el cel por parámetro y los IDs en el cuerpo
         fetch(`/api/agenda/enviar-hoja-ruta?phone=${celularChofer}`, {
             method: 'POST',
             headers: {
@@ -213,8 +221,6 @@
             alert("Hubo un error al intentar enviar el mensaje por la API.");
         });
     }
-
-    
   </script>
 
 </body>

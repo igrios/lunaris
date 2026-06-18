@@ -70,4 +70,20 @@ public class Reservation {
 
     @Column(name = "payment_receipt_url")
     private String paymentReceiptUrl;
+
+// 🌟 NUEVO CAMPO NATIVO PARA LOS ACOMPAÑANTES
+    @Column(name = "companion_names", length = 500)
+    private String companionNames;
+
+    // 🔢 NUEVO CAMPO PARA CONTABILIZAR LOS ASIENTOS
+    @Column(name = "passenger_count")
+    private Integer passengerCount;
+
+    // 🎯 Método seguro para usar en los controladores y Thymeleaf
+    public int getTotalSeats() {
+        if (this.passengerCount == null || this.passengerCount < 1) {
+            return 1;
+        }
+        return this.passengerCount;
+    }
 }

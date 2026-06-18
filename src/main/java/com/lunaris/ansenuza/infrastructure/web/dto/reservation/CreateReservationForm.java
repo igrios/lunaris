@@ -1,7 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.dto.reservation;
 
 import java.time.LocalDate;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -20,12 +19,12 @@ public class CreateReservationForm {
 
     private String cuil;
 
-@NotBlank(message = "El teléfono es obligatorio")
-@Pattern(
-    regexp = "^[0-9]{10,15}$",
-    message = "Ingrese un teléfono válido"
-)
-private String phone;
+    @NotBlank(message = "El teléfono es obligatorio")
+    @Pattern(
+        regexp = "^[0-9]{10,15}$",
+        message = "Ingrese un teléfono válido"
+    )
+    private String phone;
 
     @NotNull(message = "La fecha del viaje es obligatoria")
     private LocalDate travelDate;
@@ -46,4 +45,9 @@ private String phone;
     private Boolean paymentVerified;
 
     private String notes;
+
+    // 🌟 NUEVOS CAMPOS AGREGADOS PARA LA GESTIÓN DE ASIENTOS Y ACOMPAÑANTES
+    private Integer passengerCount;
+
+    private String companionNames;
 }
