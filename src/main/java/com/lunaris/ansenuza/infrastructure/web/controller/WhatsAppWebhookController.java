@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,9 +18,8 @@ import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Locality;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
-import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService; // Ajustalo a tu package de servicio si es necesario
+import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
-import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -39,7 +37,6 @@ public class WhatsAppWebhookController {
         private final WhatsAppService whatsAppService;
         private final ConversationSessionRepository conversationSessionRepository;
         private final LocalityRepository localityRepository;
-        private final FareRepository fareRepository; // Agregado para el método de tarifas
         private final PassengerRepository passengerRepository;
         private final ReservationRepository reservationRepository;
         private final LocalReceiptStorageService localReceiptStorageService;
@@ -49,9 +46,7 @@ public class WhatsAppWebhookController {
         public ResponseEntity<String> verify(@RequestParam("hub.mode") String mode,
                         @RequestParam("hub.verify_token") String verifyToken,
                         @RequestParam("hub.challenge") String challenge) {
-                if ("lunaris123".equals(verifyToken)) {
-                        return ResponseEntity.ok(challenge);
-                }
+                if ("lunaris123".equals(verifyToken)) return ResponseEntity.ok(challenge);
                 return ResponseEntity.badRequest().build();
         }
 
@@ -59,56 +54,57 @@ public class WhatsAppWebhookController {
         public ResponseEntity<Void> receive(@RequestBody Map<String, Object> payload) {
                 try {
                         List<Map<String, Object>> entry = (List<Map<String, Object>>) payload.get("entry");
+                        if (entry == null || entry.isEmpty()) return ResponseEntity.ok().build();
+
                         Map<String, Object> change = (Map<String, Object>) ((List<?>) entry.get(0).get("changes")).get(0);
                         Map<String, Object> value = (Map<String, Object>) change.get("value");
                         List<Map<String, Object>> messages = (List<Map<String, Object>>) value.get("messages");
 
-                        if (messages == null || messages.isEmpty()) {
-                                return ResponseEntity.ok().build();
-                        }
+                        if (messages == null || messages.isEmpty()) return ResponseEntity.ok().build();
 
                         Map<String, Object> message = messages.get(0);
                         String from = (String) message.get("from");
                         String type = (String) message.get("type");
                         String destination = normalizeWhatsAppNumber(from);
 
-                        // Procesamiento asincrónico en hilo de fondo para no colgar a Meta
+                        final String finalType = type;
+                        String derivedBody = null;
+                        String mediaId = null;
+
+                        if ("image".equals(type)) {
+                                Map<String, Object> imageData = (Map<String, Object>) message.get("image");
+                                mediaId = imageData != null ? (String) imageData.get("id") : null;
+                        } else if ("text".equals(type)) {
+                                Map<String, Object> text = (Map<String, Object>) message.get("text");
+                                if (text != null) derivedBody = (String) text.get("body");
+                        } else if ("interactive".equals(type)) {
+                                Map<String, Object> interactive = (Map<String, Object>) message.get("interactive");
+                                if (interactive != null) {
+                                        String interactiveType = (String) interactive.get("type");
+                                        if ("button_reply".equals(interactiveType)) {
+                                                derivedBody = (String) ((Map<String, Object>) interactive.get("button_reply")).get("id");
+                                        }
+                                }
+                        }
+
+                        final String finalDerivedBody = derivedBody;
+                        final String finalMediaId = mediaId;
+
                         CompletableFuture.runAsync(() -> {
                                 try {
-                                        if ("image".equals(type)) {
-                                                Map<String, Object> imageData = (Map<String, Object>) message.get("image");
-                                                if (imageData != null) {
-                                                        procesarComprobanteDePago(destination, (String) imageData.get("id"));
-                                                }
-                                                return;
-                                        }
-
-                                        String derivedBody = null;
-                                        if ("text".equals(type)) {
-                                                Map<String, Object> text = (Map<String, Object>) message.get("text");
-                                                if (text != null) derivedBody = (String) text.get("body");
-                                        } else if ("interactive".equals(type)) {
-                                                Map<String, Object> interactive = (Map<String, Object>) message.get("interactive");
-                                                if (interactive != null) {
-                                                        String interactiveType = (String) interactive.get("type");
-                                                        if ("button_reply".equals(interactiveType)) {
-                                                                derivedBody = (String) ((Map<String, Object>) interactive.get("button_reply")).get("id");
-                                                        }
-                                                }
-                                        }
-
-                                        if (derivedBody != null) {
-                                                processMessage(destination, derivedBody);
+                                        if ("image".equals(finalType) && finalMediaId != null) {
+                                                procesarComprobanteDePago(destination, finalMediaId);
+                                        } else if (finalDerivedBody != null) {
+                                                processMessage(destination, finalDerivedBody);
                                         }
                                 } catch (Exception ex) {
-                                        log.error("Error en el procesamiento asincrónico: ", ex);
+                                        log.error("Error asincrónico: ", ex);
                                 }
                         });
 
                         return ResponseEntity.ok().build();
-
                 } catch (Exception e) {
-                        log.error("Error crítico recibiendo webhook: ", e);
+                        log.error("Error crítico: ", e);
                         return ResponseEntity.ok().build();
                 }
         }
@@ -149,124 +145,130 @@ public class WhatsAppWebhookController {
 
                 boolean isGreeting = "hola".equals(body) || "buen dia".equals(body) || "buenas".equals(body) || "menu".equals(body);
 
-                // 1. PASO: INICIO / MENÚ PRINCIPAL CON BOTÓN DE TARIFAS
-                if ("START".equals(session.getCurrentStep()) || isGreeting || ("MAIN_MENU".equals(session.getCurrentStep()) && !("1".equals(body) || "2".equals(body) || "3".equals(body)))) {
-                        Optional<Passenger> passenger = passengerRepository.findByPhone(phoneNumber);
-                        String header = passenger.isPresent() ? "¡Hola de nuevo, " + passenger.get().getFirstName() + "! 👋" : "¡Bienvenido a Lunaris Ansenuza! 🚐";
-                        String text = "Gestioná tus traslados premium puerta a puerta hacia Córdoba seleccionando una opción:";
-
-                        session.setCurrentStep("MAIN_MENU");
+                // =====================================================================
+                // PASO 1: SALUDO INTELIGENTE Y LISTADO DE PUEBLOS
+                // =====================================================================
+                if ("START".equals(session.getCurrentStep()) || isGreeting) {
+                        session.setCurrentStep("ASK_LOCALITY");
                         conversationSessionRepository.saveAndFlush(session);
 
-                        whatsAppService.sendInteractiveButtons(phoneNumber, header, text, List.of(
-                                Map.of("id", "1", "title", "Reservar Viaje 🚗"),
-                                Map.of("id", "2", "title", "Tarifas Oficiales 💰"),
-                                Map.of("id", "3", "title", "Mis Reservas 📋")
-                        ));
+                        Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);
+                        String saludo = existingPassenger.isPresent() 
+                                ? "¡Hola de nuevo, *" + existingPassenger.get().getFirstName() + "*! 👋\n" 
+                                : "¡Bienvenido a Lunaris Ansenuza! 🚐\n";
+
+                        sendAllLocalitiesList(phoneNumber, saludo);
                         return;
                 }
 
-                // 2. PROCESAMIENTO MENÚ PRINCIPAL
-                if ("MAIN_MENU".equals(session.getCurrentStep())) {
-                        if ("1".equals(body)) {
-                                Passenger passenger = passengerRepository.findByPhone(phoneNumber).orElse(null);
-                                if (passenger != null) {
-                                        session.setPickupLocality(passenger.getLocality());
-                                        session.setPickupAddress(passenger.getAddress());
-                                        session.setPassengerName(passenger.getFirstName() + " " + passenger.getLastName());
-                                        session.setCurrentStep("CONFIRM_SAVED_ADDRESS");
-                                        conversationSessionRepository.saveAndFlush(session);
-
-                                        String desc = "📍 *Retiro registrado:*\n" + passenger.getLocality() + " - " + passenger.getAddress();
-                                        whatsAppService.sendInteractiveButtons(phoneNumber, "Verificación de Datos", desc + "\n\n¿Pasamos a buscarte por este mismo domicilio?", List.of(
-                                                Map.of("id", "1", "title", "Sí, usar datos ✅"),
-                                                Map.of("id", "2", "title", "Cambiar origen 📍")
-                                        ));
-                                        return;
-                                }
-                                session.setCurrentStep("ASK_LOCALITY");
-                                conversationSessionRepository.saveAndFlush(session);
-                                sendAllLocalitiesList(phoneNumber);
-                                return;
-                        }
-                        if ("2".equals(body)) {
-                                session.setCurrentStep("SHOW_FARES");
-                                conversationSessionRepository.saveAndFlush(session);
-                                sendFaresInformation(phoneNumber);
-                                return;
-                        }
-                        if ("3".equals(body)) {
-                                processConsultation(phoneNumber);
-                                return;
-                        }
-                }
-
-                // MÁQUINA DE ESTADO: PASO DE PANTALLA DE TARIFAS
-                if ("SHOW_FARES".equals(session.getCurrentStep())) {
-                        if ("back_menu".equals(body)) {
-                                session.setCurrentStep("START");
-                                conversationSessionRepository.saveAndFlush(session);
-                                processMessage(phoneNumber, "menu"); 
-                                return;
-                        }
-                        if ("support_martin".equals(body)) {
-                                conversationSessionRepository.delete(session);
-                                whatsAppService.sendMessage(phoneNumber, "👤 Martín recibió tu solicitud de asistencia. Se pondrá en contacto a este número a la brevedad. ¡Muchas gracias!");
-                                return;
-                        }
-                        return;
-                }
-
-                // 3. PASO: CONFIRMACIÓN DE RECOGIDA HISTÓRICA
-                if ("CONFIRM_SAVED_ADDRESS".equals(session.getCurrentStep())) {
-                        if ("1".equals(body)) {
-                                session.setCurrentStep("ASK_COMPANIONS_COUNT");
-                                conversationSessionRepository.saveAndFlush(session);
-                                whatsAppService.sendMessage(phoneNumber, "🔢 *¿Cuántos acompañantes viajan con vos?*\n\n_(Si viajás solo, respondé únicamente con el número 0. Máximo: 3 acompañantes)_");
-                                return;
-                        }
-                        if ("2".equals(body)) {
-                                session.setPickupLocality(null);
-                                session.setPickupAddress(null);
-                                session.setCurrentStep("ASK_LOCALITY");
-                                conversationSessionRepository.saveAndFlush(session);
-                                sendAllLocalitiesList(phoneNumber);
-                                return;
-                        }
-                        return;
-                }
-
-                // 4. PASO: PROCESAR NÚMERO DE LOCALIDAD
+                // =====================================================================
+                // PASO 2: COTIZACIÓN Y HORARIOS DE PASO
+                // =====================================================================
                 if ("ASK_LOCALITY".equals(session.getCurrentStep())) {
                         try {
                                 int option = Integer.parseInt(body);
                                 List<Locality> localities = localityRepository.findAll();
 
                                 if (option < 1 || option > localities.size()) {
-                                        whatsAppService.sendMessage(phoneNumber, "❌ Selección inválida. Por favor, ingresá un número que esté en la lista.");
+                                        whatsAppService.sendMessage(phoneNumber, "❌ Selección inválida. Ingresá un número de la lista.");
                                         return;
                                 }
 
                                 Locality selected = localities.get(option - 1);
                                 session.setPickupLocality(selected.getName());
+                                session.setCurrentStep("ASK_MARKETING_CONFIRMATION");
+                                conversationSessionRepository.saveAndFlush(session);
 
-                                if (session.getPassengerName() != null && !session.getPassengerName().isBlank()) {
-                                        session.setCurrentStep("ASK_COMPANIONS_COUNT");
-                                        conversationSessionRepository.saveAndFlush(session);
-                                        whatsAppService.sendMessage(phoneNumber, "🔢 *¿Cuántos acompañantes viajan con vos?*\n\n_(Si viajás solo, respondé 0)_");
-                                } else {
-                                        session.setCurrentStep("ASK_NAME");
-                                        conversationSessionRepository.saveAndFlush(session);
-                                        whatsAppService.sendMessage(phoneNumber, "👤 *Ingresá Nombre y Apellido del pasajero titular.*\n\n_Ejemplo: Juan Pérez_");
-                                }
+                               BigDecimal baseFare = pricingAndScheduleService.calculateTripPrice(selected.getName(), false, 1);
+                                String primerHorario = pricingAndScheduleService.calculateEstimatedPickupTime(selected.getName(), "03:00");
+                                String segundoHorario = pricingAndScheduleService.calculateEstimatedPickupTime(selected.getName(), "08:00");
+
+                                // 🎲 Generamos un número aleatorio dinámico entre 1 y 4
+                                
+                                int lugaresDisponibles = new java.util.Random().nextInt(3) + 1;
+
+                                String text = """
+                                                💰 *Cotización para %s:*
+                                                El valor base hacia Córdoba es de *$%,.0f*.
+                                                
+                                                ⏱️ *Horarios de paso por tu localidad:*
+                                                • Primer horario: *%s*
+                                                • Segundo horario: *%s*
+                                                
+                                                🚨 *¡ATENCIÓN!:* Para viajar en las próximas unidades solo nos quedan *%d lugares disponibles* en la flota compartida.
+                                                
+                                                ¿Deseás realizar tu reserva ahora mismo?
+                                                """.formatted(selected.getName(), baseFare, primerHorario, segundoHorario, lugaresDisponibles);
+                                whatsAppService.sendInteractiveButtons(phoneNumber, "LUNARIS - Cotización", text, List.of(
+                                        Map.of("id", "yes_reserve", "title", "Reservar ✅"),
+                                        Map.of("id", "no_cancel", "title", "En otro momento ❌")
+                                ));
                                 return;
                         } catch (Exception e) {
-                                whatsAppService.sendMessage(phoneNumber, "⚠️ Debés responder únicamente con el número correlativo de tu localidad.");
+                                whatsAppService.sendMessage(phoneNumber, "⚠️ Por favor, respondé únicamente con el número correlativo de tu localidad.");
                                 return;
                         }
                 }
 
-                // 5. PASO: NOMBRE TITULAR
+                // =====================================================================
+                // PASO 3: RESPUESTA GATILLO COMERCIAL
+                // =====================================================================
+                if ("ASK_MARKETING_CONFIRMATION".equals(session.getCurrentStep())) {
+                        if ("yes_reserve".equals(body)) {
+                                session.setCurrentStep("SELECT_SCHEDULE");
+                                conversationSessionRepository.saveAndFlush(session);
+
+                                String primerHorario = pricingAndScheduleService.calculateEstimatedPickupTime(session.getPickupLocality(), "03:00");
+                                String segundoHorario = pricingAndScheduleService.calculateEstimatedPickupTime(session.getPickupLocality(), "08:00");
+
+                                String infoTexto = "⏱️ *Horarios de retiro por tu domicilio:*\n" +
+                                                   "• Opción 1: Pasa aprox *" + primerHorario + "*\n" +
+                                                   "• Opción 2: Pasa aprox *" + segundoHorario + "*\n\n" +
+                                                   "Seleccioná el horario en el que preferís viajar:";
+
+                                whatsAppService.sendInteractiveButtons(phoneNumber, "Selección de Horario", infoTexto, List.of(
+                                        Map.of("id", "time_0300", "title", "Primer Horario 🌙"),
+                                        Map.of("id", "time_0800", "title", "Segundo Horario ☀️")
+                                ));
+                                return;
+                        }
+                        if ("no_cancel".equals(body)) {
+                                conversationSessionRepository.delete(session);
+                                whatsAppService.sendMessage(phoneNumber, "Entendido. Si cambiás de opinión, escribinos 'Hola' cuando quieras.");
+                                return;
+                        }
+                        return;
+                }
+
+                // =====================================================================
+                // PASO 4: CAPTURA DEL HORARIO (Mapeado a currentCompanionIndex para seguridad)
+                // =====================================================================
+                if ("SELECT_SCHEDULE".equals(session.getCurrentStep())) {
+                        if ("time_0300".equals(body)) {
+                                session.setCurrentCompanionIndex(3); // Codificamos 3:00 AM
+                        } else if ("time_0800".equals(body)) {
+                                session.setCurrentCompanionIndex(8); // Codificamos 8:00 AM
+                        } else {
+                                return;
+                        }
+
+                        Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);
+                        if (existingPassenger.isPresent()) {
+                                session.setPassengerName(existingPassenger.get().getFirstName() + " " + existingPassenger.get().getLastName());
+                                session.setCurrentStep("ASK_COMPANIONS_COUNT");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendMessage(phoneNumber, "🔢 *¿Cuántos acompañantes viajan con vos?*\n\n_(Si viajás solo, respondé 0)_");
+                        } else {
+                                session.setCurrentStep("ASK_NAME");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendMessage(phoneNumber, "👤 *Ingresá Nombre y Apellido del pasajero titular.*\n\n_Ejemplo: Juan Pérez_");
+                        }
+                        return;
+                }
+
+                // =====================================================================
+                // PASO 5: CAPTURA NOMBRE (Solo clientes nuevos)
+                // =====================================================================
                 if ("ASK_NAME".equals(session.getCurrentStep())) {
                         session.setPassengerName(message.trim());
                         session.setCurrentStep("ASK_COMPANIONS_COUNT");
@@ -275,27 +277,45 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // 6. PASO: CANTIDAD DE ACOMPAÑANTES
+                // =====================================================================
+                // PASO 5b: CANTIDAD DE ACOMPAÑANTES
+                // =====================================================================
                 if ("ASK_COMPANIONS_COUNT".equals(session.getCurrentStep())) {
                         try {
                                 int count = Integer.parseInt(body);
                                 if (count < 0 || count > 3) {
-                                        whatsAppService.sendMessage(phoneNumber, "❌ *Cantidad no permitida.*\n\nPodés registrar hasta un máximo de 3 acompañantes directos.\n\nIngresá un número entre 0 y 3:");
+                                        whatsAppService.sendMessage(phoneNumber, "❌ Podés registrar hasta un máximo de 3 acompañantes directos. Ingresá entre 0 y 3:");
                                         return;
                                 }
 
                                 if (count == 0) {
                                         session.setPassengerCount(1);
                                         session.setCompanionNames(null);
-                                        session.setCurrentStep("ASK_ADDRESS");
-                                        conversationSessionRepository.saveAndFlush(session);
-                                        whatsAppService.sendMessage(phoneNumber, "🏠 *¿Por qué dirección exacta pasamos a buscarte?*\n\n_Ejemplo: Av. San Martín 450_");
+                                        
+                                        // Verificamos si ya tenemos una dirección histórica guardada
+                                        Optional<Passenger> passenger = passengerRepository.findByPhone(phoneNumber);
+                                        if (passenger.isPresent() && passenger.get().getAddress() != null) {
+                                                session.setPickupAddress(passenger.get().getAddress());
+                                                session.setCurrentStep("CONFIRM_ADDRESS_BUTTONS");
+                                                conversationSessionRepository.saveAndFlush(session);
+                                                
+                                                whatsAppService.sendInteractiveButtons(phoneNumber, "Dirección de Retiro", 
+                                                        "📍 *Detectamos tu domicilio habitual:*\n" + passenger.get().getAddress() + "\n\n¿Pasamos a buscarte por acá?", List.of(
+                                                        Map.of("id", "addr_yes", "title", "Sí, pasar por acá ✅"),
+                                                        Map.of("id", "addr_no", "title", "Nueva Dirección 🏠")
+                                                ));
+                                        } else {
+                                                session.setCurrentStep("ASK_ADDRESS_TEXT");
+                                                conversationSessionRepository.saveAndFlush(session);
+                                                whatsAppService.sendMessage(phoneNumber, "🏠 *¿Por qué dirección exacta pasamos a buscarte?*\n\n_Ejemplo: Av. San Martín 450_");
+                                        }
                                 } else {
                                         session.setTotalCompanions(count);
                                         session.setPassengerCount(1 + count);
                                         session.setCurrentStep("ASK_INDIVIDUAL_COMPANION");
-                                        session.setCurrentCompanionIndex(1);
-                                        session.setCompanionNames("");
+                                        session.setCompanionNames(""); 
+                                        // Usamos id temporalmente para llevar la cuenta del bucle (arranca en 1)
+                                        session.setId(1L); 
                                         conversationSessionRepository.saveAndFlush(session);
                                         whatsAppService.sendMessage(phoneNumber, "👤 *Ingresá Nombre y Apellido de tu acompañante 1:*");
                                 }
@@ -306,299 +326,331 @@ public class WhatsAppWebhookController {
                         }
                 }
 
-                // 7. PASO MULTI-BUCLE: NOMBRES DE ACOMPAÑANTES
+                // =====================================================================
+                // PASO 5c: BUCLE MULTI-ACOMPAÑANTE
+                // =====================================================================
                 if ("ASK_INDIVIDUAL_COMPANION".equals(session.getCurrentStep())) {
                         String currentName = message.trim();
                         String accumulated = session.getCompanionNames();
                         accumulated = (accumulated == null || accumulated.isBlank()) ? currentName : accumulated + ", " + currentName;
                         session.setCompanionNames(accumulated);
 
-                        int nextIndex = session.getCurrentCompanionIndex() + 1;
+                        int currentIndex = session.getId().intValue();
+                        int nextIndex = currentIndex + 1;
+
                         if (nextIndex > session.getTotalCompanions()) {
-                                session.setCurrentStep("ASK_ADDRESS");
-                                conversationSessionRepository.saveAndFlush(session);
-                                whatsAppService.sendMessage(phoneNumber, "📍 *Acompañantes registrados con éxito.*\n\nAhora indicanos tu domicilio para el retiro:\n_Ejemplo: Belgrano 780_");
+                                // Terminó el bucle, pasamos a validar dirección habitual
+                                Optional<Passenger> passenger = passengerRepository.findByPhone(phoneNumber);
+                                if (passenger.isPresent() && passenger.get().getAddress() != null) {
+                                        session.setPickupAddress(passenger.get().getAddress());
+                                        session.setCurrentStep("CONFIRM_ADDRESS_BUTTONS");
+                                        conversationSessionRepository.saveAndFlush(session);
+                                        
+                                        whatsAppService.sendInteractiveButtons(phoneNumber, "Dirección de Retiro", 
+                                                "📍 *Detectamos tu domicilio habitual:*\n" + passenger.get().getAddress() + "\n\n¿Pasamos a buscarte por acá?", List.of(
+                                                Map.of("id", "addr_yes", "title", "Sí, pasar por acá ✅"),
+                                                Map.of("id", "addr_no", "title", "Nueva Dirección 🏠")
+                                        ));
+                                } else {
+                                        session.setCurrentStep("ASK_ADDRESS_TEXT");
+                                        conversationSessionRepository.saveAndFlush(session);
+                                        whatsAppService.sendMessage(phoneNumber, "🏠 *¿Por qué dirección exacta pasamos a buscarte?*\n\n_Ejemplo: Belgrano 780_");
+                                }
                         } else {
-                                session.setCurrentCompanionIndex(nextIndex);
+                                session.setId((long) nextIndex);
                                 conversationSessionRepository.saveAndFlush(session);
                                 whatsAppService.sendMessage(phoneNumber, "👤 *Ingresá Nombre y Apellido de tu acompañante " + nextIndex + ":*");
                         }
                         return;
                 }
 
-                // 8. PASO: DIRECCIÓN DE RETIRO
-                if ("ASK_ADDRESS".equals(session.getCurrentStep())) {
+                // =====================================================================
+                // PASO 6a: PROCESAMIENTO BOTONES DIRECCIÓN HABITUAL
+                // =====================================================================
+                if ("CONFIRM_ADDRESS_BUTTONS".equals(session.getCurrentStep())) {
+                        if ("addr_yes".equals(body)) {
+                                session.setCurrentStep("ASK_DESTINATION");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendInteractiveButtons(phoneNumber, "Destino en Córdoba", "🎯 *¿Hacia dónde viajás en Córdoba?*", List.of(
+                                        Map.of("id", "dest_aeropuerto", "title", "Aeropuerto Cba ✈️"),
+                                        Map.of("id", "dest_capital", "title", "Córdoba Capital 🏢")
+                                ));
+                                return;
+                        }
+                        if ("addr_no".equals(body)) {
+                                session.setCurrentStep("ASK_ADDRESS_TEXT");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendMessage(phoneNumber, "🏠 *Ingresá la nueva dirección exacta para el retiro:*");
+                                return;
+                        }
+                        return;
+                }
+
+                // =====================================================================
+                // PASO 6b: CAPTURA DIRECCIÓN TEXTO DIRECTO
+                // =====================================================================
+                if ("ASK_ADDRESS_TEXT".equals(session.getCurrentStep())) {
                         session.setPickupAddress(message);
                         session.setCurrentStep("ASK_DESTINATION");
                         conversationSessionRepository.saveAndFlush(session);
 
-                        whatsAppService.sendInteractiveButtons(phoneNumber, "Selección de Destino", "🎯 *¿Hacia dónde viajás en Córdoba?*", List.of(
-                                Map.of("id", "1", "title", "Aeropuerto Cba ✈️"),
-                                Map.of("id", "2", "title", "Córdoba Capital 🏢")
+                        whatsAppService.sendInteractiveButtons(phoneNumber, "Destino en Córdoba", "🎯 *¿Hacia dónde viajás en Córdoba?*", List.of(
+                                Map.of("id", "dest_aeropuerto", "title", "Aeropuerto Cba ✈️"),
+                                Map.of("id", "dest_capital", "title", "Córdoba Capital 🏢")
                         ));
                         return;
                 }
 
-                // 9. PASO: DESTINO FINAL
+                // =====================================================================
+                // PASO 7: DESTINO COBERTURA CÓRDOBA
+                // =====================================================================
                 if ("ASK_DESTINATION".equals(session.getCurrentStep())) {
-                        String dest = "1".equals(body) ? "Aeropuerto Córdoba" : "2".equals(body) ? "Córdoba" : null;
+                        String dest = "dest_aeropuerto".equals(body) ? "Aeropuerto Córdoba" : "dest_capital".equals(body) ? "Córdoba" : null;
                         if (dest == null) return;
 
                         session.setDestination(dest);
                         session.setCurrentStep("ASK_TRIP_TYPE");
                         conversationSessionRepository.saveAndFlush(session);
 
-                        whatsAppService.sendInteractiveButtons(phoneNumber, "Configuración del Tramo", "🔄 *¿Qué modalidad de cobertura requerís?*", List.of(
-                                Map.of("id", "1", "title", "Solo ida ➡️"),
-                                Map.of("id", "2", "title", "Ida y vuelta 🔄")
+                        whatsAppService.sendInteractiveButtons(phoneNumber, "Modalidad", "🔄 *¿Qué tipo de viaje vas a realizar?*", List.of(
+                                Map.of("id", "trip_ida", "title", "Solo ida ➡️"),
+                                Map.of("id", "trip_completo", "title", "Ida y vuelta 🔄")
                         ));
                         return;
                 }
 
-                // 10. PASO: MODALIDAD TRAMO
+                // =====================================================================
+                // PASO 8: COBERTURA TRAMO
+                // =====================================================================
                 if ("ASK_TRIP_TYPE".equals(session.getCurrentStep())) {
-                        if ("1".equals(body)) session.setRoundTrip(false);
-                        else if ("2".equals(body)) session.setRoundTrip(true);
-                        else return;
-
-                        session.setCurrentStep("ASK_DATE");
-                        conversationSessionRepository.saveAndFlush(session);
-                        whatsAppService.sendMessage(phoneNumber, "📅 *¿Qué día es el viaje de ida?*\n\nEscribilo utilizando el formato de barras:\n_Ejemplo: 18/06/2026_");
+                        if ("trip_ida".equals(body)) {
+                                session.setRoundTrip(false);
+                                session.setCurrentStep("ASK_DATE");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendMessage(phoneNumber, "📅 *¿Qué día es el viaje de ida?*\n\nEscribilo separado por barras:\n_Ejemplo: 18/06/2026_");
+                        } else if ("trip_completo".equals(body)) {
+                                session.setRoundTrip(true);
+                                session.setCurrentStep("ASK_DATE");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendMessage(phoneNumber, "📅 *Perfecto, ida y vuelta.*\n\n¿Qué día es el viaje de *ida*?\n_Ejemplo: 18/06/2026_");
+                        }
                         return;
                 }
 
-                // 11. PASO: FECHA DE IDA
+                // =====================================================================
+                // PASO 9: FECHA IDA + MENÚ DE VUELTA FIJA/ABIERTA
+                // =====================================================================
                 if ("ASK_DATE".equals(session.getCurrentStep())) {
                         try {
                                 LocalDate travelDate = LocalDate.parse(message, dateFormatter);
                                 if (travelDate.isBefore(LocalDate.now())) {
-                                        whatsAppService.sendMessage(phoneNumber, "❌ La fecha no puede ser anterior al día de hoy. Por favor, reingresá:");
+                                        whatsAppService.sendMessage(phoneNumber, "❌ La fecha no puede ser anterior a hoy. Reingresá:");
                                         return;
                                 }
                                 session.setTravelDate(travelDate);
 
                                 if (Boolean.TRUE.equals(session.getRoundTrip())) {
-                                        session.setCurrentStep("ASK_RETURN_DATE");
+                                        session.setCurrentStep("ASK_RETURN_DATE_TYPE");
                                         conversationSessionRepository.saveAndFlush(session);
-                                        whatsAppService.sendMessage(phoneNumber, "📅 *¿Qué fecha está programado el regreso?*\n\n_Ejemplo: 25/06/2026_");
+                                        
+                                        whatsAppService.sendInteractiveButtons(phoneNumber, "Fecha de Regreso", 
+                                                "📅 *¿Cuándo programamos el regreso desde Córdoba?*\n\nSi todavía no sabés el día exacto, podés dejar la fecha abierta y coordinarla más adelante con Martín.", List.of(
+                                                Map.of("id", "return_fixed", "title", "Fijar Fecha 🗓️"),
+                                                Map.of("id", "return_open", "title", "Vuelta Abierta 🔄")
+                                        ));
                                 } else {
-                                        session.setCurrentStep("ASK_INVOICE");
+                                        session.setCurrentStep("ASK_DNI_REQUIRED");
                                         conversationSessionRepository.saveAndFlush(session);
-                                        sendInvoiceButtons(phoneNumber);
+                                        whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números, sin espacios ni guiones):");
                                 }
                                 return;
                         } catch (Exception e) {
-                                whatsAppService.sendMessage(phoneNumber, "❌ *Formato erróneo.* Acordate de escribirlo separado por barras: 18/06/2026");
+                                whatsAppService.sendMessage(phoneNumber, "❌ *Formato erróneo.* Acordate de usar barras separadoras: 18/06/2026");
                                 return;
                         }
                 }
 
-                // 12. PASO: FECHA DE REGRESO
-                if ("ASK_RETURN_DATE".equals(session.getCurrentStep())) {
-                        try {
-                                LocalDate returnDate = LocalDate.parse(message, dateFormatter);
-                                if (returnDate.isBefore(session.getTravelDate())) {
-                                        whatsAppService.sendMessage(phoneNumber, "❌ El retorno no puede ser previo al día de la ida (" + session.getTravelDate().format(dateFormatter) + ").");
-                                        return;
-                                }
-                                session.setReturnDate(returnDate);
-                                session.setCurrentStep("ASK_INVOICE");
+                // =====================================================================
+                // PASO 9b: SELECCIÓN VUELTA ABIERTA O CERRADA
+                // =====================================================================
+                if ("ASK_RETURN_DATE_TYPE".equals(session.getCurrentStep())) {
+                        if ("return_fixed".equals(body)) {
+                                session.setCurrentStep("ASK_RETURN_DATE");
                                 conversationSessionRepository.saveAndFlush(session);
-                                sendInvoiceButtons(phoneNumber);
-                                return;
-                        } catch (Exception e) {
-                                whatsAppService.sendMessage(phoneNumber, "❌ *Formato erróneo.* Volvé a ingresar siguiendo el ejemplo: 25/06/2026");
+                                whatsAppService.sendMessage(phoneNumber, "✍️ *Ingresá la fecha de tu regreso:*\n\n_Ejemplo: 25/06/2026_");
                                 return;
                         }
-                }
-
-                // 13. PASO: FACTURACIÓN FISCAL
-                if ("ASK_INVOICE".equals(session.getCurrentStep())) {
-                        if ("1".equals(body)) {
-                                session.setRequiresInvoice(true);
-                                session.setCurrentStep("ASK_CUIL");
+                        if ("return_open".equals(body)) {
+                                session.setReturnDate(null); // Seteado como abierto
+                                session.setCurrentStep("ASK_DNI_REQUIRED");
                                 conversationSessionRepository.saveAndFlush(session);
-                                whatsAppService.sendMessage(phoneNumber, "🧾 *Ingresá tu número de CUIL o CUIT sin guiones ni espacios.*\n\n_Ejemplo: 20123456789_");
-                                return;
-                        }
-                        if ("2".equals(body)) {
-                                session.setRequiresInvoice(false);
-                                session.setCurrentStep("ASK_CONFIRMATION");
-                                conversationSessionRepository.saveAndFlush(session);
-                                sendReservationSummaryWithButtons(phoneNumber, session);
+                                whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números, sin espacios ni guiones):");
                                 return;
                         }
                         return;
                 }
 
-                // 14. PASO: CAPTURA CUIL/CUIT
-                if ("ASK_CUIL".equals(session.getCurrentStep())) {
-                        session.setCuil(body);
+                // =====================================================================
+                // PASO 10: CAPTURA FECHA REGRESO FIJO
+                // =====================================================================
+                if ("ASK_RETURN_DATE".equals(session.getCurrentStep())) {
+                        try {
+                                LocalDate returnDate = LocalDate.parse(message, dateFormatter);
+                                if (returnDate.isBefore(session.getTravelDate())) {
+                                        whatsAppService.sendMessage(phoneNumber, "❌ El regreso no puede ser anterior al viaje de ida.");
+                                        return;
+                                }
+                                session.setReturnDate(returnDate);
+                                session.setCurrentStep("ASK_DNI_REQUIRED");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendMessage(phoneNumber, "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números, sin espacios ni guiones):");
+                                return;
+                        } catch (Exception e) {
+                                whatsAppService.sendMessage(phoneNumber, "❌ *Formato erróneo.* Ingresalo siguiendo el ejemplo: 25/06/2026");
+                                return;
+                        }
+                }
+
+                // =====================================================================
+                // PASO 10b: CAPTURA OBLIGATORIA DE DNI/CUIT (Inmune a saltos)
+                // =====================================================================
+                if ("ASK_DNI_REQUIRED".equals(session.getCurrentStep())) {
+                        String cleanDni = body.replaceAll("[^0-9]", "");
+                        if (cleanDni.length() < 7 || cleanDni.length() > 11) {
+                                whatsAppService.sendMessage(phoneNumber, "❌ *DNI o CUIT inválido.* Verificá el número e ingresalo nuevamente sin guiones:");
+                                return;
+                        }
+                        session.setCuil(cleanDni);
                         session.setCurrentStep("ASK_CONFIRMATION");
                         conversationSessionRepository.saveAndFlush(session);
                         sendReservationSummaryWithButtons(phoneNumber, session);
                         return;
                 }
 
-                // 15. PASO FINAL: CIERRE Y PERSISTENCIA
+                // =====================================================================
+                // PASO 11: CONFIRMACIÓN FINAL Y RECORTE DE OBSERVACIONES
+                // =====================================================================
                 if ("ASK_CONFIRMATION".equals(session.getCurrentStep())) {
-                        if ("1".equals(body)) {
+                        if ("confirm_ok".equals(body)) {
                                 Passenger passenger = passengerRepository.findByPhone(phoneNumber).orElseGet(() -> {
                                         String[] names = session.getPassengerName().trim().split("\\s+", 2);
                                         return passengerRepository.saveAndFlush(Passenger.builder()
                                                         .firstName(names[0]).lastName(names.length > 1 ? names[1] : "")
-                                                        .phone(phoneNumber).cuil(session.getCuil())
-                                                        .address(session.getPickupAddress()).locality(session.getPickupLocality()).build());
+                                                        .phone(phoneNumber).address(session.getPickupAddress())
+                                                        .locality(session.getPickupLocality()).cuil(session.getCuil()).build());
                                 });
 
-                                int seatsCount = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
-                                BigDecimal finalCalculatedAmount = pricingAndScheduleService.calculateTripPrice(
-                                        session.getPickupLocality(), 
-                                        Boolean.TRUE.equals(session.getRoundTrip()), 
-                                        seatsCount
-                                );
+                                // Si el pasajero habitual cambió de domicilio, actualizamos su ficha maestra
+                                if (!session.getPickupAddress().equalsIgnoreCase(passenger.getAddress())) {
+                                        passenger.setAddress(session.getPickupAddress());
+                                        passengerRepository.saveAndFlush(passenger);
+                                }
 
-                                String notes = "Asientos: " + seatsCount;
-                                if (session.getCompanionNames() != null) notes += " | Acompañantes: " + session.getCompanionNames();
+                                int totalAsientos = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
+                                BigDecimal price = pricingAndScheduleService.calculateTripPrice(session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
+                                
+                                String baseHour = (session.getCurrentCompanionIndex() != null && session.getCurrentCompanionIndex() == 8) ? "08:00 AM" : "03:00 AM";
+                                String notes = baseHour;
+                                if (session.getReturnDate() == null && Boolean.TRUE.equals(session.getRoundTrip())) {
+                                        notes += " (Abierta)"; // Formato compacto para evitar romper el frontend
+                                }
+                                if (session.getCompanionNames() != null && !session.getCompanionNames().isBlank()) {
+                                        notes += " | Acomp: " + session.getCompanionNames();
+                                }
 
                                 reservationRepository.saveAndFlush(Reservation.builder()
                                                 .passenger(passenger).travelDate(session.getTravelDate()).returnDate(session.getReturnDate())
                                                 .pickupLocality(session.getPickupLocality()).pickupAddress(session.getPickupAddress())
                                                 .destination(session.getDestination()).roundTrip(session.getRoundTrip())
-                                                .paymentVerified(false).amount(finalCalculatedAmount).status("PENDING").notes(notes).build());
+                                                .paymentVerified(false).amount(price).status("PENDING").notes(notes).build());
 
                                 conversationSessionRepository.delete(session);
 
                                 whatsAppService.sendMessage(phoneNumber, """
-                                                ✅ *¡Tu viaje ha sido registrado con éxito!*
+                                                ✅ *¡Tu traslado ha sido registrado con éxito!*
 
                                                 💳 *Datos bancarios para congelar la tarifa (Transferencia):*
                                                 • *Titular:* Martín Fernando Manuel Cuestaz
                                                 • *Alias:* cuestazm.bna
                                                 • *CBU:* 01103739330037363119529
 
-                                                📌 *Nota:* Una vez realizado el envío, *subí la captura o foto del comprobante por acá* para registrar tu pago de forma inmediata. Nos comunicaremos con vos para confirmar detalles de horarios. ¡Buen viaje! 🚐
+                                                📌 *Nota:* Una vez realizado el envío, *subí la captura o foto del comprobante por acá* para registrar tu pago de forma inmediata. ¡Buen viaje con Lunaris! 🚐
                                                 """);
                                 return;
                         }
 
-                        if ("2".equals(body)) {
-                                conversationSessionRepository.delete(session);
-                                whatsAppService.sendMessage(phoneNumber, "❌ *Reserva cancelada.* Si deseás iniciar una nueva consulta operativa, escribí 'Hola' en cualquier momento.");
+                        if ("confirm_cancel".equals(body)) {
+                                session.setCurrentStep("FOLLOW_UP_RETENTION");
+                                conversationSessionRepository.saveAndFlush(session);
+                                
+                                whatsAppService.sendMessage(phoneNumber, """
+                                                ❌ *Entendido, pausamos el trámite por acá.*
+                                                
+                                                Tranqui, si tuviste un cambio de planes con los turnos médicos o el viaje:
+                                                ¿Querés que pasemos la ida para el día de mañana en el mismo horario o preferís dejar la consulta en espera?
+                                                
+                                                _Escribinos si cambiás de idea y lo acomodamos al toque._
+                                                """);
                                 return;
                         }
                 }
         }
 
-        // =========================================================================
-        // MÉTODOS AUXILIARES DE RENDERIZADO (TODOS DENTRO DE LA CLASE)
-        // =========================================================================
-        private void sendFaresInformation(String phoneNumber) {
-                List<com.lunaris.ansenuza.domain.model.Fare> currentFares = fareRepository.findAll();
-                
-                StringBuilder sb = new StringBuilder();
-                sb.append("📋 *TARIFARIO OFICIAL LUNARIS*\n");
-                sb.append("📊 _Valores Base expresados en modalidad Ida y Vuelta:_\n\n");
-
-                for (com.lunaris.ansenuza.domain.model.Fare fare : currentFares) {
-                        sb.append("• *").append(fare.getLocalityName()).append(":* $")
-                          .append(String.format("%,.2f", fare.getAmount())).append("\n");
-                }
-
-                sb.append("\n🔄 *¿Cómo funciona nuestra modalidad?*\n");
-                sb.append("1️⃣ El precio de la lista de arriba cubre el trayecto completo (*Ida y Vuelta*).\n");
-                sb.append("2️⃣ Si solicitás cobertura para *Solo Ida*, la tarifa se calcula dividiendo el precio base a la mitad (1/2) y sumando un recargo fijo de asiento vacío de *$8.000*.\n\n");
-                sb.append("_Todos nuestros viajes son traslados premium puerta a puerta en autos particulares compartidos._");
-
-                whatsAppService.sendInteractiveButtons(phoneNumber, "Información Tarifaria", sb.toString(), List.of(
-                        Map.of("id", "back_menu", "title", "Volver al Menú ↩️"),
-                        Map.of("id", "support_martin", "title", "Asistencia Humana 👤")
-                ));
-        }
-
-        private void sendAllLocalitiesList(String phoneNumber) {
+        private void sendAllLocalitiesList(String phoneNumber, String saludo) {
                 List<Locality> localities = localityRepository.findAll();
-                StringBuilder menu = new StringBuilder("📍 *¿Desde dónde viajás?*\n\n");
+                StringBuilder menu = new StringBuilder(saludo).append("\n📍 *¿Desde qué localidad salís?*\n\n");
                 int index = 1;
                 for (Locality locality : localities) {
                         menu.append("*").append(index).append(")* ").append(locality.getName()).append("\n");
                         index++;
                 }
-                menu.append("\n_Por favor, respondé escribiendo únicamente el número que corresponda a tu pueblo de origen._");
+                menu.append("\n_Respondé escribiendo únicamente el número que corresponda a tu pueblo de origen._");
                 whatsAppService.sendMessage(phoneNumber, menu.toString());
-        }
-
-        private void sendInvoiceButtons(String phoneNumber) {
-                whatsAppService.sendInteractiveButtons(phoneNumber, "Comprobante Fiscal", "🧾 *¿Vas a precisar factura legal oficial para este traslado?*", List.of(
-                        Map.of("id", "1", "title", "Sí, necesito"),
-                        Map.of("id", "2", "title", "No hace falta")
-                ));
-        }
-
-        private void processConsultation(String phoneNumber) {
-                Passenger passenger = passengerRepository.findByPhone(phoneNumber).orElse(null);
-                if (passenger == null) {
-                        whatsAppService.sendMessage(phoneNumber, "No registramos pasajes o cuentas vigentes ligadas a tu teléfono.");
-                        return;
-                }
-                List<Reservation> reservations = reservationRepository.findByPassengerOrderByTravelDateAsc(passenger).stream()
-                                .filter(r -> !r.getTravelDate().isBefore(LocalDate.now())).collect(Collectors.toList());
-
-                if (reservations.isEmpty()) {
-                        whatsAppService.sendMessage(phoneNumber, "No tenés traslados agendados para los próximos días.");
-                        return;
-                }
-
-                StringBuilder sb = new StringBuilder("📋 *Tus reservas activas en Lunaris:*\n\n");
-                int idx = 1;
-                for (Reservation r : reservations) {
-                        String payment = Boolean.TRUE.equals(r.getPaymentVerified()) ? "✅ Transferencia Verificada" : "⏳ Revisión de pago pendiente";
-                        sb.append("*").append(idx++).append(")* ").append(r.getPickupLocality()).append(" ➡️ ").append(r.getDestination())
-                          .append("\n🗓️ *Ida:* ").append(r.getTravelDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-                        if (r.getReturnDate() != null) sb.append(" | *Vuelta:* ").append(r.getReturnDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-                        sb.append("\n💰 *Valor:* $").append(r.getAmount())
-                          .append("\n💳 *Estado:* ").append(payment).append("\n\n");
-                }
-                whatsAppService.sendMessage(phoneNumber, sb.toString());
         }
 
         private void sendReservationSummaryWithButtons(String phoneNumber, ConversationSession session) {
                 DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
                 String dates = "*Ida:* " + session.getTravelDate().format(formatter);
-                if (Boolean.TRUE.equals(session.getRoundTrip()) && session.getReturnDate() != null) {
-                        dates += " | *Vuelta:* " + session.getReturnDate().format(formatter);
+                
+                if (Boolean.TRUE.equals(session.getRoundTrip())) {
+                        if (session.getReturnDate() != null) {
+                                dates += " | *Vuelta:* " + session.getReturnDate().format(formatter);
+                        } else {
+                                dates += " | *Vuelta:* 🔄 _ABIERTA_";
+                        }
                 }
 
-                String pax = (session.getCompanionNames() == null || session.getCompanionNames().isBlank())
-                                ? session.getPassengerName() + " _(Viaja Solo)_"
-                                : session.getPassengerName() + "\n👥 *Acompañantes:* " + session.getCompanionNames();
+                String blockInfo = (session.getCurrentCompanionIndex() != null && session.getCurrentCompanionIndex() == 8) ? "08:00 AM" : "03:00 AM";
+                String estimatedPickupTime = pricingAndScheduleService.calculateEstimatedPickupTime(session.getPickupLocality(), (session.getCurrentCompanionIndex() != null && session.getCurrentCompanionIndex() == 8) ? "08:00" : "03:00");
+                
+                int totalAsientos = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
+                BigDecimal price = pricingAndScheduleService.calculateTripPrice(session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
 
-                String estimatedPickupTime = pricingAndScheduleService.calculatePickupTime(session.getPickupLocality());
-                int seatsCount = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
-                BigDecimal price = pricingAndScheduleService.calculateTripPrice(
-                        session.getPickupLocality(), 
-                        Boolean.TRUE.equals(session.getRoundTrip()), 
-                        seatsCount
-                );
+                String paxLine = session.getPassengerName();
+                if (session.getCompanionNames() != null && !session.getCompanionNames().isBlank()) {
+                        paxLine += "\n👥 *Acompañantes:* " + session.getCompanionNames();
+                }
 
                 String summary = """
-                                Pasajero(s): %s
-                                Asientos Totales: %d
-                                Origen: %s (%s)
-                                Destino: %s
-                                Cobertura: %s
-                                %s
-                                🕒 Hora de Retiro Estimada: *%s*
-                                🧾 Requiere Factura: %s
-                                💰 Valor Neto del Traslado: *$%,.2f*
-                                """.formatted(pax, seatsCount, session.getPickupLocality(),
+                                👤 *Pasajero titular:* %s
+                                🔢 *Asientos a ocupar:* %d
+                                📍 *Origen:* %s (%s)
+                                🎯 *Destino:* %s
+                                🕒 *Horario de cabecera:* %s
+                                ⏱ *Hora de retiro por tu domicilio:* %s
+                                🔄 *Modalidad:* %s
+                                📅 %s
+                                🧾 *Documento Factura:* %s
+                                💰 *Valor Total del Traslado:* $%,.2f
+                                """.formatted(paxLine, totalAsientos, session.getPickupLocality(),
                                               session.getPickupAddress(), session.getDestination(),
+                                              blockInfo, estimatedPickupTime,
                                               Boolean.TRUE.equals(session.getRoundTrip()) ? "Ida y vuelta" : "Solo ida",
-                                              dates, estimatedPickupTime, Boolean.TRUE.equals(session.getRequiresInvoice()) ? "Sí" : "No", price);
+                                              dates, session.getCuil(), price);
 
                 whatsAppService.sendInteractiveButtons(phoneNumber, "Verificación del Itinerario", summary, List.of(
-                        Map.of("id", "1", "title", "Confirmar Todo 👍"),
-                        Map.of("id", "2", "title", "Anular Trámite ❌")
+                        Map.of("id", "confirm_ok", "title", "Confirmar 👍"),
+                        Map.of("id", "confirm_cancel", "title", "Cancelar ❌")
                 ));
         }
 
