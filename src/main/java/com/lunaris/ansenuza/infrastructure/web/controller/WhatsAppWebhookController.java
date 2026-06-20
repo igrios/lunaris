@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -14,17 +15,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.lunaris.ansenuza.domain.model.ChatMessage;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Locality;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.storage.LocalReceiptStorageService;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,6 +45,9 @@ public class WhatsAppWebhookController {
         private final ReservationRepository reservationRepository;
         private final LocalReceiptStorageService localReceiptStorageService;
         private final PricingAndScheduleService pricingAndScheduleService;
+        private final ChatMessageRepository chatMessageRepository; 
+        private final SimpMessagingTemplate messagingTemplate;
+        // Inyectado para persistir el bypass humano
 
         @GetMapping("/webhook")
         public ResponseEntity<String> verify(@RequestParam("hub.mode") String mode,
@@ -130,41 +137,114 @@ public class WhatsAppWebhookController {
                 }
                 whatsAppService.sendMessage(destination, "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");
         }
+@SuppressWarnings("null")
+private void processMessage(String phoneNumber, String message) {
+        if (message == null) return;
+        String body = message.trim().toLowerCase();
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        private void processMessage(String phoneNumber, String message) {
-                if (message == null) return;
-                String body = message.trim().toLowerCase();
-                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        // 1. Obtener o crear sesión (Cualquier interacción nueva inicia en START)
+        ConversationSession session = conversationSessionRepository
+                        .findByPhoneNumber(phoneNumber).orElseGet(() -> {
+                                ConversationSession newSession = ConversationSession.builder()
+                                                .phoneNumber(phoneNumber).currentStep("START").botPaused(false).build();
+                                return conversationSessionRepository.saveAndFlush(newSession);
+                        });
 
-                ConversationSession session = conversationSessionRepository
-                                .findByPhoneNumber(phoneNumber).orElseGet(() -> {
-                                        ConversationSession newSession = ConversationSession.builder()
-                                                        .phoneNumber(phoneNumber).currentStep("START").build();
-                                        return conversationSessionRepository.saveAndFlush(newSession);
-                                });
+        // 📝 REGISTRO GENERAL: Guardamos lo que escribe el cliente en la base de datos
+        ChatMessage msgCliente = chatMessageRepository.saveAndFlush(ChatMessage.builder()
+                        .phoneNumber(phoneNumber)
+                        .messageText(message.trim())
+                        .fromOperator(false) // false porque viene del cliente
+                        .timestamp(LocalDateTime.now())
+                        .build());
 
-                boolean isGreeting = "hola".equals(body) || "buen dia".equals(body) || "buenas".equals(body) || "menu".equals(body);
+        // 🚨 SOLUCIÓN AL F5: Le avisamos al WebSocket en caliente para que pinte la burbuja gris al instante
+        messagingTemplate.convertAndSend("/topic/messages/" + phoneNumber, msgCliente);
 
-                if ("START".equals(session.getCurrentStep()) || isGreeting) {
-                        session.setCurrentStep("ASK_LOCALITY");
-                        conversationSessionRepository.saveAndFlush(session);
+        // 2. 🛑 BYPASS CRÍTICO: Si Martín pausó el bot, muere el flujo de IA (el mensaje ya se guardó y envió arriba)
+        if (session.isBotPaused()) {
+                log.info("[Bypass] Bot muteado para {}. Derivando mensaje a la sala de chat humana.", phoneNumber);
+                return; // Cortamos acá para que la IA no responda
+        }
 
-                        Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);
-                        String saludo = existingPassenger.isPresent() 
-                                ? "¡Hola de nuevo, *" + existingPassenger.get().getFirstName() + "*! 👋\n" 
-                                : "¡Bienvenido a Lunaris Ansenuza! 🚐\n";
+        // Evaluar si es un mensaje explícito de reinicio o saludo común
+        boolean isGreeting = "hola".equals(body) || "buen dia".equals(body) || "buenas".equals(body) || "menu".equals(body) || "reinicio".equals(body);
 
-                        sendAllLocalitiesList(phoneNumber, saludo);
-                        return;
+        // 3. CAPTURA INICIAL ("Hola" o cualquier interacción en START) -> Muestra el Menú Principal
+        if ("START".equals(session.getCurrentStep()) || isGreeting) {
+                session.setCurrentStep("MAIN_MENU");
+                session.setLastInteraction(LocalDateTime.now());
+                conversationSessionRepository.saveAndFlush(session);
+
+                Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);
+                String saludo = existingPassenger.isPresent() 
+                        ? "¡Hola de nuevo, *" + existingPassenger.get().getFirstName() + "*! 👋\n" 
+                        : "¡Bienvenido a Lunaris Ansenuza! 🚐\n";
+
+                String menuPrincipal = saludo + """
+                                ¿En qué te podemos ayudar hoy? Por favor, elegí una opción enviando el número:
+                                
+                                1️⃣ *Reservar un viaje* (Flujo rápido)
+                                2️⃣ *Ver Precios y Cotizar* 💸 
+                                3️⃣ *Hablar con un operador* (Soporte humano)
+                                """;
+
+                whatsAppService.sendMessage(phoneNumber, menuPrincipal);
+                return;
+        }
+
+                
+
+                // 4. PROCESAMIENTO DEL MENÚ PRINCIPAL
+                if ("MAIN_MENU".equals(session.getCurrentStep())) {
+                        if ("1".equals(body)) {
+                                session.setCurrentStep("ASK_LOCALITY");
+                                conversationSessionRepository.saveAndFlush(session);
+                                sendAllLocalitiesList(phoneNumber, "📍 *Excelente elección.* ");
+                                return;
+                        } 
+                        else if ("2".equals(body)) {
+                                session.setCurrentStep("ASK_LOCALITY");
+                                conversationSessionRepository.saveAndFlush(session);
+
+                                // 💸 GANCHO DE MARKETING: El texto vendedor se concatena antes de la lista de la base
+                                String ganchoMarketing = """
+                                                💰 *¡Viajá al mejor precio con Lunaris Ansenusa!*
+                                                Contamos con las tarifas más competitivas del sector, descuentos especiales por tramos de ida y vuelta coordinados, y unidades premium climatizadas con total puntualidad.
+                                                
+                                                """;
+                                sendAllLocalitiesList(phoneNumber, ganchoMarketing);
+                                return;
+                        } 
+                        else if ("3".equals(body)) {
+                                session.setBotPaused(true); // Encendemos el bypass permanente
+                                conversationSessionRepository.saveAndFlush(session);
+                                
+                                whatsAppService.sendMessage(phoneNumber, "🔔 *Un operador fue notificado.* En instantes Martín se comunicará con vos de forma manual por este canal. ¡Muchas gracias por tu paciencia!");
+                                return;
+                        } 
+                        else {
+                                // Si mete mal el dedo, le volvemos a exigir el menú de 3 opciones
+                                whatsAppService.sendMessage(phoneNumber, "⚠️ Opción inválida. Por favor, respondé con *1*, *2* o *3* para continuar.");
+                                return;
+                        }
                 }
 
+                // 5. SELECCIÓN DE PUEBLOS
                 if ("ASK_LOCALITY".equals(session.getCurrentStep())) {
+                        if ("0".equals(body)) { // Opción de escape para volver al inicio si se arrepiente
+                                session.setCurrentStep("MAIN_MENU");
+                                conversationSessionRepository.saveAndFlush(session);
+                                whatsAppService.sendMessage(phoneNumber, "🔙 Volviendo.\n\nEscribí *1* para reservar, *2* para cotizar o *3* para soporte manual.");
+                                return;
+                        }
                         try {
                                 int option = Integer.parseInt(body);
                                 List<Locality> localities = localityRepository.findAll();
 
                                 if (option < 1 || option > localities.size()) {
-                                        whatsAppService.sendMessage(phoneNumber, "❌ Selección inválida. Ingresá un número de la lista.");
+                                        whatsAppService.sendMessage(phoneNumber, "❌ Selección inválida. Ingresá un número de la lista o *0* para volver.");
                                         return;
                                 }
 
@@ -172,20 +252,15 @@ public class WhatsAppWebhookController {
                                 BigDecimal baseFare;
 
                                 try {
-                                        // 💰 Intentamos calcular el precio usando la regla de negocio
                                         baseFare = pricingAndScheduleService.calculateTripPrice(selected.getName(), true, 1);
                                 } catch (IllegalArgumentException ex) {
-                                        // 🛑 CAPTURA DE ERROR EXPLICITA: Si no encuentra tarifa (Ej: Marull), avisa sin colgarse
                                         log.warn("Falta tarifa en base para la localidad seleccionada: {}", selected.getName());
-                                        whatsAppService.sendMessage(phoneNumber, "⚠️ Lo sentimos, actualmente *no hay tarifa para esa ciudad* de forma automatizada.\n\nPor favor, escribinos para coordinar el viaje de forma manual o seleccioná otra opción ingresando 'Hola'.");
-                                        
-                                        // Reseteamos el estado de la sesión para que no quede trabado en bucle
+                                        whatsAppService.sendMessage(phoneNumber, "⚠️ Lo sentimos, actualmente *no hay tarifa para esa ciudad* de forma automatizada.\n\nPor favor, ingresá *0* para volver o respondé *Hola* para coordinar con un operador.");
                                         session.setCurrentStep("START");
                                         conversationSessionRepository.saveAndFlush(session);
                                         return;
                                 }
 
-                                // Si la tarifa existe, avanzamos con el flujo normal del sistema
                                 session.setPickupLocality(selected.getName());
                                 session.setCurrentStep("ASK_MARKETING_CONFIRMATION");
                                 conversationSessionRepository.saveAndFlush(session);
@@ -214,7 +289,7 @@ public class WhatsAppWebhookController {
                                 ));
                                 return;
                         } catch (NumberFormatException e) {
-                                whatsAppService.sendMessage(phoneNumber, "⚠️ Por favor, respondé únicamente con el número correlativo de tu localidad.");
+                                whatsAppService.sendMessage(phoneNumber, "⚠️ Por favor, respondé únicamente con el número correlativo de tu localidad o *0* para volver.");
                                 return;
                         } catch (Exception e) {
                                 log.error("Error en ASK_LOCALITY: ", e);
@@ -568,13 +643,13 @@ public class WhatsAppWebhookController {
 
         private void sendAllLocalitiesList(String phoneNumber, String saludo) {
                 List<Locality> localities = localityRepository.findAll();
-                StringBuilder menu = new StringBuilder(saludo).append("\n📍 *¿Desde qué localidad salís?*\n\n");
+                StringBuilder menu = new StringBuilder(saludo).append("📍 *¿Desde qué localidad salís?*\n\n");
                 int index = 1;
                 for (Locality locality : localities) {
                         menu.append("*").append(index).append(")* ").append(locality.getName()).append("\n");
                         index++;
                 }
-                menu.append("\n_Respondé escribiendo únicamente el número que corresponda a tu pueblo de origen._");
+                menu.append("\n*0)* Volver al Menú Principal\n\n_Respondé escribiendo únicamente el número que corresponda a tu pueblo de origen._");
                 whatsAppService.sendMessage(phoneNumber, menu.toString());
         }
 

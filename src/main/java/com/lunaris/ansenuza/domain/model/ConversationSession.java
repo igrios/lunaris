@@ -61,4 +61,9 @@ public class ConversationSession {
     // Nuevo campo para retener la fecha de regreso temporalmente
     @Column(name = "return_date")
     private LocalDate returnDate;
+
+
+    // 🆕 Agregamos el flag para mutear/pausar el bot sincronizado con la migración V27
+    @Column(name = "bot_paused")
+    private boolean botPaused = false;
 }

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Sala de Chat - Lunaris</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" crossorigin="anonymous">
+    <style>
+        body { background-color: #f4f7f6; font-family: system-ui, -apple-system, sans-serif; }
+        .chat-card { height: 75vh; border-radius: 12px; }
+        .chat-messages { height: 60vh; overflow-y: auto; background-color: #f8f9fa; padding: 20px; border-radius: 8px 8px 0 0; }
+        .burbuja { max-width: 70%; padding: 10px 15px; border-radius: 15px; margin-bottom: 10px; position: relative; font-size: 0.95rem; }
+        .mensaje-operador { background-color: #0d6efd; color: white; border-bottom-right-radius: 2px; }
+        .mensaje-cliente { background-color: #e9ecef; color: #212529; border-bottom-left-radius: 2px; }
+        .time-stamp { font-size: 0.75rem; opacity: 0.75; display: block; margin-top: 4px; text-align: right; }
+    </style>
+</head>
+<body class="p-4">
+
+<div class="container">
+    <input type="hidden" id="phone-data" th:data-phone="${sessionPhone ?: phone}" />
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a th:href="@{/admin/bot/monitor}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Volver al Monitor
+        </a>
+        <h4 class="fw-bold mb-0">Chat en Vivo: <span class="text-primary" th:text="${sessionPhone ?: phone}"></span></h4>
+    </div>
+
+    <div class="card chat-card border-0 shadow-sm overflow-hidden">
+        <div id="chatContainer" class="chat-messages d-flex flex-column">
+            <div th:each="m : ${historial}" th:class="${m.fromOperator} ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100'">
+                <div class="burbuja d-inline-block text-start" th:classappend="${m.fromOperator} ? 'mensaje-operador' : 'mensaje-cliente'">
+                    <span th:text="${m.messageText}"></span>
+                    <small class="time-stamp" th:text="${#temporals.format(m.timestamp, 'HH:mm')}"></small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer bg-white border-top p-3">
+            <div class="input-group">
+                <input type="text" id="messageInput" class="form-control" placeholder="Escribí un mensaje de texto aquí..." autocomplete="off" 
+                       onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enviarMensajeHumano(); }">
+                <button type="button" id="btnEnviar" class="btn btn-primary px-4" onclick="enviarMensajeHumano()">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script th:inline="javascript">
+    // Inyección nativa y directa de Thymeleaf
+    const phone = /*[[${phone ?: sessionPhone}]]*/ null;
+    const seguroPhone = phone || window.location.pathname.match(/\/chat\/(\d+)/)?.[1];
+    console.log("Terminal listo en tiempo real para el número:", seguroPhone);
+
+    const socket = new SockJS('/chat-websocket');
+    const stomp = Stomp.over(socket);
+
+    stomp.connect({}, () => {
+        console.log("WebSocket Conectado Correctamente");
+        if (seguroPhone) {
+            // Escuchamos absolutamente TODOS los mensajes que pasan por el canal
+            stomp.subscribe('/topic/messages/' + seguroPhone, (msg) => {
+                const nuevoMensaje = JSON.parse(msg.body);
+                
+                // 🔄 DIBUJA EN CALIENTE: Cada mensaje del canal va directo a la pantalla
+                dibujarBurbujaMensaje(nuevoMensaje);
+            });
+        }
+    });
+
+    // Función que procesa el envío al presionar Enter o clickear el botón
+    function enviarMensajeHumano() {
+        const input = document.getElementById('messageInput') || document.querySelector('input[type="text"]');
+        if (!input) return;
+
+        const texto = input.value.trim();
+        if (texto === '' || !seguroPhone) return;
+
+        const payload = {
+            phoneNumber: seguroPhone,
+            messageText: texto,
+            fromOperator: true,
+            timestamp: new Date().toISOString()
+        };
+
+        // Despachamos al servidor de Spring por el socket
+        stomp.send('/app/chat.send/' + seguroPhone, {}, JSON.stringify(payload));
+        
+        // Limpiamos la caja de texto inmediatamente para poder seguir escribiendo
+        input.value = '';
+    }
+
+    // 🎯 ESTA ES LA FUNCIÓN CORREGIDA QUE VA A PINTAR EN TIEMPO REAL
+    function dibujarBurbujaMensaje(msg) {
+        // Buscamos el contenedor usando la clase exacta de Bootstrap que tiene tu diseño
+        const chatContainer = document.querySelector('.chat-messages') || document.getElementById('chatContainer');
+        if (!chatContainer) {
+            console.error("No se encontró el contenedor del chat en el HTML");
+            return;
+        }
+
+        const isMe = msg.fromOperator;
+        
+        // Replicamos la misma estructura de clases CSS exactas que usa tu Thymeleaf inicial
+        const alineacionWrapper = isMe ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100';
+        const claseBurbuja = isMe ? 'mensaje-operador' : 'mensaje-cliente';
+        
+        // Formatear hora min de forma segura
+        let horaStr = "00:00";
+        if (msg.timestamp) {
+            const dateObj = new Date(msg.timestamp);
+            horaStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+            horaStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        const estructuraHtml = `
+            <div class="${alineacionWrapper} mb-2" style="display: flex; flex-direction: column;">
+                <div class="burbuja d-inline-block text-start ${claseBurbuja}">
+                    <span>${msg.messageText}</span>
+                    <small class="time-stamp">${horaStr}</small>
+                </div>
+            </div>
+        `;
+
+        // Inyectamos de forma limpia al final del div sin romper los elementos existentes
+        chatContainer.insertAdjacentHTML('beforeend', estructuraHtml);
+        
+        // Scroll abajo automático instantáneo
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    window.onload = function() {
+        const chatContainer = document.querySelector('.chat-messages') || document.getElementById('chatContainer');
+        if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+    };
+</script>
+</body>
+</html>
