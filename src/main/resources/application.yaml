@@ -1,13 +1,15 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/lunaris_db
-    username: postgres
-    password: postgres
+    # Si encuentra la variable de Render usa esa, si no, se conecta a tu localhost
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/lunaris_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
 
   jpa:
     hibernate:
-      ddl-auto: validate
-    show-sql: true
+      # En producción es mejor 'update' o 'none' si manejás Flyway, para desarrollo dejamos validate como base
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
+    show-sql: ${SPRING_JPA_SHOW_SQL:true}
 
   flyway:
     enabled: true
@@ -15,17 +17,18 @@ spring:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
-
   api-docs:
     path: /api-docs
 
 whatsapp:
-  phone-number-id: 1160685710458679
-  access-token:  EAAOpuc7IAZCYBR0QjDszWKxuJvEtJcUSGINZBwTgTSC9oQIx5NP5Nf2eVboccp0ufZCPGUGTE5esQpeI4YpZATUmZCuKLCamsQqGMiZAy7xrUPhszAywxNzVEtEps0OmWpPt2Xts9F11hj0kMDOmNyXQbmOCZAJd19rZCZBSBWjOzeUbMGYtsSTtDTru7fXHJCAZC2S1rCYJujJ9a1Ch7O3Bs1EK6x5dmDLe3OhpFueSxKTBTC5rgV7Io567eUBOo5m9VHw0GDIAYH1JDoB9EEwOfzmgZDZD
-
+  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:1160685710458679}
+  # Protegemos tu token de producción usando una variable de entorno
+  access-token: ${WHATSAPP_ACCESS_TOKEN:EAAOpuc7IAZCYBR0QjDszWKxuJvEtJcUSGINZBwTgTSC9oQIx5NP5Nf2eVboccp0ufZCPGUGTE5esQpeI4YpZATUmZCuKLCamsQqGMiZAy7xrUPhszAywxNzVEtEps0OmWpPt2Xts9F11hj0kMDOmNyXQbmOCZAJd19rZCZBSBWjOzeUbMGYtsSTtDTru7fXHJCAZC2S1rCYJujJ9a1Ch7O3Bs1EK6x5dmDLe3OhpFueSxKTBTC5rgV7Io567eUBOo5m9VHw0GDIAYH1JDoB9EEwOfzmgZDZD}
 
 storage:
-  local-dir: /home/ignacio/Documentos/lunaris-ansenuza/comprobantes/
+  # Ojo acá: en Render usamos la carpeta temporal del contenedor '/tmp/' para los comprobantes
+  local-dir: ${STORAGE_LOCAL_DIR:/tmp/comprobantes/}
 
 server:
-  port: 8080
+  # Render asigna el puerto dinámicamente en la variable PORT, si no existe usa el 8080
+  port: ${PORT:8080}
