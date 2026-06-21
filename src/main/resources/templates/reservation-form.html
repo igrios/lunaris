@@ -8,6 +8,7 @@
     <style>
         body {
             background-color: #dee2e6;
+            padding-top: 56px; /* Espacio para evitar que la navbar fija tape el contenido */
         }
         .card {
             border: none;
@@ -19,34 +20,54 @@
         h2, h4 {
             color: #343a40;
         }
-        .btn-agenda {
-            background-color: #6f42c1;
-            color: white;
+        .bg-navbar {
+            background-color: #1e293b !important; /* Gris oscuro corporativo */
         }
-        .btn-agenda:hover {
-            background-color: #59359a;
-            color: white;
+        .navbar-brand fw-bold {
+            color: #f8fafc !important;
         }
     </style>
 </head>
 <body class="bg-light">
 
-    <div class="container mt-4 mb-5">
-
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <a href="/" class="btn btn-outline-secondary btn-sm">
-                🏠 Ir al Inicio del Panel
-            </a>
-            <a href="/agenda" class="btn btn-agenda btn-sm fw-bold shadow-sm">
-                📅 Ir al Calendario Mensual
-            </a>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-navbar fixed-top shadow">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold text-white" href="/">🌙 Lunaris Ansenuza</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-collapse navbar-nav ms-auto gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">📊 Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/agenda">📅 Calendario / Agenda</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/passengers">👥 Pasajeros</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/fares">💵 Tarifas Comerciales</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/drivers">🚗 Choferes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/vehicles">🚐 Vehículos</a>
+                    </li>
+                </ul>
+            </div>
         </div>
+    </nav>
 
-        <div class="card shadow">
+    <div class="container mt-5 mb-5">
+
+        <div class="card shadow mt-4">
             <div class="card-body">
 
                 <h2 class="mb-4">
-                   📅  Nueva Reserva
+                   📝 Nueva Reserva
                 </h2>
 
                 <form th:action="@{/reservations/new}" th:object="${reservation}" method="post">
@@ -60,41 +81,44 @@
                     </h4>
 
                     <div class="mb-3">
-                        <label class="form-label">Nombre</label>
-                        <input type="text" class="form-control" name="firstName" id="firstName" value="">
+                        <label class="form-label fw-semibold">Nombre</label>
+                        <input type="text" class="form-control" th:field="*{firstName}" id="firstName" required>
+                        <div class="text-danger" th:errors="*{firstName}"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Apellido</label>
-                        <input type="text" class="form-control" name="lastName" id="lastName" value="">
+                        <label class="form-label fw-semibold">Apellido</label>
+                        <input type="text" class="form-control" th:field="*{lastName}" id="lastName" required>
+                        <div class="text-danger" th:errors="*{lastName}"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Teléfono</label>
-                        <input type="text" class="form-control" name="phone" id="phone" maxlength="15" inputmode="numeric"
-                            oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="">
+                        <label class="form-label fw-semibold">Teléfono</label>
+                        <input type="text" class="form-control" th:field="*{phone}" id="phone" maxlength="15" inputmode="numeric"
+                            oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
+                        <div class="text-danger" th:errors="*{phone}"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">DNI / CUIT</label>
-                        <input type="text" class="form-control" name="cuil" id="cuil" maxlength="11" inputmode="numeric"
-                            oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="">
+                        <label class="form-label fw-semibold">DNI / CUIT</label>
+                        <input type="text" class="form-control" th:field="*{cuil}" id="cuil" maxlength="11" inputmode="numeric"
+                            oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                     </div>
 
-                    <hr>
+                    <hr class="my-4">
 
-                    <h4 class="mt-4 mb-3">
+                    <h4 class="mb-3">
                         Datos del Viaje
                     </h4>
 
                     <div class="mb-3">
-                        <label class="form-label">Fecha del Viaje</label>
-                        <input type="date" class="form-control" th:field="*{travelDate}">
+                        <label class="form-label fw-semibold">Fecha del Viaje</label>
+                        <input type="date" class="form-control" th:field="*{travelDate}" required>
                         <div class="text-danger" th:errors="*{travelDate}"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Tipo de Viaje</label>
+                        <label class="form-label fw-semibold">Tipo de Viaje</label>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" th:field="*{roundTrip}" value="false" id="soloIda">
                             <label class="form-check-label" for="soloIda">Solo Ida</label>
@@ -105,62 +129,71 @@
                         </div>
                     </div>
 
-                    <div class="mb-3" id="returnDateContainer">
-                        <label class="form-label">Fecha Regreso</label>
-                        <input type="date" class="form-control" th:field="*{returnDate}">
+                    <div id="returnSectionContainer" class="p-3 border rounded mb-3 bg-light" style="display: none;">
+                        
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="openReturnSwitch" onchange="toggleOpenReturn()">
+                            <label class="form-check-label fw-bold text-warning" for="openReturnSwitch">🛑 Dejar Vuelta Abierta (Sin fecha definida)</label>
+                        </div>
+
+                        <div id="returnDateInputContainer">
+                            <label class="form-label fw-semibold">Fecha Regreso</label>
+                            <input type="date" class="form-control" th:field="*{returnDate}" id="returnDate">
+                            <div class="text-danger" th:errors="*{returnDate}"></div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Localidad de Retiro</label>
-                        <select class="form-select" th:field="*{pickupLocality}">
-                            <option value="">Seleccionar localidad</option>
-                            <option th:each="locality : ${localities}" th:value="${locality.name}" th:text="${locality.name}"></option>
+                        <label class="form-label fw-semibold">Localidad de Retiro</label>
+                        <select class="form-select" th:field="*{pickupLocality}" required>
+                            <option value="">-- Seleccionar pueblo de origen --</option>
+                            <option th:each="org : ${origenes}" th:value="${org}" th:text="${org}"></option>
                         </select>
                         <div class="text-danger" th:errors="*{pickupLocality}"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Dirección de Retiro</label>
-                        <input type="text" class="form-control" th:field="*{pickupAddress}">
+                        <label class="form-label fw-semibold">Dirección de Retiro</label>
+                        <input type="text" class="form-control" th:field="*{pickupAddress}" required>
                         <div class="text-danger" th:errors="*{pickupAddress}"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Destino</label>
-                        <select class="form-select" th:field="*{destination}">
-                            <option value="">Seleccionar destino</option>
-                            <option th:each="locality : ${localities}" th:value="${locality.name}" th:text="${locality.name}"></option>
+                        <label class="form-label fw-semibold">Destino</label>
+                        <select class="form-select" th:field="*{destination}" required>
+                            <option value="">-- Seleccionar destino Hub --</option>
+                            <option th:each="dest : ${destinos}" th:value="${dest}" th:text="${dest}"></option>
                         </select>
                         <div class="text-danger" th:errors="*{destination}"></div>
                     </div>
 
-                    <hr>
+                    <hr class="my-4">
 
-                    <h4 class="mt-4 mb-3">Gestión de Asientos</h4>
+                    <h4 class="mb-3">Gestión de Asientos</h4>
                     
                     <div class="mb-3">
-                        <label class="form-label">Cantidad Asientos Ocupados totales</label>
-                        <input type="number" class="form-control" name="passengerCount" id="passengerCount" min="1" max="4" value="1">
+                        <label class="form-label fw-semibold">Cantidad Asientos Ocupados totales</label>
+                        <input type="number" class="form-control" th:field="*{passengerCount}" id="passengerCount" min="1" max="4">
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Nombres de los Acompañantes</label>
-                        <input type="text" class="form-control" name="companionNames" id="companionNames" placeholder="Ej: Luis Gómez, Ana Pérez" value="">
+                        <label class="form-label fw-semibold">Nombres de los Acompañantes</label>
+                        <input type="text" class="form-control" th:field="*{companionNames}" id="companionNames" placeholder="Ej: Luis Gómez, Ana Pérez">
                     </div>
 
                     <div class="form-check mb-3 mt-4">
                         <input class="form-check-input" type="checkbox" th:field="*{paymentVerified}">
-                        <label class="form-check-label fw-bold">💸 Pago Verificado</label>
+                        <label class="form-check-label fw-bold text-success">💸 Pago Verificado</label>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label">Observaciones</label>
+                        <label class="form-label fw-semibold">Observaciones</label>
                         <textarea class="form-control" rows="3" th:field="*{notes}"></textarea>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 pt-3 border-top">
                         <a href="/agenda" class="btn btn-light px-4 border">📅 Agenda</a>
-                        <button type="submit" class="btn btn-primary px-5 fw-bold">Guardar Reserva ✅</button>
+                        <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm">Guardar Reserva ✅</button>
                     </div>
 
                 </form>
@@ -168,21 +201,50 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
-        function toggleReturnDate() {
-            const idaVuelta = document.getElementById("idaVuelta");
-            const container = document.getElementById("returnDateContainer");
-            if (idaVuelta && container) {
-                container.style.display = idaVuelta.checked ? "block" : "none";
+        function toggleReturnVisibility() {
+            const idaVuelta = document.getElementById("idaVuelta").checked;
+            const container = document.getElementById("returnSectionContainer");
+            const openReturnSwitch = document.getElementById("openReturnSwitch");
+            const returnDateInput = document.getElementById("returnDate");
+
+            if (idaVuelta) {
+                container.style.display = "block";
+                toggleOpenReturn(); // Ajusta la visibilidad interna del input según el switch
+            } else {
+                container.style.display = "none";
+                // Limpieza total y deshabilitación preventiva si vuelve a Solo Ida
+                returnDateInput.value = "";
+                returnDateInput.disabled = false;
+                openReturnSwitch.checked = false;
+            }
+        }
+
+        function toggleOpenReturn() {
+            const isOpenReturn = document.getElementById("openReturnSwitch").checked;
+            const inputContainer = document.getElementById("returnDateInputContainer");
+            const returnDateInput = document.getElementById("returnDate");
+
+            if (isOpenReturn) {
+                inputContainer.style.display = "none";
+                returnDateInput.value = "";
+                returnDateInput.disabled = true; // Al estar disabled, Spring no recibe el parámetro (llega null)
+            } else {
+                inputContainer.style.display = "block";
+                returnDateInput.disabled = false;
             }
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            toggleReturnDate();
+            toggleReturnVisibility();
+            
             const soloIdaBtn = document.getElementById("soloIda");
             const idaVueltaBtn = document.getElementById("idaVuelta");
-            if (soloIdaBtn) soloIdaBtn.addEventListener("change", toggleReturnDate);
-            if (idaVueltaBtn) idaVueltaBtn.addEventListener("change", toggleReturnDate);
+            
+            if (soloIdaBtn) soloIdaBtn.addEventListener("change", toggleReturnVisibility);
+            if (idaVueltaBtn) idaVueltaBtn.addEventListener("change", toggleReturnVisibility);
         });
     </script>
 </body>

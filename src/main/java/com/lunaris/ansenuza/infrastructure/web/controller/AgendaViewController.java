@@ -40,37 +40,37 @@ public class AgendaViewController {
     private String whatsappToken;
 
     // 📅 1. Vista resumen de los próximos 5 días CORREGIDA CON EL CONTEO NATIVO DE ASIENTOS
+    // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS
     @GetMapping("/agenda")
     public String agenda(Model model) {
         LocalDate today = LocalDate.now();
+        LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
+        // 🌟 Modificado: Pasamos de 5 a 7 en el IntStream.range para cubrir la semana completa
         List<AgendaDayView> agenda =
-                java.util.stream.IntStream.range(0, 5).mapToObj(today::plusDays).map(date -> {
+                java.util.stream.IntStream.range(0, 7).mapToObj(today::plusDays).map(date -> {
                     List<Reservation> reservations = reservationRepository.findByTravelDate(date);
 
-                    // 🌟 CORREGIDO: Sumamos los asientos reales usando el nuevo campo
-                    // passengerCount
+                    // 🌟 FILTRO: Excluimos cualquier registro que por error tenga la fecha centinela
                     int totalPassengers = reservations.stream()
-                            .mapToInt(
-                                    r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
+                            .filter(r -> r.getTravelDate() == null || !r.getTravelDate().equals(fechaCentinela))
+                            .mapToInt(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
                             .sum();
 
                     int pendingPayments = (int) reservations.stream()
+                            .filter(r -> r.getTravelDate() == null || !r.getTravelDate().equals(fechaCentinela))
                             .filter(r -> !Boolean.TRUE.equals(r.getPaymentVerified())).count();
 
-                    // 🚐 CORREGIDO: Estimamos las combis basándonos en capacidad típica de 19
-                    // asientos
-                    int estimatedVehicles =
-                            totalPassengers == 0 ? 0 : (int) Math.ceil(totalPassengers / 4.0);
+                    int estimatedVehicles = totalPassengers == 0 ? 0 : (int) Math.ceil(totalPassengers / 4.0);
 
-                    return new AgendaDayView(date, totalPassengers, pendingPayments,
-                            estimatedVehicles);
+                    return new AgendaDayView(date, totalPassengers, pendingPayments, estimatedVehicles);
                 }).toList();
 
         model.addAttribute("agenda", agenda);
         return "agenda";
     }
 
+    
     // 🚐 2. Vista detalle del día
     @GetMapping("/agenda/view-detalle")
     public String dayAgenda(
@@ -174,21 +174,17 @@ public class AgendaViewController {
             if (res == null)
                 continue;
 
-            String nombre =
-                    res.getPassenger().getFirstName() + " " + res.getPassenger().getLastName();
+            String nombre = res.getPassenger().getFirstName() + " " + res.getPassenger().getLastName();
             String origen = res.getPickupLocality();
             String destino = res.getDestination();
             String direccion = (res.getPickupAddress() != null && !res.getPickupAddress().isEmpty())
                     ? res.getPickupAddress()
                     : "No especificada";
             String telefono = res.getPassenger().getPhone();
-            String observaciones =
-                    (res.getNotes() != null && !res.getNotes().isEmpty()) ? res.getNotes() : "-";
+            String observaciones = (res.getNotes() != null && !res.getNotes().isEmpty()) ? res.getNotes() : "-";
 
-            // 🌟 NUEVOS CAMPOS LEÍDOS PARA EL TEXTO DEL CHOFER
             int asientos = res.getPassengerCount() != null ? res.getPassengerCount() : 1;
-            String listaAcompanantes =
-                    (res.getCompanionNames() != null && !res.getCompanionNames().isEmpty())
+            String listaAcompanantes = (res.getCompanionNames() != null && !res.getCompanionNames().isEmpty())
                             ? res.getCompanionNames()
                             : "Ninguno";
 
@@ -215,6 +211,35 @@ public class AgendaViewController {
                     .error("Error al enviar la hoja de ruta al chofer por webhook/API", e);
             return ResponseEntity.status(500).build();
         }
+    }
+
+    // 💬 6. Habilita http://localhost:8080/chat-room apuntando adentro de admin/
+    @GetMapping("/chat-room")
+    public String showChatRoom(Model model) {
+        model.addAttribute("historial", new java.util.ArrayList<>());
+        
+        // El salvavidas para que el HTML no explote exigiendo el th:object
+        model.addAttribute("reservation", new com.lunaris.ansenuza.domain.model.Reservation());
+        
+        // Listas para que se llenen los desplegables de localidad
+        model.addAttribute("origenes", List.of("Morteros", "Brinkmann", "San Guillermo", "Porteña", "Suardi")); 
+        model.addAttribute("destinos", List.of("Córdoba", "Aeropuerto Córdoba"));
+
+        return "admin/chat-room"; // 👈 Corregido: va a buscar a templates/admin/chat-room.html
+    }
+
+    // 🤖 7. Habilita http://localhost:8080/bot-monitor apuntando adentro de admin/
+    @GetMapping("/bot-monitor")
+    public String showBotMonitor(Model model) {
+        model.addAttribute("logs", new java.util.ArrayList<>());
+        return "admin/bot-monitor"; // 👈 Corregido: va a buscar a templates/admin/bot-monitor.html
+    }
+
+    // 📋 8. Habilita http://localhost:8080/hoja-ruta apuntando adentro de admin/
+    @GetMapping("/hoja-ruta")
+    public String showHojaRuta(Model model) {
+        model.addAttribute("date", LocalDate.now());
+        return "admin/hoja-ruta"; // 👈 Corregido: va a buscar a templates/admin/hoja-ruta.html
     }
 
     public record Chofer(String nombre, String telefono) {

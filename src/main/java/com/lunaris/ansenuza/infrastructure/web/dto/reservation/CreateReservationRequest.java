@@ -4,23 +4,15 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public record CreateReservationRequest(
-
-        UUID passengerId,
-
-        LocalDate travelDate,
-
-        String pickupLocality,
-
-        String pickupAddress,
-
-        String destination,
-
-        Boolean roundTrip,
-
-        LocalDate returnDate,
-
-        Boolean paymentVerified,
-
-        String notes
-) {
-}
+    UUID passengerId,
+    LocalDate travelDate,
+    String pickupLocality,
+    String pickupAddress,
+    String destination,
+    Boolean roundTrip,
+    LocalDate returnDate,
+    Boolean paymentVerified,
+    String notes,
+    Integer passengerCount, // 🌟 ¡Asegurate de que este campo esté acá escrito tal cual!
+    String companionNames
+) {}

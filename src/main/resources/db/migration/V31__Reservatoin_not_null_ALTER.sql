@@ -1,0 +1,1 @@
+ALTER TABLE reservations ALTER COLUMN travel_date DROP NOT NULL;

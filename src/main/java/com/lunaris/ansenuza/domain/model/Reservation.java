@@ -2,7 +2,10 @@ package com.lunaris.ansenuza.domain.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -24,7 +27,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
 public class Reservation {
 
     @Id
@@ -63,7 +65,7 @@ public class Reservation {
     private Boolean paymentVerified;
 
     @Column(name = "status")
-    private String status;
+    private String status; // Flujo canónico: PENDING_PAYMENT, PAYMENT_RECEIVED, CONFIRMED, CANCELLED
 
     @Column(name = "notes")
     private String notes;
@@ -71,19 +73,32 @@ public class Reservation {
     @Column(name = "payment_receipt_url")
     private String paymentReceiptUrl;
 
-// 🌟 NUEVO CAMPO NATIVO PARA LOS ACOMPAÑANTES
     @Column(name = "companion_names", length = 500)
     private String companionNames;
 
-    // 🔢 NUEVO CAMPO PARA CONTABILIZAR LOS ASIENTOS
     @Column(name = "passenger_count")
     private Integer passengerCount;
 
-    // 🎯 Método seguro para usar en los controladores y Thymeleaf
+    @Column(name = "reservation_code", unique = true, length = 20)
+    private String reservationCode;
+
+    // 🕒 TIMESTAMPS DE AUDITORÍA EMPRESARIAL (Nativos de Hibernate)
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     public int getTotalSeats() {
         if (this.passengerCount == null || this.passengerCount < 1) {
             return 1;
         }
         return this.passengerCount;
+    }
+
+    public void setReservationCode(String reservationCode) {
+        this.reservationCode = reservationCode;
     }
 }
