@@ -2,143 +2,291 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Sala de Chat - Lunaris</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" crossorigin="anonymous">
+    <title>Sala de Chat Dividida - Lunaris</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" crossorigin="anonymous">
     <style>
-        body { background-color: #f4f7f6; font-family: system-ui, -apple-system, sans-serif; }
-        .chat-card { height: 75vh; border-radius: 12px; }
-        .chat-messages { height: 60vh; overflow-y: auto; background-color: #f8f9fa; padding: 20px; border-radius: 8px 8px 0 0; }
+        body { 
+            background-color: #dee2e6; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            overflow: hidden; /* Evita el scroll global */
+        }
+        /* Contenedor principal que se adapta al alto de la pantalla restante */
+        .split-container {
+            height: calc(100vh - 56px);
+        }
+        /* Paneles con scroll independiente */
+        .scrollable-panel {
+            height: 100%;
+            overflow-y: auto;
+        }
+        /* Tus estilos originales exactos para las burbujas */
+        .chat-card { height: 80vh; border-radius: 12px; }
+        .chat-messages { height: 68vh; overflow-y: auto; background-color: #f8f9fa; padding: 20px; border-radius: 8px 8px 0 0; }
         .burbuja { max-width: 70%; padding: 10px 15px; border-radius: 15px; margin-bottom: 10px; position: relative; font-size: 0.95rem; }
         .mensaje-operador { background-color: #0d6efd; color: white; border-bottom-right-radius: 2px; }
         .mensaje-cliente { background-color: #e9ecef; color: #212529; border-bottom-left-radius: 2px; }
         .time-stamp { font-size: 0.75rem; opacity: 0.75; display: block; margin-top: 4px; text-align: right; }
+        
+        .card { border: none; }
+        .btn-agenda { background-color: #6f42c1; color: white; }
+        .btn-agenda:hover { background-color: #59359a; color: white; }
     </style>
 </head>
-<body class="p-4">
+<body class="bg-light">
 
-<div class="container">
-    <input type="hidden" id="phone-data" th:data-phone="${sessionPhone ?: phone}" />
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand fw-bold" th:href="@{/dashboard}">🚐 Lunaris Ansenuza</a>
+            <div class="navbar-nav ms-auto gap-2">
+                <a th:href="@{/admin/bot/monitor}" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm">
+                    🎛️ Torre de Control (Monitor)
+                </a>
+                <a th:href="@{/dashboard}" class="btn btn-outline-light btn-sm">🏠 Inicio Panel</a>
+                <a th:href="@{/agenda}" class="btn btn-agenda btn-sm fw-bold">📅 Calendario Mensual</a>
+            </div>
+        </div>
+    </nav>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <a th:href="@{/admin/bot/monitor}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Volver al Monitor
-        </a>
-        <h4 class="fw-bold mb-0">Chat en Vivo: <span class="text-primary" th:text="${sessionPhone ?: phone}"></span></h4>
-    </div>
+    <div class="container-fluid split-container mt-3">
+        <div class="row h-100 px-2">
+            
+            <div class="col-md-6 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                    <h5 class="fw-bold mb-0">Chat en Vivo: <span class="text-primary" th:text="${sessionPhone ?: phone}"></span></h5>
+                </div>
 
-    <div class="card chat-card border-0 shadow-sm overflow-hidden">
-        <div id="chatContainer" class="chat-messages d-flex flex-column">
-            <div th:each="m : ${historial}" th:class="${m.fromOperator} ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100'">
-                <div class="burbuja d-inline-block text-start" th:classappend="${m.fromOperator} ? 'mensaje-operador' : 'mensaje-cliente'">
-                    <span th:text="${m.messageText}"></span>
-                    <small class="time-stamp" th:text="${#temporals.format(m.timestamp, 'HH:mm')}"></small>
+                <div class="card chat-card border-0 shadow-sm overflow-hidden">
+                    <div id="chatContainer" class="chat-messages d-flex flex-column">
+                        <div th:each="m : ${historial}" th:class="${m.fromOperator} ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100'">
+                            <div class="burbuja d-inline-block text-start" th:classappend="${m.fromOperator} ? 'mensaje-operador' : 'mensaje-cliente'">
+                                <span th:text="${m.messageText}"></span>
+                                <small class="time-stamp" th:text="${#temporals.format(m.timestamp, 'HH:mm')}"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-white border-top p-3">
+                        <div class="input-group">
+                            <input type="text" id="messageInput" class="form-control" placeholder="Escribí un mensaje de texto aquí..." autocomplete="off" 
+                                   onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enviarMensajeHumano(); }">
+                            <button type="button" id="btnEnviar" class="btn btn-primary px-4" onclick="enviarMensajeHumano()">
+                                <i class="bi bi-send-fill"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="card-footer bg-white border-top p-3">
-            <div class="input-group">
-                <input type="text" id="messageInput" class="form-control" placeholder="Escribí un mensaje de texto aquí..." autocomplete="off" 
-                       onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enviarMensajeHumano(); }">
-                <button type="button" id="btnEnviar" class="btn btn-primary px-4" onclick="enviarMensajeHumano()">
-                    <i class="bi bi-send-fill"></i>
-                </button>
+            <div class="col-md-6 scrollable-panel pb-5">
+                <div class="card shadow mb-4">
+                    <div class="card-body p-4">
+
+                        <h2 class="mb-4">📅 Nueva Reserva Asistida</h2>
+
+                        <form th:action="@{/reservations/new}" th:object="${reservation}" method="post">
+
+                            <div class="alert alert-danger" th:if="${#fields.hasAnyErrors()}">
+                                Por favor complete todos los campos obligatorios.
+                            </div>
+
+                            <h4 class="mb-3 text-secondary">Datos del Pasajero</h4>
+
+                            <div class="mb-3">
+                                <label class="form-label">Nombre</label>
+                                <input type="text" class="form-control" name="firstName" id="firstName" value="">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Apellido</label>
+                                <input type="text" class="form-control" name="lastName" id="lastName" value="">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Teléfono</label>
+                                <input type="text" class="form-control fw-bold text-primary bg-light" name="phone" id="phone" 
+                                       maxlength="15" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" 
+                                       th:value="${sessionPhone ?: phone}" readonly>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">DNI / CUIT</label>
+                                <input type="text" class="form-control" name="cuil" id="cuil" maxlength="11" inputmode="numeric"
+                                    oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="">
+                            </div>
+
+                            <hr>
+
+                            <h4 class="mt-4 mb-3 text-secondary">Datos del Viaje</h4>
+
+                            <div class="mb-3">
+                                <label class="form-label">Fecha del Viaje</label>
+                                <input type="date" class="form-control" th:field="*{travelDate}">
+                                <div class="text-danger" th:errors="*{travelDate}"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Tipo de Viaje</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" th:field="*{roundTrip}" value="false" id="soloIda">
+                                    <label class="form-check-label" for="soloIda">Solo Ida</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" th:field="*{roundTrip}" value="true" id="idaVuelta">
+                                    <label class="form-check-label" for="idaVuelta">Ida y Vuelta</label>
+                                </div>
+                            </div>
+
+                            <div class="mb-3" id="returnDateContainer">
+                                <label class="form-label">Fecha Regreso</label>
+                                <input type="date" class="form-control" th:field="*{returnDate}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Localidad de Retiro</label>
+                                <select class="form-select" th:field="*{pickupLocality}">
+                                    <option value="">Seleccionar localidad</option>
+                                    <option th:each="locality : ${localities}" th:value="${locality.name}" th:text="${locality.name}"></option>
+                                </select>
+                                <div class="text-danger" th:errors="*{pickupLocality}"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Dirección de Retiro</label>
+                                <input type="text" class="form-control" th:field="*{pickupAddress}">
+                                <div class="text-danger" th:errors="*{pickupAddress}"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Destino</label>
+                                <select class="form-select" th:field="*{destination}">
+                                    <option value="">Seleccionar destino</option>
+                                    <option th:each="locality : ${localities}" th:value="${locality.name}" th:text="${locality.name}"></option>
+                                </select>
+                                <div class="text-danger" th:errors="*{destination}"></div>
+                            </div>
+
+                            <hr>
+
+                            <h4 class="mt-4 mb-3 text-secondary">Gestión de Asientos</h4>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Cantidad Asientos Ocupados totales</label>
+                                <input type="number" class="form-control" name="passengerCount" id="passengerCount" min="1" max="4" value="1">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Nombres de los Acompañantes</label>
+                                <input type="text" class="form-control" name="companionNames" id="companionNames" placeholder="Ej: Luis Gómez, Ana Pérez" value="">
+                            </div>
+
+                            <div class="form-check mb-3 mt-4">
+                                <input class="form-check-input" type="checkbox" th:field="*{paymentVerified}">
+                                <label class="form-check-label fw-bold">💸 Pago Verificado</label>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Observaciones</label>
+                                <textarea class="form-control" rows="3" th:field="*{notes}"></textarea>
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                                <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">Guardar Reserva e Impactar ✅</button>
+                            </div>
+
+                        </form>
+                    </div>
+                </div>
             </div>
+
         </div>
     </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-<script th:inline="javascript">
-    // Inyección nativa y directa de Thymeleaf
-    const phone = /*[[${phone ?: sessionPhone}]]*/ null;
-    const seguroPhone = phone || window.location.pathname.match(/\/chat\/(\d+)/)?.[1];
-    console.log("Terminal listo en tiempo real para el número:", seguroPhone);
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script th:inline="javascript">
+        const phone = /*[[${phone ?: sessionPhone}]]*/ null;
+        const seguroPhone = phone || window.location.pathname.match(/\/chat\/(\d+)/)?.[1];
+        console.log("Terminal listo en tiempo real para el número:", seguroPhone);
 
-    const socket = new SockJS('/chat-websocket');
-    const stomp = Stomp.over(socket);
+        const socket = new SockJS('/chat-websocket');
+        const stomp = Stomp.over(socket);
 
-    stomp.connect({}, () => {
-        console.log("WebSocket Conectado Correctamente");
-        if (seguroPhone) {
-            // Escuchamos absolutamente TODOS los mensajes que pasan por el canal
-            stomp.subscribe('/topic/messages/' + seguroPhone, (msg) => {
-                const nuevoMensaje = JSON.parse(msg.body);
-                
-                // 🔄 DIBUJA EN CALIENTE: Cada mensaje del canal va directo a la pantalla
-                dibujarBurbujaMensaje(nuevoMensaje);
-            });
+        stomp.connect({}, () => {
+            console.log("WebSocket Conectado Correctamente");
+            if (seguroPhone) {
+                stomp.subscribe('/topic/messages/' + seguroPhone, (msg) => {
+                    const nuevoMensaje = JSON.parse(msg.body);
+                    dibujarBurbujaMensaje(nuevoMensaje);
+                });
+            }
+        });
+
+        function enviarMensajeHumano() {
+            const input = document.getElementById('messageInput');
+            if (!input) return;
+
+            const texto = input.value.trim();
+            if (texto === '' || !seguroPhone) return;
+
+            const payload = {
+                phoneNumber: seguroPhone,
+                messageText: texto,
+                fromOperator: true,
+                timestamp: new Date().toISOString()
+            };
+
+            stomp.send('/app/chat.send/' + seguroPhone, {}, JSON.stringify(payload));
+            input.value = '';
         }
-    });
 
-    // Función que procesa el envío al presionar Enter o clickear el botón
-    function enviarMensajeHumano() {
-        const input = document.getElementById('messageInput') || document.querySelector('input[type="text"]');
-        if (!input) return;
+        function dibujarBurbujaMensaje(msg) {
+            const chatContainer = document.getElementById('chatContainer');
+            if (!chatContainer) return;
 
-        const texto = input.value.trim();
-        if (texto === '' || !seguroPhone) return;
+            const isMe = msg.fromOperator;
+            const alineacionWrapper = isMe ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100';
+            const claseBurbuja = isMe ? 'mensaje-operador' : 'mensaje-cliente';
+            
+            let horaStr = "00:00";
+            if (msg.timestamp) {
+                const dateObj = new Date(msg.timestamp);
+                horaStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                horaStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
 
-        const payload = {
-            phoneNumber: seguroPhone,
-            messageText: texto,
-            fromOperator: true,
-            timestamp: new Date().toISOString()
+            const estructuraHtml = `
+                <div class="${alineacionWrapper}">
+                    <div class="burbuja d-inline-block text-start ${claseBurbuja}">
+                        <span>${msg.messageText}</span>
+                        <small class="time-stamp">${horaStr}</small>
+                    </div>
+                </div>
+            `;
+
+            chatContainer.insertAdjacentHTML('beforeend', estructuraHtml);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function toggleReturnDate() {
+            const idaVuelta = document.getElementById("idaVuelta");
+            const container = document.getElementById("returnDateContainer");
+            if (idaVuelta && container) {
+                container.style.display = idaVuelta.checked ? "block" : "none";
+            }
+        }
+
+        window.onload = function() {
+            const chatContainer = document.getElementById('chatContainer');
+            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            toggleReturnDate();
+            const soloIdaBtn = document.getElementById("soloIda");
+            const idaVueltaBtn = document.getElementById("idaVuelta");
+            if (soloIdaBtn) soloIdaBtn.addEventListener("change", toggleReturnDate);
+            if (idaVueltaBtn) idaVueltaBtn.addEventListener("change", toggleReturnDate);
         };
-
-        // Despachamos al servidor de Spring por el socket
-        stomp.send('/app/chat.send/' + seguroPhone, {}, JSON.stringify(payload));
-        
-        // Limpiamos la caja de texto inmediatamente para poder seguir escribiendo
-        input.value = '';
-    }
-
-    // 🎯 ESTA ES LA FUNCIÓN CORREGIDA QUE VA A PINTAR EN TIEMPO REAL
-    function dibujarBurbujaMensaje(msg) {
-        // Buscamos el contenedor usando la clase exacta de Bootstrap que tiene tu diseño
-        const chatContainer = document.querySelector('.chat-messages') || document.getElementById('chatContainer');
-        if (!chatContainer) {
-            console.error("No se encontró el contenedor del chat en el HTML");
-            return;
-        }
-
-        const isMe = msg.fromOperator;
-        
-        // Replicamos la misma estructura de clases CSS exactas que usa tu Thymeleaf inicial
-        const alineacionWrapper = isMe ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100';
-        const claseBurbuja = isMe ? 'mensaje-operador' : 'mensaje-cliente';
-        
-        // Formatear hora min de forma segura
-        let horaStr = "00:00";
-        if (msg.timestamp) {
-            const dateObj = new Date(msg.timestamp);
-            horaStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } else {
-            horaStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-
-        const estructuraHtml = `
-            <div class="${alineacionWrapper} mb-2" style="display: flex; flex-direction: column;">
-                <div class="burbuja d-inline-block text-start ${claseBurbuja}">
-                    <span>${msg.messageText}</span>
-                    <small class="time-stamp">${horaStr}</small>
-                </div>
-            </div>
-        `;
-
-        // Inyectamos de forma limpia al final del div sin romper los elementos existentes
-        chatContainer.insertAdjacentHTML('beforeend', estructuraHtml);
-        
-        // Scroll abajo automático instantáneo
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    window.onload = function() {
-        const chatContainer = document.querySelector('.chat-messages') || document.getElementById('chatContainer');
-        if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
-    };
-</script>
+    </script>
 </body>
 </html>
