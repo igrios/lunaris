@@ -38,7 +38,7 @@
                 </thead>
                 <tbody id="monitorBody">
                     <tr th:each="s : ${sesiones}" th:id="'row-' + ${s.id}" th:classappend="${s.botPaused} ? 'alert-pulse table-danger' : ''">
-                        <td class="ps-4 text-secondaryfw-semibold">
+                        <td class="ps-4 text-secondary fw-semibold">
                             <i class="bi bi-whatsapp text-success me-2"></i>
                             <span th:text="${s.phoneNumber}"></span>
                         </td>
@@ -52,13 +52,13 @@
                                   th:text="${s.botPaused} ? 'ATENCIÓN HUMANA' : 'AI Activa'"></span>
                         </td>
                         <td class="pe-4 text-end">
-                            <form th:action="@{/admin/bot/toggle-bot}" method="POST" class="d-inline">
-                                <input type="hidden" name="id" th:value="${s.id}"/>
-                                <button type="submit" class="btn btn-sm px-3" th:classappend="${s.botPaused ? 'btn-success' : 'btn-warning'}">
-                                    <i class="bi" th:classappend="${s.botPaused ? 'bi-play-fill' : 'bi-pause-fill'}"></i>
-                                    <span th:text="${s.botPaused ? 'Activar Bot' : 'Pausar Bot'}"></span>
-                                </button>
-                            </form>
+                            <!-- 🎯 MODIFICADO: Cambiado el formulario HTML pesado por un botón con evento JS directo por WebSocket -->
+                            <button type="button" class="btn btn-sm px-3" 
+                                    th:classappend="${s.botPaused ? 'btn-success' : 'btn-warning'}"
+                                    th:onclick="'conmutarEstadoBot(\'' + ${s.id} + '\')'">
+                                <i class="bi" th:classappend="${s.botPaused ? 'bi-play-fill' : 'bi-pause-fill'}"></i>
+                                <span th:text="${s.botPaused ? 'Activar Bot' : 'Pausar Bot'}"></span>
+                            </button>
                             <a th:href="@{/admin/chat/{phone}(phone=${s.phoneNumber})}" class="btn btn-primary btn-sm ms-1">
                                 <i class="bi bi-chat-text-fill"></i> Chatear
                             </a>
@@ -83,11 +83,25 @@
             connBadge.innerText = "Sistema en Vivo";
         }
 
+        // Al recibir la alerta global del sistema, refrescamos los renglones
         stomp.subscribe('/topic/system-alerts', (msg) => {
             console.log("Alerta de sistema recibida, refrescando interfaz...");
             window.location.reload();
         });
     });
+
+    // 🎯 NUEVA FUNCIÓN: Envía la orden de Pausar o Activar directo por el cable del WebSocket
+    function conmutarEstadoBot(sessionId) {
+        if (!stomp || !stomp.connected) {
+            alert("El canal de control en tiempo real no está disponible ahora.");
+            return;
+        }
+
+        console.log("Solicitando cambio de estado del bot para sesión ID:", sessionId);
+        
+        // Despachamos al destino del WebSocket de administración
+        stomp.send('/app/bot.toggle', {}, JSON.stringify({ id: sessionId }));
+    }
 </script>
 </body>
 </html>

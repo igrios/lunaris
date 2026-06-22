@@ -1,19 +1,27 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +39,13 @@ public class ReservationViewController {
     @GetMapping("/new")
     public String newReservation(Model model) {
         model.addAttribute("reservation", new CreateReservationForm());
-        model.addAttribute("localities", localityRepository.findAll());
+        
+        // 🎯 Usamos el método filtrado para traer solo los pueblos con tarifas comerciales activas
+        var localidadesConTarifa = localityRepository.findLocalitiesWithFares();
+        
+        model.addAttribute("origenes", localidadesConTarifa);
+        model.addAttribute("destinos", localidadesConTarifa);
+        
         return "reservation-form";
     }
 
@@ -42,7 +56,10 @@ public class ReservationViewController {
             Model model) {
 
         if (bindingResult.hasErrors()) {
-            model.addAttribute("localities", localityRepository.findAll());
+            // Si hay errores de validación, volvemos a inyectar la lista filtrada
+            var localidadesConTarifa = localityRepository.findLocalitiesWithFares();
+            model.addAttribute("origenes", localidadesConTarifa);
+            model.addAttribute("destinos", localidadesConTarifa);
             return "reservation-form";
         }
 
@@ -72,6 +89,14 @@ public class ReservationViewController {
         reservationService.saveReservationFlow(reservation);
 
         return "redirect:/agenda";
+    }
+
+    // 👥 VISTA WEB: Renderiza el panel HTML de pasajeros con link directo a WhatsApp
+    @GetMapping("/passengers-panel")
+    public String listPassengersPanel(Model model) {
+        List<Passenger> todosLosPasajeros = passengerRepository.findAll();
+        model.addAttribute("pasajeros", todosLosPasajeros);
+        return "passengers"; // Apunta al archivo templates/passengers.html
     }
 
     // 🗑️ BAJA DESDE EL PANEL DE ADMINISTRACIÓN

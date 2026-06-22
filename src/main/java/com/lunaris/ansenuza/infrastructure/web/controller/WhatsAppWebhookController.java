@@ -50,9 +50,6 @@ public class WhatsAppWebhookController {
         private final SimpMessagingTemplate messagingTemplate;
         private final ReservationService reservationService;
 
-
-        // Inyectado para persistir el bypass humano
-
         @GetMapping("/webhook")
         public ResponseEntity<String> verify(@RequestParam("hub.mode") String mode,
                         @RequestParam("hub.verify_token") String verifyToken,
@@ -137,9 +134,11 @@ public class WhatsAppWebhookController {
                 if (passengerOpt.isPresent()) {
                         List<Reservation> activeReservations = reservationRepository
                                         .findByPassengerOrderByTravelDateAsc(passengerOpt.get());
+                        
+                        // 🎯 FILTRO INTELIGENTE: Busca la primera reserva cronológica esperando pago estricto
                         Optional<Reservation> pendingReservation = activeReservations.stream()
-                                        .filter(r -> Boolean.FALSE.equals(r.getPaymentVerified()))
-                                        .reduce((first, second) -> second);
+                                        .filter(r -> "PENDING_PAYMENT".equals(r.getStatus()))
+                                        .findFirst();
 
                         if (pendingReservation.isPresent()) {
                                 Reservation reservation = pendingReservation.get();
@@ -147,10 +146,18 @@ public class WhatsAppWebhookController {
                                                 .downloadAndSaveReceipt(mediaId);
                                 if (localWebUrl != null) {
                                         reservation.setPaymentReceiptUrl(localWebUrl);
-                                        reservation.setStatus("RECEIPT_SUBMITTED");
+                                        // Cambiamos el estado de forma canónica para renderizar celeste en agenda
+                                        reservation.setStatus("PAYMENT_RECEIVED");
                                         reservationRepository.saveAndFlush(reservation);
+                                        log.info("[Bot Webhook] Comprobante enlazado con éxito para código: {}", reservation.getReservationCode());
+                                } else {
+                                        log.warn("[Bot Webhook] El almacenamiento local devolvió NULL al descargar el mediaId: {}", mediaId);
                                 }
+                        } else {
+                                log.warn("[Bot Webhook] No se encontró ninguna reserva en PENDING_PAYMENT para el teléfono: {}", destination);
                         }
+                } else {
+                        log.warn("[Bot Webhook] No existe ningún pasajero registrado con el teléfono: {}", destination);
                 }
                 whatsAppService.sendMessage(destination,
                                 "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");
@@ -163,7 +170,6 @@ public class WhatsAppWebhookController {
                 String body = message.trim().toLowerCase();
                 DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-                // 1. Obtener o crear sesión (Cualquier interacción nueva inicia en START)
                 ConversationSession session = conversationSessionRepository
                                 .findByPhoneNumber(phoneNumber).orElseGet(() -> {
                                         ConversationSession newSession = ConversationSession
@@ -174,27 +180,22 @@ public class WhatsAppWebhookController {
                                                         .saveAndFlush(newSession);
                                 });
 
-                // 📝 REGISTRO GENERAL: Guardamos lo que escribe el cliente en la base de datos
                 ChatMessage msgCliente = chatMessageRepository.saveAndFlush(ChatMessage.builder()
                                 .phoneNumber(phoneNumber).messageText(message.trim())
                                 .fromOperator(false).timestamp(LocalDateTime.now()).build());
 
-                // 🚨 SOLUCIÓN AL F5: Le avisamos al WebSocket en caliente
                 messagingTemplate.convertAndSend("/topic/messages/" + phoneNumber, msgCliente);
 
-                // 2. 🛑 BYPASS CRÍTICO: Si Martín pausó el bot, muere el flujo de IA
                 if (session.isBotPaused()) {
                         log.info("[Bypass] Bot muteado para {}. Derivando mensaje a la sala de chat humana.",
                                         phoneNumber);
                         return;
                 }
 
-                // Evaluar si es un mensaje explícito de reinicio o saludo común
                 boolean isGreeting = "hola".equals(body) || "buen dia".equals(body)
                                 || "buenas".equals(body) || "menu".equals(body)
                                 || "reinicio".equals(body);
 
-                // 3. CAPTURA INICIAL -> Muestra el Menú Principal Ampliado con 5 Opciones
                 if ("START".equals(session.getCurrentStep()) || isGreeting) {
                         session.setCurrentStep("MAIN_MENU");
                         session.setLastInteraction(LocalDateTime.now());
@@ -221,7 +222,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // 4. PROCESAMIENTO DEL MENÚ PRINCIPAL
                 if ("MAIN_MENU".equals(session.getCurrentStep())) {
                         if ("1".equals(body)) {
                                 session.setCurrentStep("ASK_LOCALITY");
@@ -248,7 +248,6 @@ public class WhatsAppWebhookController {
                                                 "🔔 *Un operador fue notificado.* En instantes Martín se comunicará con vos de forma manual por este canal. ¡Muchas gracias por tu paciencia!");
                                 return;
                         } else if ("4".equals(body) || body.contains("consultar")) {
-                                // 🌟 INTEGRACIÓN: Opción de consulta directa por el nro de teléfono
                                 List<Reservation> viajesActivos = reservationRepository
                                                 .findByPassengerPhone(phoneNumber).stream()
                                                 .filter(r -> !"CANCELLED".equals(r.getStatus()))
@@ -290,8 +289,6 @@ public class WhatsAppWebhookController {
                                 conversationSessionRepository.saveAndFlush(session);
                                 return;
                         } else if ("5".equals(body) || body.contains("cancelar")) {
-                                // 🌟 INTEGRACIÓN: Cambiamos de estado pidiendo el código para la
-                                // baja
                                 whatsAppService.sendMessage(phoneNumber,
                                                 "❌ *Cancelación de Viajes*\n\nPor favor, escribí el *Código de Reserva* del viaje que deseás dar de baja (Ejemplo: `SUA-COR-001_I`).\n\n_Si no lo sabés, podés consultarlo usando la opción 4 del Menú._");
                                 session.setCurrentStep("WAITING_CANCEL_CODE");
@@ -304,8 +301,6 @@ public class WhatsAppWebhookController {
                         }
                 }
 
-                // 🌟 INTEGRACIÓN: Evaluar estado WAITING_CANCEL_CODE para la Baja definitiva desde
-                // el bot
                 if ("WAITING_CANCEL_CODE".equals(session.getCurrentStep())) {
                         String codigoIngresado = message.trim().toUpperCase();
                         Optional<Reservation> optRes = reservationRepository
@@ -318,7 +313,6 @@ public class WhatsAppWebhookController {
                                                         "⚠️ El código ingresado no corresponde a tu número por cuestiones de seguridad.");
                                         return;
                                 }
-                                // Ejecuta la baja lógica unificada y guarda el evento de auditoría
                                 reservationService.cancelReservation(res.getId(), "BOT_WHATSAPP");
                                 whatsAppService.sendMessage(phoneNumber,
                                                 "✅ ¡Listo! La reserva con código *"
@@ -335,7 +329,6 @@ public class WhatsAppWebhookController {
                         return;
                 }
 
-                // 5. SELECCIÓN DE PUEBLOS
                 if ("ASK_LOCALITY".equals(session.getCurrentStep())) {
                         if ("0".equals(body)) {
                                 session.setCurrentStep("MAIN_MENU");
@@ -346,7 +339,7 @@ public class WhatsAppWebhookController {
                         }
                         try {
                                 int option = Integer.parseInt(body);
-                                List<Locality> localities = localityRepository.findAll();
+                                List<Locality> localities = localityRepository.findLocalitiesWithFares();
 
                                 if (option < 1 || option > localities.size()) {
                                         whatsAppService.sendMessage(phoneNumber,
@@ -758,8 +751,6 @@ public class WhatsAppWebhookController {
                                         notes += " (Abierta)";
                                 }
 
-                                // 🌟 SOLUCIÓN DEFINITIVA: Guardamos usando la lógica simétrica del
-                                // Service unificado
                                 Reservation nuevaReserva = Reservation.builder()
                                                 .passenger(passenger)
                                                 .travelDate(session.getTravelDate())
@@ -768,13 +759,15 @@ public class WhatsAppWebhookController {
                                                 .pickupAddress(session.getPickupAddress())
                                                 .destination(session.getDestination())
                                                 .roundTrip(session.getRoundTrip())
-                                                .paymentVerified(false).amount(price).notes(notes)
+                                                .paymentVerified(false)
+                                                .amount(price)
+                                                .notes(notes)
+                                                .status("PENDING_PAYMENT")
                                                 .passengerCount(totalAsientos)
                                                 .companionNames(session.getCompanionNames())
                                                 .build();
 
                                 reservationService.saveReservationFlow(nuevaReserva);
-
                                 conversationSessionRepository.delete(session);
 
                                 whatsAppService.sendMessage(phoneNumber,
@@ -841,7 +834,7 @@ public class WhatsAppWebhookController {
         }
 
         private void sendAllLocalitiesList(String phoneNumber, String saludo) {
-                List<Locality> localities = localityRepository.findAll();
+                List<Locality> localities = localityRepository.findLocalitiesWithFares();
                 StringBuilder menu = new StringBuilder(saludo)
                                 .append("📍 *¿Desde qué localidad salís?*\n\n");
                 int index = 1;

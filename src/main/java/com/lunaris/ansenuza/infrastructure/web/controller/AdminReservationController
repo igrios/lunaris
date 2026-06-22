@@ -1,0 +1,122 @@
+package com.lunaris.ansenuza.infrastructure.web.controller;
+
+import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.model.service.ReservationService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.servlet.view.RedirectView;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Controller
+@RequestMapping("/admin/reservations") // 👈 Mapeo unificado oficial para el panel
+@RequiredArgsConstructor
+@Slf4j
+public class ReservationViewController {
+
+    private final ReservationRepository reservationRepository;
+    private final ReservationService reservationService;
+
+    /**
+     * 📋 Grilla Principal de Consulta de Pasajeros y Viajes
+     */
+    @GetMapping
+    public ModelAndView showReservationsGrid(
+            @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "status", required = false) String status) {
+
+        log.info("[ReservationView] Cargando el panel central de reservas operativas");
+        
+        // Mapea directo al archivo que tenés en templates/admin/reservations-grid.html o templates/reservations-grid.html
+        // Según tu árbol, está en templates/reservations-grid.html, si lo moviste a admin/ cambia a "admin/reservations-grid"
+        ModelAndView mav = new ModelAndView("admin/reservations-grid");
+
+        List<Reservation> reservations = reservationRepository.findAll();
+
+        // 🔍 Filtro por coincidencia de texto (Nombre, Apellido, Teléfono o Código)
+        if (search != null && !search.isBlank()) {
+            String query = search.trim().toLowerCase();
+            reservations = reservations.stream()
+                    .filter(r -> (r.getPassenger().getFirstName() != null && r.getPassenger().getFirstName().toLowerCase().contains(query)) ||
+                                 (r.getPassenger().getLastName() != null && r.getPassenger().getLastName().toLowerCase().contains(query)) ||
+                                 (r.getPassenger().getPhone() != null && r.getPassenger().getPhone().contains(query)) ||
+                                 (r.getReservationCode() != null && r.getReservationCode().toLowerCase().contains(query)))
+                    .collect(Collectors.toList());
+        }
+
+        // 🎛️ Filtro por Estado Canónico
+        if (status != null && !status.isBlank() && !"ALL".equals(status)) {
+            reservations = reservations.stream()
+                    .filter(r -> status.equals(r.getStatus()))
+                    .collect(Collectors.toList());
+        }
+
+        mav.addObject("reservas", reservations);
+        mav.addObject("currentSearch", search);
+        mav.addObject("currentStatus", status != null ? status : "ALL");
+
+        return mav;
+    }
+
+    /**
+     * 🎯 ACCIÓN TÁNDEM: Valida Ida y Vuelta completas en un solo clic
+     */
+    @PostMapping("/verify-tandem/{id}")
+    public RedirectView verifyPaymentInTandem(@PathVariable("id") Long reservationId, RedirectAttributes redirectAttributes) {
+        try {
+            Reservation currentRes = reservationRepository.findById(reservationId)
+                    .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada ID: " + reservationId));
+
+            log.info("[Tándem] Buscando tramos asociados para el pasajero: {}", currentRes.getPassenger().getLastName());
+
+            // Filtramos todos los viajes del pasajero que requieran verificación de pago
+            List<Reservation> passengerReservations = reservationRepository.findByPassengerOrderByTravelDateAsc(currentRes.getPassenger());
+            
+            List<Reservation> toVerify = passengerReservations.stream()
+                    .filter(r -> "PAYMENT_RECEIVED".equals(r.getStatus()) || "PENDING_PAYMENT".equals(r.getStatus()))
+                    .toList();
+
+            if (toVerify.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "No se encontraron tramos pendientes para verificar.");
+                return new RedirectView("/admin/reservations");
+            }
+
+            // Impactamos y guardamos el estado aprobado en lote
+            for (Reservation res : toVerify) {
+                res.setStatus("CONFIRMED");
+                res.setPaymentVerified(true);
+                reservationRepository.saveAndFlush(res);
+                log.info("[Tándem] Tramo aprobado: {}", res.getReservationCode());
+            }
+
+            redirectAttributes.addFlashAttribute("success", "¡Tramos de Ida y Vuelta confirmados en tándem para el pasajero!");
+
+        } catch (Exception e) {
+            log.error("[Tándem] Error al procesar la aprobación en bloque: ", e);
+            redirectAttributes.addFlashAttribute("error", "Error interno en el servidor.");
+        }
+
+        return new RedirectView("/admin/reservations");
+    }
+
+    /**
+     * ❌ Cancelación instantánea y liberación de butacas
+     */
+    @PostMapping("/cancel/{id}")
+    public RedirectView cancelFromGrid(@PathVariable("id") Long id, RedirectAttributes redirectAttributes) {
+        try {
+            reservationService.cancelReservation(id, "OPERADOR_PANEL");
+            redirectAttributes.addFlashAttribute("success", "Traslado cancelado correctamente.");
+        } catch (Exception e) {
+            log.error("Error al dar de baja desde la grilla: ", e);
+            redirectAttributes.addFlashAttribute("error", "No se pudo realizar la baja.");
+        }
+        return new RedirectView("/admin/reservations");
+    }
+}

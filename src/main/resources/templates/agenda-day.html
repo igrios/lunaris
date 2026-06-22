@@ -9,7 +9,7 @@
 
   <style>
     body { 
-        background-color: #dee2e6; 
+        background-color: #dee2e6 !important; 
         padding-top: 56px; /* Espacio para evitar que la navbar fija tape el contenido */
     }
     .card { border: none; border-radius: 12px; }
@@ -24,9 +24,8 @@
   </style>
 </head>
 
-<body class="bg-light">
+<body>
 
-  <!-- 🌐 NAVBAR SUPERIOR CORPORATIVA UNIFICADA -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-navbar fixed-top shadow">
       <div class="container-fluid px-4">
           <a class="navbar-brand fw-bold text-white" href="/">🌙 Lunaris Ansenuza</a>
@@ -42,7 +41,7 @@
                       <a class="nav-link active fw-bold" href="/agenda">📅 Calendario / Agenda</a>
                   </li>
                   <li class="nav-item">
-                      <a class="nav-link" href="/passengers">👥 Pasajeros</a>
+                      <a class="nav-link" href="/reservations/passengers-panel">👥 Pasajeros</a>
                   </li>
                   <li class="nav-item">
                       <a class="nav-link" href="/fares">💵 Tarifas Comerciales</a>
@@ -64,7 +63,6 @@
       🚐 Viajes del Día
     </h1>
 
-    <!-- 📅 ENCABEZADO DE FECHA SELECCIONADA -->
     <div class="card shadow mb-4">
       <div class="card-body py-3">
         <h4 class="mb-0 fw-bold">
@@ -73,7 +71,6 @@
       </div>
     </div>
     
-    <!-- 🛠️ ACCIONES DE SELECCIÓN RÁPIDA -->
     <div class="mb-3 d-flex gap-2">
       <button type="button" class="btn btn-outline-primary flex-fill fw-semibold shadow-sm" onclick="selectAllReservations()">
         ☑ Seleccionar Todos
@@ -83,7 +80,6 @@
       </button>
     </div>
 
-    <!-- 🚖 PANEL DE ASIGNACIÓN A CHOFER -->
     <div class="row g-2 mb-4">
         <div class="col-md-6">
             <select id="selectChofer" class="form-select fw-bold border-success shadow-sm" style="height: 100%;">
@@ -98,7 +94,6 @@
         </div>
     </div>
 
-    <!-- 🗂️ BUCLE DE RESERVAS REGISTRADAS -->
     <div th:each="reservation : ${reservations}"
          th:id="'reservation-card-' + ${reservation.id}"
          class="card shadow-sm mb-3">
@@ -156,28 +151,32 @@
             <p class="mb-2" th:if="${reservation.returnDate != null}">🔄 <strong>Fecha Regreso:</strong> <span th:text="${reservation.returnDate}"></span></p>
             <p class="mb-3" th:if="${reservation.amount != null}">💰 <strong>Importe del Tramo:</strong> <span class="fw-bold text-dark">$<span th:text="${reservation.amount}"></span></span></p>
 
-            <!-- 🌟 CONTENEDOR DE ESTADOS MIGRADO AL FLUJO CANÓNICO -->
             <div class="mb-3 status-container">
                 <span th:if="${reservation.status == 'PENDING_PAYMENT'}" class="badge bg-warning text-dark px-3 py-1 fs-6">⏳ Pago Pendiente</span>
                 <span th:if="${reservation.status == 'PAYMENT_RECEIVED'}" class="badge bg-info px-3 py-1 fs-6">📄 Comprobante Recibido</span>
                 <span th:if="${reservation.status == 'CONFIRMED'}" class="badge bg-success px-3 py-1 fs-6">✅ Confirmada</span>
             </div>
 
-            <div class="payment-action-container mb-3">
-                <div th:if="${reservation.paymentReceiptUrl != null and reservation.paymentReceiptUrl != ''}">
-                    <a th:href="@{/api/agenda/comprobante-descarga/{id}(id=${reservation.id})}"
-                       target="_blank"
-                       class="btn btn-primary btn-sm me-2 shadow-sm">
-                        📄 Ver Comprobante
-                    </a>
+            <div class="alert alert-info py-1 fs-6 mb-2">
+                URL de Comprobante: <strong th:text="'[' + ${reservation.paymentReceiptUrl} + ']'"></strong>
+            </div>
 
-                    <button th:if="${reservation.status != 'CONFIRMED'}"
-                            type="button"
-                            class="btn bg-success text-white btn-sm shadow-sm"
-                            th:attr="onclick=|confirmPayment('${reservation.id}')|">
-                        ✔ Verificar Pago
-                    </button>
-                </div>
+            <div class="payment-action-container mb-3 d-flex gap-2">
+                
+                <a th:if="${reservation.paymentReceiptUrl != null and !#strings.isEmpty(reservation.paymentReceiptUrl)}"
+                   th:href="@{/api/agenda/comprobante-descarga/{id}(id=${reservation.id})}"
+                   target="_blank"
+                   class="btn btn-primary btn-sm shadow-sm">
+                    📄 Ver Comprobante
+                </a>
+
+                <button th:if="${reservation.status != 'CONFIRMED'}"
+                        type="button"
+                        class="btn bg-success text-white btn-sm shadow-sm"
+                        th:attr="onclick=|confirmPayment('${reservation.id}')|">
+                    ✔ Verificar Pago
+                </button>
+                
             </div>
 
             <div th:if="${reservation.notes != null and reservation.notes != ''}" class="alert alert-light border mb-0 mt-2">
@@ -189,7 +188,6 @@
         </div>
     </div>
 
-    <!-- 🕹️ BOTÓN DE RETORNO -->
     <div class="mt-4 pt-3 border-top">
         <a href="/agenda" class="btn btn-secondary px-4 shadow-sm">
           ← Volver a la Agenda
