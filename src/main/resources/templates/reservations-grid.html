@@ -196,13 +196,13 @@
                     <i class="bi bi-chat-text"></i>
                   </a>
 
-                  <!-- Botón Cancelar (Por las dudas, también apuntado a la ruta plana si usas su cancelador) -->
-                  <form th:if="${r.status != 'CANCELLED'}" th:action="@{/admin/reservations/cancel/{id}(id=${r.id})}"
-                    method="POST" class="d-inline"
-                    onsubmit="return confirm('¿Estás seguro que querés cancelar esta reserva y liberar el asiento en la combi?')">
-                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancelar Viaje">
-                      <i class="bi bi-trash3-fill"></i>
-                    </button>
+                 <form th:if="${r.status != 'CANCELLED'}" th:action="@{/reservas-panel/cancel/{id}(id=${r.id})}"
+  method="POST" class="d-inline"
+  onsubmit="return confirm('¿Estás seguro que querés cancelar esta reserva y liberar el asiento en la combi?')">
+  <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancelar Viaje">
+    <i class="bi bi-trash3-fill"></i>
+  </button>
+</form>
                   </form>
                 </div>
               </td>

@@ -1,21 +1,23 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
-import com.lunaris.ansenuza.application.usecase.GetDailyOperationSummaryUseCase;
-import com.lunaris.ansenuza.infrastructure.web.dto.dashboard.DailyOperationSummaryResponse;
-import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import com.lunaris.ansenuza.domain.model.Reservation;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import java.time.LocalDate;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.lunaris.ansenuza.application.usecase.GetDailyOperationSummaryUseCase;
+import com.lunaris.ansenuza.domain.model.Fare;
+import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.repository.FareRepository;
+import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.infrastructure.web.dto.dashboard.DailyOperationSummaryResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Controller
 @RequiredArgsConstructor
@@ -23,7 +25,8 @@ import java.util.stream.Collectors;
 public class DashboardViewController {
 
     private final GetDailyOperationSummaryUseCase useCase;
-    private final ReservationRepository reservationRepository; // 👈 Inyectamos el repositorio para la grilla
+    private final ReservationRepository reservationRepository;
+    private final FareRepository fareRepository;
 
     /**
      * 📊 Vista del Dashboard Principal (Original)
@@ -36,7 +39,7 @@ public class DashboardViewController {
     }
 
     /**
-     * 🗃️ 1. LA GRILLA PLANA DE RESERVAS (Evita errores 404 de recursos estáticos)
+     * 🗃️ 1. LA GRILLA PLANA DE RESERVAS (Filtrado por Status Ordinario)
      */
     @GetMapping("/reservas-panel")
     public String grillaReservasPlana(
@@ -44,8 +47,28 @@ public class DashboardViewController {
             @RequestParam(value = "status", required = false) String status,
             Model model) {
 
-        log.info("[Bypass Visual] Renderizando grilla de gestión de pasajeros");
+        log.info("[Bypass Visual] Cargando grilla ordinaria optimizada por estados");
         List<Reservation> reservations = reservationRepository.findAll();
+
+        // 🎛️ Regla de Ocultamiento de Cancelados:
+        if ("CANCELLED".equals(status)) {
+            // Si eligen "Cancelados", mostramos exclusivamente los que tienen estado CANCELLED
+            reservations = reservations.stream()
+                    .filter(r -> "CANCELLED".equals(r.getStatus()))
+                    .collect(Collectors.toList());
+        } else {
+            // REGLA CLAVE: Si están en "Todos" o cualquier otro filtro, ESCONDEMOS los cancelados
+            reservations = reservations.stream()
+                    .filter(r -> !"CANCELLED".equals(r.getStatus()))
+                    .collect(Collectors.toList());
+            
+            // Si además eligieron un sub-estado específico (ej: PENDING_PAYMENT)
+            if (status != null && !status.isBlank() && !"ALL".equals(status)) {
+                reservations = reservations.stream()
+                        .filter(r -> status.equals(r.getStatus()))
+                        .collect(Collectors.toList());
+            }
+        }
 
         // 🔍 Buscador global interactivo
         if (search != null && !search.isBlank()) {
@@ -58,41 +81,27 @@ public class DashboardViewController {
                     .collect(Collectors.toList());
         }
 
-        // 🎛️ Filtro rápido por estado canónico de pago
-        if (status != null && !status.isBlank() && !"ALL".equals(status)) {
-            reservations = reservations.stream()
-                    .filter(r -> status.equals(r.getStatus()))
-                    .collect(Collectors.toList());
-        }
-
-        // Cargamos las variables que va a leer tu HTML
         model.addAttribute("reservas", reservations);
         model.addAttribute("currentSearch", search);
         model.addAttribute("currentStatus", status != null ? status : "ALL");
 
-        // 🎯 IMPORTANTE: Esto le dice a Spring que busque el archivo "reservations-grid.html" suelto en templates/
         return "reservations-grid"; 
     }
 
     /**
      * 🎯 2. ACCIÓN DE VERIFICACIÓN EN TÁNDEM (Ida y Vuelta Juntas)
-    /**
-     * 🎯 2. ACCIÓN DE VERIFICACIÓN EN TÁNDEM (Ida y Vuelta Juntas) - CORREGIDO UUID
      */
     @PostMapping("/reservas-panel/verify-tandem/{id}")
     public String verifyPaymentTandemPlano(@PathVariable("id") String rawId) {
         try {
             log.info("[Tándem] Procesando ID de reserva entrante para UUID: {}", rawId);
-            
-            // Convertimos la cadena de texto directamente al UUID que exige tu Repositorio
-            java.util.UUID uuid = java.util.UUID.fromString(rawId);
-            
+            UUID uuid = UUID.fromString(rawId);
             Reservation currentRes = reservationRepository.findById(uuid).orElse(null);
 
             if (currentRes != null) {
-                // Buscamos todos los tramos de este mismo pasajero para aprobarlos en lote
                 List<Reservation> passengerReservations = reservationRepository.findByPassengerOrderByTravelDateAsc(currentRes.getPassenger());
                 List<Reservation> toVerify = passengerReservations.stream()
+                        .filter(r -> !"CANCELLED".equals(r.getStatus())) // Ignoramos tramos dados de baja
                         .filter(r -> "PAYMENT_RECEIVED".equals(r.getStatus()) || "PENDING_PAYMENT".equals(r.getStatus()))
                         .toList();
 
@@ -101,7 +110,7 @@ public class DashboardViewController {
                     res.setPaymentVerified(true);
                     reservationRepository.saveAndFlush(res);
                 }
-                log.info("[Tándem] Éxito. Se verificaron {} tramos para el pasajero.", toVerify.size());
+                log.info("[Tándem] Éxito. Se verificaron {} tramos activos para el pasajero.", toVerify.size());
             }
         } catch (IllegalArgumentException e) {
             log.error("[Tándem] La cadena provista no es un UUID válido: {}", rawId);
@@ -111,28 +120,37 @@ public class DashboardViewController {
         return "redirect:/reservas-panel";
     }
 
-@PostMapping("/reservas-panel/cancel/{id}")
-    public String cancelFromGridPlano(
-            @PathVariable("id") String rawId,
-            com.lunaris.ansenuza.domain.model.service.ReservationService reservationService) {
+    /**
+     * ❌ 3. BAJA POR ESTADO DIRECTA (Pasa a CANCELLED y se oculta automáticamente)
+     */
+    @PostMapping("/reservas-panel/cancel/{id}")
+    public String cancelFromGridPlano(@PathVariable("id") String rawId) {
         try {
-            log.info("[Baja] Solicitando cancelación desde la grilla para ID (UUID): {}", rawId);
+            log.info("[Baja por Estado] Pasando a CANCELLED la reserva ID: {}", rawId);
+            UUID uuid = UUID.fromString(rawId);
             
-            // Convertimos el texto del HTML directamente al java.util.UUID que requiere tu base de datos
-            java.util.UUID uuid = java.util.UUID.fromString(rawId);
+            reservationRepository.findById(uuid).ifPresent(res -> {
+                res.setStatus("CANCELLED"); // 👈 Cambiamos el estado clásico
+                reservationRepository.saveAndFlush(res); // 👈 Guardamos directo en Postgres
+                log.info("[Baja por Estado] Éxito. Guardado y ocultado de la vista general.");
+            });
             
-            // Buscamos la reserva por su UUID y le pasamos ese mismo UUID al servicio de cancelación
-            reservationRepository.findById(uuid).ifPresent(res -> 
-                reservationService.cancelReservation(uuid, "OPERADOR_PANEL") // 👈 CORREGIDO: Viaja el UUID directo
-            );
-            
-            log.info("[Baja] Reserva cancelada exitosamente y butaca liberada en Postgres.");
         } catch (IllegalArgumentException e) {
-            log.error("[Baja] El ID enviado no es un UUID válido: {}", rawId);
+            log.error("[Baja por Estado] El ID provisto no cumple el estándar de UUID: {}", rawId);
         } catch (Exception e) {
-            log.error("[Baja] Error al cancelar la reserva desde el panel: ", e);
+            log.error("[Baja por Estado] Error crítico al procesar la baja: ", e);
         }
         return "redirect:/reservas-panel";
     }
 
+    /**
+     * 💵 4. VISTA DE TARIFAS VIGENTES desde Postgres
+     */
+    @GetMapping("/fares")
+    public String verTarifasComerciales(Model model) {
+        log.info("[Tarifas] Extrayendo lista de precios comerciales desde tu repositorio real");
+        List<Fare> tarifas = fareRepository.findAll();
+        model.addAttribute("tarifas", tarifas);
+        return "fares";
+    }
 }
