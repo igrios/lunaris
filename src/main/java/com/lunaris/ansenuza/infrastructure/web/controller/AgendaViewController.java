@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,6 +95,7 @@ public class AgendaViewController {
         return reservationRepository.findById(id).map(reservation -> {
             reservation.setPaymentVerified(true);
             reservation.setStatus("CONFIRMED");
+            reservation.setPaymentConfirmedAt(LocalDateTime.now());
             reservationRepository.saveAndFlush(reservation);
 
             try {

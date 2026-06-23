@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.domain.model.service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -48,6 +49,11 @@ public class ReservationService {
         mainReservation
                 .setStatus(Boolean.TRUE.equals(mainReservation.getPaymentVerified()) ? "CONFIRMED"
                         : "PENDING_PAYMENT");
+        // 💰 Si nace ya pagada, registramos el momento del ingreso
+        if (Boolean.TRUE.equals(mainReservation.getPaymentVerified())
+                && mainReservation.getPaymentConfirmedAt() == null) {
+            mainReservation.setPaymentConfirmedAt(LocalDateTime.now());
+        }
 
         Reservation savedMain = reservationRepository.save(mainReservation);
         savedReservations.add(savedMain);
@@ -160,6 +166,9 @@ public class ReservationService {
                 reservation.setPaymentVerified(updatedData.getPaymentVerified());
                 if (Boolean.TRUE.equals(updatedData.getPaymentVerified())) {
                     reservation.setStatus("CONFIRMED");
+                    if (reservation.getPaymentConfirmedAt() == null) {
+                        reservation.setPaymentConfirmedAt(LocalDateTime.now());
+                    }
                 }
             }
             if (updatedData.getStatus() != null) reservation.setStatus(updatedData.getStatus());

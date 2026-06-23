@@ -114,6 +114,27 @@
             </div>
         </div>
 
+        <!-- 💰 INGRESO DE DINERO -->
+        <div class="card shadow-sm border-0 bg-white mb-4" style="border-radius: 12px;">
+            <div class="card-body p-4">
+                <h4 class="fw-bold text-dark mb-3">🧾 Ingreso de Dinero</h4>
+                <hr class="text-muted">
+                <div class="row pt-2">
+                    <div class="col-sm-6 mb-2">
+                        <p class="text-muted mb-1">💵 Ingresos de Hoy</p>
+                        <div class="display-6 fw-bold text-success"
+                             th:text="${'$' + #numbers.formatInteger(ingresoHoy, 0, 'POINT')}">$0</div>
+                    </div>
+                    <div class="col-sm-6 mb-2">
+                        <p class="text-muted mb-1">📅 Ingresos del Mes</p>
+                        <div class="display-6 fw-bold text-primary"
+                             th:text="${'$' + #numbers.formatInteger(ingresoMes, 0, 'POINT')}">$0</div>
+                    </div>
+                </div>
+                <a th:href="@{/facturacion}" class="btn btn-outline-dark btn-sm mt-2">🧾 Ir a Facturación</a>
+            </div>
+        </div>
+
         <!-- 📊 MÉTRICAS DEL DÍA -->
         <div class="card shadow-sm border-0 bg-white" style="border-radius: 12px;">
             <div class="card-body p-4">

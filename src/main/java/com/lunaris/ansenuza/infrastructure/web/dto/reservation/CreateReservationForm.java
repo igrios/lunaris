@@ -42,6 +42,9 @@ public class CreateReservationForm {
 
     private LocalDate returnDate;
 
+    // 🕒 Horario de salida (igual que el bot): "03:00 AM" (primer turno) u "08:00 AM" (segundo turno)
+    private String departureSchedule;
+
     private Boolean paymentVerified;
 
     private String notes;

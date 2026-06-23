@@ -16,9 +16,12 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import java.math.BigDecimal;
+import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
+import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -35,6 +38,7 @@ public class ReservationViewController {
     private final LocalityRepository localityRepository;
     private final ReservationService reservationService;
     private final ReservationRepository reservationRepository;
+    private final FareRepository fareRepository;
 
     @GetMapping("/new")
     public String newReservation(Model model) {
@@ -72,6 +76,27 @@ public class ReservationViewController {
 
         passenger = passengerRepository.save(passenger);
 
+        // 💵 Monto: misma lógica que el alta por bot/REST (tarifa de la zona, ida y vuelta de la base)
+        String zoneLocality = form.getPickupLocality().toLowerCase().contains("córdoba")
+                ? form.getDestination()
+                : form.getPickupLocality();
+        BigDecimal computedAmount = fareRepository.findByLocalityNameIgnoreCase(zoneLocality)
+                .map(Fare::getAmount)
+                .orElse(BigDecimal.ZERO);
+
+        // 🕒 Horario en el mismo formato que el bot, para que la agenda lo muestre igual.
+        // Mantenemos las observaciones del operador a continuación, separadas por " | ".
+        String schedule = (form.getDepartureSchedule() != null && !form.getDepartureSchedule().isBlank())
+                ? form.getDepartureSchedule().trim()
+                : "03:00 AM";
+        if (Boolean.TRUE.equals(form.getRoundTrip()) && form.getReturnDate() == null) {
+            schedule += " (Abierta)";
+        }
+        String notes = schedule;
+        if (form.getNotes() != null && !form.getNotes().isBlank()) {
+            notes += " | " + form.getNotes().trim();
+        }
+
         Reservation reservation = Reservation.builder()
                 .passenger(passenger)
                 .travelDate(form.getTravelDate())
@@ -81,7 +106,8 @@ public class ReservationViewController {
                 .roundTrip(Boolean.TRUE.equals(form.getRoundTrip()))
                 .returnDate(form.getReturnDate())
                 .paymentVerified(Boolean.TRUE.equals(form.getPaymentVerified()))
-                .notes(form.getNotes())
+                .amount(computedAmount)
+                .notes(notes)
                 .passengerCount(form.getPassengerCount() != null ? form.getPassengerCount() : 1)
                 .companionNames(form.getCompanionNames())
                 .build();

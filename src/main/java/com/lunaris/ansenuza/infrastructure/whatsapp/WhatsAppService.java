@@ -5,13 +5,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -102,6 +106,48 @@ public class WhatsAppService {
             executePostCall(url, headers, body, "LISTA GEOGRÁFICA");
         } catch (Exception e) {
             log.error("Error en lista desplegable: ", e);
+        }
+    }
+
+    // 🧾 ENVÍO DE DOCUMENTO (PDF) — sube el archivo local a Meta y luego lo manda por su media id
+    public void sendDocument(String phoneNumber, String absoluteFilePath, String fileName, String caption) {
+        try {
+            // Paso 1: Subir el PDF a la Media API (multipart) para obtener un media id
+            String uploadUrl = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/media";
+            HttpHeaders uploadHeaders = new HttpHeaders();
+            uploadHeaders.setBearerAuth(accessToken);
+            uploadHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+            parts.add("messaging_product", "whatsapp");
+            parts.add("type", "application/pdf");
+            parts.add("file", new FileSystemResource(absoluteFilePath));
+
+            HttpEntity<MultiValueMap<String, Object>> uploadRequest = new HttpEntity<>(parts, uploadHeaders);
+            ResponseEntity<JsonNode> uploadResponse =
+                    restTemplate.postForEntity(uploadUrl, uploadRequest, JsonNode.class);
+            String mediaId = uploadResponse.getBody().get("id").asText();
+
+            // Paso 2: Enviar el documento usando el media id
+            String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
+            Map<String, Object> documentNode = new HashMap<>();
+            documentNode.put("id", mediaId);
+            documentNode.put("filename", fileName);
+            if (caption != null && !caption.isBlank()) {
+                documentNode.put("caption", caption);
+            }
+
+            Map<String, Object> body = Map.of(
+                    "messaging_product", "whatsapp",
+                    "to", phoneNumber,
+                    "type", "document",
+                    "document", documentNode
+            );
+
+            executePostCall(url, createHeaders(), body, "DOCUMENTO");
+        } catch (Exception e) {
+            log.error("Error al enviar documento por WhatsApp a {}: ", phoneNumber, e);
+            throw new RuntimeException("No se pudo enviar el documento por WhatsApp", e);
         }
     }
 

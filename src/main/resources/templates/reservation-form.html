@@ -112,6 +112,15 @@
                     </div>
 
                     <div class="mb-3">
+                        <label class="form-label fw-semibold">Horario de Salida</label>
+                        <select class="form-select" th:field="*{departureSchedule}" required>
+                            <option value="03:00 AM">🌙 Primer Horario (03:00 AM)</option>
+                            <option value="08:00 AM">☀️ Segundo Horario (08:00 AM)</option>
+                        </select>
+                        <div class="form-text">Mismo criterio que el bot de WhatsApp. Se muestra en la agenda.</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label class="form-label fw-semibold">Localidad de Retiro</label>
                         <select class="form-select" th:field="*{pickupLocality}" required>
                             <option value="">-- Seleccionar pueblo de origen --</option>

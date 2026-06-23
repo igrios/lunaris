@@ -1,6 +1,8 @@
 package com.lunaris.ansenuza.domain.repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,4 +47,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            "AND r.notes LIKE %:horario% " +
            "AND r.status != 'CANCELLED'")
     int countPassengersByReturnDateAndNotesContaining(@Param("fecha") LocalDate fecha, @Param("horario") String horario);
+
+    // 🧾 Listado para el panel de Facturación (reservas con pago confirmado)
+    List<Reservation> findByStatus(String status);
+
+    // 💰 INGRESO DE DINERO: suma de montos con pago confirmado en el rango.
+    // Excluimos el tramo de VUELTA (_V) porque su monto duplica el de la ida (precio ida y vuelta único).
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM Reservation r " +
+           "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
+           "AND r.status <> 'CANCELLED' " +
+           "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%\\_V' ESCAPE '\\')")
+    BigDecimal sumConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COUNT(r) FROM Reservation r " +
+           "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
+           "AND r.status <> 'CANCELLED' " +
+           "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%\\_V' ESCAPE '\\')")
+    long countConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }

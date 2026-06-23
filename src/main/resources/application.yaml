@@ -14,6 +14,12 @@ spring:
   flyway:
     enabled: true
 
+  servlet:
+    multipart:
+      # 🧾 Permitir PDFs de factura de buen tamaño
+      max-file-size: 15MB
+      max-request-size: 15MB
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -26,6 +32,8 @@ whatsapp:
 storage:
   # Ojo acá: en Render usamos la carpeta temporal del contenedor '/tmp/' para los comprobantes
   local-dir: ${STORAGE_LOCAL_DIR:/tmp/comprobantes/}
+  # 🧾 PDFs de facturas que sube la operadora
+  invoices-dir: ${STORAGE_INVOICES_DIR:/tmp/facturas/}
 
 server:
   # Render asigna el puerto dinámicamente en la variable PORT, si no existe usa el 8080

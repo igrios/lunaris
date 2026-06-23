@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -35,6 +36,14 @@ public class DashboardViewController {
     public String dashboard(Model model) {
         DailyOperationSummaryResponse summary = useCase.execute(LocalDate.now());
         model.addAttribute("summary", summary);
+
+        // 💰 Ingreso de dinero (mismo criterio que el panel de Facturación: sin duplicar el tramo de vuelta)
+        LocalDate today = LocalDate.now();
+        model.addAttribute("ingresoHoy", reservationRepository.sumConfirmedIncomeBetween(
+                today.atStartOfDay(), today.plusDays(1).atStartOfDay()));
+        model.addAttribute("ingresoMes", reservationRepository.sumConfirmedIncomeBetween(
+                today.withDayOfMonth(1).atStartOfDay(), today.withDayOfMonth(1).plusMonths(1).atStartOfDay()));
+
         return "dashboard";
     }
 
@@ -108,6 +117,7 @@ public class DashboardViewController {
                 for (Reservation res : toVerify) {
                     res.setStatus("CONFIRMED");
                     res.setPaymentVerified(true);
+                    res.setPaymentConfirmedAt(LocalDateTime.now());
                     reservationRepository.saveAndFlush(res);
                 }
                 log.info("[Tándem] Éxito. Se verificaron {} tramos activos para el pasajero.", toVerify.size());

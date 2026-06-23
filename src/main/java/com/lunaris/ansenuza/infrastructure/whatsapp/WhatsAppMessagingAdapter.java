@@ -30,4 +30,9 @@ public class WhatsAppMessagingAdapter implements MessagingPort {
                 .toList();
         whatsAppService.sendInteractiveButtons(to, header, body, mappedButtons);
     }
+
+    @Override
+    public void sendDocument(String to, String absoluteFilePath, String fileName, String caption) {
+        whatsAppService.sendDocument(to, absoluteFilePath, fileName, caption);
+    }
 }

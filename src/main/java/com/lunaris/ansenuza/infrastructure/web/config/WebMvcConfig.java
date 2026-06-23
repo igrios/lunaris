@@ -11,10 +11,17 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${storage.local-dir}")
     private String localDir;
 
+    @Value("${storage.invoices-dir}")
+    private String invoicesDir;
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Mapea la URL web a la carpeta real de tu Linux
         registry.addResourceHandler("/comprobantes/**")
                 .addResourceLocations("file:" + localDir);
+
+        // 🧾 PDFs de facturas subidos por la operadora
+        registry.addResourceHandler("/facturas/**")
+                .addResourceLocations("file:" + invoicesDir);
     }
 }
