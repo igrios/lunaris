@@ -12,11 +12,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public class LocalReceiptStorageService {
+public class LocalReceiptStorageService implements ReceiptStoragePort {
 
 @Value("${whatsapp.access-token}")
 private String whatsappToken;
@@ -24,6 +25,7 @@ private String whatsappToken;
     @Value("${storage.local-dir}")
     private String localDir;
 
+    @Override
     public String downloadAndSaveReceipt(String mediaId) {
         try {
             // Asegurar que el directorio exista físicamente

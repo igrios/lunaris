@@ -26,17 +26,7 @@
 <body class="bg-light">
 
   <!-- 🌐 NAVBAR SUPERIOR CORPORATIVA UNIFICADA -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-navbar fixed-top shadow">
-    <div class="container-fluid px-4">
-      <a class="navbar-brand fw-bold text-white" href="/">🌙 Lunaris Ansenuza</a>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto gap-2">
-          <li class="nav-item"><a class="nav-link text-white" href="/dashboard">📊 Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link text-white fw-bold" href="/agenda">📅 Agenda</a></li>
-        </ul>
-      </div>
-    </div>
-  </nav>
+  <nav th:replace="~{fragments/nav :: bar('vueltas')}"></nav>
 
   <div class="container mt-5 mb-5">
     <h1 class="fw-bold mb-4 pt-3 text-dark">🛑 Control de Vueltas Abiertas</h1>

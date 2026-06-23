@@ -26,36 +26,7 @@
 
 <body>
 
-  <nav class="navbar navbar-expand-lg navbar-dark bg-navbar fixed-top shadow">
-      <div class="container-fluid px-4">
-          <a class="navbar-brand fw-bold text-white" href="/">🌙 Lunaris Ansenuza</a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-              <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarNav">
-              <ul class="navbar-collapse navbar-nav ms-auto gap-2">
-                  <li class="nav-item">
-                      <a class="nav-link" href="/dashboard">📊 Dashboard</a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link active fw-bold" href="/agenda">📅 Calendario / Agenda</a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="/reservations/passengers-panel">👥 Pasajeros</a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="/fares">💵 Tarifas Comerciales</a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="/drivers">🚗 Choferes</a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="/vehicles">🚐 Vehículos</a>
-                  </li>
-              </ul>
-          </div>
-      </div>
-  </nav>
+  <nav th:replace="~{fragments/nav :: bar('agenda')}"></nav>
 
   <div class="container mt-5 mb-5">
 

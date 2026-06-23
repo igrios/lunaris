@@ -31,24 +31,7 @@
 <body>
 
     <!-- Menú de Navegación Unificado -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-navbar fixed-top shadow-sm">
-        <div class="container-fluid px-4">
-            <a class="navbar-brand fw-bold text-white" th:href="@{/dashboard}">🌙 Lunaris Ansenuza</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto gap-2 align-items-center">
-                    <li class="nav-item"><a class="nav-link active fw-bold" th:href="@{/dashboard}">📊 Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" th:href="@{/reservas-panel}">🗃️ Panel de Reservas</a></li>
-                    <li class="nav-item"><a class="nav-link" th:href="@{/agenda}">📅 Calendario</a></li>
-                    <li class="nav-item"><a class="nav-link" th:href="@{/fares}">💵 Tarifas</a></li>
-                    <li class="nav-item"><a class="nav-link disabled text-muted" href="#" style="cursor: not-allowed;">🚗 Choferes</a></li>
-                    <li class="nav-item"><a class="nav-link disabled text-muted" href="#" style="cursor: not-allowed;"> Vans Vehículos</a></li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <nav th:replace="~{fragments/nav :: bar('dashboard')}"></nav>
 
     <div class="container mt-4 mb-5">
         <div class="mb-4 text-center text-md-start">
