@@ -27,8 +27,8 @@ springdoc:
     path: /api-docs
 
 whatsapp:
-  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:1160685710458679}
-  access-token: ${WHATSAPP_ACCESS_TOKEN:EAAOpuc7IAZCYBR7MRDKQZB275931f0GLwXZBEo6Pbx4YahfX9jukLJxhgJWqJX6GWncZB8s7ZBP8KSsrosihNfVg9twsWoCSNGaMgNUKoKb88TknnjQR25cD5VbspeinvMr8ZC7CakuK4ZCW6GvHZBDo22ieYyU59vZCx4nZC8x1nHbo9iVxWp3SrPuuZCFFYG3T7aeXyOK4FKRiQRqty3CFtiBO7WdpmNHQM7QE7SlGodGZCLHipSYfo38gif8nCvK5LGFI2Md0AYTeLMdmkONfqdktpIAZD}
+  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:1220123434507524}
+  access-token: ${WHATSAPP_ACCESS_TOKEN:EAAjg5ZALoQWABR1Lgd3paLGp6NNrEMZCN0PSDq15h5ZAIJnYeZB3XZCcfaFknm4AFQhPfWkGjwp5nA05rd2ZBET0mDZANhOFBcqE17h1AU6siILKOfUi204A8iYXvOi29aK57peVM3yKaZBmFRW8onJwwhVpVMW1v4pccWGakw70mxyMPzpDw0iDhAuwker9uOSyv6951qiZC64WhAZB4aW7mS5qMwPRqh1OBgk5msn9uLKyiSkqTzMsGjskfI8ZAp9qdYwyWeO7ZC4C5a930I6mRSpiAd6n5ZADkvE00MewZD}
 storage:
   # Ojo acá: en Render usamos la carpeta temporal del contenedor '/tmp/' para los comprobantes
   local-dir: ${STORAGE_LOCAL_DIR:/tmp/comprobantes/}

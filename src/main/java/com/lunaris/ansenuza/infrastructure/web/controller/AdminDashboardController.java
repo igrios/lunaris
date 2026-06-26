@@ -8,8 +8,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.AllArgsConstructor;
 
 @Controller
@@ -19,6 +21,7 @@ public class AdminDashboardController {
 
     private final ReservationRepository reservationRepository;
     private final PricingAndScheduleService scheduleService;
+    private final ConversationSessionRepository sessionRepository; // 💬 ¡Inyectamos las sesiones del bot!
 
     @GetMapping("/hoja-ruta")
     public String getHojaRuta(@RequestParam(value = "fecha", required = false) String fechaStr, Model model) {
@@ -46,17 +49,18 @@ public class AdminDashboardController {
                 .mapToInt(Reservation::getPassengerCount)
                 .sum();
 
-        // 6. Inyectamos los datos limpios al modelo de Thymeleaf
+        // 6. Traemos las conversaciones reales del bot desde la base de datos
+        List<ConversationSession> sesionesChat = sessionRepository.findAll();
+
+        // 7. Inyectamos los datos limpios al modelo de Thymeleaf (respetando las variables sin "data.")
         model.addAttribute("fechaSeleccionada", fecha);
         model.addAttribute("pasajeros0800Count", pasajeros0800);
         model.addAttribute("hubActivado", pasajeros0800 > 8);
         model.addAttribute("reservas", reservas);
         model.addAttribute("totalYendo", totalYendoDesdeZona);
         model.addAttribute("totalVolviendo", totalVolviendoDesdeCba);
-        
-        // Lista vacía temporal para evitar errores de compilación con repositorios de infraestructura
-        model.addAttribute("sesionesChat", java.util.Collections.emptyList());
+        model.addAttribute("sesionesChat", sesionesChat); // 👈 ¡Ahora van las reales!
 
-        return "admin/hoja-ruta"; // Renderiza el archivo html unificado
+        return "admin/hoja-ruta"; 
     }
 }

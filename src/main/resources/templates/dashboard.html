@@ -39,10 +39,10 @@
             <p class="text-muted">Bienvenido al sistema core de asignación y tracking operativo.</p>
         </div>
 
-        <!-- 🚀 TARJETAS DE ACCESOS DIRECTOS (Distribución 4 Columnas) -->
-        <div class="row g-4 mb-4">
+        <!-- 🚀 TARJETAS DE ACCESOS DIRECTOS (Distribución responsive: hasta 5 columnas) -->
+        <div class="row g-4 mb-4 row-cols-1 row-cols-sm-2 row-cols-lg-5">
             <!-- Nueva Reserva Manual -->
-            <div class="col-md-3">
+            <div class="col">
                 <div class="card card-menu shadow-sm h-100 border-start border-primary border-4">
                     <div class="card-body d-flex flex-column justify-content-between p-4">
                         <div>
@@ -60,7 +60,7 @@
             </div>
 
             <!-- Gestión de Pasajeros -->
-            <div class="col-md-3">
+            <div class="col">
                 <div class="card card-menu shadow-sm h-100">
                     <div class="card-body d-flex flex-column justify-content-between p-4">
                         <div>
@@ -77,8 +77,26 @@
                 </div>
             </div>
 
+            <!-- Hoja de Ruta del Día -->
+            <div class="col">
+                <div class="card card-menu shadow-sm h-100 border-start border-info border-4">
+                    <div class="card-body d-flex flex-column justify-content-between p-4">
+                        <div>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-info bg-opacity-10 text-info px-3 py-2 rounded-3 fs-3 me-3">
+                                    <i class="bi bi-signpost-split-fill"></i>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-0">Hoja de Ruta</h5>
+                            </div>
+                            <p class="text-muted small mb-0">Mirá el detalle del día: pasajeros yendo y volviendo, alertas de capacidad y estado del bot.</p>
+                        </div>
+                        <a th:href="@{/admin/hoja-ruta}" class="btn btn-info w-100 fw-bold text-dark mt-4 py-2">🚐 Ver Hoja de Ruta</a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Monitor del Bot -->
-            <div class="col-md-3">
+            <div class="col">
                 <div class="card card-menu shadow-sm h-100">
                     <div class="card-body d-flex flex-column justify-content-between p-4">
                         <div>
@@ -96,7 +114,7 @@
             </div>
 
             <!-- Calendario Mensual -->
-            <div class="col-md-3">
+            <div class="col">
                 <div class="card card-menu shadow-sm h-100">
                     <div class="card-body d-flex flex-column justify-content-between p-4">
                         <div>
