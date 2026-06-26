@@ -1,13 +1,11 @@
 package com.lunaris.ansenuza.application.usecase;
 
-import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Service;
-import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
-import com.lunaris.ansenuza.domain.repository.FareRepository; // 🌟 Sumamos el repo de tarifas
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +16,7 @@ public class CreateReservationUseCase {
 
     private final ReservationService reservationService;
     private final PassengerRepository passengerRepository;
-    private final FareRepository fareRepository; // 🌟 Inyectamos el repositorio de precios
+    private final PricingAndScheduleService pricingAndScheduleService;
 
     public Reservation execute(CreateReservationRequest request) {
 
@@ -31,16 +29,12 @@ public class CreateReservationUseCase {
         Boolean safePaymentVerified = Boolean.TRUE.equals(request.paymentVerified());
         String initialStatus = safePaymentVerified ? "CONFIRMED" : "PENDING_PAYMENT";
 
-        // 🌟 CÁLCULO DE PRECIO RADIAL SIMÉTRICO (Zona ⇄ Córdoba)
-        // Detectamos cuál de los dos campos contiene el pueblo de la zona (el que no sea Córdoba)
-        String zoneLocality = request.pickupLocality().toLowerCase().contains("córdoba") 
-            ? request.destination() 
-            : request.pickupLocality();
-
-        // Buscamos el precio correspondiente en la base de datos de manera automática
-        BigDecimal computedAmount = fareRepository.findByLocalityNameIgnoreCase(zoneLocality)
-            .map(Fare::getAmount)
-            .orElse(BigDecimal.ZERO); // Ponemos 0 si pasa algo raro o no está tasada
+        // Centralizamos la cotización en el servicio de pricing para no duplicar reglas.
+        var computedAmount = pricingAndScheduleService.calculateReservationAmount(
+                request.pickupLocality(),
+                request.destination(),
+                request.roundTrip(),
+                safePassengerCount);
 
         Reservation reservation = Reservation.builder()
                 .passenger(passenger)

@@ -116,6 +116,29 @@ public class PricingAndScheduleService {
     }
 
     /**
+     * Calcula el importe total de una reserva tomando la ruta completa.
+     *
+     * <p>Centraliza la regla de negocio usada por el bot, el formulario web y la API:
+     * la localidad "de zona" es la que no corresponde a Córdoba.
+     */
+    public java.math.BigDecimal calculateReservationAmount(String pickupLocality, String destination,
+            Boolean isRoundTrip, int passengerCount) {
+        String zoneLocality = resolveZoneLocality(pickupLocality, destination);
+        return calculateTripPrice(zoneLocality, isRoundTrip, passengerCount);
+    }
+
+    private String resolveZoneLocality(String pickupLocality, String destination) {
+        if (pickupLocality == null || pickupLocality.isBlank()) {
+            return destination;
+        }
+        if (destination == null || destination.isBlank()) {
+            return pickupLocality;
+        }
+
+        return pickupLocality.toLowerCase().contains("córdoba") ? destination : pickupLocality;
+    }
+
+    /**
      * ⏱️ REESCRITO COMPATIBILIDAD Y URGENCIA: Corrige el error que clavaba a las 03:00 AM el turno de las 08:00
      */
     public String calculateEstimatedPickupTime(String localityName, String baseTimeStr) {

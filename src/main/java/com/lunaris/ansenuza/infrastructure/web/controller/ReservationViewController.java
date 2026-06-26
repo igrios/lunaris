@@ -16,12 +16,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-import java.math.BigDecimal;
-import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
-import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -38,7 +36,7 @@ public class ReservationViewController {
     private final LocalityRepository localityRepository;
     private final ReservationService reservationService;
     private final ReservationRepository reservationRepository;
-    private final FareRepository fareRepository;
+    private final PricingAndScheduleService pricingAndScheduleService;
 
     @GetMapping("/new")
     public String newReservation(Model model) {
@@ -76,13 +74,12 @@ public class ReservationViewController {
 
         passenger = passengerRepository.save(passenger);
 
-        // 💵 Monto: misma lógica que el alta por bot/REST (tarifa de la zona, ida y vuelta de la base)
-        String zoneLocality = form.getPickupLocality().toLowerCase().contains("córdoba")
-                ? form.getDestination()
-                : form.getPickupLocality();
-        BigDecimal computedAmount = fareRepository.findByLocalityNameIgnoreCase(zoneLocality)
-                .map(Fare::getAmount)
-                .orElse(BigDecimal.ZERO);
+        // Monto unificado con el bot y el alta REST.
+        var computedAmount = pricingAndScheduleService.calculateReservationAmount(
+                form.getPickupLocality(),
+                form.getDestination(),
+                form.getRoundTrip(),
+                form.getPassengerCount() != null ? form.getPassengerCount() : 1);
 
         // 🕒 Horario en el mismo formato que el bot, para que la agenda lo muestre igual.
         // Mantenemos las observaciones del operador a continuación, separadas por " | ".

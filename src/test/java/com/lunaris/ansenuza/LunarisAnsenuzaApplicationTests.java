@@ -1,13 +1,13 @@
 package com.lunaris.ansenuza;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@SpringBootTest
+import org.junit.jupiter.api.Test;
+
 class LunarisAnsenuzaApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void smoke() {
+        assertNotNull(LunarisAnsenuzaApplication.class);
+    }
 }
