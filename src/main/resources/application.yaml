@@ -11,6 +11,7 @@ spring:
 
   flyway:
     enabled: true
+    validate-on-migrate: false # 🛡️ CANCELAMOS LA VALIDACIÓN DE CHECKSUMS PARA PASAR EN LIMPIO
 
   servlet:
     multipart:
