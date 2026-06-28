@@ -7,3 +7,7 @@ CREATE INDEX IF NOT EXISTS idx_reservations_reservation_code ON reservations(res
 
 ALTER TABLE conversation_sessions ADD COLUMN IF NOT EXISTS schedule_block VARCHAR(50);
 ALTER TABLE conversation_sessions ADD COLUMN IF NOT EXISTS reservation_code VARCHAR(20);
+
+
+-- 💰 Agregamos la columna de saldo a favor en la tabla de pasajeros con valor inicial 0
+ALTER TABLE passengers ADD COLUMN IF NOT EXISTS current_balance NUMERIC(19, 2) NOT NULL DEFAULT 0.00;

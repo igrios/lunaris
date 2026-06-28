@@ -67,12 +67,12 @@ public class ConversationSession {
     @Column(name = "bot_paused")
     private boolean botPaused = false;
 
-// 🕒 Guarda temporalmente el bloque horario elegido (ej: "08:00 AM")
-@Column(name = "schedule_block")
-private String scheduleBlock;
+    // 🕒 Guarda temporalmente el bloque horario elegido (ej: "08:00 AM")
+    @Column(name = "schedule_block")
+    private String scheduleBlock;
 
-// 📌 Guarda temporalmente el código base/nexo generado para el summary
-@Column(name = "reservation_code")
-private String reservationCode;
+    // 📌 Guarda temporalmente el código base/nexo generado para el summary
+    @Column(name = "reservation_code")
+    private String reservationCode;
 
 }
