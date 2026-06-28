@@ -37,14 +37,20 @@ public class AskIndividualCompanionHandler implements ConversationStepHandler {
         session.setCompanionNames(accumulated);
         session.setPassengerCount(session.getPassengerCount() + 1);
 
-        int currentIndex = Integer.parseInt(session.getCuil());
+        // 🛠️ CORRECCIÓN CRÍTICA: Reemplazamos el abuso semántico de session.getCuil()
+        // Usamos el campo entero dedicado de la base de datos para controlar el bucle
+        Integer currentIndexObj = session.getCurrentCompanionIndex();
+        int currentIndex = (currentIndexObj != null) ? currentIndexObj : 1;
         int nextIndex = currentIndex + 1;
 
+        // 🛠️ Evaluamos contra el total de acompañantes esperados
         if (currentIndex >= session.getTotalCompanions()) {
-            session.setCuil(null);
+            // Ya cargó todos. Dejamos el índice en limpio y resolvemos dirección.
+            session.setCurrentCompanionIndex(null);
             passengerAddressResolver.resolve(phoneNumber, session);
         } else {
-            session.setCuil(String.valueOf(nextIndex));
+            // Faltan acompañantes. Incrementamos el índice correcto de forma tipada
+            session.setCurrentCompanionIndex(nextIndex);
             conversationSessionRepository.saveAndFlush(session);
             messaging.sendText(phoneNumber,
                     "👤 *Ingresá Nombre y Apellido de tu acompañante " + nextIndex + ":*");

@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value; // 👈 Importante para el Token
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -26,7 +27,10 @@ public class AgendaDayController {
     private final ReservationRepository reservationRepository;
     private final WhatsAppService whatsAppService;
 
-    // Escucha en /agenda/day?date=2026-06-17
+    // 🔐 Inyectamos el token de forma segura desde tu application.yaml/properties de Render
+    @Value("${whatsapp.access-token}")
+    private String whatsappToken;
+
     @GetMapping("/agenda/day")
     public String dayAgenda(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -37,7 +41,7 @@ public class AgendaDayController {
         model.addAttribute("date", date);
         model.addAttribute("reservations", reservations);
 
-        return "agenda-day"; // Levanta src/main/resources/templates/agenda-day.html
+        return "agenda-day";
     }
 
     @PostMapping("/agenda/verify-payment/{id}")
@@ -79,16 +83,23 @@ public class AgendaDayController {
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada"));
 
         String receiptUrl = reservation.getPaymentReceiptUrl();
-        if (receiptUrl == null || !receiptUrl.contains("v20.0/")) {
+        if (receiptUrl == null) {
             return ResponseEntity.notFound().build();
         }
 
-        String whatsappToken = "TU_TOKEN_DE_ACCESS_DE_WHATSAPP_AQUÍ";
+        // 💡 Si la URL ya viene de Supabase/Firebase/Cloudinary (comienza con http y no es de Meta)
+        // Redirigimos el navegador directo a la nube para no consumir ancho de banda de tu Render
+        if (receiptUrl.startsWith("http") && !receiptUrl.contains("graph.facebook.com")) {
+            return ResponseEntity.status(302)
+                    .header(HttpHeaders.LOCATION, receiptUrl)
+                    .build();
+        }
 
+        // 🛠️ Fallback temporal: Si todavía es un ID viejo de Meta, lo descarga usando el Token seguro
         try {
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(whatsappToken);
+            headers.setBearerAuth(whatsappToken); // 👈 Usamos la variable segura
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
             ResponseEntity<JsonNode> mediaResponse = restTemplate.exchange(

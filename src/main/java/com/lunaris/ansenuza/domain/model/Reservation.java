@@ -37,7 +37,9 @@ public class Reservation {
     @JoinColumn(name = "passenger_id", nullable = false)
     private Passenger passenger;
 
-    @Column(name = "travel_date", nullable = false)
+    // 🛠️ CORRECCIÓN CRÍTICA: Se cambia a nullable = true para sincronizar con la migración V31 de Flyway
+    // Evita que Hibernate lance una excepción en Render al procesar flujos o vueltas diferidas
+    @Column(name = "travel_date", nullable = true)
     private LocalDate travelDate;
 
     @Column(name = "pickup_locality", nullable = false)
@@ -64,8 +66,8 @@ public class Reservation {
     @Column(name = "payment_verified", nullable = false)
     private Boolean paymentVerified;
 
-    @Column(name = "status")
-    private String status; // Flujo canónico: PENDING_PAYMENT, PAYMENT_RECEIVED, CONFIRMED, CANCELLED
+    @Column(name = "status") // Flujo canónico: PENDING_PAYMENT, PAYMENT_RECEIVED, CONFIRMED, CANCELLED
+    private String status; 
 
     @Column(name = "notes")
     private String notes;

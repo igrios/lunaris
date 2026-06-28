@@ -1,3 +1,19 @@
+# Entorno virtual de Python
+env_gemini/
+venv/
+.venv/
+
+# Carpetas de compilación de Java
+target/
+.gradle/
+.idea/
+*.class
+
+# Logs y temporales
+*.log
+.DS_Store
+
+
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar

@@ -1,13 +1,11 @@
 spring:
   datasource:
-    # Si encuentra la variable de Render usa esa, si no, se conecta a tu localhost
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/lunaris_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
 
   jpa:
     hibernate:
-      # En producción es mejor 'update' o 'none' si manejás Flyway, para desarrollo dejamos validate como base
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     show-sql: ${SPRING_JPA_SHOW_SQL:true}
 
@@ -16,7 +14,6 @@ spring:
 
   servlet:
     multipart:
-      # 🧾 Permitir PDFs de factura de buen tamaño
       max-file-size: 15MB
       max-request-size: 15MB
 
@@ -27,14 +24,18 @@ springdoc:
     path: /api-docs
 
 whatsapp:
-  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:1220123434507524}
+  phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
   access-token: ${WHATSAPP_ACCESS_TOKEN:EAAjg5ZALoQWABR1Lgd3paLGp6NNrEMZCN0PSDq15h5ZAIJnYeZB3XZCcfaFknm4AFQhPfWkGjwp5nA05rd2ZBET0mDZANhOFBcqE17h1AU6siILKOfUi204A8iYXvOi29aK57peVM3yKaZBmFRW8onJwwhVpVMW1v4pccWGakw70mxyMPzpDw0iDhAuwker9uOSyv6951qiZC64WhAZB4aW7mS5qMwPRqh1OBgk5msn9uLKyiSkqTzMsGjskfI8ZAp9qdYwyWeO7ZC4C5a930I6mRSpiAd6n5ZADkvE00MewZD}
+
 storage:
-  # Ojo acá: en Render usamos la carpeta temporal del contenedor '/tmp/' para los comprobantes
   local-dir: ${STORAGE_LOCAL_DIR:/tmp/comprobantes/}
-  # 🧾 PDFs de facturas que sube la operadora
   invoices-dir: ${STORAGE_INVOICES_DIR:/tmp/facturas/}
 
 server:
-  # Render asigna el puerto dinámicamente en la variable PORT, si no existe usa el 8080
   port: ${PORT:8080}
+
+# ☁️ CONFIGURACIÓN DE CLOUDINARY PARA COMPROBANTES DE LAS COMBIS
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:dgrwrcb5p}
+  api-key: ${CLOUDINARY_API_KEY:173558398347922}
+  api-secret: ${CLOUDINARY_API_SECRET:ACÁ_PEGÁS_TU_API_SECRET_OCULTO}

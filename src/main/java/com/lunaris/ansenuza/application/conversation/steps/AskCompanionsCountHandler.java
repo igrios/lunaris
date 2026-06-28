@@ -45,7 +45,10 @@ public class AskCompanionsCountHandler implements ConversationStepHandler {
                 session.setPassengerCount(1);
                 session.setCurrentStep("ASK_INDIVIDUAL_COMPANION");
                 session.setCompanionNames("");
-                session.setCuil("1");
+                
+                // 🛠️ CORRECCIÓN: Usamos el campo semántico correcto en lugar de setCuil("1")
+                session.setCurrentCompanionIndex(1);
+                
                 conversationSessionRepository.saveAndFlush(session);
                 messaging.sendText(phoneNumber,
                         "👤 *Ingresá Nombre y Apellido de tu acompañante 1:*");
