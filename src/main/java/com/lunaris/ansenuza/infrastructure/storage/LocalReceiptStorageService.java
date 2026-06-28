@@ -15,7 +15,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import lombok.extern.slf4j.Slf4j;
 
-@Service
+// 🛠️ DESACTIVADO: Comentamos @Service para que Spring Boot use únicamente el adaptador de Cloudinary
+// @Service
 @Slf4j
 public class LocalReceiptStorageService implements ReceiptStoragePort {
 
