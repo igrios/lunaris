@@ -1,5 +1,7 @@
 package com.lunaris.ansenuza.domain.model.service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode; // 🛠️ CORRECCIÓN: Importación para el redondeo moderno
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -7,8 +9,10 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationEvent;
+import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,149 +23,210 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final ReservationEventRepository reservationEventRepository;
+    private final PassengerRepository passengerRepository;
 
     @Transactional
     public List<Reservation> saveReservationFlow(Reservation mainReservation) {
         List<Reservation> savedReservations = new ArrayList<>();
 
-        // 1. Limpiamos espacios en blanco y formateamos los prefijos (ej: "Morteros" -> "COR")
+        // 1. Limpiamos espacios en blanco y formateamos los prefijos
         String originClean = mainReservation.getPickupLocality().trim();
         String destClean = mainReservation.getDestination().trim();
 
         String originPref = originClean.substring(0, 3).toUpperCase().replace("Ó", "O");
         String destPref = destClean.substring(0, 3).toUpperCase().replace("Ó", "O");
 
-        // 2. Obtenemos la secuencia estimada inicial basada en la ruta y fecha de la ida
-        long currentCount = reservationRepository.countSequenceByRouteAndDate(originClean,
-                destClean, mainReservation.getTravelDate());
+        // 2. Obtenemos la secuencia estimada para el Nexo de Grupo unificado
+        long currentCount = reservationRepository.countSequenceByRouteAndDate(originClean, destClean, mainReservation.getTravelDate());
         long nextSequence = currentCount + 1;
 
-        // 3. 🛡️ BUCLE DEFENSIVO ANTI-COLISIÓN (IDA)
-        String codigoIda = String.format("%s-%s-%03d_I", originPref, destPref, nextSequence);
-        while (reservationRepository.existsByReservationCode(codigoIda)) {
+        // 3. 🛡️ BUCLE DEFENSIVO ANTI-COLISIÓN (Código base de grupo compartido)
+        String codigoBase = String.format("%s-%s-%03d", originPref, destPref, nextSequence);
+        while (reservationRepository.existsByReservationCode(codigoBase + "-IDA")) {
             nextSequence++;
-            codigoIda = String.format("%s-%s-%03d_I", originPref, destPref, nextSequence);
+            codigoBase = String.format("%s-%s-%03d", originPref, destPref, nextSequence);
         }
 
-        mainReservation.setReservationCode(codigoIda);
-        mainReservation
-                .setPaymentVerified(Boolean.TRUE.equals(mainReservation.getPaymentVerified()));
-        mainReservation
-                .setStatus(Boolean.TRUE.equals(mainReservation.getPaymentVerified()) ? "CONFIRMED"
-                        : "PENDING_PAYMENT");
-        // 💰 Si nace ya pagada, registramos el momento del ingreso
-        if (Boolean.TRUE.equals(mainReservation.getPaymentVerified())
-                && mainReservation.getPaymentConfirmedAt() == null) {
+        // 💳 PASO CRÍTICO DE CUENTA CORRIENTE: Evaluar y aplicar saldo a favor del Pasajero Titular
+        Passenger titular = mainReservation.getPassenger();
+        BigDecimal saldoDisponible = titular.getCurrentBalance() != null ? titular.getCurrentBalance() : BigDecimal.ZERO;
+        BigDecimal costoTotalFlujo = mainReservation.getAmount(); // Viene con el costo total precalculado
+
+        if (saldoDisponible.compareTo(BigDecimal.ZERO) > 0) {
+            if (saldoDisponible.compareTo(costoTotalFlujo) >= 0) {
+                // El saldo cubre todo el viaje
+                titular.setCurrentBalance(saldoDisponible.subtract(costoTotalFlujo));
+                mainReservation.setAmount(BigDecimal.ZERO);
+                mainReservation.setPaymentVerified(true);
+                mainReservation.setStatus("CONFIRMED");
+                mainReservation.setPaymentConfirmedAt(LocalDateTime.now());
+            } else {
+                // El saldo cubre una parte del viaje
+                mainReservation.setAmount(costoTotalFlujo.subtract(saldoDisponible));
+                titular.setCurrentBalance(BigDecimal.ZERO);
+            }
+            passengerRepository.saveAndFlush(titular);
+        }
+
+        // Dividimos el costo equitativamente por tramo usando el enum RoundingMode
+        BigDecimal montoPorTramo = Boolean.TRUE.equals(mainReservation.getRoundTrip()) 
+                ? mainReservation.getAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
+                : mainReservation.getAmount();
+
+        // --- PROCESAMIENTO TRAMO: IDA ---
+        mainReservation.setReservationCode(codigoBase + "-IDA");
+        if (mainReservation.getStatus() == null) {
+            mainReservation.setStatus(Boolean.TRUE.equals(mainReservation.getPaymentVerified()) ? "CONFIRMED" : "PENDING_PAYMENT");
+        }
+        if (Boolean.TRUE.equals(mainReservation.getPaymentVerified()) && mainReservation.getPaymentConfirmedAt() == null) {
             mainReservation.setPaymentConfirmedAt(LocalDateTime.now());
         }
+        
+        // El monto de esta fila física es su parte proporcional
+        mainReservation.setAmount(montoPorTramo);
 
         Reservation savedMain = reservationRepository.save(mainReservation);
         savedReservations.add(savedMain);
 
-        // 🌟 CORRECCIÓN IDE: Variable local para evitar el warning Null type safety
-        ReservationEvent eventIda = ReservationEvent.builder().reservationId(savedMain.getId())
+        ReservationEvent eventIda = ReservationEvent.builder()
+                .reservationId(savedMain.getId())
                 .eventType("RESERVATION_CREATED")
-                .description("Reserva de IDA creada automáticamente con código " + codigoIda)
+                .description("Tramo de IDA registrado bajo el grupo " + codigoBase)
                 .triggeredBy("API_SYSTEM").build();
         reservationEventRepository.save(eventIda);
 
-        // 4. ¿Es Ida y Vuelta?
+        // --- PROCESAMIENTO TRAMO: VUELTA ---
         if (Boolean.TRUE.equals(mainReservation.getRoundTrip())) {
-
-            // 🛡️ BUCLE DEFENSIVO ANTI-COLISIÓN (VUELTA): Evita choques en el tramo inverso
-            String codigoVuelta = String.format("%s-%s-%03d_V", destPref, originPref, nextSequence);
-            while (reservationRepository.existsByReservationCode(codigoVuelta)) {
-                nextSequence++;
-                codigoVuelta = String.format("%s-%s-%03d_V", destPref, originPref, nextSequence);
-            }
-
             Reservation returnReservation = new Reservation();
             returnReservation.setPassenger(mainReservation.getPassenger());
-            returnReservation.setPickupLocality(mainReservation.getDestination()); // Inversión radial
-            returnReservation.setDestination(mainReservation.getPickupLocality()); // Inversión radial
+            returnReservation.setPickupLocality(mainReservation.getDestination()); 
+            returnReservation.setDestination(mainReservation.getPickupLocality()); 
 
-            // 🌟 CORRECCIÓN POSTGRES: Lógica adaptativa para Vuelta Abierta evitando Violación Not-Null
             if (mainReservation.getReturnDate() != null) {
                 returnReservation.setTravelDate(mainReservation.getReturnDate());
-                returnReservation
-                        .setNotes("Vuelta vinculada automáticamente a la ida " + codigoIda);
+                returnReservation.setNotes("Vuelta vinculada al grupo " + codigoBase);
             } else {
-                // 📅 Fecha Centinela lejana: Saltea la restricción física de Postgres sin alterar la base
                 returnReservation.setTravelDate(LocalDate.of(2099, 12, 31));
-                returnReservation.setNotes(
-                        "🛑 VUELTA ABIERTA - Pendiente confirmar fecha. Vinculada a la ida "
-                                + codigoIda);
+                returnReservation.setNotes("🛑 VUELTA ABIERTA - Pendiente confirmar fecha. Grupo " + codigoBase);
             }
 
-            // Tasación simétrica automática
-            returnReservation.setAmount(mainReservation.getAmount());
+            returnReservation.setAmount(montoPorTramo);
             returnReservation.setPassengerCount(mainReservation.getPassengerCount());
             returnReservation.setCompanionNames(mainReservation.getCompanionNames());
             returnReservation.setPaymentVerified(mainReservation.getPaymentVerified());
             returnReservation.setStatus(mainReservation.getStatus());
             returnReservation.setRoundTrip(true);
-            returnReservation.setReservationCode(codigoVuelta);
+            returnReservation.setReservationCode(codigoBase + "-VUELTA");
+            returnReservation.setPaymentConfirmedAt(mainReservation.getPaymentConfirmedAt());
 
             Reservation savedReturn = reservationRepository.save(returnReservation);
             savedReservations.add(savedReturn);
 
-            // 🌟 EVENTO DE AUDITORÍA: Registro inmutable de la Vuelta
-            String descEvento = (mainReservation.getReturnDate() != null)
-                    ? "Reserva de VUELTA gemela creada automáticamente con código " + codigoVuelta
-                    : "Reserva de VUELTA ABIERTA creada automáticamente con código " + codigoVuelta;
-
-            // 🌟 CORRECCIÓN IDE: Variable local para evitar el warning Null type safety
             ReservationEvent eventVuelta = ReservationEvent.builder()
-                    .reservationId(savedReturn.getId()).eventType("RESERVATION_CREATED")
-                    .description(descEvento).triggeredBy("API_SYSTEM").build();
+                    .reservationId(savedReturn.getId())
+                    .eventType("RESERVATION_CREATED")
+                    .description("Tramo de VUELTA registrado bajo el grupo " + codigoBase)
+                    .triggeredBy("API_SYSTEM").build();
             reservationEventRepository.save(eventVuelta);
         }
 
         return savedReservations;
     }
 
-    // 🗑️ BAJA LOGICA: Modifica el estado a CANCELLED (Mantiene historial operativo para el Bot/Panel)
+   //
+    // 🗑️ BAJA LÓGICA ATÓMICA CON BLINDAJE DE SEGURIDAD ANTIFRAUDE (CORREGIDO PARA LAMBDAS)
     @Transactional
     public void cancelReservation(UUID id, String triggeredBy) {
         reservationRepository.findById(id).ifPresent(reservation -> {
-            reservation.setStatus("CANCELLED");
-            reservationRepository.saveAndFlush(reservation);
+            if (!"CANCELLED".equals(reservation.getStatus())) {
+                
+                Passenger passenger = reservation.getPassenger();
+                BigDecimal saldoActual = passenger.getCurrentBalance() != null ? passenger.getCurrentBalance() : BigDecimal.ZERO;
+                
+                // Usamos un array de un solo elemento o un contenedor para poder mutar el valor dentro del lambda
+                final BigDecimal[] totalReintegro = { BigDecimal.ZERO };
 
-            ReservationEvent cancelEvent = ReservationEvent.builder()
-                    .reservationId(reservation.getId())
-                    .eventType("RESERVATION_CANCELLED")
-                    .description("Reserva " + reservation.getReservationCode() + " dada de baja por el sistema.")
-                    .triggeredBy(triggeredBy)
-                    .build();
-            reservationEventRepository.save(cancelEvent);
+                // 🛡️ FILTRO DE SEGURIDAD: Solo computa dinero si el pago fue verificado o la reserva estaba confirmada
+                boolean pagoRealizado = Boolean.TRUE.equals(reservation.getPaymentVerified()) || "CONFIRMED".equals(reservation.getStatus());
+
+                // 1. Cancelamos la reserva actual
+                reservation.setStatus("CANCELLED");
+                
+                // Solo acumulamos el dinero si pasó el control de pago
+                if (pagoRealizado && reservation.getAmount() != null && reservation.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                    totalReintegro[0] = totalReintegro[0].add(reservation.getAmount());
+                }
+                reservationRepository.saveAndFlush(reservation);
+
+                // Registro del evento
+                ReservationEvent cancelEvent = ReservationEvent.builder()
+                        .reservationId(reservation.getId())
+                        .eventType("RESERVATION_CANCELLED")
+                        .description("Reserva " + reservation.getReservationCode() + " dada de baja. Pago verificado anteriormente: " + pagoRealizado)
+                        .triggeredBy(triggeredBy)
+                        .build();
+                reservationEventRepository.save(cancelEvent);
+
+                // 2. 🔄 EFECTO CASCADA: Si es una IDA, damos de baja la VUELTA gemela
+                String codigoActual = reservation.getReservationCode();
+                if (codigoActual != null && codigoActual.endsWith("-IDA")) {
+                    String codigoVueltaBuscado = codigoActual.replace("-IDA", "-VUELTA");
+                    
+                    reservationRepository.findByReservationCode(codigoVueltaBuscado).ifPresent(returnRes -> {
+                        if (!"CANCELLED".equals(returnRes.getStatus())) {
+                            
+                            // Evaluamos la vuelta con el mismo criterio de seguridad
+                            boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified()) || "CONFIRMED".equals(returnRes.getStatus());
+                            
+                            returnRes.setStatus("CANCELLED");
+                            
+                            if (pagoVueltaRealizado && returnRes.getAmount() != null && returnRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                                // Modificamos el contenedor array de forma segura para el compilador
+                                totalReintegro[0] = totalReintegro[0].add(returnRes.getAmount());
+                            }
+                            reservationRepository.saveAndFlush(returnRes);
+
+                            ReservationEvent cancelReturnEvent = ReservationEvent.builder()
+                                    .reservationId(returnRes.getId())
+                                    .eventType("RESERVATION_CANCELLED")
+                                    .description("Cancelación automática de VUELTA por baja de IDA. Pago verificado: " + pagoVueltaRealizado)
+                                    .triggeredBy(triggeredBy)
+                                    .build();
+                            reservationEventRepository.save(cancelReturnEvent);
+                        }
+                    });
+                }
+
+                // 3. 💳 ACREDITACIÓN CONTROLADA: Solo infla la billetera si hay dinero real validado
+                if (totalReintegro[0].compareTo(BigDecimal.ZERO) > 0) {
+                    passenger.setCurrentBalance(saldoActual.add(totalReintegro[0]));
+                    passengerRepository.saveAndFlush(passenger);
+                }
+            }
         });
     }
 
-    // 🔄 MODIFICACIÓN GENERAL: Permite re-calendarizar o ajustar datos desde el Bot o el Formulario
+    
     @Transactional
     public Reservation updateReservation(UUID id, Reservation updatedData, String triggeredBy) {
         return reservationRepository.findById(id).map(reservation -> {
             StringBuilder auditoriaDesc = new StringBuilder("Campos modificados: ");
             LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
-            // Si se modifica o confirma la fecha de viaje (cierra la Vuelta Abierta)
             if (updatedData.getTravelDate() != null && !updatedData.getTravelDate().equals(reservation.getTravelDate())) {
                 auditoriaDesc.append(String.format("[Fecha: %s -> %s] ", reservation.getTravelDate(), updatedData.getTravelDate()));
                 reservation.setTravelDate(updatedData.getTravelDate());
                 
-                // Si deja de ser fecha centinela, saneamos la nota descriptiva
                 if (!updatedData.getTravelDate().equals(fechaCentinela) && reservation.getNotes() != null) {
                     reservation.setNotes(reservation.getNotes().replace("🛑 VUELTA ABIERTA - Pendiente confirmar fecha.", "🔄 Vuelta agendada:"));
                 }
             }
 
-            // Cambios de logística básicos
             if (updatedData.getPickupAddress() != null) reservation.setPickupAddress(updatedData.getPickupAddress());
             if (updatedData.getPassengerCount() != null) reservation.setPassengerCount(updatedData.getPassengerCount());
             if (updatedData.getCompanionNames() != null) reservation.setCompanionNames(updatedData.getCompanionNames());
             if (updatedData.getAmount() != null) reservation.setAmount(updatedData.getAmount());
             
-            // Gestión de estados de pago
             if (updatedData.getPaymentVerified() != null) {
                 reservation.setPaymentVerified(updatedData.getPaymentVerified());
                 if (Boolean.TRUE.equals(updatedData.getPaymentVerified())) {

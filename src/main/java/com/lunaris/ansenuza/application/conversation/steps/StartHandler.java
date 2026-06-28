@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -12,7 +13,7 @@ import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import lombok.RequiredArgsConstructor;
 
-/** START / saludo: muestra el menú principal y transiciona a MAIN_MENU. */
+/** START / saludo: muestra el menú principal, notifica saldo corriente y transiciona a MAIN_MENU. */
 @Component
 @RequiredArgsConstructor
 public class StartHandler implements ConversationStepHandler {
@@ -34,11 +35,24 @@ public class StartHandler implements ConversationStepHandler {
         conversationSessionRepository.saveAndFlush(session);
 
         Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);
-        String saludo = existingPassenger.isPresent()
-                ? "¡Hola de nuevo, *" + existingPassenger.get().getFirstName() + "*! 👋\n"
-                : "¡Bienvenido a Lunaris Ansenuza! 🚐\n";
+        
+        StringBuilder saludoBuilder = new StringBuilder();
+        if (existingPassenger.isPresent()) {
+            Passenger passenger = existingPassenger.get();
+            saludoBuilder.append("¡Hola de nuevo, *").append(passenger.getFirstName()).append("*! 👋\n");
+            
+            // 💰 CUENTA CORRIENTE: Si el pasajero tiene saldo a favor, se lo recordamos al inicio
+            if (passenger.getCurrentBalance() != null && passenger.getCurrentBalance().compareTo(BigDecimal.ZERO) > 0) {
+                saludoBuilder.append("\n💵 *Tenés un saldo a favor de $")
+                             .append(String.format("%,.2f", passenger.getCurrentBalance()))
+                             .append("* en tu cuenta. Se aplicará automáticamente como descuento en tu próxima reserva.\n");
+            }
+        } else {
+            saludoBuilder.append("¡Bienvenido a Lunaris Ansenuza! 🚐\n");
+        }
 
-        String menuPrincipal = saludo + """
+        String menuPrincipal = saludoBuilder.toString() + """
+                
                 ¿En qué te podemos ayudar hoy? Por favor, elegí una opción enviando el número:
 
                 1️⃣ *Reservar un viaje* (Flujo rápido)

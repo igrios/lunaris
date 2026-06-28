@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.domain.model;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Column;
@@ -36,7 +37,6 @@ public class Passenger {
     @Column(name = "last_name", nullable = false)
     private String lastName;
 
-    
     private String cuil;
 
     private String phone;
@@ -44,4 +44,9 @@ public class Passenger {
     private String address;
 
     private String locality;
+
+    // 💰 BILLETERA VIRTUAL: Cuenta corriente para saldos a favor por cancelaciones o promos
+    @Builder.Default
+    @Column(name = "current_balance", nullable = false)
+    private BigDecimal currentBalance = BigDecimal.ZERO;
 }

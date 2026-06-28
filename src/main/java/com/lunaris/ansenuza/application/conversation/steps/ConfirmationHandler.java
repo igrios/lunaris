@@ -60,8 +60,9 @@ public class ConfirmationHandler implements ConversationStepHandler {
             BigDecimal price = pricingAndScheduleService.calculateTripPrice(
                     session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
 
-            String baseHour = (session.getCurrentCompanionIndex() != null
-                    && session.getCurrentCompanionIndex() == 8) ? "08:00 AM" : "03:00 AM";
+            // 🕒 REPARACIÓN FASE 3: Tomamos el bloque dinámico real elegido por el cliente
+            String baseHour = session.getScheduleBlock() != null ? session.getScheduleBlock() : "03:00 AM";
+            
             String notes = baseHour;
             if (session.getReturnDate() == null && Boolean.TRUE.equals(session.getRoundTrip())) {
                 notes += " (Abierta)";
