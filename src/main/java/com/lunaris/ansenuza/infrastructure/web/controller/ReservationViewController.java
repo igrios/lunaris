@@ -187,43 +187,64 @@ public class ReservationViewController {
             LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
             boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
 
-            // Caso Crítico: Si viene de Vueltas Abiertas (fecha centinela 2099-12-31) y agrupa a más de 1 persona
-            if (isOpenReturn && original.getPassengerCount() != null && original.getPassengerCount() > 1) {
-                int asientosOriginales = original.getPassengerCount();
-                
-                // 💰 Manejo seguro de dinero con BigDecimal para la división proporcional
-                java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
-                java.math.BigDecimal montoProporcional = montoTotal.divide(
-                        java.math.BigDecimal.valueOf(asientosOriginales), 2, java.math.RoundingMode.HALF_UP);
-                
-                // A. Reducimos la capacidad y restamos el monto proporcional en la reserva base
-                original.setPassengerCount(asientosOriginales - 1);
-                original.setAmount(montoTotal.subtract(montoProporcional));
-                reservationRepository.saveAndFlush(original);
-                
-                // B. Creamos el registro físico nuevo para el asiento individualizado de forma pura
-                Reservation tramoIndependiente = new Reservation();
-                tramoIndependiente.setPassenger(original.getPassenger());
-                tramoIndependiente.setTravelDate(travelDate);
-                tramoIndependiente.setPickupLocality(original.getPickupLocality());
-                tramoIndependiente.setPickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress());
-                tramoIndependiente.setDestination(original.getDestination());
-                tramoIndependiente.setAmount(montoProporcional);
-                tramoIndependiente.setPassengerCount(1);
-                tramoIndependiente.setStatus("CONFIRMED");
-                tramoIndependiente.setRoundTrip(false);
-                tramoIndependiente.setPaymentVerified(true);
-                tramoIndependiente.setReturnDate(null);
-                tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Físico" : "Split Físico");
+            if (isOpenReturn) {
+                // Evaluamos según la cantidad de asientos:
+                if (original.getPassengerCount() != null && original.getPassengerCount() > 1) {
+                    // A. SI passengerCount > 1
+                    int asientosOriginales = original.getPassengerCount();
+                    
+                    // 💰 Manejo seguro de dinero con BigDecimal para la división proporcional
+                    java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
+                    java.math.BigDecimal montoProporcional = montoTotal.divide(
+                            java.math.BigDecimal.valueOf(asientosOriginales), 2, java.math.RoundingMode.HALF_UP);
+                    
+                    // Reducimos la capacidad y restamos el monto proporcional en la reserva base
+                    original.setPassengerCount(asientosOriginales - 1);
+                    original.setAmount(montoTotal.subtract(montoProporcional));
+                    reservationRepository.saveAndFlush(original);
+                    
+                    // Creamos el registro físico nuevo para el asiento individualizado de forma pura
+                    Reservation tramoIndependiente = new Reservation();
+                    tramoIndependiente.setPassenger(original.getPassenger());
+                    tramoIndependiente.setTravelDate(travelDate);
+                    tramoIndependiente.setPickupLocality(original.getPickupLocality());
+                    tramoIndependiente.setPickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress());
+                    tramoIndependiente.setDestination(original.getDestination());
+                    tramoIndependiente.setAmount(montoProporcional);
+                    tramoIndependiente.setPassengerCount(1);
+                    tramoIndependiente.setStatus("CONFIRMED");
+                    tramoIndependiente.setRoundTrip(false);
+                    tramoIndependiente.setPaymentVerified(true);
+                    tramoIndependiente.setReturnDate(null);
+                    tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Físico" : "Split Físico");
 
-                String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
-                tramoIndependiente.setReservationCode("VTA-IND-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
-                
-                reservationRepository.saveAndFlush(tramoIndependiente);
-                
-                log.info("[Split Físico] Se dividió 1 asiento para nueva fecha {}. Monto: ${}.", travelDate, montoProporcional);
+                    String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
+                    tramoIndependiente.setReservationCode("VTA-IND-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
+                    
+                    reservationRepository.saveAndFlush(tramoIndependiente);
+                    
+                    log.info("[Split Físico] Se dividió 1 asiento para nueva fecha {}. Monto: ${}.", travelDate, montoProporcional);
+                } else {
+                    // B. SI passengerCount == 1 (o por defecto)
+                    original.setTravelDate(travelDate); // Le asignas la fecha real elegida en el panel
+                    if (pickupAddress != null && !pickupAddress.isBlank()) {
+                        original.setPickupAddress(pickupAddress);
+                    }
+                    original.setRoundTrip(false); // 🔥 CRÍTICO: Le apagamos el flag de combo para que no duplique
+                    original.setReturnDate(null);  // Anulamos la fecha de regreso asociada
+                    original.setStatus("CONFIRMED");
+                    original.setPaymentVerified(true);
+                    if (status != null && "CONFIRMED".equals(status)) {
+                        original.setStatus("CONFIRMED");
+                    }
+                    
+                    // Guardar directamente con el repositorio nativo para saltarse el service con interceptores:
+                    reservationRepository.saveAndFlush(original);
+                    
+                    log.info("[Split Final] Se programó el último asiento de la Vuelta Abierta para la fecha {}.", travelDate);
+                }
             } else {
-                // Caso Ordinario: Fila única o agenda común
+                // Caso Ordinario: Fila única o agenda común (cuando isOpenReturn es false)
                 Reservation updateData = new Reservation();
                 if (travelDate != null) updateData.setTravelDate(travelDate);
                 if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
