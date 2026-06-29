@@ -29,10 +29,12 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Controller
 @RequestMapping("/reservations")
 @RequiredArgsConstructor
+@Slf4j    
 public class ReservationViewController {
 
     private final PassengerRepository passengerRepository;
