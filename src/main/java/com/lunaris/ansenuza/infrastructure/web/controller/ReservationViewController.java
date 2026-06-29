@@ -211,18 +211,15 @@ public class ReservationViewController {
                 tramoIndependiente.setAmount(montoProporcional);
                 tramoIndependiente.setPassengerCount(1);
                 tramoIndependiente.setStatus("CONFIRMED");
-                tramoIndependiente.setRoundTrip(true);
+                tramoIndependiente.setRoundTrip(false);
                 tramoIndependiente.setPaymentVerified(true);
-                tramoIndependiente.setReturnDate(travelDate);
+                tramoIndependiente.setReturnDate(null);
                 tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Físico" : "Split Físico");
 
-                if (original.getReservationCode() != null) {
-                    tramoIndependiente.setReservationCode(original.getReservationCode().replace("-VUELTA", "") + "-IND-" + System.currentTimeMillis() % 1000);
-                } else {
-                    tramoIndependiente.setReservationCode("VTA-IND-" + System.currentTimeMillis() % 1000);
-                }
+                String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
+                tramoIndependiente.setReservationCode("VTA-IND-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
                 
-                reservationService.saveReservationFlow(tramoIndependiente);
+                reservationRepository.saveAndFlush(tramoIndependiente);
                 
                 log.info("[Split Físico] Se dividió 1 asiento para nueva fecha {}. Monto: ${}.", travelDate, montoProporcional);
             } else {
