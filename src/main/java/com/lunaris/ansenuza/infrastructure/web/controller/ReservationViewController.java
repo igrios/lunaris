@@ -201,21 +201,26 @@ public class ReservationViewController {
                 original.setAmount(montoTotal.subtract(montoProporcional));
                 reservationRepository.saveAndFlush(original);
                 
-                // B. Creamos el registro físico nuevo para el asiento individualizado
-                Reservation tramoIndependiente = Reservation.builder()
-                        .passenger(original.getPassenger())
-                        .travelDate(travelDate)
-                        .pickupLocality(original.getPickupLocality())
-                        .pickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress())
-                        .destination(original.getDestination())
-                        .roundTrip(original.getRoundTrip())
-                        .returnDate(travelDate)
-                        .paymentVerified(original.getPaymentVerified())
-                        .amount(montoProporcional) // Se lleva su fracción exacta en BigDecimal
-                        .notes(original.getNotes() != null ? original.getNotes() + " | Split Físico" : "Split Físico")
-                        .passengerCount(1)
-                        .status(status != null && !status.isBlank() ? status : "CONFIRMED")
-                        .build();
+                // B. Creamos el registro físico nuevo para el asiento individualizado de forma pura
+                Reservation tramoIndependiente = new Reservation();
+                tramoIndependiente.setPassenger(original.getPassenger());
+                tramoIndependiente.setTravelDate(travelDate);
+                tramoIndependiente.setPickupLocality(original.getPickupLocality());
+                tramoIndependiente.setPickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress());
+                tramoIndependiente.setDestination(original.getDestination());
+                tramoIndependiente.setAmount(montoProporcional);
+                tramoIndependiente.setPassengerCount(1);
+                tramoIndependiente.setStatus("CONFIRMED");
+                tramoIndependiente.setRoundTrip(true);
+                tramoIndependiente.setPaymentVerified(true);
+                tramoIndependiente.setReturnDate(travelDate);
+                tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Físico" : "Split Físico");
+
+                if (original.getReservationCode() != null) {
+                    tramoIndependiente.setReservationCode(original.getReservationCode().replace("-VUELTA", "") + "-IND-" + System.currentTimeMillis() % 1000);
+                } else {
+                    tramoIndependiente.setReservationCode("VTA-IND-" + System.currentTimeMillis() % 1000);
+                }
                 
                 reservationService.saveReservationFlow(tramoIndependiente);
                 
