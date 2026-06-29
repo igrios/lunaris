@@ -63,7 +63,6 @@ public class DashboardViewController {
         
         List<Reservation> reservations;
         
-        // Evitamos nulos en cascada
         if (date != null) {
             reservations = reservationRepository.findByTravelDate(date);
         } else {
@@ -108,13 +107,12 @@ public class DashboardViewController {
     }
 
     /**
-     * 🎯 2. ACCIÓN DE VERIFICACIÓN CONTROLADA INDIVIDUAL (Volvemos a String rawId)
+     * 🎯 2. ACCIÓN DE VERIFICACIÓN CONTROLADA INDIVIDUAL (Firma nativa con UUID)
      */
     @PostMapping("/reservas-panel/verify-tandem/{id}")
-    public String verifyPaymentTandemPlano(@PathVariable("id") String rawId) {
+    public String verifyPaymentTandemPlano(@PathVariable(value = "id") UUID id) {
         try {
-            log.info("[Validación] Procesando confirmación individual para ID string: {}", rawId);
-            UUID id = UUID.fromString(rawId);
+            log.info("[Validación] Procesando confirmación individual para UUID: {}", id);
             
             Reservation updateData = new Reservation();
             updateData.setStatus("CONFIRMED");
@@ -131,13 +129,12 @@ public class DashboardViewController {
     }
 
     /**
-     * ❌ 3. BAJA INTEGRADA CON CUENTA CORRIENTE (Volvemos a String rawId)
+     * ❌ 3. BAJA INTEGRADA CON CUENTA CORRIENTE (Firma nativa con UUID)
      */
     @PostMapping("/reservas-panel/cancel/{id}")
-    public String cancelFromGridPlano(@PathVariable("id") String rawId) {
+    public String cancelFromGridPlano(@PathVariable(value = "id") UUID id) {
         try {
-            log.info("[Baja Controlada] Procesando cancelación para ID string: {}", rawId);
-            UUID id = UUID.fromString(rawId);
+            log.info("[Baja Controlada] Procesando cancelación para UUID: {}", id);
             
             reservationService.cancelReservation(id, "ADMIN_PANEL");
             log.info("[Baja Controlada] Éxito. Saldo impactado en la cuenta del pasajero.");
