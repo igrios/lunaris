@@ -122,12 +122,44 @@ public class ReservationViewController {
     }
 
     // 🗑️ BAJA DESDE EL PANEL DE ADMINISTRACIÓN (Maneja redirección dinámica por origen)
+   // 🗑️ BAJA CONTROLADA PROPORCIONAL (Manejo Seguro de BigDecimal)
     @PostMapping("/delete/{id}")
     public String deleteFromPanel(
             @PathVariable UUID id, 
             @RequestParam(value = "source", defaultValue = "agenda") String source) {
         
-        reservationService.cancelReservation(id, "ADMIN_PANEL");
+        Reservation original = reservationRepository.findById(id).orElse(null);
+        
+        if (original != null) {
+            // Caso Crítico: Cancelación parcial de una butaca dentro de un grupo en Vueltas Abiertas
+            if (original.getPassengerCount() > 1 && "vueltas".equals(source)) {
+                int asientosAntes = original.getPassengerCount();
+                
+                // 💰 1. Calculamos estrictamente el valor de UNA Sola Butaca (Monto Total / Cantidad Asientos)
+                java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal valorUnaButaca = montoTotal.divide(
+                        java.math.BigDecimal.valueOf(asientosAntes), 2, java.math.RoundingMode.HALF_UP);
+                
+                // 📉 2. Restamos 1 asiento y descontamos su valor proporcional de la reserva base
+                original.setPassengerCount(asientosAntes - 1);
+                original.setAmount(montoTotal.subtract(valorUnaButaca));
+                reservationRepository.saveAndFlush(original);
+                
+                // 💳 3. Le acreditamos ÚNICAMENTE el valor de esa butaca en la Cuenta Corriente del Titular
+                var pasajero = original.getPassenger();
+                if (pasajero != null) {
+                    java.math.BigDecimal saldoActual = pasajero.getCurrentBalance() != null ? pasajero.getCurrentBalance() : java.math.BigDecimal.ZERO;
+                    pasajero.setCurrentBalance(saldoActual.add(valorUnaButaca));
+                    passengerRepository.save(pasajero);
+                }
+                
+                log.info("[Baja Parcial] Se canceló 1 asiento de {}. Reintegro a billetera: ${}. Quedan {} asientos.", 
+                        asientosAntes, valorUnaButaca, original.getPassengerCount());
+            } else {
+                // Caso Ordinario: Si le queda un solo asiento o viene de la agenda general, se da de baja completa
+                reservationService.cancelReservation(id, "ADMIN_PANEL");
+            }
+        }
         
         if ("vueltas".equals(source)) {
             return "redirect:/reservations/vueltas-abiertas";
@@ -200,7 +232,7 @@ public class ReservationViewController {
         }
         return "redirect:/agenda";
     }
-    
+
     // 🛑 VISTA WEB: Muestra la pantalla de pasajes con Vuelta Abierta bajo /reservations/vueltas-abiertas
     @GetMapping("/vueltas-abiertas")
     public String listOpenReturns(Model model) {
