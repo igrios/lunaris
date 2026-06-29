@@ -1,8 +1,10 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -58,7 +61,6 @@ public class ReservationViewController {
             Model model) {
 
         if (bindingResult.hasErrors()) {
-            // Si hay errores de validación, volvemos a inyectar la lista filtrada
             var localidadesConTarifa = localityRepository.findLocalitiesWithFares();
             model.addAttribute("origenes", localidadesConTarifa);
             model.addAttribute("destinos", localidadesConTarifa);
@@ -74,15 +76,12 @@ public class ReservationViewController {
 
         passenger = passengerRepository.save(passenger);
 
-        // Monto unificado con el bot y el alta REST.
         var computedAmount = pricingAndScheduleService.calculateReservationAmount(
                 form.getPickupLocality(),
                 form.getDestination(),
                 form.getRoundTrip(),
                 form.getPassengerCount() != null ? form.getPassengerCount() : 1);
 
-        // 🕒 Horario en el mismo formato que el bot, para que la agenda lo muestre igual.
-        // Mantenemos las observaciones del operador a continuación, separadas por " | ".
         String schedule = (form.getDepartureSchedule() != null && !form.getDepartureSchedule().isBlank())
                 ? form.getDepartureSchedule().trim()
                 : "03:00 AM";
@@ -119,14 +118,58 @@ public class ReservationViewController {
     public String listPassengersPanel(Model model) {
         List<Passenger> todosLosPasajeros = passengerRepository.findAll();
         model.addAttribute("pasajeros", todosLosPasajeros);
-        return "passengers"; // Apunta al archivo templates/passengers.html
+        return "passengers";
     }
 
-    // 🗑️ BAJA DESDE EL PANEL DE ADMINISTRACIÓN
+    // 🗑️ BAJA DESDE EL PANEL DE ADMINISTRACIÓN (Maneja redirección dinámica por origen)
     @PostMapping("/delete/{id}")
-    public String deleteFromPanel(@PathVariable UUID id) {
+    public String deleteFromPanel(
+            @PathVariable UUID id, 
+            @RequestParam(value = "source", defaultValue = "agenda") String source) {
+        
         reservationService.cancelReservation(id, "ADMIN_PANEL");
+        
+        if ("vueltas".equals(source)) {
+            return "redirect:/reservations/vueltas-abiertas";
+        }
         return "redirect:/agenda";
+    }
+
+    // 🔄 MODIFICACIÓN / VERIFICACIÓN INDIVIDUAL DESDE EL PANEL DE ADMINISTRACIÓN
+    @PostMapping("/update/{id}")
+    public String updateFromPanel(
+            @PathVariable UUID id, 
+            @RequestParam(value = "travelDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "source", defaultValue = "agenda") String source) {
+        
+        Reservation updateData = new Reservation();
+        if (travelDate != null) updateData.setTravelDate(travelDate);
+        if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
+        
+        if (status != null) {
+            updateData.setStatus(status);
+            if ("CONFIRMED".equals(status)) {
+                updateData.setPaymentVerified(true);
+            }
+        }
+
+        reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
+        
+        if ("vueltas".equals(source)) {
+            return "redirect:/reservations/vueltas-abiertas";
+        }
+        return "redirect:/agenda";
+    }
+
+    // 🛑 VISTA WEB: Muestra la pantalla de pasajes con Vuelta Abierta bajo /reservations/vueltas-abiertas
+    @GetMapping("/vueltas-abiertas")
+    public String listOpenReturns(Model model) {
+        java.time.LocalDate fechaCentinela = java.time.LocalDate.of(2099, 12, 31);
+        List<Reservation> abiertas = reservationRepository.findByTravelDate(fechaCentinela);
+        model.addAttribute("vueltasAbiertas", abiertas);
+        return "vueltas-abiertas";
     }
 
     // 🤖 BAJA DESDE EL BOT / REST ASÍNCRONO
@@ -141,13 +184,6 @@ public class ReservationViewController {
         }
     }
 
-    // 🔄 MODIFICACIÓN DESDE EL PANEL DE ADMINISTRACIÓN
-    @PostMapping("/update/{id}")
-    public String updateFromPanel(@PathVariable UUID id, @ModelAttribute Reservation updatedData) {
-        reservationService.updateReservation(id, updatedData, "ADMIN_PANEL");
-        return "redirect:/agenda";
-    }
-
     // 🤖 MODIFICACIÓN DESDE EL BOT / REST ASÍNCRONO
     @PutMapping("/api/{id}")
     @ResponseBody
@@ -158,14 +194,5 @@ public class ReservationViewController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(e.getMessage());
         }
-    }
-
-    // 🛑 VISTA WEB: Muestra la pantalla de pasajes con Vuelta Abierta bajo /reservations/vueltas-abiertas
-    @GetMapping("/vueltas-abiertas")
-    public String listOpenReturns(Model model) {
-        java.time.LocalDate fechaCentinela = java.time.LocalDate.of(2099, 12, 31);
-        List<Reservation> abiertas = reservationRepository.findByTravelDate(fechaCentinela);
-        model.addAttribute("vueltasAbiertas", abiertas);
-        return "vueltas-abiertas";
     }
 }
