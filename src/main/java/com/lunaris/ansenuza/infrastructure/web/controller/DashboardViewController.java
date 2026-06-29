@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import com.lunaris.ansenuza.application.usecase.GetDailyOperationSummaryUseCase;
 import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Reservation;
-import com.lunaris.ansenuza.domain.model.service.ReservationService; // 🛠️ Inyectamos tu motor financiero
+import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.dashboard.DailyOperationSummaryResponse;
@@ -30,7 +30,7 @@ public class DashboardViewController {
     private final GetDailyOperationSummaryUseCase useCase;
     private final ReservationRepository reservationRepository;
     private final FareRepository fareRepository;
-    private final ReservationService reservationService; // 🛠️ El encargado de la billetera virtual y cascadas
+    private final ReservationService reservationService;
 
     /**
      * 📊 Vista del Dashboard Principal
@@ -52,9 +52,6 @@ public class DashboardViewController {
     /**
      * 🗃️ 1. LA GRILLA DE RESERVAS POTENCIADA (Filtrado por Status, Texto y FECHA)
      */
-/**
-     * 🗃️ 1. LA GRILLA DE RESERVAS POTENCIADA (Filtrado por Status, Texto y FECHA)
-     */
     @GetMapping("/reservas-panel")
     public String grillaReservasPlana(
             @RequestParam(value = "search", required = false) String search,
@@ -66,20 +63,21 @@ public class DashboardViewController {
         
         List<Reservation> reservations;
         
+        // Evitamos nulos en cascada
         if (date != null) {
             reservations = reservationRepository.findByTravelDate(date);
         } else {
             reservations = reservationRepository.findAll();
         }
 
-        // 🎛️ Regla de Ocultamiento de Cancelados
+        // Regla de Ocultamiento de Cancelados
         if ("CANCELLED".equals(status)) {
             reservations = reservations.stream()
-                    .filter(r -> "CANCELLED".equals(r.getStatus()))
+                    .filter(r -> r != null && "CANCELLED".equals(r.getStatus()))
                     .collect(Collectors.toList());
         } else {
             reservations = reservations.stream()
-                    .filter(r -> !"CANCELLED".equals(r.getStatus()))
+                    .filter(r -> r != null && !"CANCELLED".equals(r.getStatus()))
                     .collect(Collectors.toList());
             
             if (status != null && !status.isBlank() && !"ALL".equals(status)) {
@@ -89,73 +87,62 @@ public class DashboardViewController {
             }
         }
 
-        // 🔍 Buscador global interactivo
+        // Buscador global interactivo
         if (search != null && !search.isBlank()) {
             String query = search.trim().toLowerCase();
             reservations = reservations.stream()
-                    .filter(r -> (r.getPassenger().getFirstName() != null && r.getPassenger().getFirstName().toLowerCase().contains(query)) ||
+                    .filter(r -> r.getPassenger() != null && 
+                                 ((r.getPassenger().getFirstName() != null && r.getPassenger().getFirstName().toLowerCase().contains(query)) ||
                                  (r.getPassenger().getLastName() != null && r.getPassenger().getLastName().toLowerCase().contains(query)) ||
                                  (r.getPassenger().getPhone() != null && r.getPassenger().getPhone().contains(query)) ||
-                                 (r.getReservationCode() != null && r.getReservationCode().toLowerCase().contains(query)))
+                                 (r.getReservationCode() != null && r.getReservationCode().toLowerCase().contains(query))))
                     .collect(Collectors.toList());
         }
-
-        // 🏷️ MAPEO DE ESTADOS LEGIBLES PARA EL OPERADOR
-        java.util.Map<String, String> estadosLegibles = java.util.Map.of(
-            "ALL", "🔍 Mostrar Todos",
-            "PENDING_PAYMENT", "⏳ Esperando Pago",
-            "PAYMENT_RECEIVED", "📩 Comprobante Recibido",
-            "CONFIRMED", "✅ Viaje Confirmado",
-            "CANCELLED", "❌ Cancelado / Debaja"
-        );
 
         model.addAttribute("reservas", reservations);
         model.addAttribute("currentSearch", search);
         model.addAttribute("currentStatus", status != null ? status : "ALL");
         model.addAttribute("currentDate", date);
-        model.addAttribute("estadosMap", estadosLegibles); // 🔥 Enviamos el mapa al HTML
 
         return "reservations-grid"; 
     }
 
     /**
-     * 🎯 2. ACCIÓN DE VERIFICACIÓN CONTROLADA INDIVIDUAL
-     * (El botón "Validar" del HTML ahora le pega directamente a este método atómico)
+     * 🎯 2. ACCIÓN DE VERIFICACIÓN CONTROLADA INDIVIDUAL (Volvemos a String rawId)
      */
     @PostMapping("/reservas-panel/verify-tandem/{id}")
-    public String verifyPaymentTandemPlano(@PathVariable("id") UUID id) {
+    public String verifyPaymentTandemPlano(@PathVariable("id") String rawId) {
         try {
-            log.info("[Validación] Procesando confirmación de tramo individual para ID: {}", id);
+            log.info("[Validación] Procesando confirmación individual para ID string: {}", rawId);
+            UUID id = UUID.fromString(rawId);
             
-            // Usamos la lógica de actualización controlada de tu servicio
             Reservation updateData = new Reservation();
             updateData.setStatus("CONFIRMED");
             updateData.setPaymentVerified(true);
             updateData.setPaymentConfirmedAt(LocalDateTime.now());
             
             reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
-            log.info("[Validación] Éxito. Tramo validado y billeteras sincronizadas.");
+            log.info("[Validación] Éxito. Tramo validado de forma individual.");
             
         } catch (Exception e) {
-            log.error("[Validación] Error al verificar el tramo individual: ", e);
+            log.error("[Validación] Error crítico al verificar el tramo individual: ", e);
         }
         return "redirect:/reservas-panel";
     }
 
     /**
-     * ❌ 3. BAJA INTEGRADA CON CUENTA CORRIENTE (Usa tu servicio estrella)
+     * ❌ 3. BAJA INTEGRADA CON CUENTA CORRIENTE (Volvemos a String rawId)
      */
     @PostMapping("/reservas-panel/cancel/{id}")
-    public String cancelFromGridPlano(@PathVariable("id") UUID id) {
+    public String cancelFromGridPlano(@PathVariable("id") String rawId) {
         try {
-            log.info("[Baja Controlada] Procesando cancelación con devolución financiera para ID: {}", id);
+            log.info("[Baja Controlada] Procesando cancelación para ID string: {}", rawId);
+            UUID id = UUID.fromString(rawId);
             
-            // 💰 LLAMADA CLAVE: Desencadena devoluciones automáticas a la billetera si el pago estaba OK
             reservationService.cancelReservation(id, "ADMIN_PANEL");
-            
-            log.info("[Baja Controlada] Éxito. Saldo recalculado e inyectado en la cuenta del pasajero.");
+            log.info("[Baja Controlada] Éxito. Saldo impactado en la cuenta del pasajero.");
         } catch (Exception e) {
-            log.error("[Baja Controlada] Error crítico en el flujo de cancelación del panel: ", e);
+            log.error("[Baja Controlada] Error crítico en el flujo de cancelación: ", e);
         }
         return "redirect:/reservas-panel";
     }
