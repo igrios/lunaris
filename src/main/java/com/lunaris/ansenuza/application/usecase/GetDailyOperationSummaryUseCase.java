@@ -17,16 +17,22 @@ public class GetDailyOperationSummaryUseCase {
     public DailyOperationSummaryResponse execute(LocalDate travelDate) {
         List<Reservation> reservations = reservationRepository.findByTravelDate(travelDate);
 
-        long totalReservations = reservations.size();
+        List<Reservation> activeReservations = reservations.stream()
+                .filter(r -> r != null)
+                .filter(r -> r.getStatus() == null || !"CANCELLED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
+                .toList();
+
+        long totalReservations = activeReservations.size();
         
-        long paidReservations = reservations.stream()
+        long paidReservations = activeReservations.stream()
                 .filter(r -> Boolean.TRUE.equals(r.getPaymentVerified()))
                 .count();
 
         long pendingPayments = totalReservations - paidReservations;
 
         // 👥 Sumamos todos los asientos físicos reales (Titular + Acompañantes)
-        long totalPassengers = reservations.stream()
+        long totalPassengers = activeReservations.stream()
                 .mapToLong(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
                 .sum();
 

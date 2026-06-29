@@ -38,8 +38,14 @@ public class AgendaDayController {
 
         List<Reservation> reservations = reservationRepository.findByTravelDate(date);
 
+        List<Reservation> activeReservations = reservations.stream()
+                .filter(r -> r != null)
+                .filter(r -> r.getStatus() == null || !"CANCELLED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
+                .toList();
+
         model.addAttribute("date", date);
-        model.addAttribute("reservations", reservations);
+        model.addAttribute("reservations", activeReservations);
 
         return "agenda-day";
     }

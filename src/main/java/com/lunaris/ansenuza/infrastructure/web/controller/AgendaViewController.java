@@ -40,8 +40,7 @@ public class AgendaViewController {
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
 
-    // 📅 1. Vista resumen de los próximos 5 días CORREGIDA CON EL CONTEO NATIVO DE ASIENTOS
-    // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS
+    // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
     @GetMapping("/agenda")
     public String agenda(Model model) {
         LocalDate today = LocalDate.now();
@@ -52,14 +51,19 @@ public class AgendaViewController {
                 java.util.stream.IntStream.range(0, 7).mapToObj(today::plusDays).map(date -> {
                     List<Reservation> reservations = reservationRepository.findByTravelDate(date);
 
-                    // 🌟 FILTRO: Excluimos cualquier registro que por error tenga la fecha centinela
-                    int totalPassengers = reservations.stream()
+                    // 🌟 FILTRO: Excluimos registros con fecha centinela, CANCELLED o passengerCount <= 0
+                    List<Reservation> activeReservations = reservations.stream()
+                            .filter(r -> r != null)
                             .filter(r -> r.getTravelDate() == null || !r.getTravelDate().equals(fechaCentinela))
+                            .filter(r -> r.getStatus() == null || !"CANCELLED".equalsIgnoreCase(r.getStatus()))
+                            .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
+                            .toList();
+
+                    int totalPassengers = activeReservations.stream()
                             .mapToInt(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
                             .sum();
 
-                    int pendingPayments = (int) reservations.stream()
-                            .filter(r -> r.getTravelDate() == null || !r.getTravelDate().equals(fechaCentinela))
+                    int pendingPayments = (int) activeReservations.stream()
                             .filter(r -> !Boolean.TRUE.equals(r.getPaymentVerified())).count();
 
                     int estimatedVehicles = totalPassengers == 0 ? 0 : (int) Math.ceil(totalPassengers / 4.0);
@@ -72,7 +76,7 @@ public class AgendaViewController {
     }
 
     
-    // 🚐 2. Vista detalle del día
+    // 🚐 2. Vista detalle del día (Excluye Pasajeros Fantasma / Cancelados / Conteo <= 0)
     @GetMapping("/agenda/view-detalle")
     public String dayAgenda(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
@@ -81,8 +85,14 @@ public class AgendaViewController {
         List<Reservation> reservations = reservationRepository.findByTravelDate(date);
         List<Driver> choferes = driverRepository.findByActiveTrue();
 
+        List<Reservation> activeReservations = reservations.stream()
+                .filter(r -> r != null)
+                .filter(r -> r.getStatus() == null || !"CANCELLED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
+                .toList();
+
         model.addAttribute("date", date);
-        model.addAttribute("reservations", reservations);
+        model.addAttribute("reservations", activeReservations);
         model.addAttribute("choferes", choferes);
 
         return "agenda-day";

@@ -124,17 +124,20 @@ public class ReservationViewController {
     }
 
     // 🗑️ BAJA DESDE EL PANEL DE ADMINISTRACIÓN (Maneja redirección dinámica por origen)
-   // 🗑️ BAJA CONTROLADA PROPORCIONAL (Manejo Seguro de BigDecimal)
+    // 🗑️ BAJA CONTROLADA PROPORCIONAL (Manejo Seguro de BigDecimal)
     @PostMapping("/delete/{id}")
     public String deleteFromPanel(
-            @PathVariable UUID id, 
+            @PathVariable(value = "id") UUID id, 
             @RequestParam(value = "source", defaultValue = "agenda") String source) {
         
         Reservation original = reservationRepository.findById(id).orElse(null);
         
         if (original != null) {
+            LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
+            boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
+
             // Caso Crítico: Cancelación parcial de una butaca dentro de un grupo en Vueltas Abiertas
-            if (original.getPassengerCount() > 1 && "vueltas".equals(source)) {
+            if (isOpenReturn && original.getPassengerCount() != null && original.getPassengerCount() > 1 && "vueltas".equals(source)) {
                 int asientosAntes = original.getPassengerCount();
                 
                 // 💰 1. Calculamos estrictamente el valor de UNA Sola Butaca (Monto Total / Cantidad Asientos)
@@ -169,10 +172,10 @@ public class ReservationViewController {
         return "redirect:/agenda";
     }
 
- // 📅 ENDPOINT DE ACTUALIZACIÓN CON DESGLOSE FÍSICO (Manejo estricto de BigDecimal)
+    // 📅 ENDPOINT DE ACTUALIZACIÓN CON DESGLOSE FÍSICO (Manejo estricto de BigDecimal)
     @PostMapping("/update/{id}")
     public String updateFromPanel(
-            @PathVariable UUID id, 
+            @PathVariable(value = "id") UUID id, 
             @RequestParam(value = "travelDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
             @RequestParam(value = "status", required = false) String status,
@@ -181,8 +184,11 @@ public class ReservationViewController {
         Reservation original = reservationRepository.findById(id).orElse(null);
         
         if (original != null) {
-            // Caso Crítico: Si viene de Vueltas Abiertas y agrupa a más de 1 persona
-            if ("vueltas".equals(source) && original.getPassengerCount() > 1) {
+            LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
+            boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
+
+            // Caso Crítico: Si viene de Vueltas Abiertas (fecha centinela 2099-12-31) y agrupa a más de 1 persona
+            if (isOpenReturn && original.getPassengerCount() != null && original.getPassengerCount() > 1) {
                 int asientosOriginales = original.getPassengerCount();
                 
                 // 💰 Manejo seguro de dinero con BigDecimal para la división proporcional
@@ -200,19 +206,20 @@ public class ReservationViewController {
                         .passenger(original.getPassenger())
                         .travelDate(travelDate)
                         .pickupLocality(original.getPickupLocality())
-                        .pickupAddress(pickupAddress != null ? pickupAddress : original.getPickupAddress())
+                        .pickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress())
                         .destination(original.getDestination())
-                        .roundTrip(true)
+                        .roundTrip(original.getRoundTrip())
                         .returnDate(travelDate)
-                        .paymentVerified(true)
+                        .paymentVerified(original.getPaymentVerified())
                         .amount(montoProporcional) // Se lleva su fracción exacta en BigDecimal
-                        .notes(original.getNotes() != null ? original.getNotes() + " | Individualizado" : "Tramo Individual")
+                        .notes(original.getNotes() != null ? original.getNotes() + " | Split Físico" : "Split Físico")
                         .passengerCount(1)
-                        .status("CONFIRMED".equals(status) ? "CONFIRMED" : original.getStatus())
+                        .status(status != null && !status.isBlank() ? status : "CONFIRMED")
                         .build();
                 
                 reservationService.saveReservationFlow(tramoIndependiente);
                 
+                log.info("[Split Físico] Se dividió 1 asiento para nueva fecha {}. Monto: ${}.", travelDate, montoProporcional);
             } else {
                 // Caso Ordinario: Fila única o agenda común
                 Reservation updateData = new Reservation();
@@ -242,29 +249,5 @@ public class ReservationViewController {
         List<Reservation> abiertas = reservationRepository.findByTravelDate(fechaCentinela);
         model.addAttribute("vueltasAbiertas", abiertas);
         return "vueltas-abiertas";
-    }
-
-    // 🤖 BAJA DESDE EL BOT / REST ASÍNCRONO
-    @DeleteMapping("/api/{id}")
-    @ResponseBody
-    public ResponseEntity<?> deleteFromBot(@PathVariable UUID id) {
-        try {
-            reservationService.cancelReservation(id, "BOT_CHAT");
-            return ResponseEntity.ok().body(Map.of("status", "CANCELLED"));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
-        }
-    }
-
-    // 🤖 MODIFICACIÓN DESDE EL BOT / REST ASÍNCRONO
-    @PutMapping("/api/{id}")
-    @ResponseBody
-    public ResponseEntity<?> updateFromBot(@PathVariable UUID id, @RequestBody Reservation updatedData) {
-        try {
-            Reservation result = reservationService.updateReservation(id, updatedData, "BOT_CHAT");
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
-        }
     }
 }
