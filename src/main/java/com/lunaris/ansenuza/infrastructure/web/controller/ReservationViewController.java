@@ -135,7 +135,7 @@ public class ReservationViewController {
         return "redirect:/agenda";
     }
 
-    // 🔄 MODIFICACIÓN / VERIFICACIÓN INDIVIDUAL DESDE EL PANEL DE ADMINISTRACIÓN
+   // 📅 ENDPOINT DE ACTUALIZACIÓN CON DESGLOSE FÍSICO DE BUTACAS (SPLIT REAL)
     @PostMapping("/update/{id}")
     public String updateFromPanel(
             @PathVariable UUID id, 
@@ -144,25 +144,63 @@ public class ReservationViewController {
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "source", defaultValue = "agenda") String source) {
         
-        Reservation updateData = new Reservation();
-        if (travelDate != null) updateData.setTravelDate(travelDate);
-        if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
+        // 1. Extraemos la reserva original de la base de datos
+        Reservation original = reservationRepository.findById(id).orElse(null);
         
-        if (status != null) {
-            updateData.setStatus(status);
-            if ("CONFIRMED".equals(status)) {
-                updateData.setPaymentVerified(true);
+        if (original != null) {
+            // Caso Crítico: Si estamos en Vueltas Abiertas y el registro original agrupa a más de 1 persona (Titular + Acompañantes)
+            if ("vueltas".equals(source) && original.getPassengerCount() > 1) {
+                int asientosOriginales = original.getPassengerCount();
+                double montoProporcional = original.getAmount() / asientosOriginales;
+                
+                // A. Reducimos en 1 la capacidad del bloque original que se queda esperando fecha abierta
+                original.setPassengerCount(asientosOriginales - 1);
+                original.setAmount(original.getAmount() - montoProporcional);
+                // Si había nombres de acompañantes, podemos mantenerlos en el bloque remanente
+                reservationRepository.saveAndFlush(original);
+                
+                // B. Creamos un nuevo registro físico en Postgres ÚNICAMENTE para la butaca que Martín está programando
+                Reservation tramoIndependiente = Reservation.builder()
+                        .passenger(original.getPassenger())
+                        .travelDate(travelDate) // Le asignamos la fecha real que eligió Martín en el modal
+                        .pickupLocality(original.getPickupLocality())
+                        .pickupAddress(pickupAddress != null ? pickupAddress : original.getPickupAddress())
+                        .destination(original.getDestination())
+                        .roundTrip(true)
+                        .returnDate(travelDate)
+                        .paymentVerified(true)
+                        .amount(montoProporcional) // Se lleva su fracción exacta del valor financiero
+                        .notes(original.getNotes() != null ? original.getNotes() + " | Individualizado" : "Tramo Individual")
+                        .passengerCount(1) // ESTRICTAMENTE 1 BUTACA
+                        .status("CONFIRMED".equals(status) ? "CONFIRMED" : original.getStatus())
+                        .build();
+                
+                // Guardamos el nuevo registro individualizado de forma atómica
+                reservationService.saveReservationFlow(tramoIndependiente);
+                log.info("[Split Físico] Se desglosó 1 butaca para la fecha {}. Quedan {} pendientes en el bloque base.", travelDate, original.getPassengerCount());
+                
+            } else {
+                // Caso Ordinario: Si le quedaba una sola butaca o viene de la agenda común, impacta directo sobre la fila única
+                Reservation updateData = new Reservation();
+                if (travelDate != null) updateData.setTravelDate(travelDate);
+                if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
+                
+                if (status != null) {
+                    updateData.setStatus(status);
+                    if ("CONFIRMED".equals(status)) {
+                        updateData.setPaymentVerified(true);
+                    }
+                }
+                reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
             }
         }
-
-        reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
         
+        // Redirecciones limpias según el origen del click
         if ("vueltas".equals(source)) {
             return "redirect:/reservations/vueltas-abiertas";
         }
         return "redirect:/agenda";
     }
-
     // 🛑 VISTA WEB: Muestra la pantalla de pasajes con Vuelta Abierta bajo /reservations/vueltas-abiertas
     @GetMapping("/vueltas-abiertas")
     public String listOpenReturns(Model model) {
