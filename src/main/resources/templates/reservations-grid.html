@@ -82,7 +82,7 @@
     <!-- Barra de Herramientas: Filtros Avanzados -->
     <div class="card p-3 mb-4 shadow-sm border-0 bg-white rounded-3">
       <form th:action="@{/reservas-panel}" method="GET" class="row g-3 align-items-center">
-        
+
         <!-- Buscador por Texto -->
         <div class="col-md-4 search-box">
           <div class="input-group">
@@ -104,8 +104,10 @@
         <div class="col-md-3">
           <select name="status" class="form-select bg-light" onchange="this.form.submit()">
             <option value="ALL" th:selected="${currentStatus == 'ALL'}">🔍 Mostrar Todos</option>
-            <option value="PENDING_PAYMENT" th:selected="${currentStatus == 'PENDING_PAYMENT'}">⏳ Esperando Pago</option>
-            <option value="PAYMENT_RECEIVED" th:selected="${currentStatus == 'PAYMENT_RECEIVED'}">📩 Comprobante Recibido</option>
+            <option value="PENDING_PAYMENT" th:selected="${currentStatus == 'PENDING_PAYMENT'}">⏳ Esperando Pago
+            </option>
+            <option value="PAYMENT_RECEIVED" th:selected="${currentStatus == 'PAYMENT_RECEIVED'}">📩 Comprobante
+              Recibido</option>
             <option value="CONFIRMED" th:selected="${currentStatus == 'CONFIRMED'}">✅ Viaje Confirmado</option>
             <option value="CANCELLED" th:selected="${currentStatus == 'CANCELLED'}">❌ Cancelado / Debaja</option>
           </select>
@@ -114,8 +116,8 @@
         <!-- Botones Operativos del Filtro -->
         <div class="col-md-2 d-flex gap-2">
           <button type="submit" class="btn btn-dark w-100 fw-bold">Filtrar</button>
-          <a th:if="${currentSearch != null || currentStatus != 'ALL' || currentDate != null}" 
-             th:href="@{/reservas-panel}" class="btn btn-outline-secondary" title="Limpiar Filtros">
+          <a th:if="${currentSearch != null || currentStatus != 'ALL' || currentDate != null}"
+            th:href="@{/reservas-panel}" class="btn btn-outline-secondary" title="Limpiar Filtros">
             <i class="bi bi-arrow-clockwise"></i>
           </a>
         </div>
@@ -159,7 +161,9 @@
               </td>
               <td class="fw-semibold text-secondary">
                 <i class="bi bi-calendar3 me-1"></i>
-                <span th:text="${#localDates.format(r.travelDate, 'yyyy-MM-dd') == '2099-12-31' ? '🔄 ABIERTA' : r.travelDate}"></span>
+                <!-- Comparamos usando el toString() del LocalDate de Java de forma directa, súper limpio -->
+                <span
+                  th:text="${r.travelDate != null && r.travelDate.toString() == '2099-12-31' ? '🔄 ABIERTA' : r.travelDate}"></span>
                 <span th:if="${r.roundTrip}" class="badge bg-purple-subtle text-purple border ms-1"
                   style="font-size: 0.7rem; color: #6f42c1; background-color: #e8dbfc;">I/V</span>
               </td>
@@ -198,8 +202,8 @@
                   </form>
 
                   <!-- 💬 Enlace Directo a WhatsApp Web corporativo -->
-                  <a th:href="'https://web.whatsapp.com/send?phone=' + ${r.passenger.phone}" target="_blank" 
-                     class="btn btn-outline-primary btn-sm" title="Abrir WhatsApp del pasajero">
+                  <a th:href="'https://web.whatsapp.com/send?phone=' + ${r.passenger.phone}" target="_blank"
+                    class="btn btn-outline-primary btn-sm" title="Abrir WhatsApp del pasajero">
                     <i class="bi bi-whatsapp"></i>
                   </a>
 
