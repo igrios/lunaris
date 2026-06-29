@@ -2,23 +2,17 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
@@ -172,98 +166,87 @@ public class ReservationViewController {
         return "redirect:/agenda";
     }
 
-    // 📅 ENDPOINT DE ACTUALIZACIÓN CON DESGLOSE FÍSICO (Manejo estricto de BigDecimal)
-    @PostMapping("/update/{id}")
-    public String updateFromPanel(
-            @PathVariable(value = "id") UUID id, 
-            @RequestParam(value = "travelDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
-            @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
-            @RequestParam(value = "status", required = false) String status,
-            @RequestParam(value = "source", defaultValue = "agenda") String source) {
+  @PostMapping("/update/{id}")
+public String updateFromPanel(
+        @PathVariable(value = "id") UUID id,
+        @RequestParam(value = "travelDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+        @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
+        @RequestParam(value = "status", required = false) String status,
+        @RequestParam(value = "cantidadVuelven", defaultValue = "1") int cantidadVuelven,
+        @RequestParam(value = "source", defaultValue = "agenda") String source) {
         
-        Reservation original = reservationRepository.findById(id).orElse(null);
+    Reservation original = reservationRepository.findById(id).orElse(null);
+    
+    if (original != null) {
+        LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
+        boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
         
-        if (original != null) {
-            LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
-            boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
+        if (isOpenReturn) {
+            int asientosOriginales = original.getPassengerCount() != null ? original.getPassengerCount() : 1;
+            
+            // A. Si eligen volver MENOS pasajeros de los que tiene el grupo actualmente (Split por Bloque)
+            if (cantidadVuelven < asientosOriginales) {
+                java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal valorButacaIndividual = montoTotal.divide(java.math.BigDecimal.valueOf(asientosOriginales), 2, java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal montoBloqueDesglosado = valorButacaIndividual.multiply(java.math.BigDecimal.valueOf(cantidadVuelven));
 
-            if (isOpenReturn) {
-                // Evaluamos según la cantidad de asientos:
-                if (original.getPassengerCount() != null && original.getPassengerCount() > 1) {
-                    // A. SI passengerCount > 1
-                    int asientosOriginales = original.getPassengerCount();
-                    
-                    // 💰 Manejo seguro de dinero con BigDecimal para la división proporcional
-                    java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
-                    java.math.BigDecimal montoProporcional = montoTotal.divide(
-                            java.math.BigDecimal.valueOf(asientosOriginales), 2, java.math.RoundingMode.HALF_UP);
-                    
-                    // Reducimos la capacidad y restamos el monto proporcional en la reserva base
-                    original.setPassengerCount(asientosOriginales - 1);
-                    original.setAmount(montoTotal.subtract(montoProporcional));
-                    reservationRepository.saveAndFlush(original);
-                    
-                    // Creamos el registro físico nuevo para el asiento individualizado de forma pura
-                    Reservation tramoIndependiente = new Reservation();
-                    tramoIndependiente.setPassenger(original.getPassenger());
-                    tramoIndependiente.setTravelDate(travelDate);
-                    tramoIndependiente.setPickupLocality(original.getPickupLocality());
-                    tramoIndependiente.setPickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress());
-                    tramoIndependiente.setDestination(original.getDestination());
-                    tramoIndependiente.setAmount(montoProporcional);
-                    tramoIndependiente.setPassengerCount(1);
-                    tramoIndependiente.setStatus("CONFIRMED");
-                    tramoIndependiente.setRoundTrip(false);
-                    tramoIndependiente.setPaymentVerified(true);
-                    tramoIndependiente.setReturnDate(null);
-                    tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Físico" : "Split Físico");
+                // Restamos el bloque que se va del registro base que se queda en "Vueltas Abiertas"
+                original.setPassengerCount(asientosOriginales - cantidadVuelven);
+                original.setAmount(montoTotal.subtract(montoBloqueDesglosado));
+                reservationRepository.saveAndFlush(original);
 
-                    String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
-                    tramoIndependiente.setReservationCode("VTA-IND-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
-                    
-                    reservationRepository.saveAndFlush(tramoIndependiente);
-                    
-                    log.info("[Split Físico] Se dividió 1 asiento para nueva fecha {}. Monto: ${}.", travelDate, montoProporcional);
-                } else {
-                    // B. SI passengerCount == 1 (o por defecto)
-                    original.setTravelDate(travelDate); // Le asignas la fecha real elegida en el panel
-                    if (pickupAddress != null && !pickupAddress.isBlank()) {
-                        original.setPickupAddress(pickupAddress);
-                    }
-                    original.setRoundTrip(false); // 🔥 CRÍTICO: Le apagamos el flag de combo para que no duplique
-                    original.setReturnDate(null);  // Anulamos la fecha de regreso asociada
-                    original.setStatus("CONFIRMED");
-                    original.setPaymentVerified(true);
-                    if (status != null && "CONFIRMED".equals(status)) {
-                        original.setStatus("CONFIRMED");
-                    }
-                    
-                    // Guardar directamente con el repositorio nativo para saltarse el service con interceptores:
-                    reservationRepository.saveAndFlush(original);
-                    
-                    log.info("[Split Final] Se programó el último asiento de la Vuelta Abierta para la fecha {}.", travelDate);
-                }
-            } else {
-                // Caso Ordinario: Fila única o agenda común (cuando isOpenReturn es false)
-                Reservation updateData = new Reservation();
-                if (travelDate != null) updateData.setTravelDate(travelDate);
-                if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
+                // Generamos la nueva fila física en la base de datos para los pasajeros que sí viajan
+                Reservation tramoIndependiente = new Reservation();
+                tramoIndependiente.setPassenger(original.getPassenger());
+                tramoIndependiente.setTravelDate(travelDate);
+                tramoIndependiente.setPickupLocality(original.getPickupLocality());
+                tramoIndependiente.setPickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress());
+                tramoIndependiente.setDestination(original.getDestination());
+                tramoIndependiente.setAmount(montoBloqueDesglosado);
+                tramoIndependiente.setPassengerCount(cantidadVuelven); // Cantidad exacta elegida por Martín
+                tramoIndependiente.setStatus("CONFIRMED");
+                tramoIndependiente.setRoundTrip(false); // Desactivado para evitar bucles de combo
+                tramoIndependiente.setPaymentVerified(true);
+                tramoIndependiente.setReturnDate(null);
+                tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Bloque" : "Split Bloque");
                 
-                if (status != null) {
-                    updateData.setStatus(status);
-                    if ("CONFIRMED".equals(status)) {
-                        updateData.setPaymentVerified(true);
-                    }
-                }
-                reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
+                String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
+                tramoIndependiente.setReservationCode("VTA-BLK-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
+                
+                reservationRepository.saveAndFlush(tramoIndependiente);
+                log.info("[Split Bloque] Se procesó el regreso de {} pasajeros. Quedan {} en espera.", cantidadVuelven, original.getPassengerCount());
+            } 
+            // B. Si vuelven TODOS los pasajeros que quedaban en el grupo (Cierre definitivo)
+            else {
+                original.setTravelDate(travelDate);
+                if (pickupAddress != null && !pickupAddress.isBlank()) original.setPickupAddress(pickupAddress);
+                original.setRoundTrip(false); // Apagamos el flag de combo de raíz
+                original.setReturnDate(null);
+                original.setStatus("CONFIRMED");
+                original.setPaymentVerified(true);
+                if (status != null && "CONFIRMED".equals(status)) original.setStatus("CONFIRMED");
+                
+                reservationRepository.saveAndFlush(original);
+                log.info("[Cierre Grupo] Volvieron los últimos {} pasajeros del grupo.", cantidadVuelven);
             }
+        } else {
+            // Caso Ordinario para reservas normales de la agenda
+            Reservation updateData = new Reservation();
+            if (travelDate != null) updateData.setTravelDate(travelDate);
+            if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
+            if (status != null) {
+                updateData.setStatus(status);
+                if ("CONFIRMED".equals(status)) updateData.setPaymentVerified(true);
+            }
+            reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
         }
-        
-        if ("vueltas".equals(source)) {
-            return "redirect:/reservations/vueltas-abiertas";
-        }
-        return "redirect:/agenda";
     }
+    
+    if ("vueltas".equals(source)) {
+        return "redirect:/reservations/vueltas-abiertas";
+    }
+    return "redirect:/agenda";
+}
 
     // 🛑 VISTA WEB: Muestra la pantalla de pasajes con Vuelta Abierta bajo /reservations/vueltas-abiertas
     @GetMapping("/vueltas-abiertas")

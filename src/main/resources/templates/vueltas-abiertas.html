@@ -82,7 +82,7 @@
                   </div>
 
                   <!-- 🗓️ MODAL DE ASIGNACIÓN DE FECHA DEFINITIVA -->
-                  <div class="modal fade" th:id="'confirmModal-' + ${v.id}" tabindex="-1" aria-hidden="true">
+                 <div class="modal fade" th:id="'confirmModal-' + ${v.id}" tabindex="-1" aria-hidden="true">
                     <div class="modal-dialog">
                       <div class="modal-content text-start text-dark">
                         <form th:action="@{/reservations/update/{id}(id=${v.id})}" method="post">
@@ -97,13 +97,37 @@
                                 th:text="${v.reservationCode}"></strong>. Esto moverá el registro a la grilla semanal
                               real.
                             </p>
+
+                            <div class="mb-3">
+                              <label th:for="'cantidadVuelven-' + ${v.id}" class="form-label fw-bold">
+                                ¿Cuántos de este grupo regresan en esta fecha?
+                              </label>
+                              <div class="input-group">
+                                <span class="input-group-text bg-white text-secondary">
+                                  <i class="bi bi-people-fill"></i>
+                                </span>
+                                <input type="number" 
+                                       name="cantidadVuelven" 
+                                       th:id="'cantidadVuelven-' + ${v.id}"
+                                       class="form-control fw-bold border-primary" 
+                                       value="1" 
+                                       min="1" 
+                                       th:max="${v.passengerCount}" 
+                                       required />
+                              </div>
+                              <small class="form-text text-muted">
+                                Máximo disponible en este grupo: <span class="badge bg-secondary fw-bold" th:text="${v.passengerCount}">0</span> asientos.
+                              </small>
+                            </div>
+
                             <div class="mb-3">
                               <label class="form-label fw-bold">Nueva Fecha de Viaje:</label>
                               <input type="date" name="travelDate" class="form-control fw-bold border-success" required>
                             </div>
-                            <!-- Mantenemos los campos ocultos para que el ModelAttribute no los pise en null -->
+
                             <input type="hidden" name="pickupAddress" th:value="${v.pickupAddress}">
                             <input type="hidden" name="status" value="CONFIRMED">
+                            <input type="hidden" name="source" value="vueltas">
                           </div>
                           <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
