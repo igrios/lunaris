@@ -47,15 +47,21 @@
       background-color: #f8d7da;
       color: #842029;
     }
+
+    .search-box {
+      max-width: 400px;
+    }
   </style>
 </head>
 
 <body>
 
+  <!-- Menú de Navegación -->
   <nav th:replace="~{fragments/nav :: bar('reservas')}"></nav>
 
   <div class="container-fluid px-4">
 
+    <!-- Mensajes Flash de Éxito / Error de Spring -->
     <div th:if="${success}" class="alert alert-success alert-dismissible fade show shadow-sm mb-4" role="alert">
       <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${success}"></span>
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -65,143 +71,153 @@
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 
+    <!-- Encabezado de Sección -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h2 class="fw-bold text-dark mb-1">🗃️ Base de Gestión de Pasajeros</h2>
-        <p class="text-muted mb-0">Consulta, filtrado por fecha y gestión individualizada de tramos financieros.</p>
+        <p class="text-muted mb-0">Consulta, filtrado por fecha y gestión de tramos financieros individuales.</p>
       </div>
     </div>
 
+    <!-- Barra de Herramientas: Filtros Avanzados -->
     <div class="card p-3 mb-4 shadow-sm border-0 bg-white rounded-3">
       <form th:action="@{/reservas-panel}" method="GET" class="row g-3 align-items-center">
-
-        <div class="col-md-4">
+        
+        <!-- Buscador por Texto -->
+        <div class="col-md-4 search-box">
           <div class="input-group">
             <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
             <input type="text" name="search" class="form-control bg-light border-start-0"
-              placeholder="Buscar por nombre, teléfono o código..." th:value="${currentSearch}" autocomplete="off">
+              placeholder="Buscar por apellido, teléfono o código..." th:value="${currentSearch}" autocomplete="off">
           </div>
         </div>
 
+        <!-- 📅 Filtro de Fecha de Viaje -->
+        <div class="col-md-3">
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="bi bi-calendar-event text-muted"></i></span>
+            <input type="date" name="date" class="form-control bg-light" th:value="${currentDate}">
+          </div>
+        </div>
+
+        <!-- Selector de Estados Legibles para el Operador -->
         <div class="col-md-3">
           <select name="status" class="form-select bg-light" onchange="this.form.submit()">
-            <option th:each="entry : ${estadosMap}" th:value="${entry.key}" th:text="${entry.value}"
-              th:selected="${currentStatus == entry.key}">
-            </option>
+            <option value="ALL" th:selected="${currentStatus == 'ALL'}">🔍 Mostrar Todos</option>
+            <option value="PENDING_PAYMENT" th:selected="${currentStatus == 'PENDING_PAYMENT'}">⏳ Esperando Pago</option>
+            <option value="PAYMENT_RECEIVED" th:selected="${currentStatus == 'PAYMENT_RECEIVED'}">📩 Comprobante Recibido</option>
+            <option value="CONFIRMED" th:selected="${currentStatus == 'CONFIRMED'}">✅ Viaje Confirmado</option>
+            <option value="CANCELLED" th:selected="${currentStatus == 'CANCELLED'}">❌ Cancelado / Debaja</option>
           </select>
         </div>
-        <select name="status" class="form-select bg-light">
-          <option value="ALL" th:selected="${currentStatus == 'ALL'}">🔍 Todos los Estados</option>
-          <option value="PENDING_PAYMENT" th:selected="${currentStatus == 'PENDING_PAYMENT'}">⏳ Pendiente Pago
-            (Amarillo)</option>
-          <option value="PAYMENT_RECEIVED" th:selected="${currentStatus == 'PAYMENT_RECEIVED'}">📩 Comprobante Enviado
-            (Celeste)</option>
-          <option value="CONFIRMED" th:selected="${currentStatus == 'CONFIRMED'}">✅ Viajes Confirmados (Verde)</option>
-          <option value="CANCELLED" th:selected="${currentStatus == 'CANCELLED'}">❌ Cancelados</option>
-        </select>
+
+        <!-- Botones Operativos del Filtro -->
+        <div class="col-md-2 d-flex gap-2">
+          <button type="submit" class="btn btn-dark w-100 fw-bold">Filtrar</button>
+          <a th:if="${currentSearch != null || currentStatus != 'ALL' || currentDate != null}" 
+             th:href="@{/reservas-panel}" class="btn btn-outline-secondary" title="Limpiar Filtros">
+            <i class="bi bi-arrow-clockwise"></i>
+          </a>
+        </div>
+      </form>
     </div>
 
-    <div class="col-md-2 d-flex gap-2">
-      <button type="submit" class="btn btn-dark w-100 fw-bold">Filtrar</button>
-      <a th:href="@{/reservas-panel}" class="btn btn-outline-secondary" title="Limpiar Filtros">
-        <i class="bi bi-arrow-clockwise"></i>
-      </a>
+    <!-- Tabla Principal de Gestión -->
+    <div class="card card-table overflow-hidden bg-white">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-dark text-uppercase" style="font-size: 0.8rem; letter-spacing: 0.5px;">
+            <tr>
+              <th class="ps-4 py-3">Código</th>
+              <th class="py-3">Pasajero</th>
+              <th class="py-3">Fecha Viaje</th>
+              <th class="py-3">Recorrido (Retiro ➔ Destino)</th>
+              <th class="py-3 text-center">Butacas</th>
+              <th class="py-3 text-center">Estado Pago</th>
+              <th class="pe-4 py-3 text-end">Acciones Operativas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr th:if="${#lists.isEmpty(reservas)}">
+              <td colspan="7" class="text-center py-5 text-muted">
+                <i class="bi bi-folder-x display-6 block mb-2"></i>
+                <p class="mb-0">No se encontraron reservas con los filtros aplicados actualmente.</p>
+              </td>
+            </tr>
+
+            <tr th:each="r : ${reservas}">
+              <td class="ps-4 fw-bold text-dark" style="font-family: monospace; font-size: 0.95rem;">
+                <span th:text="${r.reservationCode ?: 'S/C'}"></span>
+              </td>
+              <td>
+                <div class="fw-bold text-dark">
+                  <span th:text="${r.passenger.lastName}"></span>, <span th:text="${r.passenger.firstName}"></span>
+                </div>
+                <small class="text-muted">
+                  <i class="bi bi-whatsapp text-success me-1"></i><span th:text="${r.passenger.phone}"></span>
+                </small>
+              </td>
+              <td class="fw-semibold text-secondary">
+                <i class="bi bi-calendar3 me-1"></i>
+                <span th:text="${#localDates.format(r.travelDate, 'yyyy-MM-dd') == '2099-12-31' ? '🔄 ABIERTA' : r.travelDate}"></span>
+                <span th:if="${r.roundTrip}" class="badge bg-purple-subtle text-purple border ms-1"
+                  style="font-size: 0.7rem; color: #6f42c1; background-color: #e8dbfc;">I/V</span>
+              </td>
+              <td>
+                <div class="text-dark fw-medium">
+                  <span th:text="${r.pickupLocality}"></span>
+                  <span class="text-muted mx-1">➔</span>
+                  <span th:text="${r.destination ?: 'Córdoba'}"></span>
+                </div>
+                <small class="text-muted d-block text-truncate" style="max-width: 280px;"
+                  th:text="${r.pickupAddress}"></small>
+              </td>
+              <td class="text-center fw-bold text-dark">
+                <span class="badge bg-secondary rounded-pill px-2.5" th:text="${r.passengerCount ?: 1}"></span>
+              </td>
+              <!-- 🏷️ Visualización Limpia y Amigable de Estados -->
+              <td class="text-center">
+                <span class="badge-status" th:classappend="${r.status == 'PENDING_PAYMENT' ? 'bg-pending' : 
+                                                       (r.status == 'PAYMENT_RECEIVED' ? 'bg-received' : 
+                                                       (r.status == 'CONFIRMED' ? 'bg-confirmed' : 'bg-cancelled'))}"
+                  th:text="${r.status == 'PENDING_PAYMENT' ? '⏳ Esperando Pago' : 
+                             (r.status == 'PAYMENT_RECEIVED' ? '📩 Comprobante Recibido' : 
+                             (r.status == 'CONFIRMED' ? '✅ Viaje Confirmado' : '❌ Cancelado / Debaja'))}">
+                </span>
+              </td>
+              <td class="pe-4 text-end">
+                <div class="d-flex justify-content-end gap-1">
+
+                  <!-- ⚡ BOTÓN DE VALIDACIÓN INDIVIDUAL -->
+                  <form th:if="${r.status == 'PAYMENT_RECEIVED' || r.status == 'PENDING_PAYMENT'}"
+                    th:action="@{/reservas-panel/verify-tandem/{id}(id=${r.id})}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-success btn-sm fw-bold px-2.5 shadow-sm"
+                      title="Verificar y confirmar este tramo de forma individual">
+                      <i class="bi bi-check-circle-fill me-1"></i> Validar
+                    </button>
+                  </form>
+
+                  <!-- 💬 Enlace Directo a WhatsApp Web corporativo -->
+                  <a th:href="'https://web.whatsapp.com/send?phone=' + ${r.passenger.phone}" target="_blank" 
+                     class="btn btn-outline-primary btn-sm" title="Abrir WhatsApp del pasajero">
+                    <i class="bi bi-whatsapp"></i>
+                  </a>
+
+                  <!-- 🗑️ BOTÓN DE CANCELACIÓN INDIVIDUAL CON RETORNO A BILLETERA -->
+                  <form th:if="${r.status != 'CANCELLED'}" th:action="@{/reservas-panel/cancel/{id}(id=${r.id})}"
+                    method="POST" class="d-inline"
+                    onsubmit="return confirm('¿Estás seguro que querés cancelar esta reserva de la combi? Si ya pagó, el saldo se acreditará a su Cuenta Corriente.')">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancelar Viaje">
+                      <i class="bi bi-trash3-fill"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-    </form>
-  </div>
-
-  <div class="card card-table overflow-hidden bg-white">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-dark text-uppercase" style="font-size: 0.8rem; letter-spacing: 0.5px;">
-          <tr>
-            <th class="ps-4 py-3">Código</th>
-            <th class="py-3">Pasajero</th>
-            <th class="py-3">Fecha Viaje</th>
-            <th class="py-3">Recorrido (Retiro ➔ Destino)</th>
-            <th class="py-3 text-center">Butacas</th>
-            <th class="py-3 text-center">Estado Pago</th>
-            <th class="pe-4 py-3 text-end">Acciones Operativas</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr th:if="${#lists.isEmpty(reservas)}">
-            <td colspan="7" class="text-center py-5 text-muted">
-              <i class="bi bi-folder-x display-6 block mb-2"></i>
-              <p class="mb-0">No se encontraron reservas con los filtros aplicados actualmente.</p>
-            </td>
-          </tr>
-
-          <tr th:each="r : ${reservas}">
-            <td class="ps-4 fw-bold text-dark" style="font-family: monospace; font-size: 0.95rem;">
-              <span th:text="${r.reservationCode ?: 'S/C'}"></span>
-            </td>
-            <td>
-              <div class="fw-bold text-dark">
-                <span th:text="${r.passenger.lastName}"></span>, <span th:text="${r.passenger.firstName}"></span>
-              </div>
-              <small class="text-muted">
-                <i class="bi bi-whatsapp text-success me-1"></i><span th:text="${r.passenger.phone}"></span>
-              </small>
-            </td>
-            <td class="fw-semibold text-secondary">
-              <i class="bi bi-calendar3 me-1"></i>
-              <span
-                th:text="${#localDates.format(r.travelDate, 'yyyy-MM-dd') == '2099-12-31' ? '🔄 ABIERTA' : r.travelDate}"></span>
-              <span th:if="${r.roundTrip}" class="badge bg-purple-subtle text-purple border ms-1"
-                style="font-size: 0.7rem; color: #6f42c1; background-color: #e8dbfc;">I/V</span>
-            </td>
-            <td>
-              <div class="text-dark fw-medium">
-                <span th:text="${r.pickupLocality}"></span>
-                <span class="text-muted mx-1">➔</span>
-                <span th:text="${r.destination}"></span>
-              </div>
-              <small class="text-muted d-block text-truncate" style="max-width: 280px;"
-                th:text="${r.pickupAddress}"></small>
-            </td>
-            <td class="text-center fw-bold text-dark">
-              <span class="badge bg-secondary rounded-pill px-2.5" th:text="${r.passengerCount ?: 1}"></span>
-            </td>
-            <td class="text-center">
-              <span class="badge-status" th:classappend="${r.status == 'PENDING_PAYMENT' ? 'bg-pending' : 
-                         (r.status == 'PAYMENT_RECEIVED' ? 'bg-received' : 
-                         (r.status == 'CONFIRMED' ? 'bg-confirmed' : 'bg-cancelled'))}"
-                th:text="${estadosMap.get(r.status)}"> <!-- 🔥 Muestra el nombre legible de forma directa -->
-              </span>
-            </td>
-            <td class="pe-4 text-end">
-              <div class="d-flex justify-content-end gap-1">
-
-                <form th:if="${r.status == 'PAYMENT_RECEIVED' || r.status == 'PENDING_PAYMENT'}"
-                  th:action="@{/reservations/update/{id}(id=${r.id})}" method="POST" class="d-inline">
-                  <input type="hidden" name="travelDate" th:value="${r.travelDate}">
-                  <input type="hidden" name="status" value="CONFIRMED">
-                  <button type="submit" class="btn btn-success btn-sm fw-bold px-2.5 shadow-sm"
-                    title="Verificar y confirmar este tramo">
-                    <i class="bi bi-check-circle-fill"></i> Validar
-                  </button>
-                </form>
-
-                <a th:href="'https://web.whatsapp.com/send?phone=' + ${r.passenger.phone}" target="_blank"
-                  class="btn btn-outline-primary btn-sm" title="Abrir WhatsApp del pasajero">
-                  <i class="bi bi-whatsapp"></i>
-                </a>
-
-                <form th:if="${r.status != 'CANCELLED'}" th:action="@{/reservations/delete/{id}(id=${r.id})}"
-                  method="POST" class="d-inline"
-                  onsubmit="return confirm('¿Estás seguro que querés cancelar esta reserva? Si ya pagó, se le devolverá el dinero a su Cuenta Corriente.')">
-                  <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancelar Viaje">
-                    <i class="bi bi-trash3-fill"></i>
-                  </button>
-                </form>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
