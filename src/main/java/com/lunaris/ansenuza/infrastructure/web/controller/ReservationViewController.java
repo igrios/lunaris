@@ -135,7 +135,7 @@ public class ReservationViewController {
         return "redirect:/agenda";
     }
 
-   // 📅 ENDPOINT DE ACTUALIZACIÓN CON DESGLOSE FÍSICO DE BUTACAS (SPLIT REAL)
+ // 📅 ENDPOINT DE ACTUALIZACIÓN CON DESGLOSE FÍSICO (Manejo estricto de BigDecimal)
     @PostMapping("/update/{id}")
     public String updateFromPanel(
             @PathVariable UUID id, 
@@ -144,43 +144,43 @@ public class ReservationViewController {
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "source", defaultValue = "agenda") String source) {
         
-        // 1. Extraemos la reserva original de la base de datos
         Reservation original = reservationRepository.findById(id).orElse(null);
         
         if (original != null) {
-            // Caso Crítico: Si estamos en Vueltas Abiertas y el registro original agrupa a más de 1 persona (Titular + Acompañantes)
+            // Caso Crítico: Si viene de Vueltas Abiertas y agrupa a más de 1 persona
             if ("vueltas".equals(source) && original.getPassengerCount() > 1) {
                 int asientosOriginales = original.getPassengerCount();
-                double montoProporcional = original.getAmount() / asientosOriginales;
                 
-                // A. Reducimos en 1 la capacidad del bloque original que se queda esperando fecha abierta
+                // 💰 Manejo seguro de dinero con BigDecimal para la división proporcional
+                java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
+                java.math.BigDecimal montoProporcional = montoTotal.divide(
+                        java.math.BigDecimal.valueOf(asientosOriginales), 2, java.math.RoundingMode.HALF_UP);
+                
+                // A. Reducimos la capacidad y restamos el monto proporcional en la reserva base
                 original.setPassengerCount(asientosOriginales - 1);
-                original.setAmount(original.getAmount() - montoProporcional);
-                // Si había nombres de acompañantes, podemos mantenerlos en el bloque remanente
+                original.setAmount(montoTotal.subtract(montoProporcional));
                 reservationRepository.saveAndFlush(original);
                 
-                // B. Creamos un nuevo registro físico en Postgres ÚNICAMENTE para la butaca que Martín está programando
+                // B. Creamos el registro físico nuevo para el asiento individualizado
                 Reservation tramoIndependiente = Reservation.builder()
                         .passenger(original.getPassenger())
-                        .travelDate(travelDate) // Le asignamos la fecha real que eligió Martín en el modal
+                        .travelDate(travelDate)
                         .pickupLocality(original.getPickupLocality())
                         .pickupAddress(pickupAddress != null ? pickupAddress : original.getPickupAddress())
                         .destination(original.getDestination())
                         .roundTrip(true)
                         .returnDate(travelDate)
                         .paymentVerified(true)
-                        .amount(montoProporcional) // Se lleva su fracción exacta del valor financiero
+                        .amount(montoProporcional) // Se lleva su fracción exacta en BigDecimal
                         .notes(original.getNotes() != null ? original.getNotes() + " | Individualizado" : "Tramo Individual")
-                        .passengerCount(1) // ESTRICTAMENTE 1 BUTACA
+                        .passengerCount(1)
                         .status("CONFIRMED".equals(status) ? "CONFIRMED" : original.getStatus())
                         .build();
                 
-                // Guardamos el nuevo registro individualizado de forma atómica
                 reservationService.saveReservationFlow(tramoIndependiente);
-                log.info("[Split Físico] Se desglosó 1 butaca para la fecha {}. Quedan {} pendientes en el bloque base.", travelDate, original.getPassengerCount());
                 
             } else {
-                // Caso Ordinario: Si le quedaba una sola butaca o viene de la agenda común, impacta directo sobre la fila única
+                // Caso Ordinario: Fila única o agenda común
                 Reservation updateData = new Reservation();
                 if (travelDate != null) updateData.setTravelDate(travelDate);
                 if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
@@ -195,12 +195,12 @@ public class ReservationViewController {
             }
         }
         
-        // Redirecciones limpias según el origen del click
         if ("vueltas".equals(source)) {
             return "redirect:/reservations/vueltas-abiertas";
         }
         return "redirect:/agenda";
     }
+    
     // 🛑 VISTA WEB: Muestra la pantalla de pasajes con Vuelta Abierta bajo /reservations/vueltas-abiertas
     @GetMapping("/vueltas-abiertas")
     public String listOpenReturns(Model model) {
