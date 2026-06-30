@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,7 +24,7 @@ public class CloudinaryReceiptStorageAdapter implements ReceiptStoragePort {
     @Value("${whatsapp.access-token}")
     private String whatsappToken;
 
-    // 🔐 Constructor limpio: Inyecta directamente las propiedades estructuradas de tu application.yml
+    // 🔐 Constructor limpio mapeando properties
     public CloudinaryReceiptStorageAdapter(
             @Value("${cloudinary.cloud-name}") String cloudName,
             @Value("${cloudinary.api-key}") String apiKey,
@@ -38,30 +39,48 @@ public class CloudinaryReceiptStorageAdapter implements ReceiptStoragePort {
         ));
     }
 
+    // 🔥 IMPLEMENTACIÓN NUEVA: Sube el archivo físico del navegador web a Cloudinary
+    @Override
+    public String uploadFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return "null";
+        }
+        try {
+            String uniqueFileName = "comprobante_manual_" + UUID.randomUUID();
+            Map uploadParams = ObjectUtils.asMap(
+                "folder", "comprobantes",
+                "public_id", uniqueFileName,
+                "resource_type", "image"
+            );
+
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), uploadParams);
+            return (String) uploadResult.get("secure_url");
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                .error("❌ Falló el almacenamiento en Cloudinary desde el formulario web", e);
+            return "null";
+        }
+    }
+
+    // 📥 MÉTODO ORIGINAL ADAPTADO: Descarga multimedia desde la API de Meta
     @Override
     public String downloadAndSaveReceipt(String mediaId) {
-        if (mediaId == null || mediaId.isBlank()) {
-            return null;
-        }
-
         try {
-            // 🌐 PASO 1: Le pegamos a Meta con tu Token seguro para obtener la URL del archivo
-            String metaUrl = "https://graph.facebook.com/v20.0/" + mediaId;
-            
+            String urlMetadata = "https://graph.facebook.com/v17.0/" + mediaId;
+
             HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(whatsappToken);
+            headers.set("Authorization", "Bearer " + whatsappToken);
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
             ResponseEntity<JsonNode> mediaResponse = restTemplate.exchange(
-                    metaUrl, HttpMethod.GET, entity, JsonNode.class);
-            
+                    urlMetadata, HttpMethod.GET, entity, JsonNode.class);
+
             if (mediaResponse.getBody() == null || !mediaResponse.getBody().has("url")) {
                 return null;
             }
             
             String whatsappDownloadUrl = mediaResponse.getBody().get("url").asText();
 
-            // 📥 PASO 2: Descargamos el flujo de bytes de la foto desde los servidores de Meta
             ResponseEntity<byte[]> imageResponse = restTemplate.exchange(
                     whatsappDownloadUrl, HttpMethod.GET, entity, byte[].class);
 
@@ -70,7 +89,6 @@ public class CloudinaryReceiptStorageAdapter implements ReceiptStoragePort {
                 return null;
             }
 
-            // ☁️ PASO 3: Subimos los bytes a tu cuenta de Cloudinary organizada en la carpeta 'comprobantes'
             String uniqueFileName = "comprobante_" + UUID.randomUUID();
             Map uploadParams = ObjectUtils.asMap(
                 "folder", "comprobantes",
@@ -79,12 +97,9 @@ public class CloudinaryReceiptStorageAdapter implements ReceiptStoragePort {
             );
 
             Map uploadResult = cloudinary.uploader().upload(imageBytes, uploadParams);
-
-            // 🔗 PASO 4: Devolvemos la URL segura (https://res.cloudinary.com/...) lista para guardar en Postgres
             return (String) uploadResult.get("secure_url");
 
         } catch (Exception e) {
-            // Registramos el error en la consola de Render para auditoría, pero respetamos el contrato retornando null
             org.slf4j.LoggerFactory.getLogger(getClass())
                 .error("❌ Falló el proceso de almacenamiento en Cloudinary para el mediaId: " + mediaId, e);
             return null;

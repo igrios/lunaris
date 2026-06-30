@@ -20,7 +20,15 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
+
+
 public class WhatsAppService {
+
+    @Value("${whatsapp.access-token}")
+    private String whatsappToken;
+
+    @Value("${whatsapp.phone-number-id}")
+    private String whatsappPhoneNumberId;
 
     @Value("${whatsapp.phone-number-id}")
     private String phoneNumberId;
@@ -170,4 +178,49 @@ public class WhatsAppService {
             log.error("Falla de red en HTTP call Meta: ", e);
         }
     }
+// 📦 Agregá este método al final de tu archivo WhatsAppService.java
+public void sendMediaMessage(String to, String type, String mediaUrl, String caption) {
+    if (mediaUrl == null || "null".equals(mediaUrl)) {
+        log.warn("[WhatsApp API] Intento de enviar mensaje multimedia sin URL válida.");
+        return;
+    }
+
+    try {
+        // 🌐 URL Real de Meta Graph API usando tu Phone Number ID dinámico
+        String url = "https://graph.facebook.com/v20.0/" + this.whatsappPhoneNumberId + "/messages";
+
+        // 📝 Estructura JSON oficial para adjuntar imágenes por link externo
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("messaging_product", "whatsapp");
+        body.put("recipient_type", "individual");
+        body.put("to", to);
+        body.put("type", "image");
+
+        java.util.Map<String, String> imageNode = new java.util.HashMap<>();
+        imageNode.put("link", mediaUrl);
+        imageNode.put("caption", caption); // El texto detallado del viaje va pegado abajo de la foto
+        body.put("image", imageNode);
+
+        // 🔐 Cabeceras de autenticación seguras
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(this.whatsappToken);
+
+        org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(body, headers);
+        
+        // Ejecutamos la petición POST por RestTemplate
+        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+        restTemplate.postForEntity(url, entity, String.class);
+        
+        log.info("[WhatsApp API] Comprobante manual enviado con éxito al número: {}", to);
+
+    } catch (Exception e) {
+        log.error("[CRÍTICO] Error al enviar el comprobante por WhatsApp API al número {}: ", to, e);
+    }
+}
+
+
+
+
+
 }
