@@ -186,10 +186,9 @@ public void sendMediaMessage(String to, String type, String mediaUrl, String cap
     }
 
     try {
-        // 🌐 URL Real de Meta Graph API usando tu Phone Number ID dinámico
-        String url = "https://graph.facebook.com/v20.0/" + this.whatsappPhoneNumberId + "/messages";
+        // 🌐 URL usando tu variable exacta: phoneNumberId
+        String url = "https://graph.facebook.com/v20.0/" + this.phoneNumberId + "/messages";
 
-        // 📝 Estructura JSON oficial para adjuntar imágenes por link externo
         java.util.Map<String, Object> body = new java.util.HashMap<>();
         body.put("messaging_product", "whatsapp");
         body.put("recipient_type", "individual");
@@ -198,17 +197,15 @@ public void sendMediaMessage(String to, String type, String mediaUrl, String cap
 
         java.util.Map<String, String> imageNode = new java.util.HashMap<>();
         imageNode.put("link", mediaUrl);
-        imageNode.put("caption", caption); // El texto detallado del viaje va pegado abajo de la foto
+        imageNode.put("caption", caption);
         body.put("image", imageNode);
 
-        // 🔐 Cabeceras de autenticación seguras
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(this.whatsappToken);
+        headers.setBearerAuth(this.accessToken); // 👈 Corregido con tu variable: accessToken
 
         org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(body, headers);
         
-        // Ejecutamos la petición POST por RestTemplate
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         restTemplate.postForEntity(url, entity, String.class);
         

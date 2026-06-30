@@ -4,13 +4,14 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import lombok.extern.slf4j.Slf4j;
@@ -20,8 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LocalReceiptStorageService implements ReceiptStoragePort {
 
-@Value("${whatsapp.access-token}")
-private String whatsappToken;
+    @Value("${whatsapp.access-token}")
+    private String whatsappToken;
 
     @Value("${storage.local-dir}")
     private String localDir;
@@ -55,7 +56,8 @@ private String whatsappToken;
 
             // Paso C: Guardar el archivo en el disco local
             String fileName = "comprobante_" + mediaId + ".jpg";
-            Path destinationPath = Paths.get(localDir + fileName);
+            // Ajustado para combinar las rutas de forma segura sin importar los separadores / o \
+            Path destinationPath = Paths.get(localDir).resolve(fileName);
             Files.write(destinationPath, imageBytes);
 
             log.info("Comprobante guardado localmente en: {}", destinationPath.toAbsolutePath());
@@ -66,6 +68,28 @@ private String whatsappToken;
         } catch (Exception e) {
             log.error("Error al descargar e impactar el archivo local de WhatsApp con ID: " + mediaId, e);
             return null;
+        }
+    }
+
+    @Override
+    public String uploadFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return "null";
+        }
+        try {
+            // Reemplazo del operador Elvis (?:) no soportado en Java por un operador ternario estándar
+            String baseDir = (this.localDir != null) ? this.localDir : "/tmp/comprobantes/";
+            
+            String uniqueFileName = "comprobante_manual_" + UUID.randomUUID() + "_" + file.getOriginalFilename();
+            Path targetPath = Paths.get(baseDir).resolve(uniqueFileName);
+            
+            Files.createDirectories(targetPath.getParent());
+            Files.write(targetPath, file.getBytes());
+            
+            return targetPath.toAbsolutePath().toString();
+        } catch (Exception e) {
+            log.error("❌ Falló el almacenamiento local desde el formulario web", e);
+            return "null";
         }
     }
 }
