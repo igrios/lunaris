@@ -41,15 +41,15 @@ public class BotMonitorController {
     private final ConversationSessionRepository sessionRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
-    // Inyecciones para el procesamiento homologado con el Bot
+    // Inyecciones homologadas para el procesamiento con el Bot y Carga Manual
     private final ReservationRepository reservationRepository;
     private final PassengerRepository passengerRepository;
-    private final ChatMessageRepository messageRepository; // Inyectado para buscar el comprobante
+    private final ChatMessageRepository messageRepository; 
     private final WhatsAppService whatsAppService;
     private final PricingAndScheduleService tarifaService;
     private final ReceiptStoragePort cloudinaryService;
 
-    // 🖥️ Muestra la lista de conversaciones
+    // 🖥️ Muestra la lista de conversaciones en el monitor
     @GetMapping("/monitor")
     public String getMonitor(Model model) {
         List<ConversationSession> sesiones = sessionRepository.findAll();
@@ -57,7 +57,7 @@ public class BotMonitorController {
         return "admin/bot-monitor";
     }
 
-    // 🛑 Acción para mutear/pausar o despausar el bot
+    // 🛑 Acción para pausar o activar el bot de forma dinámica
     @PostMapping("/toggle-bot")
     public String toggleBot(@RequestParam("id") Long sessionId) {
         ConversationSession session = sessionRepository.findById(sessionId).orElseThrow(
@@ -74,7 +74,7 @@ public class BotMonitorController {
         return "redirect:/admin/bot/monitor";
     }
 
-    // 💰 COTIZACIÓN ASÍNCRONA EN TIEMPO REAL
+    // 💰 COTIZACIÓN EN VIVO ASÍNCRONA PARA EL FORMULARIO
     @GetMapping("/monitor/cotizar")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> cotizarFilaManual(
@@ -102,7 +102,8 @@ public class BotMonitorController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
         }
     }
-// 🚀 CARGA MANUAL INTELIGENTE CON REGLA DE TARIFAS DE MARTÍN
+
+    // 🚀 CARGA MANUAL INTELIGENTE CON REGLA DE PRECIOS DE MARTÍN Y ESCANEO SEGURO DE FOTOS
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
@@ -118,7 +119,7 @@ public class BotMonitorController {
             RedirectAttributes redirectAttributes) {
 
         try {
-            // 1. Resolver o registrar Pasajero usando nombre real ingresado por Martín
+            // 1. Resolver o registrar Pasajero usando el nombre tipeado por Martín
             Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
                 Passenger newP = new Passenger();
                 newP.setPhone(phone);
@@ -139,12 +140,12 @@ public class BotMonitorController {
             java.math.BigDecimal montoVuelta;
 
             if (isRoundTrip) {
-                // Si es COMBO: Mitad justa para cada tramo
+                // Si compra combo Ida y Vuelta: Mitad exacta para cada tramo
                 java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
                 montoIda = mitadCombo;
                 montoVuelta = mitadCombo;
             } else {
-                // 🔥 SOLO IDA: (Combo / 2) + $8.000 fijos de recargo
+                // Si es SOLO IDA: (Combo / 2) + $8.000 fijos de recargo por tramo simple
                 java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
                 java.math.BigDecimal recargoFijo = java.math.BigDecimal.valueOf(8000);
                 
@@ -152,11 +153,31 @@ public class BotMonitorController {
                 montoVuelta = java.math.BigDecimal.ZERO;
             }
 
+            // =================================================================
+            // 📸 RESCATE AUTOMÁTICO REFORZADO DEL COMPROBANTE DE PAGO
+            // =================================================================
+            String urlComprobante = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
+                    .filter(m -> m != null && !m.isFromOperator()) 
+                    .map(m -> m.getMessageText())
+                    .filter(text -> text != null && !text.isBlank())
+                    // Captura URLs de Cloudinary, endpoints multimedia o cualquier string con formato UUID
+                    .filter(text -> text.contains("comprobante") 
+                                 || text.contains("media") 
+                                 || text.contains("http")
+                                 || text.matches(".*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}.*"))
+                    .reduce((first, second) -> second) 
+                    .orElse("null");
+
+            // Si el JavaScript capturó el origen del elemento img en pantalla, le damos prioridad absoluta
+            if (chatReceiptUrl != null && !chatReceiptUrl.isBlank() && !chatReceiptUrl.equals("null")) {
+                urlComprobante = chatReceiptUrl;
+            }
+
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
             String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
                     + destination.substring(0, 3).toUpperCase() + "-" + shortId;
 
-            // 3. Persistir Ida vinculando el origen capturado de la imagen
+            // 3. Persistir Tramo de Ida como PENDING_VERIFICATION
             Reservation ida = new Reservation();
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
@@ -164,17 +185,17 @@ public class BotMonitorController {
             ida.setPickupAddress(pickupAddress);
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
-            ida.setAmount(montoIda); // Aplicado el precio correcto
-            ida.setPaymentReceiptUrl(chatReceiptUrl); // Guarda el ID o link del frontend
+            ida.setAmount(montoIda); 
+            ida.setPaymentReceiptUrl(urlComprobante); 
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
             ida.setReservationCode(codigoBase + "-IDA");
-            ida.setNotes("Cargado por Operador. Comprobante sincronizado desde pantalla.");
+            ida.setNotes("Cargado por Operador desde Monitor. Comprobante enlazado.");
 
             reservationRepository.saveAndFlush(ida);
 
-            // 4. Si es combo (Ida y Vuelta), abrir tramo de Vuelta Centinela 2099
+            // 4. Si es pasaje de Ida y Vuelta, abrir el tramo de Vuelta Abierta Centinela 2099
             if (isRoundTrip) {
                 Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
@@ -183,19 +204,19 @@ public class BotMonitorController {
                 vuelta.setDestination(pickupLocality);
                 vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
-                vuelta.setAmount(montoVuelta); // Mitad del combo
-                vuelta.setPaymentReceiptUrl(chatReceiptUrl); 
+                vuelta.setAmount(montoVuelta); 
+                vuelta.setPaymentReceiptUrl(urlComprobante); 
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
                 vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
-                vuelta.setNotes("Vuelta abierta inicializada por Operador.");
+                vuelta.setNotes("Vuelta abierta inicializada automáticamente por Operador.");
 
                 reservationRepository.saveAndFlush(vuelta);
             }
 
-            // 5. RESPUESTA AL PASAJERO
+            // 5. WhatsApp automático de cortesía para notificar al cliente
             String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
                     + "*Detalles de tu viaje registrado:*\n"
                     + "*Pasajero:* " + firstName + " " + lastName + "\n"
@@ -207,7 +228,7 @@ public class BotMonitorController {
 
             whatsAppService.sendMessage(phone, textoConfirmacion);
 
-            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito y comprobante enlazado!");
+            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito! Comprobante enlazado.");
 
         } catch (Exception e) {
             log.error("[Carga Manual] Falló el flujo asistido: ", e);
