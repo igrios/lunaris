@@ -96,11 +96,24 @@
 
                         <hr class="text-muted my-4">
 
-                        <!-- Formulario Multipart para subida binaria de imágenes -->
-                        <form th:action="@{/admin/bot/monitor/cargar-reserva}" method="post" enctype="multipart/form-data">
+                        <!-- ⚠️ CORREGIDO: Formulario limpio sin enctype (ya no se suben archivos locales) -->
+                        <form th:action="@{/admin/bot/monitor/cargar-reserva}" method="post">
 
                             <!-- Campo oculto para inyectar automáticamente el teléfono de la sesión de chat -->
                             <input type="hidden" name="phone" th:value="${sessionPhone ?: phone}">
+
+                            <!-- 👤 SECCIÓN NUEVA: DATOS DEL PASAJERO -->
+                            <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">👤 Datos del Pasajero</h4>
+                            <div class="row g-3 mb-4">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-dark">Nombre</label>
+                                    <input type="text" name="firstName" class="form-control" placeholder="Ej: Juan" required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-dark">Apellido</label>
+                                    <input type="text" name="lastName" class="form-control" placeholder="Ej: Pérez" required>
+                                </div>
+                            </div>
 
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">📍 Datos del Viaje</h4>
 
@@ -139,7 +152,7 @@
 
                             <!-- Switch de Ida y Vuelta -->
                             <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="isRoundTrip" id="isRoundTripCheck">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="isRoundTrip" id="isRoundTripCheck" value="true">
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
                                     <i class="bi bi-arrow-left-right"></i> ¿Es pasaje de Ida y Vuelta?
                                 </label>
@@ -159,8 +172,6 @@
                                     <span class="fs-5 fw-bold text-success">$<span id="previewMonto">0.00</span></span>
                                 </div>
                             </div>
-
-                          
 
                             <!-- Botón de Envío -->
                             <div class="d-flex justify-content-end pt-2 border-top">
