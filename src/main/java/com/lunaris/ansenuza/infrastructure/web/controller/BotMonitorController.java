@@ -102,8 +102,7 @@ public class BotMonitorController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
         }
     }
-
-  // 🚀 CARGA MANUAL INTELIGENTE: Vincula datos tipeados y recibe la URL desde el HTML
+// 🚀 CARGA MANUAL INTELIGENTE CON REGLA DE TARIFAS DE MARTÍN
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
@@ -130,45 +129,62 @@ public class BotMonitorController {
             passenger.setLastName(lastName.trim() + " (Manual)"); 
             passengerRepository.save(passenger);
 
-            // 2. ASIGNACIÓN DIRECTA DESDE LA CAPTURA DEL FRONTEND
-            String urlComprobante = chatReceiptUrl;
+            // =================================================================
+            // 💰 CÁLCULO DE TARIFAS CON LA REGLA DE MARTÍN
+            // =================================================================
+            java.math.BigDecimal montoComboCompleto =
+                    tarifaService.calculateReservationAmount(pickupLocality, destination, true, passengerCount);
+
+            java.math.BigDecimal montoIda;
+            java.math.BigDecimal montoVuelta;
+
+            if (isRoundTrip) {
+                // Si es COMBO: Mitad justa para cada tramo
+                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
+                montoIda = mitadCombo;
+                montoVuelta = mitadCombo;
+            } else {
+                // 🔥 SOLO IDA: (Combo / 2) + $8.000 fijos de recargo
+                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal recargoFijo = java.math.BigDecimal.valueOf(8000);
+                
+                montoIda = mitadCombo.add(recargoFijo);
+                montoVuelta = java.math.BigDecimal.ZERO;
+            }
 
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
             String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
                     + destination.substring(0, 3).toUpperCase() + "-" + shortId;
-                    
-            java.math.BigDecimal montoTramo =
-                    tarifaService.calculateReservationAmount(pickupLocality, destination, isRoundTrip, passengerCount);
 
-            // 3. Persistir Ida como PENDING_VERIFICATION
-            Reservation ida = new Reservation(); // 👈 Corregido el espacio extra por si acaso
+            // 3. Persistir Ida vinculando el origen capturado de la imagen
+            Reservation ida = new Reservation();
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
             ida.setPickupLocality(pickupLocality);
             ida.setPickupAddress(pickupAddress);
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
-            ida.setAmount(montoTramo);
-            ida.setPaymentReceiptUrl(urlComprobante); 
+            ida.setAmount(montoIda); // Aplicado el precio correcto
+            ida.setPaymentReceiptUrl(chatReceiptUrl); // Guarda el ID o link del frontend
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
             ida.setReservationCode(codigoBase + "-IDA");
-            ida.setNotes("Cargado por Operador desde Monitor. Comprobante enlazado desde pantalla.");
+            ida.setNotes("Cargado por Operador. Comprobante sincronizado desde pantalla.");
 
             reservationRepository.saveAndFlush(ida);
 
             // 4. Si es combo (Ida y Vuelta), abrir tramo de Vuelta Centinela 2099
             if (isRoundTrip) {
-                Reservation vuelta = new Reservation(); // 👈 Corregido el espacio extra
+                Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
                 vuelta.setTravelDate(LocalDate.of(2099, 12, 31));
                 vuelta.setPickupLocality(destination);
                 vuelta.setDestination(pickupLocality);
                 vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
-                vuelta.setAmount(montoTramo);
-                vuelta.setPaymentReceiptUrl(urlComprobante); 
+                vuelta.setAmount(montoVuelta); // Mitad del combo
+                vuelta.setPaymentReceiptUrl(chatReceiptUrl); 
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
@@ -191,13 +207,11 @@ public class BotMonitorController {
 
             whatsAppService.sendMessage(phone, textoConfirmacion);
 
-            redirectAttributes.addFlashAttribute("successMessage",
-                    "¡Reserva registrada con éxito! El comprobante del chat fue enlazado.");
+            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito y comprobante enlazado!");
 
         } catch (Exception e) {
             log.error("[Carga Manual] Falló el flujo asistido: ", e);
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Error al procesar carga: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar carga: " + e.getMessage());
         }
 
         return "redirect:/admin/chat/" + phone;
