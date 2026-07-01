@@ -103,7 +103,8 @@ public class BotMonitorController {
         }
     }
 
-    /@PostMapping("/monitor/cargar-reserva")
+  // 🚀 CARGA MANUAL INTELIGENTE: Vincula datos tipeados y recibe la URL desde el HTML
+    @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
             @RequestParam("firstName") String firstName, 
@@ -114,10 +115,11 @@ public class BotMonitorController {
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             @RequestParam(value = "isRoundTrip", defaultValue = "false") boolean isRoundTrip,
-            @RequestParam(value = "chatReceiptUrl", required = false, defaultValue = "null") String chatReceiptUrl, // 👈 CAPTURA EL PARÁMETRO DE JAVASCRIPT
+            @RequestParam(value = "chatReceiptUrl", required = false, defaultValue = "null") String chatReceiptUrl,
             RedirectAttributes redirectAttributes) {
 
         try {
+            // 1. Resolver o registrar Pasajero usando nombre real ingresado por Martín
             Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
                 Passenger newP = new Passenger();
                 newP.setPhone(phone);
@@ -128,7 +130,7 @@ public class BotMonitorController {
             passenger.setLastName(lastName.trim() + " (Manual)"); 
             passengerRepository.save(passenger);
 
-            // 🔥 ASIGNACIÓN DIRECTA: Si Javascript encontró la foto, la usamos; de lo contrario queda null
+            // 2. ASIGNACIÓN DIRECTA DESDE LA CAPTURA DEL FRONTEND
             String urlComprobante = chatReceiptUrl;
 
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
@@ -138,8 +140,8 @@ public class BotMonitorController {
             java.math.BigDecimal montoTramo =
                     tarifaService.calculateReservationAmount(pickupLocality, destination, isRoundTrip, passengerCount);
 
-            // Persistir Ida
-            Reservation  ida = new Reservation();
+            // 3. Persistir Ida como PENDING_VERIFICATION
+            Reservation ida = new Reservation(); // 👈 Corregido el espacio extra por si acaso
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
             ida.setPickupLocality(pickupLocality);
@@ -147,7 +149,7 @@ public class BotMonitorController {
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
             ida.setAmount(montoTramo);
-            ida.setPaymentReceiptUrl(urlComprobante); // 👈 Asigna la URL capturada del chat
+            ida.setPaymentReceiptUrl(urlComprobante); 
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
@@ -156,9 +158,9 @@ public class BotMonitorController {
 
             reservationRepository.saveAndFlush(ida);
 
-            // Si es combo, abrir tramo de Vuelta Centinela 2099
+            // 4. Si es combo (Ida y Vuelta), abrir tramo de Vuelta Centinela 2099
             if (isRoundTrip) {
-                Reservation  vuelta = new Reservation();
+                Reservation vuelta = new Reservation(); // 👈 Corregido el espacio extra
                 vuelta.setPassenger(passenger);
                 vuelta.setTravelDate(LocalDate.of(2099, 12, 31));
                 vuelta.setPickupLocality(destination);
@@ -166,7 +168,7 @@ public class BotMonitorController {
                 vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
                 vuelta.setAmount(montoTramo);
-                vuelta.setPaymentReceiptUrl(urlComprobante); // Vincula la misma foto
+                vuelta.setPaymentReceiptUrl(urlComprobante); 
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
@@ -177,7 +179,7 @@ public class BotMonitorController {
                 reservationRepository.saveAndFlush(vuelta);
             }
 
-            // WhatsApp de confirmación
+            // 5. RESPUESTA AL PASAJERO
             String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
                     + "*Detalles de tu viaje registrado:*\n"
                     + "*Pasajero:* " + firstName + " " + lastName + "\n"
@@ -189,11 +191,13 @@ public class BotMonitorController {
 
             whatsAppService.sendMessage(phone, textoConfirmacion);
 
-            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito y comprobante enlazado!");
+            redirectAttributes.addFlashAttribute("successMessage",
+                    "¡Reserva registrada con éxito! El comprobante del chat fue enlazado.");
 
         } catch (Exception e) {
             log.error("[Carga Manual] Falló el flujo asistido: ", e);
-            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar carga: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage",
+                    "Error al procesar carga: " + e.getMessage());
         }
 
         return "redirect:/admin/chat/" + phone;
