@@ -279,21 +279,24 @@
             asie.addEventListener('change', actualizarCotizacion);
         }
 
-        // 📸 INTERCEPTOR JAVASCRIPT: Captura la URL del comprobante de la pantalla antes del envío
+     // 📸 INTERCEPTOR DEFINITIVO: Captura cualquier origen de imagen presente en el chat del cliente
         document.getElementById('formReservaManual').addEventListener('submit', function(e) {
             const chatContainer = document.getElementById('chatContainer');
             if (!chatContainer) return;
 
-            // Busca todas las imágenes cargadas por WebSockets o por historial en el chat izquierdo
-            const imagenes = chatContainer.querySelectorAll('img');
+            // Buscamos todas las imágenes dentro de las burbujas del cliente
+            const imagenes = chatContainer.querySelectorAll('.mensaje-cliente img, img');
             
             if (imagenes.length > 0) {
-                // Selecciona el src de la última imagen visible del chat
-                const ultimaImagenUrl = imagenes[imagenes.length - 1].src;
-                console.log("Comprobante capturado en vivo:", ultimaImagenUrl);
+                // Tomamos la última imagen que llegó al chat
+                const ultimaImagen = imagenes[imagenes.length - 1];
                 
-                // Lo inyecta en el campo oculto del formulario
-                document.getElementById('chatReceiptUrl').value = ultimaImagenUrl;
+                // Extraemos el valor tal cual viene en el atributo 'src' (sea URL o ID interno)
+                const comprobanteSrc = ultimaImagen.getAttribute('src');
+                console.log("Comprobante real detectado en pantalla:", comprobanteSrc);
+                
+                // Se lo asignamos al input oculto antes de enviar el formulario
+                document.getElementById('chatReceiptUrl').value = comprobanteSrc;
             }
         });
     </script>
