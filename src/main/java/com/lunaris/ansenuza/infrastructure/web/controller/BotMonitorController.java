@@ -100,17 +100,16 @@ public class BotMonitorController {
         }
     }
 
-   // 🚀 ACCIÓN PROCESADORA CORREGIDA: Guarda el comprobante del cliente y responde texto puro de confirmación
+  // 🚀 CARGA AUTOMÁTICA DESDE EL CHAT: Busca la última imagen recibida del cliente
     @PostMapping("/monitor/cargar-reserva")
-    public String cargarReservaManualOperador(@RequestParam("phone") String phone,
+    public String cargarReservaManualOperador(
+            @RequestParam("phone") String phone,
             @RequestParam("pickupLocality") String pickupLocality,
             @RequestParam("destination") String destination,
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
-            @RequestParam("travelDate") @DateTimeFormat(
-                    iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             @RequestParam(value = "isRoundTrip", defaultValue = "false") boolean isRoundTrip,
-            @RequestParam("comprobante") MultipartFile comprobante,
             RedirectAttributes redirectAttributes) {
 
         try {
@@ -123,20 +122,24 @@ public class BotMonitorController {
                 return passengerRepository.save(newP);
             });
 
-            // 2. Indexar archivo en Cloudinary (El comprobante que mandó el pasajero)
-            String urlComprobante = "null";
-            if (comprobante != null && !comprobante.isEmpty()) {
-                urlComprobante = cloudinaryService.uploadFile(comprobante);
-            }
+            // 2. 🔥 MAGIA: Buscar la última imagen que envió el pasajero en el historial del chat
+            // Filtramos los mensajes que NO sean del operador y que tengan guardada una URL de Cloudinary/Meta
+            String urlComprobante = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
+                    .filter(m -> !m.isFromOperator() && m.getMessageText() != null && (m.getMessageText().contains("http") || m.getMessageText().contains("comprobante")))
+                    .map(com.lunaris.ansenuza.domain.model.ChatMessage::getMessageText)
+                    .reduce((first, second) -> second) // Nos quedamos con el último enviado
+                    .orElse("null");
+
+            // Si guardás las URLs de multimedia en otra propiedad o necesitas un fallback, se puede ajustar, 
+            // pero esto mapea directo el último registro de imagen que dejó el Bot de WhatsApp en tu BD.
 
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-            String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-"
-                    + destination.substring(0, 3).toUpperCase() + "-" + shortId;
-                    
+            String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" + destination.substring(0, 3).toUpperCase() + "-" + shortId;
+            
             java.math.BigDecimal montoTramo =
                     tarifaService.calculateReservationAmount(pickupLocality, destination, isRoundTrip, passengerCount);
 
-            // 3. Persistir Ida como PENDING_VERIFICATION con la foto del comprobante
+            // 3. Persistir Ida como PENDING_VERIFICATION vinculando la foto recuperada
             Reservation ida = new Reservation();
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
@@ -145,12 +148,12 @@ public class BotMonitorController {
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
             ida.setAmount(montoTramo);
-            ida.setPaymentReceiptUrl(urlComprobante); // Guardado para auditoría de Martín
+            ida.setPaymentReceiptUrl(urlComprobante); // 👈 Queda vinculada la foto automáticamente
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
             ida.setReservationCode(codigoBase + "-IDA");
-            ida.setNotes("Cargado manualmente por Operador desde Monitor");
+            ida.setNotes("Cargado automáticamente desde imagen de chat por Operador");
 
             reservationRepository.saveAndFlush(ida);
 
@@ -170,12 +173,12 @@ public class BotMonitorController {
                 vuelta.setRoundTrip(true);
                 vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
-                vuelta.setNotes("Vuelta abierta inicializada por Operador desde Monitor");
+                vuelta.setNotes("Vuelta abierta inicializada automáticamente por imagen de chat");
 
                 reservationRepository.saveAndFlush(vuelta);
             }
 
-            // 🔥 5. RESPUESTA AL PASAJERO: Texto puro homologado, sin reenviar la imagen
+            // 5. Respuesta atenta al WhatsApp del cliente
             String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
                     + "*Detalles de tu viaje registrado:*\n"
                     + "*Código:* " + codigoBase + "\n" 
@@ -184,16 +187,13 @@ public class BotMonitorController {
                     + "*Asientos:* " + passengerCount + "\n\n"
                     + "En cuanto validemos la transferencia en el banco, el sistema te enviará la confirmación definitiva.";
 
-            // 💬 Usamos tu método clásico de envío de texto puro (sendMessage o el que use tu bot)
             whatsAppService.sendMessage(phone, textoConfirmacion);
 
-            redirectAttributes.addFlashAttribute("successMessage",
-                    "¡Reserva registrada y mensaje de verificación enviado al cliente!");
+            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva vinculada al comprobante del chat con éxito!");
 
         } catch (Exception e) {
-            log.error("[Carga Manual] Falló el flujo asistido: ", e);
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Error al procesar carga: " + e.getMessage());
+            log.error("[Carga Manual] Falló el enlace automático: ", e);
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar: " + e.getMessage());
         }
 
         return "redirect:/admin/chat/" + phone;
