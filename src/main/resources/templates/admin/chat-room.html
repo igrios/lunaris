@@ -51,6 +51,7 @@
     <div class="container-fluid split-container mt-3">
         <div class="row h-100 px-2">
             
+            <!-- COLUMNA IZQUIERDA: PANEL DE CHAT EN VIVO -->
             <div class="col-md-6 mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-2 px-1">
                     <h5 class="fw-bold mb-0">Chat en Vivo: <span class="text-primary" th:text="${sessionPhone ?: phone}"></span></h5>
@@ -60,7 +61,16 @@
                     <div id="chatContainer" class="chat-messages d-flex flex-column">
                         <div th:each="m : ${historial}" th:class="${m.fromOperator} ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100'">
                             <div class="burbuja d-inline-block text-start" th:classappend="${m.fromOperator} ? 'mensaje-operador' : 'mensaje-cliente'">
-                                <span th:text="${m.messageText}"></span>
+                                
+                                <!-- 📸 FIXED: Si el mensaje del historial contiene un link o adjunto, renderiza el <img> real -->
+                                <div th:if="${m.messageText != null && (m.messageText.contains('http') || m.messageText.contains('res.cloudinary.com') || m.messageText.contains('media'))}" class="mb-2">
+                                    <img th:src="${m.messageText}" class="img-fluid rounded border mb-1" style="max-height: 180px; display: block;" alt="Comprobante" />
+                                    <a th:href="${m.messageText}" target="_blank" class="btn btn-sm btn-dark py-0 px-2" style="font-size: 0.75rem;">👁️ Ampliar</a>
+                                </div>
+
+                                <!-- Texto base del mensaje (solo si no es link puro de imagen) -->
+                                <span th:if="${m.messageText != null && !m.messageText.contains('http')}" th:text="${m.messageText}"></span>
+                                
                                 <small class="time-stamp" th:text="${#temporals.format(m.timestamp, 'HH:mm')}"></small>
                             </div>
                         </div>
@@ -78,6 +88,7 @@
                 </div>
             </div>
 
+            <!-- COLUMNA DERECHA: CONSOLA DE CARGA MANUAL HOMOLOGADA CON EL BOT -->
             <div class="col-md-6 scrollable-panel pb-5">
                 <div class="card shadow mb-4" style="border-radius: 12px;">
                     <div class="card-body p-4">
@@ -94,12 +105,16 @@
 
                         <hr class="text-muted my-4">
 
+                        <!-- Formulario de acción estándar -->
                         <form id="formReservaManual" th:action="@{/admin/bot/monitor/cargar-reserva}" method="post">
 
+                            <!-- Campo oculto para inyectar automáticamente el teléfono de la sesión de chat -->
                             <input type="hidden" name="phone" th:value="${sessionPhone ?: phone}">
 
+                            <!-- Campo oculto que recibirá la URL recolectada por el interceptor JS -->
                             <input type="hidden" id="chatReceiptUrl" name="chatReceiptUrl" value="null">
 
+                            <!-- 👤 SECCIÓN: DATOS DEL PASAJERO -->
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">👤 Datos del Pasajero</h4>
                             <div class="row g-3 mb-4">
                                 <div class="col-6">
@@ -114,6 +129,7 @@
 
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">📍 Datos del Viaje</h4>
 
+                            <!-- Origen y Destino -->
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
@@ -125,6 +141,7 @@
                                 </div>
                             </div>
 
+                            <!-- Dirección de Retiro -->
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">Dirección de Retiro</label>
                                 <div class="input-group">
@@ -133,6 +150,7 @@
                                 </div>
                             </div>
 
+                            <!-- Cantidad de Asientos y Fecha de Ida -->
                             <div class="row g-3 mb-3">
                                 <div class="col-5">
                                     <label class="form-label small fw-bold text-dark">Cantidad Asientos</label>
@@ -144,6 +162,7 @@
                                 </div>
                             </div>
 
+                            <!-- Switch de Ida y Vuelta -->
                             <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
                                 <input class="form-check-input ms-1 me-2" type="checkbox" name="isRoundTrip" id="isRoundTripCheck" value="true">
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
@@ -154,6 +173,7 @@
                                 </div>
                             </div>
 
+                            <!-- 💰 RECUADRO DINÁMICO DE PREVISUALIZACIÓN DE COSTOS -->
                             <div class="p-3 mb-3 rounded-3" style="background-color: #e8f0fe; border: 1px solid #b3cefb; font-size: 0.9rem;">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-secondary fw-semibold">Código de Operación Previsto:</span>
@@ -165,6 +185,7 @@
                                 </div>
                             </div>
 
+                            <!-- Botón de Envío -->
                             <div class="d-flex justify-content-end pt-2 border-top">
                                 <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
                                     <i class="bi bi-cloud-arrow-up-fill me-1"></i> Guardar Reserva e Impactar Chat ✅
@@ -179,6 +200,7 @@
         </div>
     </div>
 
+    <!-- SCRIPTS EN VIVO -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script th:inline="javascript">
@@ -217,6 +239,7 @@
             input.value = '';
         }
 
+        // 🎯 FIXED: Modificada para parsear e inyectar etiquetas <img> en caliente ante mensajes multimedia
         function dibujarBurbujaMensaje(msg) {
             const chatContainer = document.getElementById('chatContainer');
             if (!chatContainer) return;
@@ -233,10 +256,20 @@
                 horaStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             }
 
+            let contenidoHtml = `<span>${msg.messageText}</span>`;
+            if (msg.messageText && (msg.messageText.includes('http') || msg.messageText.includes('res.cloudinary.com') || msg.messageText.includes('media'))) {
+                contenidoHtml = `
+                    <div class="mb-2">
+                        <img src="${msg.messageText}" class="img-fluid rounded border mb-1" style="max-height: 180px; display: block;" alt="Comprobante recibido" />
+                        <a href="${msg.messageText}" target="_blank" class="btn btn-sm btn-dark py-0 px-2" style="font-size: 0.75rem;">👁️ Ampliar</a>
+                    </div>
+                `;
+            }
+
             const estructuraHtml = `
                 <div class="${alineacionWrapper}">
                     <div class="burbuja d-inline-block text-start ${claseBurbuja}">
-                        <span>${msg.messageText}</span>
+                        ${contenidoHtml}
                         <small class="time-stamp">${horaStr}</small>
                     </div>
                 </div>
@@ -279,24 +312,16 @@
             asie.addEventListener('change', actualizarCotizacion);
         }
 
-     // 📸 INTERCEPTOR DEFINITIVO: Captura cualquier origen de imagen presente en el chat del cliente
+        // 📸 INTERCEPTOR JAVASCRIPT: Extrae el .src de la etiqueta img del chat y lo asigna al input oculto
         document.getElementById('formReservaManual').addEventListener('submit', function(e) {
             const chatContainer = document.getElementById('chatContainer');
             if (!chatContainer) return;
 
-            // Buscamos todas las imágenes dentro de las burbujas del cliente
-            const imagenes = chatContainer.querySelectorAll('.mensaje-cliente img, img');
-            
+            const imagenes = chatContainer.querySelectorAll('img');
             if (imagenes.length > 0) {
-                // Tomamos la última imagen que llegó al chat
-                const ultimaImagen = imagenes[imagenes.length - 1];
-                
-                // Extraemos el valor tal cual viene en el atributo 'src' (sea URL o ID interno)
-                const comprobanteSrc = ultimaImagen.getAttribute('src');
-                console.log("Comprobante real detectado en pantalla:", comprobanteSrc);
-                
-                // Se lo asignamos al input oculto antes de enviar el formulario
-                document.getElementById('chatReceiptUrl').value = comprobanteSrc;
+                const ultimaImagenUrl = imagenes[imagenes.length - 1].src;
+                console.log("Comprobante succionado con éxito de la pantalla:", ultimaImagenUrl);
+                document.getElementById('chatReceiptUrl').value = ultimaImagenUrl;
             }
         });
     </script>
