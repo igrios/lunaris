@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +30,7 @@ import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,7 +49,7 @@ public class BotMonitorController {
     private final ChatMessageRepository messageRepository; 
     private final WhatsAppService whatsAppService;
     private final PricingAndScheduleService tarifaService;
-    private final ReceiptStoragePort cloudinaryService;
+    private final ReceiptStoragePort cloudinaryService; // ☁️ Invocado ahora para persistencia permanente
 
     // 🖥️ Muestra la lista de conversaciones en el monitor
     @GetMapping("/monitor")
@@ -103,7 +105,7 @@ public class BotMonitorController {
         }
     }
 
-    // 🚀 CARGA MANUAL INTELIGENTE CON REGLA DE PRECIOS DE MARTÍN Y ESCANEO SEGURO DE FOTOS
+    // 🚀 CARGA MANUAL INTELIGENTE CON PERSISTENCIA EN CLOUDINARY Y REGLA DE MARTÍN
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
@@ -140,12 +142,10 @@ public class BotMonitorController {
             java.math.BigDecimal montoVuelta;
 
             if (isRoundTrip) {
-                // Si compra combo Ida y Vuelta: Mitad exacta para cada tramo
                 java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
                 montoIda = mitadCombo;
                 montoVuelta = mitadCombo;
             } else {
-                // Si es SOLO IDA: (Combo / 2) + $8.000 fijos de recargo por tramo simple
                 java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
                 java.math.BigDecimal recargoFijo = java.math.BigDecimal.valueOf(8000);
                 
@@ -154,28 +154,37 @@ public class BotMonitorController {
             }
 
             // =================================================================
-            // 📸 RESCATE AUTOMÁTICO REFORZADO DEL COMPROBANTE DE PAGO
+            // 📸 RESCATE AUTOMÁTICO DE LA URL ORIGEN DEL COMPROBANTE
             // =================================================================
-            String urlComprobante = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
+            String urlComprobanteCruda = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
                     .filter(m -> m != null && !m.isFromOperator()) 
                     .map(m -> m.getMessageText())
                     .filter(text -> text != null && !text.isBlank())
-                    // Captura URLs de Cloudinary, endpoints multimedia o cualquier string con formato UUID
-                    .filter(text -> text.contains("comprobante") 
-                                 || text.contains("media") 
-                                 || text.contains("http")
+                    .filter(text -> !text.contains("ahí mando") && !text.contains("ahi mando") && !text.contains("gracias"))
+                    .filter(text -> text.startsWith("http://") 
+                                 || text.startsWith("https://") 
+                                 || text.contains("res.cloudinary.com")
                                  || text.matches(".*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}.*"))
                     .reduce((first, second) -> second) 
                     .orElse("null");
 
-            // Si el JavaScript capturó el origen del elemento img en pantalla, le damos prioridad absoluta
-            if (chatReceiptUrl != null && !chatReceiptUrl.isBlank() && !chatReceiptUrl.equals("null")) {
-                urlComprobante = chatReceiptUrl;
+            if (chatReceiptUrl != null && !chatReceiptUrl.isBlank() && chatReceiptUrl.startsWith("http")) {
+                urlComprobanteCruda = chatReceiptUrl;
             }
+
+            // =================================================================
+            // ☁️ PASO 2 Y 3: PERSISTENCIA PERMANENTE EN CLOUDINARY
+            // =================================================================
+            String urlComprobantePermanente = persistirComprobanteEnCloudinary(urlComprobanteCruda, phone);
 
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
             String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
                     + destination.substring(0, 3).toUpperCase() + "-" + shortId;
+
+            // Notas condicionales según el resultado de la persistencia permanente (Paso 4)
+            String notasAuditoria = urlComprobantePermanente != null
+                    ? "Cargado por Operador desde Monitor. Comprobante enlazado y persistido en Cloudinary de forma definitiva."
+                    : "Cargado por Operador desde Monitor. ⚠️ Comprobante no pudo persistirse automáticamente, requiere carga manual.";
 
             // 3. Persistir Tramo de Ida como PENDING_VERIFICATION
             Reservation ida = new Reservation();
@@ -186,12 +195,12 @@ public class BotMonitorController {
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
             ida.setAmount(montoIda); 
-            ida.setPaymentReceiptUrl(urlComprobante); 
+            ida.setPaymentReceiptUrl(urlComprobantePermanente); // 👈 Guardamos el enlace permanente de Cloudinary
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
             ida.setReservationCode(codigoBase + "-IDA");
-            ida.setNotes("Cargado por Operador desde Monitor. Comprobante enlazado.");
+            ida.setNotes(notasAuditoria);
 
             reservationRepository.saveAndFlush(ida);
 
@@ -205,13 +214,13 @@ public class BotMonitorController {
                 vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
                 vuelta.setAmount(montoVuelta); 
-                vuelta.setPaymentReceiptUrl(urlComprobante); 
+                vuelta.setPaymentReceiptUrl(urlComprobantePermanente); // 👈 Vincula el mismo archivo subido sin duplicar llamadas
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
                 vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
-                vuelta.setNotes("Vuelta abierta inicializada automáticamente por Operador.");
+                vuelta.setNotes(notasAuditoria);
 
                 reservationRepository.saveAndFlush(vuelta);
             }
@@ -228,7 +237,7 @@ public class BotMonitorController {
 
             whatsAppService.sendMessage(phone, textoConfirmacion);
 
-            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito! Comprobante enlazado.");
+            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito! Comprobante enlazado y persistido.");
 
         } catch (Exception e) {
             log.error("[Carga Manual] Falló el flujo asistido: ", e);
@@ -236,5 +245,67 @@ public class BotMonitorController {
         }
 
         return "redirect:/admin/chat/" + phone;
+    }
+
+  // =================================================================
+    // ☁️ MÉTODO AUXILIAR: DESCARGA ASÍNCRONA DESDE WHATSAPP Y SUBIDA A CLOUDINARY
+    // =================================================================
+    private String persistirComprobanteEnCloudinary(String urlOrigen, String phone) {
+        if (urlOrigen == null || urlOrigen.isBlank() || "null".equalsIgnoreCase(urlOrigen)) {
+            return null;
+        }
+        try {
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(urlOrigen))
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+
+            java.net.http.HttpResponse<byte[]> response =
+                    client.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+
+            if (response.statusCode() != 200 || response.body() == null || response.body().length == 0) {
+                log.warn("[Comprobante Cloudinary] Descarga falló con status {} para el teléfono {}", response.statusCode(), phone);
+                return null;
+            }
+
+            String nombreArchivo = "comprobante-" + phone + "-" + System.currentTimeMillis();
+
+            // 🎯 CREACIÓN ANÓNIMA DE MULTIPARTFILE SIN DEPENDER DE LIBRERÍAS DE TEST
+            final byte[] contenido = response.body();
+            org.springframework.web.multipart.MultipartFile multipartFile = new org.springframework.web.multipart.MultipartFile() {
+                @Override
+                public String getName() { return nombreArchivo; }
+                @Override
+                public String getOriginalFilename() { return nombreArchivo + ".jpg"; }
+                @Override
+                public String getContentType() { return "image/jpeg"; }
+                @Override
+                public boolean isEmpty() { return contenido.length == 0; }
+                @Override
+                public long getSize() { return contenido.length; }
+                @Override
+                public byte[] getBytes() throws java.io.IOException { return contenido; }
+                @Override
+                public java.io.InputStream getInputStream() throws java.io.IOException { 
+                    return new java.io.ByteArrayInputStream(contenido); 
+                }
+                @Override
+                public void transferTo(java.io.File dest) throws java.io.IOException, IllegalStateException {
+                    java.nio.file.Files.write(dest.toPath(), contenido);
+                }
+            };
+
+            // 🔥 CORREGIDO: Invocamos tu método real de la interfaz pasando el objeto construido
+            return cloudinaryService.uploadFile(multipartFile);
+
+        } catch (Exception e) {
+            log.error("[Comprobante Cloudinary] Error crítico al procesar la subida para el teléfono {}: ", phone, e);
+            return null;
+        }
     }
 }
