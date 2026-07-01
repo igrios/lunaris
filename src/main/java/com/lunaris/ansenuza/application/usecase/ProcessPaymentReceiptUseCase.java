@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.application.usecase;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import com.lunaris.ansenuza.domain.model.Passenger;
@@ -26,8 +27,23 @@ public class ProcessPaymentReceiptUseCase {
     private final ReservationRepository reservationRepository;
     private final ReceiptStoragePort receiptStoragePort;
     private final MessagingPort messaging;
+    private final LiveChatPort liveChat;
 
     public void execute(String phoneNumber, String mediaId) {
+        // 1. Descargamos y persistimos el comprobante una única vez. Devuelve la URL
+        //    pública (Cloudinary secure_url) con la que se renderiza la imagen.
+        String receiptUrl = receiptStoragePort.downloadAndSaveReceipt(mediaId);
+
+        if (receiptUrl != null) {
+            // 2. Reflejamos la imagen en la sala de chat en vivo del operador (persistencia +
+            //    broadcast por WebSocket). El frontend detecta la URL y la renderiza como <img>.
+            liveChat.recordIncomingMessage(phoneNumber, receiptUrl);
+        } else {
+            log.warn("[Bot Webhook] El almacenamiento devolvió NULL al descargar el mediaId: {}",
+                    mediaId);
+        }
+
+        // 3. Enlazamos el comprobante con la primera reserva cronológica esperando pago.
         Optional<Passenger> passengerOpt = passengerRepository.findByPhone(phoneNumber);
         if (passengerOpt.isPresent()) {
             List<Reservation> activeReservations =
@@ -38,21 +54,15 @@ public class ProcessPaymentReceiptUseCase {
                     .filter(r -> "PENDING_PAYMENT".equals(r.getStatus()))
                     .findFirst();
 
-            if (pendingReservation.isPresent()) {
+            if (pendingReservation.isPresent() && receiptUrl != null) {
                 Reservation reservation = pendingReservation.get();
-                String localWebUrl = receiptStoragePort.downloadAndSaveReceipt(mediaId);
-                if (localWebUrl != null) {
-                    reservation.setPaymentReceiptUrl(localWebUrl);
-                    // Cambiamos el estado de forma canónica para renderizar celeste en agenda
-                    reservation.setStatus("PAYMENT_RECEIVED");
-                    reservationRepository.saveAndFlush(reservation);
-                    log.info("[Bot Webhook] Comprobante enlazado con éxito para código: {}",
-                            reservation.getReservationCode());
-                } else {
-                    log.warn("[Bot Webhook] El almacenamiento local devolvió NULL al descargar el mediaId: {}",
-                            mediaId);
-                }
-            } else {
+                reservation.setPaymentReceiptUrl(receiptUrl);
+                // Cambiamos el estado de forma canónica para renderizar celeste en agenda
+                reservation.setStatus("PAYMENT_RECEIVED");
+                reservationRepository.saveAndFlush(reservation);
+                log.info("[Bot Webhook] Comprobante enlazado con éxito para código: {}",
+                        reservation.getReservationCode());
+            } else if (pendingReservation.isEmpty()) {
                 log.warn("[Bot Webhook] No se encontró ninguna reserva en PENDING_PAYMENT para el teléfono: {}",
                         phoneNumber);
             }
@@ -60,6 +70,7 @@ public class ProcessPaymentReceiptUseCase {
             log.warn("[Bot Webhook] No existe ningún pasajero registrado con el teléfono: {}",
                     phoneNumber);
         }
+
         messaging.sendText(phoneNumber,
                 "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");
     }
