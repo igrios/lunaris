@@ -51,7 +51,6 @@
     <div class="container-fluid split-container mt-3">
         <div class="row h-100 px-2">
             
-            <!-- COLUMNA IZQUIERDA: PANEL DE CHAT EN VIVO -->
             <div class="col-md-6 mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-2 px-1">
                     <h5 class="fw-bold mb-0">Chat en Vivo: <span class="text-primary" th:text="${sessionPhone ?: phone}"></span></h5>
@@ -79,7 +78,6 @@
                 </div>
             </div>
 
-            <!-- COLUMNA DERECHA: CONSOLA DE CARGA MANUAL HOMOLOGADA CON EL BOT -->
             <div class="col-md-6 scrollable-panel pb-5">
                 <div class="card shadow mb-4" style="border-radius: 12px;">
                     <div class="card-body p-4">
@@ -96,13 +94,12 @@
 
                         <hr class="text-muted my-4">
 
-                        <!-- ⚠️ CORREGIDO: Formulario limpio sin enctype (ya no se suben archivos locales) -->
-                        <form th:action="@{/admin/bot/monitor/cargar-reserva}" method="post">
+                        <form id="formReservaManual" th:action="@{/admin/bot/monitor/cargar-reserva}" method="post">
 
-                            <!-- Campo oculto para inyectar automáticamente el teléfono de la sesión de chat -->
                             <input type="hidden" name="phone" th:value="${sessionPhone ?: phone}">
 
-                            <!-- 👤 SECCIÓN NUEVA: DATOS DEL PASAJERO -->
+                            <input type="hidden" id="chatReceiptUrl" name="chatReceiptUrl" value="null">
+
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">👤 Datos del Pasajero</h4>
                             <div class="row g-3 mb-4">
                                 <div class="col-6">
@@ -117,7 +114,6 @@
 
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">📍 Datos del Viaje</h4>
 
-                            <!-- Origen y Destino -->
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
@@ -129,7 +125,6 @@
                                 </div>
                             </div>
 
-                            <!-- Dirección de Retiro -->
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">Dirección de Retiro</label>
                                 <div class="input-group">
@@ -138,7 +133,6 @@
                                 </div>
                             </div>
 
-                            <!-- Cantidad de Asientos y Fecha de Ida -->
                             <div class="row g-3 mb-3">
                                 <div class="col-5">
                                     <label class="form-label small fw-bold text-dark">Cantidad Asientos</label>
@@ -150,7 +144,6 @@
                                 </div>
                             </div>
 
-                            <!-- Switch de Ida y Vuelta -->
                             <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
                                 <input class="form-check-input ms-1 me-2" type="checkbox" name="isRoundTrip" id="isRoundTripCheck" value="true">
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
@@ -161,7 +154,6 @@
                                 </div>
                             </div>
 
-                            <!-- 💰 RECUADRO DINÁMICO DE PREVISUALIZACIÓN DE COSTOS -->
                             <div class="p-3 mb-3 rounded-3" style="background-color: #e8f0fe; border: 1px solid #b3cefb; font-size: 0.9rem;">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-secondary fw-semibold">Código de Operación Previsto:</span>
@@ -173,7 +165,6 @@
                                 </div>
                             </div>
 
-                            <!-- Botón de Envío -->
                             <div class="d-flex justify-content-end pt-2 border-top">
                                 <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
                                     <i class="bi bi-cloud-arrow-up-fill me-1"></i> Guardar Reserva e Impactar Chat ✅
@@ -188,7 +179,6 @@
         </div>
     </div>
 
-    <!-- SCRIPTS EN VIVO (Mantenemos tus WebSockets e inyectamos la escucha de tarifas) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script th:inline="javascript">
@@ -271,7 +261,6 @@
             const destinoVal = dest.value.trim();
             const asientosVal = asie.value;
 
-            // Gatilla el cálculo automático cuando el operador escribe al menos 3 letras de cada tramo
             if (origenVal.length >= 3 && destinoVal.length >= 3) {
                 fetch(`/admin/bot/monitor/cotizar?pickupLocality=${encodeURIComponent(origenVal)}&destination=${encodeURIComponent(destinoVal)}&passengerCount=${asientosVal}`)
                     .then(response => response.json())
@@ -289,6 +278,24 @@
             asie.addEventListener('input', actualizarCotizacion);
             asie.addEventListener('change', actualizarCotizacion);
         }
+
+        // 📸 INTERCEPTOR JAVASCRIPT: Captura la URL del comprobante de la pantalla antes del envío
+        document.getElementById('formReservaManual').addEventListener('submit', function(e) {
+            const chatContainer = document.getElementById('chatContainer');
+            if (!chatContainer) return;
+
+            // Busca todas las imágenes cargadas por WebSockets o por historial en el chat izquierdo
+            const imagenes = chatContainer.querySelectorAll('img');
+            
+            if (imagenes.length > 0) {
+                // Selecciona el src de la última imagen visible del chat
+                const ultimaImagenUrl = imagenes[imagenes.length - 1].src;
+                console.log("Comprobante capturado en vivo:", ultimaImagenUrl);
+                
+                // Lo inyecta en el campo oculto del formulario
+                document.getElementById('chatReceiptUrl').value = ultimaImagenUrl;
+            }
+        });
     </script>
 </body>
 </html>

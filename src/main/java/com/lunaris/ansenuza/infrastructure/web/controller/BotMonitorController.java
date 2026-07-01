@@ -103,8 +103,7 @@ public class BotMonitorController {
         }
     }
 
-    // 🚀 CARGA MANUAL INTELIGENTE: Vincula datos tipeados y recupera la foto real del chat
-    @PostMapping("/monitor/cargar-reserva")
+    /@PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
             @RequestParam("firstName") String firstName, 
@@ -115,10 +114,10 @@ public class BotMonitorController {
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             @RequestParam(value = "isRoundTrip", defaultValue = "false") boolean isRoundTrip,
+            @RequestParam(value = "chatReceiptUrl", required = false, defaultValue = "null") String chatReceiptUrl, // 👈 CAPTURA EL PARÁMETRO DE JAVASCRIPT
             RedirectAttributes redirectAttributes) {
 
         try {
-            // 1. Resolver o registrar Pasajero usando nombre real ingresado por Martín
             Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
                 Passenger newP = new Passenger();
                 newP.setPhone(phone);
@@ -126,17 +125,11 @@ public class BotMonitorController {
             });
             
             passenger.setFirstName(firstName.trim());
-            passenger.setLastName(lastName.trim() + " (Manual)"); // Distinción visual en la lista de pasajeros
+            passenger.setLastName(lastName.trim() + " (Manual)"); 
             passengerRepository.save(passenger);
 
-  
-      // 2. 📸 RECUPERACIÓN AUTOMÁTICA DEL COMPROBANTE REAL DEL CHAT
-            String urlComprobante = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
-                    .filter(m -> m != null && !m.isFromOperator()) // 👈 Filtramos que el objeto 'm' no sea null primero
-                    .map(m -> m.getMessageText()) // 👈 Cambiamos la referencia por lambda para evitar el warning del IDE
-                    .filter(text -> text != null && (text.contains("http://") || text.contains("https://") || text.contains("res.cloudinary.com")))
-                    .reduce((first, second) -> second)
-                    .orElse("null");
+            // 🔥 ASIGNACIÓN DIRECTA: Si Javascript encontró la foto, la usamos; de lo contrario queda null
+            String urlComprobante = chatReceiptUrl;
 
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
             String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
@@ -145,8 +138,8 @@ public class BotMonitorController {
             java.math.BigDecimal montoTramo =
                     tarifaService.calculateReservationAmount(pickupLocality, destination, isRoundTrip, passengerCount);
 
-            // 3. Persistir Ida como PENDING_VERIFICATION vinculando la foto del chat
-            Reservation ida = new Reservation();
+            // Persistir Ida
+            Reservation  ida = new Reservation();
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
             ida.setPickupLocality(pickupLocality);
@@ -154,18 +147,18 @@ public class BotMonitorController {
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
             ida.setAmount(montoTramo);
-            ida.setPaymentReceiptUrl(urlComprobante); // Guardado seguro
+            ida.setPaymentReceiptUrl(urlComprobante); // 👈 Asigna la URL capturada del chat
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
             ida.setReservationCode(codigoBase + "-IDA");
-            ida.setNotes("Cargado automáticamente por Operador desde Monitor. Comprobante enlazado.");
+            ida.setNotes("Cargado por Operador desde Monitor. Comprobante enlazado desde pantalla.");
 
             reservationRepository.saveAndFlush(ida);
 
-            // 4. Si es combo (Ida y Vuelta), abrir tramo de Vuelta Centinela 2099
+            // Si es combo, abrir tramo de Vuelta Centinela 2099
             if (isRoundTrip) {
-                Reservation vuelta = new Reservation();
+                Reservation  vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
                 vuelta.setTravelDate(LocalDate.of(2099, 12, 31));
                 vuelta.setPickupLocality(destination);
@@ -173,18 +166,18 @@ public class BotMonitorController {
                 vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
                 vuelta.setAmount(montoTramo);
-                vuelta.setPaymentReceiptUrl(urlComprobante); // Enlazado también en la vuelta
+                vuelta.setPaymentReceiptUrl(urlComprobante); // Vincula la misma foto
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
                 vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
-                vuelta.setNotes("Vuelta abierta inicializada automáticamente por Operador.");
+                vuelta.setNotes("Vuelta abierta inicializada por Operador.");
 
                 reservationRepository.saveAndFlush(vuelta);
             }
 
-            // 5. RESPUESTA AL PASAJERO: Mensaje cordial confirmando la recepción del comprobante
+            // WhatsApp de confirmación
             String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
                     + "*Detalles de tu viaje registrado:*\n"
                     + "*Pasajero:* " + firstName + " " + lastName + "\n"
@@ -196,16 +189,13 @@ public class BotMonitorController {
 
             whatsAppService.sendMessage(phone, textoConfirmacion);
 
-            redirectAttributes.addFlashAttribute("successMessage",
-                    "¡Reserva registrada con éxito! El comprobante del chat fue enlazado.");
+            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito y comprobante enlazado!");
 
         } catch (Exception e) {
             log.error("[Carga Manual] Falló el flujo asistido: ", e);
-            redirectAttributes.addFlashAttribute("errorMessage",
-                    "Error al procesar carga: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar carga: " + e.getMessage());
         }
 
-        // Retorna a la sala de chat activa con el cliente
         return "redirect:/admin/chat/" + phone;
     }
 }
