@@ -2,281 +2,211 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Sala de Chat Dividida - Lunaris</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" crossorigin="anonymous">
+    <title>Sala de Chat - Lunaris Ansenuza</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { 
-            background-color: #dee2e6; 
-            font-family: system-ui, -apple-system, sans-serif; 
-            overflow: hidden; /* Evita el scroll global */
-        }
-        /* Contenedor principal que se adapta al alto de la pantalla restante */
-        .split-container {
-            height: calc(100vh - 56px);
-        }
-        /* Paneles con scroll independiente */
-        .scrollable-panel {
-            height: 100%;
+        .chat-container {
+            height: calc(100vh - 160px);
             overflow-y: auto;
         }
-        /* Tus estilos originales exactos para las burbujas */
-        .chat-card { height: 80vh; border-radius: 12px; }
-        .chat-messages { height: 68vh; overflow-y: auto; background-color: #f8f9fa; padding: 20px; border-radius: 8px 8px 0 0; }
-        .burbuja { max-width: 70%; padding: 10px 15px; border-radius: 15px; margin-bottom: 10px; position: relative; font-size: 0.95rem; }
-        .mensaje-operador { background-color: #0d6efd; color: white; border-bottom-right-radius: 2px; }
-        .mensaje-cliente { background-color: #e9ecef; color: #212529; border-bottom-left-radius: 2px; }
-        .time-stamp { font-size: 0.75rem; opacity: 0.75; display: block; margin-top: 4px; text-align: right; }
-        
-        .card { border: none; }
-        .btn-agenda { background-color: #6f42c1; color: white; }
-        .btn-agenda:hover { background-color: #59359a; color: white; }
+        .bubble-client {
+            background-color: #f1f0f0;
+            border-radius: 15px 15px 15px 0px;
+        }
+        .bubble-operator {
+            background-color: #d9fdd3;
+            border-radius: 15px 15px 0px 15px;
+        }
     </style>
 </head>
 <body class="bg-light">
 
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-        <div class="container-fluid px-4">
-            <a class="navbar-brand fw-bold" th:href="@{/dashboard}">🚐 Lunaris Ansenuza</a>
-            <div class="navbar-nav ms-auto gap-2">
-                <a th:href="@{/admin/bot/monitor}" class="btn btn-warning btn-sm fw-bold text-dark shadow-sm">
-                    🎛️ Torre de Control (Monitor)
-                </a>
-                <a th:href="@{/dashboard}" class="btn btn-outline-light btn-sm">🏠 Inicio Panel</a>
-                <a th:href="@{/agenda}" class="btn btn-agenda btn-sm fw-bold">📅 Calendario Mensual</a>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="/admin/bot/monitor">🚐 LUNARIS ANSENUZA</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link bg-secondary text-white rounded px-3" href="/admin/bot/monitor">⬅️ Volver al Monitor</a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid split-container mt-3">
-        <div class="row h-100 px-2">
-            
-            <!-- COLUMNA IZQUIERDA: PANEL DE CHAT EN VIVO -->
-            <div class="col-md-6 mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-2 px-1">
-                    <h5 class="fw-bold mb-0">Chat en Vivo: <span class="text-primary" th:text="${sessionPhone ?: phone}"></span></h5>
-                </div>
+    <div class="container-fluid px-4">
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
 
-                <div class="card chat-card border-0 shadow-sm overflow-hidden">
-                    <div id="chatContainer" class="chat-messages d-flex flex-column">
-                        <div th:each="m : ${historial}" th:class="${m.fromOperator} ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100'">
-                            <div class="burbuja d-inline-block text-start" th:classappend="${m.fromOperator} ? 'mensaje-operador' : 'mensaje-cliente'">
-                                <span th:text="${m.messageText}"></span>
-                                <small class="time-stamp" th:text="${#temporals.format(m.timestamp, 'HH:mm')}"></small>
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                        <div>
+                            <h4 class="mb-0 fw-bold text-dark" th:text="${sesion.passengerName != null ? sesion.passengerName : 'Pasajero Sin Nombre'}">Chat</h4>
+                            <small class="text-muted" th:text="'📱 ' + ${sesion.phoneNumber}">WhatsApp</small>
+                        </div>
+                        <span th:class th:text="${sesion.botPaused ? 'badge bg-danger fs-6' : 'badge bg-success fs-6'}">
+                            Estado Bot
+                        </span>
+                    </div>
+
+                    <div class="card-body chat-container bg-light p-4" id="chatContainer">
+                        <div th:each="msg : ${historial}" class="d-flex mb-3" 
+                             th:classappend="${msg.fromOperator ? 'justify-content-end' : 'justify-content-start'}">
+                            
+                            <div class="p-3 shadow-sm max-w-75" 
+                                 th:classappend="${msg.fromOperator ? 'bubble-operator text-dark' : 'bubble-client text-dark'}"
+                                 style="max-width: 75%;">
+                                
+                                <div th:if="${msg.messageText != null && (#strings.contains(msg.messageText, 'res.cloudinary.com') || #strings.contains(msg.messageText, 'http'))}" class="mb-2">
+                                    <img th:src="${msg.messageText}" class="img-fluid rounded border mb-1" style="max-height: 200px;" alt="Comprobante" />
+                                    <br/>
+                                    <a th:href="${msg.messageText}" target="_blank" class="btn btn-sm btn-dark w-100 mt-1">👁️ Ver Imagen Completa</a>
+                                </div>
+
+                                <p class="mb-1 text-break fw-semibold" th:text="${msg.messageText}">Contenido...</p>
+                                <small class="text-muted d-block text-end" style="font-size: 0.75rem;" 
+                                       th:text="${#temporals.format(msg.timestamp, 'dd/MM HH:mm')}">12/05 14:20</small>
                             </div>
                         </div>
                     </div>
 
                     <div class="card-footer bg-white border-top p-3">
-                        <div class="input-group">
-                            <input type="text" id="messageInput" class="form-control" placeholder="Escribí un mensaje de texto aquí..." autocomplete="off" 
-                                   onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enviarMensajeHumano(); }">
-                            <button type="button" id="btnEnviar" class="btn btn-primary px-4" onclick="enviarMensajeHumano()">
-                                <i class="bi bi-send-fill"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- COLUMNA DERECHA: CONSOLA DE CARGA MANUAL HOMOLOGADA CON EL BOT -->
-            <div class="col-md-6 scrollable-panel pb-5">
-                <div class="card shadow mb-4" style="border-radius: 12px;">
-                    <div class="card-body p-4">
-
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="p-2 bg-primary bg-opacity-10 rounded-3 me-2 text-primary">
-                                <i class="bi bi-robot fs-4"></i>
-                            </div>
-                            <div>
-                                <h3 class="fw-bold text-dark mb-0">Nueva Reserva Asistida</h3>
-                                <small class="text-muted">Inserta la reserva directo en el flujo de verificación y manda el comprobante</small>
-                            </div>
-                        </div>
-
-                        <hr class="text-muted my-4">
-
-                        <!-- Formulario Multipart para subida binaria de imágenes -->
-                        <form th:action="@{/admin/bot/monitor/cargar-reserva}" method="post" enctype="multipart/form-data">
-
-                            <!-- Campo oculto para inyectar automáticamente el teléfono de la sesión de chat -->
-                            <input type="hidden" name="phone" th:value="${sessionPhone ?: phone}">
-
-                            <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">📍 Datos del Viaje</h4>
-
-                            <!-- Origen y Destino -->
-                            <div class="row g-3 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
-                                    <input type="text" id="inputOrigen" name="pickupLocality" class="form-control" placeholder="Ej: Morteros" required>
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
-                                    <input type="text" id="inputDestino" name="destination" class="form-control" placeholder="Ej: Córdoba" required>
-                                </div>
-                            </div>
-
-                            <!-- Dirección de Retiro -->
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-dark">Dirección de Retiro</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light"><i class="bi bi-geo-alt text-muted"></i></span>
-                                    <input type="text" name="pickupAddress" class="form-control" placeholder="Ej: Bv. Belgrano 450" required>
-                                </div>
-                            </div>
-
-                            <!-- Cantidad de Asientos y Fecha de Ida -->
-                            <div class="row g-3 mb-3">
-                                <div class="col-5">
-                                    <label class="form-label small fw-bold text-dark">Cantidad Asientos</label>
-                                    <input type="number" id="inputAsientos" name="passengerCount" class="form-control fw-bold text-center border-primary" value="1" min="1" max="4" required>
-                                </div>
-                                <div class="col-7">
-                                    <label class="form-label small fw-bold text-dark">Fecha de Viaje (Ida)</label>
-                                    <input type="date" name="travelDate" class="form-control fw-bold" required>
-                                </div>
-                            </div>
-
-                            <!-- Switch de Ida y Vuelta -->
-                            <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="isRoundTrip" id="isRoundTripCheck">
-                                <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
-                                    <i class="bi bi-arrow-left-right"></i> ¿Es pasaje de Ida y Vuelta?
-                                </label>
-                                <div class="text-muted xtra-small ms-4" style="font-size: 0.75rem;">
-                                    Esto generará la Vuelta Abierta automática (fecha centinela 2099) en el sistema.
-                                </div>
-                            </div>
-
-                            <!-- 💰 RECUADRO DINÁMICO DE PREVISUALIZACIÓN DE COSTOS -->
-                            <div class="p-3 mb-3 rounded-3" style="background-color: #e8f0fe; border: 1px solid #b3cefb; font-size: 0.9rem;">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="text-secondary fw-semibold">Código de Operación Previsto:</span>
-                                    <span id="previewCodigo" class="fw-bold text-primary">---</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="text-secondary fw-semibold">Monto Calculado:</span>
-                                    <span class="fs-5 fw-bold text-success">$<span id="previewMonto">0.00</span></span>
-                                </div>
-                            </div>
-
-                          
-
-                            <!-- Botón de Envío -->
-                            <div class="d-flex justify-content-end pt-2 border-top">
-                                <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
-                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Guardar Reserva e Impactar Chat ✅
-                                </button>
-                            </div>
-
+                        <form th:action="@{/admin/chat/enviar}" method="POST" class="input-group">
+                            <input type="hidden" name="phone" th:value="${sesion.phoneNumber}" />
+                            <input type="text" name="mensaje" class="form-control" placeholder="Escribe un mensaje de respuesta manual aquí..." required />
+                            <button type="submit" class="btn btn-success fw-bold">Enviar 📝</button>
                         </form>
                     </div>
                 </div>
             </div>
 
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white py-3 border-bottom">
+                        <h5 class="mb-0 fw-bold text-primary d-flex align-items-center">
+                            <span class="me-2">🤖</span> Nueva Reserva Asistida
+                        </h5>
+                        <small class="text-muted">Guarda el viaje y el sistema enlazará automáticamente el último comprobante recibido en el chat.</small>
+                    </div>
+                    
+                    <div class="card-body p-4">
+                        <form th:action="@{/admin/bot/monitor/cargar-reserva}" method="POST">
+                            
+                            <input type="hidden" name="phone" th:value="${sesion.phoneNumber}" />
+
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Nombre</label>
+                                    <input type="text" name="firstName" class="form-control" placeholder="Ej: Juan" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Apellido</label>
+                                    <input type="text" name="lastName" class="form-control" placeholder="Ej: Pérez" required />
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Origen</label>
+                                    <input type="text" id="pickupLocality" name="pickupLocality" class="form-control" placeholder="Ej: Morteros" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Destino</label>
+                                    <input type="text" id="destination" name="destination" class="form-control" placeholder="Ej: Córdoba" required />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Dirección de Retiro</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light text-muted">📍</span>
+                                    <input type="text" name="pickupAddress" class="form-control" placeholder="Ej: Bv. Belgrano 450 o Sanatorio" required />
+                                </div>
+                            </div>
+
+                            <div class="row mb-4">
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Asientos</label>
+                                    <input type="number" id="passengerCount" name="passengerCount" class="form-control" min="1" value="1" required />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small fw-bold text-secondary text-uppercase mb-1">Fecha (Ida)</label>
+                                    <input type="date" name="travelDate" class="form-control" required />
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-light rounded-3 mb-4 border">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="isRoundTrip" name="isRoundTrip" value="true" />
+                                    <label class="form-check-label small fw-bold text-primary mb-0" for="isRoundTrip" style="cursor:pointer;">
+                                        🔄 ¿Compró pasaje de Ida y Vuelta?
+                                    </label>
+                                </div>
+                                <small class="text-muted d-block mt-1" style="font-size: 0.8rem;">
+                                    Al activarlo, se dejará abierta su vuelta automática al año 2099 esperando reconfirmación.
+                                </small>
+                            </div>
+
+                            <div class="p-3 mb-4 rounded-3 border border-primary-subtle" style="background-color: #f0f7ff !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small fw-bold text-secondary text-uppercase" style="font-size: 0.75rem;">Código Previsto:</span>
+                                    <span id="previewCodigo" class="fw-bold text-dark text-monospace">---</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold text-secondary text-uppercase" style="font-size: 0.75rem;">Monto Cotizado:</span>
+                                    <span id="previewMonto" class="fs-4 fw-bold text-success">$0.00</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-bold fs-5 shadow-sm">
+                                ✅ Guardar Reserva e Impactar Chat
+                            </button>
+                            
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- SCRIPTS EN VIVO (Mantenemos tus WebSockets e inyectamos la escucha de tarifas) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-    <script th:inline="javascript">
-        const phone = /*[[${phone ?: sessionPhone}]]*/ null;
-        const seguroPhone = phone || window.location.pathname.match(/\/chat\/(\d+)/)?.[1];
-        console.log("Terminal listo en tiempo real para el número:", seguroPhone);
-
-        const socket = new SockJS('/chat-websocket');
-        const stomp = Stomp.over(socket);
-
-        stomp.connect({}, () => {
-            console.log("WebSocket Conectado Correctamente");
-            if (seguroPhone) {
-                stomp.subscribe('/topic/messages/' + seguroPhone, (msg) => {
-                    const nuevoMensaje = JSON.parse(msg.body);
-                    dibujarBurbujaMensaje(nuevoMensaje);
-                });
-            }
-        });
-
-        function enviarMensajeHumano() {
-            const input = document.getElementById('messageInput');
-            if (!input) return;
-
-            const texto = input.value.trim();
-            if (texto === '' || !seguroPhone) return;
-
-            const payload = {
-                phoneNumber: seguroPhone,
-                messageText: texto,
-                fromOperator: true,
-                timestamp: new Date().toISOString()
-            };
-
-            stomp.send('/app/chat.send/' + seguroPhone, {}, JSON.stringify(payload));
-            input.value = '';
-        }
-
-        function dibujarBurbujaMensaje(msg) {
-            const chatContainer = document.getElementById('chatContainer');
-            if (!chatContainer) return;
-
-            const isMe = msg.fromOperator;
-            const alineacionWrapper = isMe ? 'align-self-end text-end w-100' : 'align-self-start text-start w-100';
-            const claseBurbuja = isMe ? 'mensaje-operador' : 'mensaje-cliente';
-            
-            let horaStr = "00:00";
-            if (msg.timestamp) {
-                const dateObj = new Date(msg.timestamp);
-                horaStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else {
-                horaStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-
-            const estructuraHtml = `
-                <div class="${alineacionWrapper}">
-                    <div class="burbuja d-inline-block text-start ${claseBurbuja}">
-                        <span>${msg.messageText}</span>
-                        <small class="time-stamp">${horaStr}</small>
-                    </div>
-                </div>
-            `;
-
-            chatContainer.insertAdjacentHTML('beforeend', estructuraHtml);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Hacer scroll automático al fondo del chat al entrar
         window.onload = function() {
-            const chatContainer = document.getElementById('chatContainer');
-            if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
+            var objDiv = document.getElementById("chatContainer");
+            if(objDiv) objDiv.scrollTop = objDiv.scrollHeight;
         };
 
-        // ⚡ LÓGICA DE ESCUCHA Y COTIZACIÓN ASÍNCRONA PARA EL FORMULARIO
-        const orig = document.getElementById('inputOrigen');
-        const dest = document.getElementById('inputDestino');
-        const asie = document.getElementById('inputAsientos');
+        // Escuchadores dinámicos para refrescar la cotización del viaje en vivo
+        const origenInput = document.getElementById('pickupLocality');
+        const destinoInput = document.getElementById('destination');
+        const asientosInput = document.getElementById('passengerCount');
 
-        function actualizarCotizacion() {
-            const origenVal = orig.value.trim();
-            const destinoVal = dest.value.trim();
-            const asientosVal = asie.value;
+        function actualizarCotizacionManual() {
+            const o = origenInput.value;
+            const d = destinoInput.value;
+            const a = asientosInput.value;
 
-            // Gatilla el cálculo automático cuando el operador escribe al menos 3 letras de cada tramo
-            if (origenVal.length >= 3 && destinoVal.length >= 3) {
-                fetch(`/admin/bot/monitor/cotizar?pickupLocality=${encodeURIComponent(origenVal)}&destination=${encodeURIComponent(destinoVal)}&passengerCount=${asientosVal}`)
-                    .then(response => response.json())
+            if (o.length >= 3 && d.length >= 3) {
+                fetch(`/admin/bot/monitor/cotizar?pickupLocality=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}&passengerCount=${a}`)
+                    .then(res => res.json())
                     .then(data => {
-                        document.getElementById('previewMonto').innerText = parseFloat(data.monto).toFixed(2);
+                        document.getElementById('previewMonto').innerText = '$' + parseFloat(data.monto).toFixed(2);
                         document.getElementById('previewCodigo').innerText = data.codigo;
                     })
-                    .catch(err => console.error("Error al cotizar tramo manual:", err));
+                    .catch(err => console.error("Error al cotizar tramo: ", err));
             }
         }
 
-        if (orig && dest && asie) {
-            orig.addEventListener('input', actualizarCotizacion);
-            dest.addEventListener('input', actualizarCotizacion);
-            asie.addEventListener('input', actualizarCotizacion);
-            asie.addEventListener('change', actualizarCotizacion);
+        if(origenInput && destinoInput && asientosInput) {
+            origenInput.addEventListener('input', actualizarCotizacionManual);
+            destinoInput.addEventListener('input', actualizarCotizacionManual);
+            asientosInput.addEventListener('change', actualizarCotizacionManual);
         }
     </script>
 </body>
