@@ -27,6 +27,7 @@ import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
+import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,6 +46,7 @@ public class BotMonitorController {
     private final WhatsAppService whatsAppService;
     private final PricingAndScheduleService tarifaService;
     private final ReceiptStoragePort cloudinaryService;
+    private final ChatMessageRepository messageRepository;
 
     // 🖥️ Muestra la lista de conversaciones
     @GetMapping("/monitor")
