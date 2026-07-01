@@ -18,17 +18,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
 import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
-
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -102,7 +100,7 @@ public class BotMonitorController {
         }
     }
 
-    // 🚀 ACCIÓN PROCESADORA: Guarda la reserva "A Confirmar" y la manda por WhatsApp
+   // 🚀 ACCIÓN PROCESADORA CORREGIDA: Guarda el comprobante del cliente y responde texto puro de confirmación
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(@RequestParam("phone") String phone,
             @RequestParam("pickupLocality") String pickupLocality,
@@ -125,7 +123,7 @@ public class BotMonitorController {
                 return passengerRepository.save(newP);
             });
 
-            // 2. Indexar archivo en Cloudinary
+            // 2. Indexar archivo en Cloudinary (El comprobante que mandó el pasajero)
             String urlComprobante = "null";
             if (comprobante != null && !comprobante.isEmpty()) {
                 urlComprobante = cloudinaryService.uploadFile(comprobante);
@@ -138,7 +136,7 @@ public class BotMonitorController {
             java.math.BigDecimal montoTramo =
                     tarifaService.calculateReservationAmount(pickupLocality, destination, isRoundTrip, passengerCount);
 
-            // 3. Persistir Ida como PENDING_VERIFICATION
+            // 3. Persistir Ida como PENDING_VERIFICATION con la foto del comprobante
             Reservation ida = new Reservation();
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
@@ -147,7 +145,7 @@ public class BotMonitorController {
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
             ida.setAmount(montoTramo);
-            ida.setPaymentReceiptUrl(urlComprobante); // 👈 CORREGIDO: Usando paymentReceiptUrl real de tu base de datos
+            ida.setPaymentReceiptUrl(urlComprobante); // Guardado para auditoría de Martín
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
@@ -166,7 +164,7 @@ public class BotMonitorController {
                 vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
                 vuelta.setAmount(montoTramo);
-                vuelta.setPaymentReceiptUrl(urlComprobante); // 👈 CORREGIDO: Sincronizado en la vuelta también
+                vuelta.setPaymentReceiptUrl(urlComprobante);
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
@@ -177,20 +175,20 @@ public class BotMonitorController {
                 reservationRepository.saveAndFlush(vuelta);
             }
 
-            // 5. Enviar comprobante e información directo al chat por la API del Bot
-            if (!"null".equals(urlComprobante)) {
-                String textoConfirmacion =
-                        "¡Hola! El operador cargó tu reserva manualmente con éxito. 📝\n\n"
-                                + "*Código:* " + codigoBase + "\n" + "*Viaje:* " + pickupLocality
-                                + " ➡️ " + destination + "\n" + "*Fecha:* " + travelDate.toString()
-                                + "\n" + "*Asientos:* " + passengerCount + "\n\n"
-                                + "Adjuntamos el comprobante cargado. Queda registrado en nuestro sistema *pendiente de verificación*. ¡Muchas gracias!";
+            // 🔥 5. RESPUESTA AL PASAJERO: Texto puro homologado, sin reenviar la imagen
+            String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
+                    + "*Detalles de tu viaje registrado:*\n"
+                    + "*Código:* " + codigoBase + "\n" 
+                    + "*Tramo:* " + pickupLocality + " ➡️ " + destination + "\n" 
+                    + "*Fecha:* " + travelDate.toString() + "\n" 
+                    + "*Asientos:* " + passengerCount + "\n\n"
+                    + "En cuanto validemos la transferencia en el banco, el sistema te enviará la confirmación definitiva.";
 
-                whatsAppService.sendMediaMessage(phone, "image", urlComprobante, textoConfirmacion);
-            }
+            // 💬 Usamos tu método clásico de envío de texto puro (sendMessage o el que use tu bot)
+            whatsAppService.sendMessage(phone, textoConfirmacion);
 
             redirectAttributes.addFlashAttribute("successMessage",
-                    "¡Reserva registrada y comprobante enviado al cliente!");
+                    "¡Reserva registrada y mensaje de verificación enviado al cliente!");
 
         } catch (Exception e) {
             log.error("[Carga Manual] Falló el flujo asistido: ", e);
@@ -198,7 +196,6 @@ public class BotMonitorController {
                     "Error al procesar carga: " + e.getMessage());
         }
 
-        // Regresa quirúrgicamente a la misma sala de chat del cliente
         return "redirect:/admin/chat/" + phone;
     }
 }
