@@ -81,7 +81,13 @@
     <groupId>com.cloudinary</groupId>
     <artifactId>cloudinary-http5</artifactId>
     <version>2.0.0</version>
+		
 </dependency>
+<!-- Motor de Seguridad y Roles para la Torre de Control -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
 
 		<dependency>
     <groupId>org.springdoc</groupId>

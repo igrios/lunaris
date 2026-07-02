@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
+import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,8 +17,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>Centraliza las responsabilidades transversales (carga/creación de sesión, reflejo
  * en el chat en vivo, bypass de bot pausado y detección de saludos) y delega cada paso
- * concreto en el {@link ConversationStepHandler} correspondiente, registrado por su
- * {@link ConversationStepHandler#step()}.
+ * concreto en el {@link ConversationStepHandler} correspondiente.
  */
 @Service
 @Slf4j
@@ -26,14 +26,17 @@ public class ConversationOrchestrator {
     private final Map<String, ConversationStepHandler> handlers;
     private final ConversationSessionRepository conversationSessionRepository;
     private final LiveChatPort liveChat;
+    private final OperationControlService operationControlService; // 👈 NUEVO SERVICIO INYECTADO
 
     public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
             ConversationSessionRepository conversationSessionRepository,
-            LiveChatPort liveChat) {
+            LiveChatPort liveChat,
+            OperationControlService operationControlService) { // 👈 AGREGADO AL CONSTRUCTOR
         this.handlers = handlerList.stream()
                 .collect(Collectors.toMap(ConversationStepHandler::step, Function.identity()));
         this.conversationSessionRepository = conversationSessionRepository;
         this.liveChat = liveChat;
+        this.operationControlService = operationControlService;
     }
 
     public void process(IncomingMessage message) {
@@ -44,10 +47,19 @@ public class ConversationOrchestrator {
         String phoneNumber = message.from();
         String body = raw.trim().toLowerCase();
 
+        // ⚖️ LOAD BALANCER: Si la sesión es nueva, le asignamos el operador con menos carga activa
         ConversationSession session = conversationSessionRepository
                 .findByPhoneNumber(phoneNumber).orElseGet(() -> {
+                    // Calculamos cuál operador está más libre mediante el balanceador
+                    String operadorAsignado = operationControlService.getOperatorWithLeastLoad();
+                    log.info("[Load Balancer] Asignando nuevo chat de {} al operador: {}", phoneNumber, operadorAsignado);
+                    
                     ConversationSession newSession = ConversationSession.builder()
-                            .phoneNumber(phoneNumber).currentStep("START").botPaused(false).build();
+                            .phoneNumber(phoneNumber)
+                            .currentStep("START")
+                            .botPaused(false)
+                            // .assignedOperator(operadorAsignado) // 📝 Nota: Descomentar cuando agregues el campo al modelo si lo requerís persistir
+                            .build();
                     return conversationSessionRepository.saveAndFlush(newSession);
                 });
 
@@ -56,6 +68,14 @@ public class ConversationOrchestrator {
 
         // Marcamos actividad en cada mensaje para que el scheduler pueda detectar sesiones abandonadas
         session.setLastInteraction(LocalDateTime.now());
+
+        // 🌙 CONTROL DE JORNADA: Si la jornada humana terminó y el bot había quedado pausado,
+        // lo despausamos automáticamente para que el cliente no quede hablando solo en la nada.
+        if (session.isBotPaused() && !operationControlService.isHumanActionEnabled()) {
+            log.info("[Jornada Finalizada] Forzando despause de bot para {} por cierre de atención humana.", phoneNumber);
+            session.setBotPaused(false);
+        }
+
         conversationSessionRepository.saveAndFlush(session);
 
         if (session.isBotPaused()) {

@@ -10,6 +10,7 @@ import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class MainMenuHandler implements ConversationStepHandler {
     private final ReservationRepository reservationRepository;
     private final ConversationPresenter presenter;
     private final MessagingPort messaging;
+    private final OperationControlService operationControlService; // 👈 INTERRUPTOR INYECTADO
 
     @Override
     public String step() {
@@ -52,6 +54,13 @@ public class MainMenuHandler implements ConversationStepHandler {
             presenter.sendAllLocalitiesList(phoneNumber, ganchoMarketing);
             return;
         } else if ("3".equals(body)) {
+            // 🔥 CONTROL DE JORNADA LABORAL
+            if (!operationControlService.isHumanActionEnabled()) {
+                messaging.sendText(phoneNumber,
+                        "🌙 *Atención Telefónica Finalizada.*\n\nNuestro equipo humano se encuentra descansando en este momento para iniciar las rutas temprano. 🚐💨\n\nTe sugerimos usar las opciones *1* o *2* para registrar tu viaje de forma **100% automática** en menos de un minuto. ¡El bot te guiará solo!");
+                return;
+            }
+
             session.setBotPaused(true);
             conversationSessionRepository.saveAndFlush(session);
 

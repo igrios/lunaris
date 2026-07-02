@@ -5,11 +5,12 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
-import com.lunaris.ansenuza.application.conversation.FechaParser; // Importamos tu nuevo parseador flexible
+import com.lunaris.ansenuza.application.conversation.FechaParser;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
+import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -20,6 +21,7 @@ public class AskDateHandler implements ConversationStepHandler {
 
     private final ConversationSessionRepository conversationSessionRepository;
     private final MessagingPort messaging;
+    private final OperationControlService operationControlService; // 👈 CONTROL DE JORNADA INYECTADO
 
     @Override
     public String step() {
@@ -34,18 +36,25 @@ public class AskDateHandler implements ConversationStepHandler {
         Optional<LocalDate> fechaParseada = FechaParser.parsear(message.body());
 
         if (fechaParseada.isEmpty()) {
-            // Reemplaza el catch original si el formato es un invento del usuario
             messaging.sendText(phoneNumber,
                     "❌ *Formato erróneo.* Acordate de usar números separados por barras, por ejemplo: *1/6/26* o *18/06/2026*");
             return;
         }
 
         LocalDate travelDate = fechaParseada.get();
+        LocalDate hoy = LocalDate.now();
 
         // Mantenemos tu validación de negocio intacta
-        if (travelDate.isBefore(LocalDate.now())) {
+        if (travelDate.isBefore(hoy)) {
             messaging.sendText(phoneNumber,
                     "❌ La fecha no puede ser anterior a hoy. Reingresá:");
+            return;
+        }
+
+        // ⏱️ REGLA DE ORO LOGÍSTICA: Control de corte para el día siguiente (Deadline 19:00 Hs)
+        if (travelDate.equals(hoy.plusDays(1)) && operationControlService.isPastCutoffTime()) {
+            messaging.sendText(phoneNumber,
+                    "⏱️ *Logística Cerrada para Mañana.*\n\nTe recordamos que las reservas para viajar al día siguiente cierran estrictamente a las *19:00 Hs* para poder asignar unidades y garantizar el descanso reglamentario de nuestros choferes. 🚐💤\n\nPor favor, ingresá una fecha alternativa a partir de pasados mañana:");
             return;
         }
         
