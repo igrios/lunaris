@@ -24,6 +24,36 @@
         <span id="connStatus" class="badge bg-warning px-3 py-2">Conectando al Servidor...</span>
     </div>
 
+    <!-- 🌙 NUEVO: INTERRUPTOR GLOBAL DE JORNADA LABORAL EN PANTALLA -->
+    <div class="card card-monitor border-0 mb-4 bg-white">
+        <div class="card-body d-flex justify-content-between align-items-center py-3 px-4">
+            <div class="d-flex align-items-center">
+                <div class="fs-2 me-3">
+                    <i th:classappend="${jornadaActiva} ? 'bi-sun-fill text-warning' : 'bi-moon-stars-fill text-primary'" class="bi"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0">Estado de la Atención Humana</h5>
+                    <p class="text-muted small mb-0">
+                        Controla si la opción "Hablar con operador" se incluye en el menú de WhatsApp y despausa chats al apagarse.
+                    </p>
+                </div>
+            </div>
+            <div>
+                <form th:action="@{/admin/bot/toggle-jornada}" method="post" class="m-0">
+                    <!-- Enviamos el valor inverso al estado actual para conmutar -->
+                    <input type="hidden" name="enabled" th:value="${!jornadaActiva}" />
+                    
+                    <button type="submit" 
+                            th:classappend="${jornadaActiva} ? 'btn-danger' : 'btn-success'" 
+                            class="btn px-4 py-2 fw-bold shadow-sm d-flex align-items-center gap-2">
+                        <i class="bi" th:classappend="${jornadaActiva} ? 'bi-telephone-minus' : 'bi-telephone-plus'"></i>
+                        <span th:text="${jornadaActiva} ? '🔴 APAGAR JORNADA LABORAL' : '🟢 ENCENDER JORNADA LABORAL'"></span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <div class="card card-monitor border-0 overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -52,7 +82,6 @@
                                   th:text="${s.botPaused} ? 'ATENCIÓN HUMANA' : 'AI Activa'"></span>
                         </td>
                         <td class="pe-4 text-end">
-                            <!-- 🎯 MODIFICADO: Cambiado el formulario HTML pesado por un botón con evento JS directo por WebSocket -->
                             <button type="button" class="btn btn-sm px-3" 
                                     th:classappend="${s.botPaused ? 'btn-success' : 'btn-warning'}"
                                     th:onclick="'conmutarEstadoBot(\'' + ${s.id} + '\')'">
@@ -83,14 +112,12 @@
             connBadge.innerText = "Sistema en Vivo";
         }
 
-        // Al recibir la alerta global del sistema, refrescamos los renglones
         stomp.subscribe('/topic/system-alerts', (msg) => {
             console.log("Alerta de sistema recibida, refrescando interfaz...");
             window.location.reload();
         });
     });
 
-    // 🎯 NUEVA FUNCIÓN: Envía la orden de Pausar o Activar directo por el cable del WebSocket
     function conmutarEstadoBot(sessionId) {
         if (!stomp || !stomp.connected) {
             alert("El canal de control en tiempo real no está disponible ahora.");
@@ -98,8 +125,6 @@
         }
 
         console.log("Solicitando cambio de estado del bot para sesión ID:", sessionId);
-        
-        // Despachamos al destino del WebSocket de administración
         stomp.send('/app/bot.toggle', {}, JSON.stringify({ id: sessionId }));
     }
 </script>

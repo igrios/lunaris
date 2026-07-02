@@ -18,19 +18,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
 import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
+import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
-import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
-
-
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,17 +47,30 @@ public class BotMonitorController {
     private final ChatMessageRepository messageRepository; 
     private final WhatsAppService whatsAppService;
     private final PricingAndScheduleService tarifaService;
-    private final ReceiptStoragePort cloudinaryService; // ☁️ Invocado ahora para persistencia permanente
+    private final ReceiptStoragePort cloudinaryService;
+    private final OperationControlService operationControlService; // 👈 INYECTAMOS EL SWITCH DE JORNADA
 
     // 🖥️ Muestra la lista de conversaciones en el monitor
     @GetMapping("/monitor")
     public String getMonitor(Model model) {
         List<ConversationSession> sesiones = sessionRepository.findAll();
         model.addAttribute("sesiones", sesiones);
+        
+        // 🕒 Pasamos el estado del interruptor a la vista HTML de Thymeleaf
+        model.addAttribute("jornadaActiva", operationControlService.isHumanActionEnabled());
+        
         return "admin/bot-monitor";
     }
 
-    // 🛑 Acción para pausar o activar el bot de forma dinámica
+    // 🌙 Acción POST para encender o apagar la jornada de atención humana
+    @PostMapping("/toggle-jornada")
+    public String toggleJornada(@RequestParam("enabled") boolean enabled) {
+        operationControlService.setHumanActionEnabled(enabled);
+        log.info("[Jornada Laboral] Modificada por Administrador. ¿Atención humana activa?: {}", enabled);
+        return "redirect:/admin/bot/monitor";
+    }
+
+    // 🛑 Acción para pausar o activar el bot de forma dinámica por chat individual
     @PostMapping("/toggle-bot")
     public String toggleBot(@RequestParam("id") Long sessionId) {
         ConversationSession session = sessionRepository.findById(sessionId).orElseThrow(
@@ -121,7 +132,6 @@ public class BotMonitorController {
             RedirectAttributes redirectAttributes) {
 
         try {
-            // 1. Resolver o registrar Pasajero usando el nombre tipeado por Martín
             Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
                 Passenger newP = new Passenger();
                 newP.setPhone(phone);
@@ -132,9 +142,6 @@ public class BotMonitorController {
             passenger.setLastName(lastName.trim() + " (Manual)"); 
             passengerRepository.save(passenger);
 
-            // =================================================================
-            // 💰 CÁLCULO DE TARIFAS CON LA REGLA DE MARTÍN
-            // =================================================================
             java.math.BigDecimal montoComboCompleto =
                     tarifaService.calculateReservationAmount(pickupLocality, destination, true, passengerCount);
 
@@ -153,9 +160,6 @@ public class BotMonitorController {
                 montoVuelta = java.math.BigDecimal.ZERO;
             }
 
-            // =================================================================
-            // 📸 RESCATE AUTOMÁTICO DE LA URL ORIGEN DEL COMPROBANTE
-            // =================================================================
             String urlComprobanteCruda = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
                     .filter(m -> m != null && !m.isFromOperator()) 
                     .map(m -> m.getMessageText())
@@ -172,21 +176,16 @@ public class BotMonitorController {
                 urlComprobanteCruda = chatReceiptUrl;
             }
 
-            // =================================================================
-            // ☁️ PASO 2 Y 3: PERSISTENCIA PERMANENTE EN CLOUDINARY
-            // =================================================================
             String urlComprobantePermanente = persistirComprobanteEnCloudinary(urlComprobanteCruda, phone);
 
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
             String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
                     + destination.substring(0, 3).toUpperCase() + "-" + shortId;
 
-            // Notas condicionales según el resultado de la persistencia permanente (Paso 4)
             String notasAuditoria = urlComprobantePermanente != null
                     ? "Cargado por Operador desde Monitor. Comprobante enlazado y persistido en Cloudinary de forma definitiva."
                     : "Cargado por Operador desde Monitor. ⚠️ Comprobante no pudo persistirse automáticamente, requiere carga manual.";
 
-            // 3. Persistir Tramo de Ida como PENDING_VERIFICATION
             Reservation ida = new Reservation();
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
@@ -195,7 +194,7 @@ public class BotMonitorController {
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
             ida.setAmount(montoIda); 
-            ida.setPaymentReceiptUrl(urlComprobantePermanente); // 👈 Guardamos el enlace permanente de Cloudinary
+            ida.setPaymentReceiptUrl(urlComprobantePermanente); 
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(isRoundTrip);
@@ -204,7 +203,6 @@ public class BotMonitorController {
 
             reservationRepository.saveAndFlush(ida);
 
-            // 4. Si es pasaje de Ida y Vuelta, abrir el tramo de Vuelta Abierta Centinela 2099
             if (isRoundTrip) {
                 Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
@@ -214,7 +212,7 @@ public class BotMonitorController {
                 vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
                 vuelta.setAmount(montoVuelta); 
-                vuelta.setPaymentReceiptUrl(urlComprobantePermanente); // 👈 Vincula el mismo archivo subido sin duplicar llamadas
+                vuelta.setPaymentReceiptUrl(urlComprobantePermanente); 
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
@@ -225,7 +223,6 @@ public class BotMonitorController {
                 reservationRepository.saveAndFlush(vuelta);
             }
 
-            // 5. WhatsApp automático de cortesía para notificar al cliente
             String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
                     + "*Detalles de tu viaje registrado:*\n"
                     + "*Pasajero:* " + firstName + " " + lastName + "\n"
@@ -247,9 +244,6 @@ public class BotMonitorController {
         return "redirect:/admin/chat/" + phone;
     }
 
-  // =================================================================
-    // ☁️ MÉTODO AUXILIAR: DESCARGA ASÍNCRONA DESDE WHATSAPP Y SUBIDA A CLOUDINARY
-    // =================================================================
     private String persistirComprobanteEnCloudinary(String urlOrigen, String phone) {
         if (urlOrigen == null || urlOrigen.isBlank() || "null".equalsIgnoreCase(urlOrigen)) {
             return null;
@@ -275,7 +269,6 @@ public class BotMonitorController {
 
             String nombreArchivo = "comprobante-" + phone + "-" + System.currentTimeMillis();
 
-            // 🎯 CREACIÓN ANÓNIMA DE MULTIPARTFILE SIN DEPENDER DE LIBRERÍAS DE TEST
             final byte[] contenido = response.body();
             org.springframework.web.multipart.MultipartFile multipartFile = new org.springframework.web.multipart.MultipartFile() {
                 @Override
@@ -300,7 +293,6 @@ public class BotMonitorController {
                 }
             };
 
-            // 🔥 CORREGIDO: Invocamos tu método real de la interfaz pasando el objeto construido
             return cloudinaryService.uploadFile(multipartFile);
 
         } catch (Exception e) {
