@@ -4,7 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User; // 👈 AGREGÁ ESTA LÍNEA QUE FALTABA
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,6 +21,10 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable()) // Desactivado para facilitar WebSockets sin tokens complejos
             .authorizeHttpRequests(auth -> auth
+                // 🟢 PUENTE LIBRE PARA META (WHATSAPP) Y SWAGGER UI 🚀
+                .requestMatchers("/whatsapp/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+
                 // 🛑 Solo VOS (ADMIN) vas a poder tocar el interruptor global de jornada o configuraciones críticas
                 .requestMatchers("/admin/bot/toggle-bot").hasRole("ADMIN")
                 .requestMatchers("/admin/bot/configurar-jornada").hasRole("ADMIN")
