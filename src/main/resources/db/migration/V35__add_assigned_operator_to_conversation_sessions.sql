@@ -1,0 +1,1 @@
+ALTER TABLE conversation_sessions ADD COLUMN assigned_operator VARCHAR(255);

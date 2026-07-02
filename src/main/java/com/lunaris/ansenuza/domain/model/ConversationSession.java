@@ -45,7 +45,6 @@ public class ConversationSession {
     private Boolean requiresInvoice;
     private String cuil;
 
-    // Nuevos campos para control de acompañantes individuales y plazas
     @Column(name = "passenger_count")
     private Integer passengerCount;
 
@@ -58,21 +57,20 @@ public class ConversationSession {
     @Column(name = "total_companions")
     private Integer totalCompanions;
 
-    // Nuevo campo para retener la fecha de regreso temporalmente
     @Column(name = "return_date")
     private LocalDate returnDate;
 
-
-    // 🆕 Agregamos el flag para mutear/pausar el bot sincronizado con la migración V27
     @Column(name = "bot_paused")
     private boolean botPaused = false;
 
-    // 🕒 Guarda temporalmente el bloque horario elegido (ej: "08:00 AM")
     @Column(name = "schedule_block")
     private String scheduleBlock;
 
-    // 📌 Guarda temporalmente el código base/nexo generado para el summary
     @Column(name = "reservation_code")
     private String reservationCode;
+
+    // ⚖️ 🆕 NUEVO CAMPO: Persistencia del operador asignado por el Load Balancer
+    @Column(name = "assigned_operator")
+    private String assignedOperator;
 
 }

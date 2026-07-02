@@ -58,7 +58,7 @@ public class ConversationOrchestrator {
                             .phoneNumber(phoneNumber)
                             .currentStep("START")
                             .botPaused(false)
-                            // .assignedOperator(operadorAsignado) // 📝 Nota: Descomentar cuando agregues el campo al modelo si lo requerís persistir
+                            .assignedOperator(operadorAsignado) // 👈 ¡ACTIVO! Enlazado a la migración V35
                             .build();
                     return conversationSessionRepository.saveAndFlush(newSession);
                 });

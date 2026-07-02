@@ -1,11 +1,13 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import java.security.Principal; // 👈 NUEVO IMPORT
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors; // 👈 NUEVO IMPORT
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +24,7 @@ import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
-import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
+import com.lunaris.ansenuza.domain.model.service.OperationControlService;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
@@ -48,12 +50,25 @@ public class BotMonitorController {
     private final WhatsAppService whatsAppService;
     private final PricingAndScheduleService tarifaService;
     private final ReceiptStoragePort cloudinaryService;
-    private final OperationControlService operationControlService; // 👈 INYECTAMOS EL SWITCH DE JORNADA
+    private final OperationControlService operationControlService;
 
-    // 🖥️ Muestra la lista de conversaciones en el monitor
+    // 🖥️ Muestra la lista de conversaciones en el monitor filtrada por operador logueado
     @GetMapping("/monitor")
-    public String getMonitor(Model model) {
+    public String getMonitor(Model model, Principal principal) { // 👈 INYECTAMOS EL PRINCIPAL DE SEGURIDAD
         List<ConversationSession> sesiones = sessionRepository.findAll();
+        
+        String username = (principal != null) ? principal.getName() : "anonimo";
+        
+        // ⚖️ FILTRO DE TORRE DE CONTROL: Ignacio ve todo, Martín solo lo suyo
+        if (!"ignacio".equalsIgnoreCase(username)) {
+            log.info("[Monitor] Filtrando chats en tiempo real para el operador: {}", username);
+            sesiones = sesiones.stream()
+                    .filter(s -> s != null && username.equalsIgnoreCase(s.getAssignedOperator()))
+                    .collect(Collectors.toList());
+        } else {
+            log.info("[Monitor] Administrador 'ignacio' accediendo a la vista global de la Torre de Control.");
+        }
+        
         model.addAttribute("sesiones", sesiones);
         
         // 🕒 Pasamos el estado del interruptor a la vista HTML de Thymeleaf
