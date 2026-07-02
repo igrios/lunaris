@@ -13,7 +13,9 @@ import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import lombok.RequiredArgsConstructor;
 
-/** START / saludo: muestra el menú principal, notifica saldo corriente y transiciona a MAIN_MENU. */
+/**
+ * START / saludo: muestra el menú principal, notifica saldo corriente y transiciona a MAIN_MENU.
+ */
 @Component
 @RequiredArgsConstructor
 public class StartHandler implements ConversationStepHandler {
@@ -35,32 +37,34 @@ public class StartHandler implements ConversationStepHandler {
         conversationSessionRepository.saveAndFlush(session);
 
         Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);
-        
+
         StringBuilder saludoBuilder = new StringBuilder();
         if (existingPassenger.isPresent()) {
             Passenger passenger = existingPassenger.get();
-            saludoBuilder.append("¡Hola de nuevo, *").append(passenger.getFirstName()).append("*! 👋\n");
-            
+            saludoBuilder.append("¡Hola de nuevo, *").append(passenger.getFirstName())
+                    .append("*! 👋\n");
+
             // 💰 CUENTA CORRIENTE: Si el pasajero tiene saldo a favor, se lo recordamos al inicio
-            if (passenger.getCurrentBalance() != null && passenger.getCurrentBalance().compareTo(BigDecimal.ZERO) > 0) {
+            if (passenger.getCurrentBalance() != null
+                    && passenger.getCurrentBalance().compareTo(BigDecimal.ZERO) > 0) {
                 saludoBuilder.append("\n💵 *Tenés un saldo a favor de $")
-                             .append(String.format("%,.2f", passenger.getCurrentBalance()))
-                             .append("* en tu cuenta. Se aplicará automáticamente como descuento en tu próxima reserva.\n");
+                        .append(String.format("%,.2f", passenger.getCurrentBalance()))
+                        .append("* en tu cuenta. Se aplicará automáticamente como descuento en tu próxima reserva.\n");
             }
         } else {
             saludoBuilder.append("¡Bienvenido a Lunaris Ansenuza! 🚐\n");
         }
 
-        String menuPrincipal = saludoBuilder.toString() + """
-                
-                ¿En qué te podemos ayudar hoy? Por favor, elegí una opción enviando el número:
+        String menuPrincipal = saludoBuilder.toString()
+                + """
 
-                1️⃣ *Reservar un viaje* (Flujo rápido)
-                2️⃣ *Ver Precios y Cotizar* 💸
-                3️⃣ *Hablar con un operador* (Soporte humano)
-                4️⃣ *📋 Consultar mis Reservas*
-                5️⃣ *❌ Cancelar un viaje*
-                """;
+                        ¿En qué te podemos ayudar hoy? Por favor, elegí una opción enviando el número:
+                        1️⃣ 🚐 *Reservar un viaje* (Flujo rápido)
+                        2️⃣ 💸 *Ver precios y cotizar*
+                        3️⃣ 👨‍💼 *Hablar con un operador* (Soporte humano)
+                        4️⃣ 📋 *Consultar mis reservas*
+                        5️⃣ ❌ *Cancelar un viaje*
+                                        """;
 
         messaging.sendText(phoneNumber, menuPrincipal);
     }
