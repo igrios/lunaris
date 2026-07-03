@@ -1,7 +1,7 @@
 package com.lunaris.ansenuza.domain.model.service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode; // 🛠️ CORRECCIÓN: Importación para el redondeo moderno
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ public class ReservationService {
         // 💳 PASO CRÍTICO DE CUENTA CORRIENTE: Evaluar y aplicar saldo a favor del Pasajero Titular
         Passenger titular = mainReservation.getPassenger();
         BigDecimal saldoDisponible = titular.getCurrentBalance() != null ? titular.getCurrentBalance() : BigDecimal.ZERO;
-        BigDecimal costoTotalFlujo = mainReservation.getAmount(); // Viene con el costo total precalculado
+        BigDecimal costoTotalFlujo = mainReservation.getAmount();
 
         if (saldoDisponible.compareTo(BigDecimal.ZERO) > 0) {
             if (saldoDisponible.compareTo(costoTotalFlujo) >= 0) {
@@ -82,7 +82,6 @@ public class ReservationService {
             mainReservation.setPaymentConfirmedAt(LocalDateTime.now());
         }
         
-        // El monto de esta fila física es su parte proporcional
         mainReservation.setAmount(montoPorTramo);
 
         Reservation savedMain = reservationRepository.save(mainReservation);
@@ -127,14 +126,13 @@ public class ReservationService {
                     .eventType("RESERVATION_CREATED")
                     .description("Tramo de VUELTA registrado bajo el grupo " + codigoBase)
                     .triggeredBy("API_SYSTEM").build();
-            reservationEventRepository.save(eventVuelta);
+                    reservationEventRepository.save(eventVuelta);
         }
 
         return savedReservations;
     }
 
-   //
-    // 🗑️ BAJA LÓGICA ATÓMICA CON BLINDAJE DE SEGURIDAD ANTIFRAUDE (CORREGIDO PARA LAMBDAS)
+    // 🗑️ BAJA LÓGICA ATÓMICA CON BLINDAJE DE SEGURIDAD ANTIFRAUDE (BIDIRECCIONAL IDA / VUELTA)
     @Transactional
     public void cancelReservation(UUID id, String triggeredBy) {
         reservationRepository.findById(id).ifPresent(reservation -> {
@@ -143,16 +141,14 @@ public class ReservationService {
                 Passenger passenger = reservation.getPassenger();
                 BigDecimal saldoActual = passenger.getCurrentBalance() != null ? passenger.getCurrentBalance() : BigDecimal.ZERO;
                 
-                // Usamos un array de un solo elemento o un contenedor para poder mutar el valor dentro del lambda
                 final BigDecimal[] totalReintegro = { BigDecimal.ZERO };
 
                 // 🛡️ FILTRO DE SEGURIDAD: Solo computa dinero si el pago fue verificado o la reserva estaba confirmada
                 boolean pagoRealizado = Boolean.TRUE.equals(reservation.getPaymentVerified()) || "CONFIRMED".equals(reservation.getStatus());
 
-                // 1. Cancelamos la reserva actual
+                // 1. Cancelamos la reserva actual (sea Ida o Vuelta Abierta)
                 reservation.setStatus("CANCELLED");
                 
-                // Solo acumulamos el dinero si pasó el control de pago
                 if (pagoRealizado && reservation.getAmount() != null && reservation.getAmount().compareTo(BigDecimal.ZERO) > 0) {
                     totalReintegro[0] = totalReintegro[0].add(reservation.getAmount());
                 }
@@ -167,37 +163,44 @@ public class ReservationService {
                         .build();
                 reservationEventRepository.save(cancelEvent);
 
-                // 2. 🔄 EFECTO CASCADA: Si es una IDA, damos de baja la VUELTA gemela
+                // 2. 🔄 EFECTO CASCADA BIDIRECCIONAL: Aplica para bajas desde la Ida o desde la Vuelta Abierta en el Panel
                 String codigoActual = reservation.getReservationCode();
-                if (codigoActual != null && codigoActual.endsWith("-IDA")) {
-                    String codigoVueltaBuscado = codigoActual.replace("-IDA", "-VUELTA");
-                    
-                    reservationRepository.findByReservationCode(codigoVueltaBuscado).ifPresent(returnRes -> {
-                        if (!"CANCELLED".equals(returnRes.getStatus())) {
-                            
-                            // Evaluamos la vuelta con el mismo criterio de seguridad
-                            boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified()) || "CONFIRMED".equals(returnRes.getStatus());
-                            
-                            returnRes.setStatus("CANCELLED");
-                            
-                            if (pagoVueltaRealizado && returnRes.getAmount() != null && returnRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                                // Modificamos el contenedor array de forma segura para el compilador
-                                totalReintegro[0] = totalReintegro[0].add(returnRes.getAmount());
-                            }
-                            reservationRepository.saveAndFlush(returnRes);
+                if (codigoActual != null) {
+                    String codigoGemeloBuscado = null;
 
-                            ReservationEvent cancelReturnEvent = ReservationEvent.builder()
-                                    .reservationId(returnRes.getId())
-                                    .eventType("RESERVATION_CANCELLED")
-                                    .description("Cancelación automática de VUELTA por baja de IDA. Pago verificado: " + pagoVueltaRealizado)
-                                    .triggeredBy(triggeredBy)
-                                    .build();
-                            reservationEventRepository.save(cancelReturnEvent);
-                        }
-                    });
+                    if (codigoActual.endsWith("-IDA")) {
+                        codigoGemeloBuscado = codigoActual.replace("-IDA", "-VUELTA");
+                    } else if (codigoActual.endsWith("-VUELTA")) {
+                        // 💡 SOLUCIÓN: Si borran la Vuelta Abierta desde el panel, buscamos y cancelamos su tramo de IDA
+                        codigoGemeloBuscado = codigoActual.replace("-VUELTA", "-IDA");
+                    }
+
+                    if (codigoGemeloBuscado != null) {
+                        reservationRepository.findByReservationCode(codigoGemeloBuscado).ifPresent(gemelaRes -> {
+                            if (!"CANCELLED".equals(gemelaRes.getStatus())) {
+                                
+                                boolean pagoGemeloRealizado = Boolean.TRUE.equals(gemelaRes.getPaymentVerified()) || "CONFIRMED".equals(gemelaRes.getStatus());
+                                
+                                gemelaRes.setStatus("CANCELLED");
+                                
+                                if (pagoGemeloRealizado && gemelaRes.getAmount() != null && gemelaRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                                   totalReintegro[0] = totalReintegro[0].add(gemelaRes.getAmount());
+                                }
+                                reservationRepository.saveAndFlush(gemelaRes);
+
+                                ReservationEvent cancelReturnEvent = ReservationEvent.builder()
+                                        .reservationId(gemelaRes.getId())
+                                        .eventType("RESERVATION_CANCELLED")
+                                        .description("Cancelación automática del tramo gemelo (" + gemelaRes.getReservationCode() + ") por efecto cascada. Pago verificado: " + pagoGemeloRealizado)
+                                        .triggeredBy(triggeredBy)
+                                        .build();
+                                reservationEventRepository.save(cancelReturnEvent);
+                            }
+                        });
+                    }
                 }
 
-                // 3. 💳 ACREDITACIÓN CONTROLADA: Solo infla la billetera si hay dinero real validado
+                // 3. 💳 ACREDITACIÓN CONTROLADA: Sumamos reintegros validados a la cuenta corriente
                 if (totalReintegro[0].compareTo(BigDecimal.ZERO) > 0) {
                     passenger.setCurrentBalance(saldoActual.add(totalReintegro[0]));
                     passengerRepository.saveAndFlush(passenger);
@@ -206,7 +209,6 @@ public class ReservationService {
         });
     }
 
-    
     @Transactional
     public Reservation updateReservation(UUID id, Reservation updatedData, String triggeredBy) {
         return reservationRepository.findById(id).map(reservation -> {
