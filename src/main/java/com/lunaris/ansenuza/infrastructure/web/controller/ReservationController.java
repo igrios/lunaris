@@ -38,23 +38,6 @@ public class ReservationController {
         return repository.findByTravelDate(travelDate);
     }
 
-    // 🛑 ACCIÓN DEL BOTÓN "BAJA" DEL PANEL DE VUELTAS ABIERTAS
-    // Escucha el POST del formulario, ejecuta la baja inteligente y refresca el panel redireccionando
-    @PostMapping("/delete/{id}")
-    public ResponseEntity<?> deleteFromPanel(@PathVariable(value = "id") UUID id) {
-        try {
-            // Ejecuta la baja atómica (cancela vuelta, preserva ida e infla billetera)
-            reservationService.cancelReservation(id, "PANEL_WEB");
-            
-            // Redireccionamos de vuelta a la grilla para que se recargue limpia sin las canceladas
-            return ResponseEntity.status(302)
-                    .header("Location", "/reservations/vueltas-abiertas")
-                    .build();
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
-        }
-    }
-
     // 🤖 BAJA DESDE EL BOT / REST ASÍNCRONO
     @DeleteMapping("/api/{id}")
     public ResponseEntity<?> deleteFromBot(@PathVariable(value = "id") UUID id) {

@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.stereotype.Component;
-import org.springframework.context.annotation.Lazy;
 import com.lunaris.ansenuza.application.conversation.ConversationPresenter;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -14,9 +13,13 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.OperationControlService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import lombok.RequiredArgsConstructor;
 
-/** MAIN_MENU: resuelve la opción elegida (1 a 5) del menú principal. */
+/** * MAIN_MENU: Resuelve de forma aislada y limpia la opción elegida (1 a 5) 
+ * desde el menú principal de WhatsApp de Lunaris.
+ */
 @Component
+@RequiredArgsConstructor
 public class MainMenuHandler implements ConversationStepHandler {
 
     private final ConversationSessionRepository conversationSessionRepository;
@@ -24,22 +27,6 @@ public class MainMenuHandler implements ConversationStepHandler {
     private final ConversationPresenter presenter;
     private final MessagingPort messaging;
     private final OperationControlService operationControlService;
-    private final CancelReservationHandler cancelReservationHandler;
-
-    public MainMenuHandler(
-            ConversationSessionRepository conversationSessionRepository,
-            ReservationRepository reservationRepository,
-            ConversationPresenter presenter,
-            MessagingPort messaging,
-            OperationControlService operationControlService,
-            @Lazy CancelReservationHandler cancelReservationHandler) {
-        this.conversationSessionRepository = conversationSessionRepository;
-        this.reservationRepository = reservationRepository;
-        this.presenter = presenter;
-        this.messaging = messaging;
-        this.operationControlService = operationControlService;
-        this.cancelReservationHandler = cancelReservationHandler;
-    }
 
     @Override
     public String step() {
@@ -55,14 +42,12 @@ public class MainMenuHandler implements ConversationStepHandler {
         if ("1".equals(body)) {
             session.setCurrentStep("ASK_LOCALITY");
             conversationSessionRepository.saveAndFlush(session);
-            // ✅ RESTAURADO: Volvemos a usar tu presenter de listas interactivas
             presenter.sendAllLocalitiesList(phoneNumber, "📍 *Excelente elección.* ");
             return;
         } else if ("2".equals(body)) {
             session.setCurrentStep("ASK_LOCALITY");
             conversationSessionRepository.saveAndFlush(session);
 
-            // ✅ RESTAURADO: Tu gancho de marketing e interfaz nativa de lista
             String ganchoMarketing = """
                     💰 *¡Viajá al mejor precio con Lunaris Ansenusa!*
                     Contamos con las tarifas más competitivas del sector, descuentos especiales por tramos de ida y vuelta coordinados, y unidades premium climatizadas con total puntualidad.
@@ -109,10 +94,8 @@ public class MainMenuHandler implements ConversationStepHandler {
                 listado.append(String.format("🔹 *Viaje #%d*\n", i + 1));
                 listado.append(String.format("🆔 Código: *%s*\n", r.getReservationCode()));
                 listado.append(String.format("📅 Fecha: %s\n", fechaStr));
-                listado.append(String.format("📍 Ruta: %s ➡️ %s\n", r.getPickupLocality(),
-                        r.getDestination()));
-                listado.append(String.format("💵 Estado: %s\n\n",
-                        "CONFIRMED".equals(r.getStatus()) ? "✅ Confirmado" : "⏳ Pago Pendiente"));
+                listado.append(String.format("📍 Ruta: %s ➡️ %s\n", r.getPickupLocality(), r.getDestination()));
+                listado.append(String.format("💵 Estado: %s\n\n", "CONFIRMED".equals(r.getStatus()) ? "✅ Confirmado" : "⏳ Pago Pendiente"));
             }
 
             listado.append("Escribí *Menú* para volver a la pantalla de opciones.");
@@ -120,13 +103,14 @@ public class MainMenuHandler implements ConversationStepHandler {
             session.setCurrentStep("START");
             conversationSessionRepository.saveAndFlush(session);
             return;
+            
         } else if ("5".equals(body) || body.contains("cancelar")) {
-            // Seteamos el paso correspondiente en la sesión
+            // ✅ DEUDA TÉCNICA SALDADA: Cambiamos de estado de forma pura y limpia en BD
             session.setCurrentStep("WAITING_CANCEL_CODE");
             conversationSessionRepository.saveAndFlush(session);
             
-            // Forzamos la ejecución interactiva
-            cancelReservationHandler.handle(session, message);
+            // Forzamos al bot a avisar el cambio de módulo y a recibir cualquier input para listar
+            messaging.sendText(phoneNumber, "⏳ _Accediendo al módulo de cancelaciones automáticas... Escribí cualquier palabra o presioná una tecla para desplegar la botonera de tus próximos viajes._");
             return;
         } else {
             messaging.sendText(phoneNumber,
