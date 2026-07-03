@@ -6,8 +6,8 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
-import com.lunaris.ansenuza.application.port.Button; // Matches record Button
 import com.lunaris.ansenuza.application.port.MessagingPort;
+import com.lunaris.ansenuza.application.port.Button; // Coincide con tu record Button
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -52,7 +52,7 @@ public class CancelReservationHandler implements ConversationStepHandler {
         if (optRes.isPresent()) {
             Reservation res = optRes.get();
 
-            // Validación perimetral de seguridad por número de teléfono
+            // Validación de seguridad por número de teléfono
             if (!res.getPassenger().getPhone().equals(phoneNumber)) {
                 messaging.sendText(phoneNumber,
                         "⚠️ El viaje seleccionado no corresponde a tu número por cuestiones de seguridad.");
@@ -98,27 +98,32 @@ public class CancelReservationHandler implements ConversationStepHandler {
             conversationSessionRepository.saveAndFlush(session);
 
         } else {
-            // 3. Si no ingresó un código válido (o es la primera vez que entra al paso), listamos sus opciones en botones
-            List<Reservation> reservasActivas = reservationRepository.findByPassengerPhoneAndStatus(phoneNumber, "CONFIRMED");
+            // 3. Traemos todas las reservas asociadas al teléfono del pasajero
+            List<Reservation> todasLasReservas = reservationRepository.findByPassengerPhone(phoneNumber);
+            
+            // Filtramos en memoria para excluir únicamente las que ya están canceladas
+            List<Reservation> reservasActivas = todasLasReservas.stream()
+                    .filter(r -> !"CANCELLED".equalsIgnoreCase(r.getStatus()))
+                    .toList();
 
             if (reservasActivas.isEmpty()) {
                 messaging.sendText(phoneNumber, "⚠️ No registrás ningún viaje activo o próximo para poder cancelar.\n\nEscribí *Menú* para volver.");
                 session.setCurrentStep("START");
                 conversationSessionRepository.saveAndFlush(session);
             } else {
-                // Mapeamos las reservas a objetos Button nativos (Meta soporta un máximo de 3 botones en fila)
+                // Mapeamos las reservas a objetos Button nativos (Meta soporta un máximo de 3 botones)
                 List<Button> botonesAEnviar = new ArrayList<>();
                 int limite = Math.min(reservasActivas.size(), 3);
                 
                 for (int i = 0; i < limite; i++) {
                     Reservation r = reservasActivas.get(i);
-                    // El payload que viaja oculto es el código de reserva, el texto es lo que el pasajero ve en pantalla
-                    String label = r.getPickupLocality() + " ➡️ " + r.getDestination();
+                    // Label ultra corto ("Cancelar XXXXX") para cumplir rigurosamente el límite de Meta
+                    String label = "Cancelar " + r.getReservationCode(); 
                     
                     botonesAEnviar.add(new Button(r.getReservationCode(), label));
                 }
 
-                // Disparamos la botonera nativa de WhatsApp Cloud API a través de tu puerto de salida 🚀
+                // Disparamos la botonera nativa de WhatsApp Cloud API
                 messaging.sendButtons(
                     phoneNumber,
                     "Gestión de Cancelaciones 🚐",
