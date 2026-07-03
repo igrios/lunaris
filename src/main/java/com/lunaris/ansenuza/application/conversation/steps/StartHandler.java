@@ -9,6 +9,7 @@ import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class StartHandler implements ConversationStepHandler {
     private final ConversationSessionRepository conversationSessionRepository;
     private final PassengerRepository passengerRepository;
     private final MessagingPort messaging;
+    private final OperationControlService operationControlService; // 👈 NUEVO SERVICIO INYECTADO
 
     @Override
     public String step() {
@@ -55,17 +57,18 @@ public class StartHandler implements ConversationStepHandler {
             saludoBuilder.append("¡Bienvenido a Lunaris Ansenuza! 🚐\n");
         }
 
-        String menuPrincipal = saludoBuilder.toString()
-                + """
+        saludoBuilder.append("\n¿En qué te podemos ayudar hoy? Por favor, elegí una opción enviando el número:\n");
+        saludoBuilder.append("1️⃣ 🚐 *Reservar un viaje* (Flujo rápido)\n");
+        saludoBuilder.append("2️⃣ 💸 *Ver precios y cotizar*\n");
 
-                        ¿En qué te podemos ayudar hoy? Por favor, elegí una opción enviando el número:
-                        1️⃣ 🚐 *Reservar un viaje* (Flujo rápido)
-                        2️⃣ 💸 *Ver precios y cotizar*
-                        3️⃣ 👨‍💼 *Hablar con un operador* (Soporte humano)
-                        4️⃣ 📋 *Consultar mis reservas*
-                        5️⃣ ❌ *Cancelar un viaje*
-                                        """;
+        // 🕒 MUTACIÓN DINÁMICA: Solo muestra la opción 3 si la jornada humana está habilitada
+        if (operationControlService.isHumanActionEnabled()) {
+            saludoBuilder.append("3️⃣ 👨‍💼 *Hablar con un operador* (Soporte humano)\n");
+        }
 
-        messaging.sendText(phoneNumber, menuPrincipal);
+        saludoBuilder.append("4️⃣ 📋 *Consultar mis reservas*\n");
+        saludoBuilder.append("5️⃣ ❌ *Cancelar un viaje*\n");
+
+        messaging.sendText(phoneNumber, saludoBuilder.toString());
     }
 }

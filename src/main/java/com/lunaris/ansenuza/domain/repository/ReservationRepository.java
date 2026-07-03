@@ -24,6 +24,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("SELECT r FROM Reservation r WHERE r.passenger.phone = :phone")
     List<Reservation> findByPassengerPhone(@Param("phone") String phone);
 
+// 🤖 BUSCADOR PARA BOT: Trae las reservas activas confirmadas de un pasajero para poder listar en botones
+    @Query("SELECT r FROM Reservation r WHERE r.passenger.phone = :phone AND r.status = :status")
+    List<Reservation> findByPassengerPhoneAndStatus(@Param("phone") String phone, @Param("status") String status);
+
     // 🌟 4. LA SECUENCIA: Cuenta cuántas reservas hay en esa ruta exacta y fecha para armar el código base
     @Query("SELECT COUNT(r) FROM Reservation r WHERE r.pickupLocality = :origin AND r.destination = :dest AND r.travelDate = :date")
     long countSequenceByRouteAndDate(
@@ -58,6 +62,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            "AND r.status <> 'CANCELLED' " +
            "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%\\_V' ESCAPE '\\')")
     BigDecimal sumConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+
+
+
+
 
     @Query("SELECT COUNT(r) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
