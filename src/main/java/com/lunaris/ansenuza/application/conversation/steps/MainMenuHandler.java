@@ -1,8 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
-import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import org.springframework.context.annotation.Lazy; // 👈 AGREGADO PARA EVITAR CONFLICTOS DE INYECCIÓN
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationPresenter;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
@@ -10,21 +10,35 @@ import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation;
-import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
+import com.lunaris.ansenuza.domain.model.service.OperationControlService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import lombok.RequiredArgsConstructor;
 
 /** MAIN_MENU: resuelve la opción elegida (1 a 5) del menú principal. */
 @Component
-@RequiredArgsConstructor
 public class MainMenuHandler implements ConversationStepHandler {
 
     private final ConversationSessionRepository conversationSessionRepository;
     private final ReservationRepository reservationRepository;
     private final ConversationPresenter presenter;
     private final MessagingPort messaging;
-    private final OperationControlService operationControlService; // 👈 INTERRUPTOR INYECTADO
+    private final OperationControlService operationControlService;
+    private final CancelReservationHandler cancelReservationHandler; // 👈 INYECTAMOS TU NUEVO HANDLER
+
+    public MainMenuHandler(
+            ConversationSessionRepository conversationSessionRepository,
+            ReservationRepository reservationRepository,
+            ConversationPresenter presenter,
+            MessagingPort messaging,
+            OperationControlService operationControlService,
+            @Lazy CancelReservationHandler cancelReservationHandler) { // 👈 @Lazy evita acoplamientos circulares
+        this.conversationSessionRepository = conversationSessionRepository;
+        this.reservationRepository = reservationRepository;
+        this.presenter = presenter;
+        this.messaging = messaging;
+        this.operationControlService = operationControlService;
+        this.cancelReservationHandler = cancelReservationHandler;
+    }
 
     @Override
     public String step() {
@@ -35,68 +49,50 @@ public class MainMenuHandler implements ConversationStepHandler {
     public void handle(ConversationSession session, IncomingMessage message) {
         String phoneNumber = session.getPhoneNumber();
         String body = message.body().trim().toLowerCase();
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-        if ("1".equals(body)) {
-            session.setCurrentStep("ASK_LOCALITY");
-            conversationSessionRepository.saveAndFlush(session);
-            presenter.sendAllLocalitiesList(phoneNumber, "📍 *Excelente elección.* ");
-            return;
-        } else if ("2".equals(body)) {
-            session.setCurrentStep("ASK_LOCALITY");
-            conversationSessionRepository.saveAndFlush(session);
-
-            String ganchoMarketing = """
-                    💰 *¡Viajá al mejor precio con Lunaris Ansenusa!*
-                    Contamos con las tarifas más competitivas del sector, descuentos especiales por tramos de ida y vuelta coordinados, y unidades premium climatizadas con total puntualidad.
-
-                    """;
-            presenter.sendAllLocalitiesList(phoneNumber, ganchoMarketing);
-            return;
-        } else if ("3".equals(body)) {
-            // 🔥 CONTROL DE JORNADA LABORAL
+        if ("1".equals(body) || body.contains("reservar")) {
             if (!operationControlService.isHumanActionEnabled()) {
                 messaging.sendText(phoneNumber,
-                        "🌙 *Atención Telefónica Finalizada.*\n\nNuestro equipo humano se encuentra descansando en este momento para iniciar las rutas temprano. 🚐💨\n\nTe sugerimos usar las opciones *1* o *2* para registrar tu viaje de forma **100% automática** en menos de un minuto. ¡El bot te guiará solo!");
+                        "🌙 *Horario de Atención Finalizado*\n\nNuestras vans están descansando. Podés gestionar tus reservas de Lunes a Viernes de 08:00 a 20:00 hs.\n\n¡Gracias por elegir Lunaris!");
+                session.setCurrentStep("START");
+                conversationSessionRepository.saveAndFlush(session);
                 return;
             }
-
-            session.setBotPaused(true);
+            messaging.sendText(phoneNumber, "✨ *¡Vamos a armar tu viaje!* 🚐\n\nPor favor, ingresá la *Localidad de Origen* de tu viaje (Ejemplo: `San Francisco`, `Córdoba`, `Miramar`):");
+            session.setCurrentStep("WAITING_ORIGIN");
             conversationSessionRepository.saveAndFlush(session);
-
-            messaging.sendText(phoneNumber,
-                    "🔔 *Un operador fue notificado.* En instantes Martín se comunicará con vos de forma manual por este canal. ¡Muchas gracias por tu paciencia!");
             return;
-        } else if ("4".equals(body) || body.contains("consultar")) {
-            List<Reservation> viajesActivos = reservationRepository
-                    .findByPassengerPhone(phoneNumber).stream()
-                    .filter(r -> !"CANCELLED".equals(r.getStatus()))
-                    .toList();
-
-            if (viajesActivos.isEmpty()) {
-                messaging.sendText(phoneNumber,
-                        "No encontré ningún viaje activo o pendiente agendado con tu número de teléfono. 🤷‍♂️");
+        } else if ("2".equals(body) || body.contains("estado")) {
+            messaging.sendText(phoneNumber, "🔍 Mandanos el código de tu reserva para verificar el estado.");
+            session.setCurrentStep("WAITING_STATUS_CODE");
+            conversationSessionRepository.saveAndFlush(session);
+            return;
+        } else if ("3".equals(body) || body.contains("operador") || body.contains("humano")) {
+            session.setBotPaused(true);
+            session.setCurrentStep("TALKING_TO_HUMAN");
+            conversationSessionRepository.saveAndFlush(session);
+            messaging.sendText(phoneNumber, "🔔 *Pasando con un operador...*\n\nEl bot se ha pausado. Martín o Ignacio te van a atender de forma manual en breves minutos. ¡Muchas gracias por tu paciencia!");
+            return;
+        } else if ("4".equals(body) || body.contains("mis viajes") || body.contains("historial")) {
+            List<Reservation> misReservas = reservationRepository.findByPassengerPhone(phoneNumber);
+            if (misReservas.isEmpty()) {
+                messaging.sendText(phoneNumber, "⚠️ No encontramos viajes asociados a tu número de teléfono.\n\nEscribí *Menú* para volver a ver las opciones.");
                 session.setCurrentStep("START");
                 conversationSessionRepository.saveAndFlush(session);
                 return;
             }
 
-            StringBuilder listado = new StringBuilder("📋 *TUS PRÓXIMOS VIAJES EN LUNARIS:*\n\n");
-            LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
+            StringBuilder listado = new StringBuilder("📋 *Tus Próximos Viajes en Lunaris* 🚐\n\n");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-            for (int i = 0; i < viajesActivos.size(); i++) {
-                Reservation r = viajesActivos.get(i);
-                String fechaStr = r.getTravelDate().equals(fechaCentinela)
-                        ? "🛑 VUELTA ABIERTA (Pendiente confirmar)"
-                        : r.getTravelDate().format(dateFormatter);
-
+            for (int i = 0; i < misReservas.size(); i++) {
+                Reservation r = misReservas.get(i);
+                String fechaStr = r.getTravelDate() != null ? r.getTravelDate().format(formatter) : "A confirmar";
                 listado.append(String.format("🔹 *Viaje #%d*\n", i + 1));
                 listado.append(String.format("🆔 Código: *%s*\n", r.getReservationCode()));
                 listado.append(String.format("📅 Fecha: %s\n", fechaStr));
-                listado.append(String.format("📍 Ruta: %s ➡️ %s\n", r.getPickupLocality(),
-                        r.getDestination()));
-                listado.append(String.format("💵 Estado: %s\n\n",
-                        "CONFIRMED".equals(r.getStatus()) ? "✅ Confirmado" : "⏳ Pago Pendiente"));
+                listado.append(String.format("📍 Ruta: %s ➡️ %s\n", r.getPickupLocality(), r.getDestination()));
+                listado.append(String.format("💵 Estado: %s\n\n", "CONFIRMED".equals(r.getStatus()) ? "✅ Confirmado" : "⏳ Pago Pendiente"));
             }
 
             listado.append("Escribí *Menú* para volver a la pantalla de opciones.");
@@ -105,15 +101,16 @@ public class MainMenuHandler implements ConversationStepHandler {
             conversationSessionRepository.saveAndFlush(session);
             return;
         } else if ("5".equals(body) || body.contains("cancelar")) {
-            messaging.sendText(phoneNumber,
-                    "❌ *Cancelación de Viajes*\n\nPor favor, escribí el *Código de Reserva* del viaje que deseás dar de baja (Ejemplo: `SUA-COR-001_I`).\n\n_Si no lo sabés, podés consultarlo usando la opción 4 del Menú._");
+            // 🚀 MODIFICACIÓN DIRECTA INTERACTIVA:
+            // Seteamos el paso correspondiente en la sesión
             session.setCurrentStep("WAITING_CANCEL_CODE");
             conversationSessionRepository.saveAndFlush(session);
+            
+            // Forzamos la ejecución en tiempo real de tu nuevo handler de botones
+            cancelReservationHandler.handle(session, message);
             return;
         } else {
-            messaging.sendText(phoneNumber,
-                    "⚠️ Opción inválida. Por favor, seleccioná una opción del menú (1 al 5) o escribí *Menú*.");
-            return;
+            messaging.sendText(phoneNumber, "⚠️ Opción inválida. Por favor, seleccioná una opción válida (1 al 5) o escribí *Menú*.");
         }
     }
 }
