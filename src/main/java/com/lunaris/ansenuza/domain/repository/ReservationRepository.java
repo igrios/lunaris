@@ -24,7 +24,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("SELECT r FROM Reservation r WHERE r.passenger.phone = :phone")
     List<Reservation> findByPassengerPhone(@Param("phone") String phone);
 
-// 🤖 BUSCADOR PARA BOT: Trae las reservas activas confirmadas de un pasajero para poder listar en botones
+    // 🤖 BUSCADOR PARA BOT: Trae las reservas activas confirmadas de un pasajero para poder listar en botones
     @Query("SELECT r FROM Reservation r WHERE r.passenger.phone = :phone AND r.status = :status")
     List<Reservation> findByPassengerPhoneAndStatus(@Param("phone") String phone, @Param("status") String status);
 
@@ -63,14 +63,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%\\_V' ESCAPE '\\')")
     BigDecimal sumConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-
-
-
-
-
     @Query("SELECT COUNT(r) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
            "AND r.status <> 'CANCELLED' " +
            "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%\\_V' ESCAPE '\\')")
     long countConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    // 💡 NUEVO MÉTODO FILTRADO: Para limpiar la grilla de vueltas abiertas en el controlador web
+    @Query("SELECT r FROM Reservation r WHERE r.travelDate = :fechaCentinela AND r.status != 'CANCELLED'")
+    List<Reservation> findVueltasAbiertasActive(@Param("fechaCentinela") LocalDate fechaCentinela);
 }
