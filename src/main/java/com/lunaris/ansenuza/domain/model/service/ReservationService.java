@@ -132,7 +132,7 @@ public class ReservationService {
         return savedReservations;
     }
 
-    // 🗑️ BAJA LÓGICA ATÓMICA CON BLINDAJE DE SEGURIDAD ANTIFRAUDE (BIDIRECCIONAL IDA / VUELTA)
+    // 🗑️ BAJA LÓGICA ATÓMICA CON CASCADA INTELIGENTE (PROTEGE LA IDA SI SE CANCELA LA VUELTA)
     @Transactional
     public void cancelReservation(UUID id, String triggeredBy) {
         reservationRepository.findById(id).ifPresent(reservation -> {
@@ -146,7 +146,7 @@ public class ReservationService {
                 // 🛡️ FILTRO DE SEGURIDAD: Solo computa dinero si el pago fue verificado o la reserva estaba confirmada
                 boolean pagoRealizado = Boolean.TRUE.equals(reservation.getPaymentVerified()) || "CONFIRMED".equals(reservation.getStatus());
 
-                // 1. Cancelamos la reserva actual (sea Ida o Vuelta Abierta)
+                // 1. Cancelamos la reserva actual seleccionada (Ida o Vuelta Abierta)
                 reservation.setStatus("CANCELLED");
                 
                 if (pagoRealizado && reservation.getAmount() != null && reservation.getAmount().compareTo(BigDecimal.ZERO) > 0) {
@@ -163,44 +163,35 @@ public class ReservationService {
                         .build();
                 reservationEventRepository.save(cancelEvent);
 
-                // 2. 🔄 EFECTO CASCADA BIDIRECCIONAL: Aplica para bajas desde la Ida o desde la Vuelta Abierta en el Panel
+                // 2. 🔄 CASCADA UNIDIRECCIONAL: Si se da de baja la IDA, cancelamos la VUELTA. Si se borra la VUELTA, la IDA queda intacta.
                 String codigoActual = reservation.getReservationCode();
-                if (codigoActual != null) {
-                    String codigoGemeloBuscado = null;
+                if (codigoActual != null && codigoActual.endsWith("-IDA")) {
+                    String codigoVueltaBuscado = codigoActual.replace("-IDA", "-VUELTA");
 
-                    if (codigoActual.endsWith("-IDA")) {
-                        codigoGemeloBuscado = codigoActual.replace("-IDA", "-VUELTA");
-                    } else if (codigoActual.endsWith("-VUELTA")) {
-                        // 💡 SOLUCIÓN: Si borran la Vuelta Abierta desde el panel, buscamos y cancelamos su tramo de IDA
-                        codigoGemeloBuscado = codigoActual.replace("-VUELTA", "-IDA");
-                    }
-
-                    if (codigoGemeloBuscado != null) {
-                        reservationRepository.findByReservationCode(codigoGemeloBuscado).ifPresent(gemelaRes -> {
-                            if (!"CANCELLED".equals(gemelaRes.getStatus())) {
-                                
-                                boolean pagoGemeloRealizado = Boolean.TRUE.equals(gemelaRes.getPaymentVerified()) || "CONFIRMED".equals(gemelaRes.getStatus());
-                                
-                                gemelaRes.setStatus("CANCELLED");
-                                
-                                if (pagoGemeloRealizado && gemelaRes.getAmount() != null && gemelaRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                                   totalReintegro[0] = totalReintegro[0].add(gemelaRes.getAmount());
-                                }
-                                reservationRepository.saveAndFlush(gemelaRes);
-
-                                ReservationEvent cancelReturnEvent = ReservationEvent.builder()
-                                        .reservationId(gemelaRes.getId())
-                                        .eventType("RESERVATION_CANCELLED")
-                                        .description("Cancelación automática del tramo gemelo (" + gemelaRes.getReservationCode() + ") por efecto cascada. Pago verificado: " + pagoGemeloRealizado)
-                                        .triggeredBy(triggeredBy)
-                                        .build();
-                                reservationEventRepository.save(cancelReturnEvent);
+                    reservationRepository.findByReservationCode(codigoVueltaBuscado).ifPresent(returnRes -> {
+                        if (!"CANCELLED".equals(returnRes.getStatus())) {
+                            
+                            boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified()) || "CONFIRMED".equals(returnRes.getStatus());
+                            
+                            returnRes.setStatus("CANCELLED");
+                            
+                            if (pagoVueltaRealizado && returnRes.getAmount() != null && returnRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                                totalReintegro[0] = totalReintegro[0].add(returnRes.getAmount());
                             }
-                        });
-                    }
+                            reservationRepository.saveAndFlush(returnRes);
+
+                            ReservationEvent cancelReturnEvent = ReservationEvent.builder()
+                                    .reservationId(returnRes.getId())
+                                    .eventType("RESERVATION_CANCELLED")
+                                    .description("Cancelación automática de VUELTA por baja de IDA. Pago verificado: " + pagoVueltaRealizado)
+                                    .triggeredBy(triggeredBy)
+                                    .build();
+                            reservationEventRepository.save(cancelReturnEvent);
+                        }
+                    });
                 }
 
-                // 3. 💳 ACREDITACIÓN CONTROLADA: Sumamos reintegros validados a la cuenta corriente
+                // 3. 💳 ACREDITACIÓN CONTROLADA: Sumamos reintegros validados a la cuenta corriente (Corregido Typo)
                 if (totalReintegro[0].compareTo(BigDecimal.ZERO) > 0) {
                     passenger.setCurrentBalance(saldoActual.add(totalReintegro[0]));
                     passengerRepository.saveAndFlush(passenger);

@@ -73,9 +73,9 @@
                       📅 Programar Vuelta
                     </button>
 
-                    <!-- Botón de Cancelación directa -->
+                    <!-- ✅ MODIFICADO: Formulario con cartel de advertencia comercial explícito -->
                     <form th:action="@{/reservations/delete/{id}(id=${v.id})}" method="post"
-                      onsubmit="return confirm('¿Seguro deseás dar de baja este pasaje abierto?');"
+                      onsubmit="return confirm('⚠️ ATENCIÓN OPERADOR:\n\n¿Confirmás que la persona avisó que se vuelve de otra manera?\n\nAl aceptar, esta vuelta abierta se dará de baja, se acreditará el saldo correspondiente y NO se mostrará más en pantalla.');"
                       class="d-inline m-0">
                       <button type="submit" class="btn btn-sm btn-danger fw-bold ms-1 shadow-sm">🗑️ Baja</button>
                     </form>
