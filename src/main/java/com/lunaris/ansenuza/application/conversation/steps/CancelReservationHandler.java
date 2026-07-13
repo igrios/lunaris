@@ -6,8 +6,8 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
-import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.application.port.MessagingPort;
+import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -43,9 +43,8 @@ public class CancelReservationHandler implements ConversationStepHandler {
             return;
         }
 
-        // 💡 DEUDA TÉCNICA SALDADA: Si recién viene del menú, mostramos las opciones directamente
+        // Si viene del menú principal, mandamos a mostrar las opciones directamente
         if ("5".equals(input) || input.contains("CANCELAR")) {
-            System.out.println("[BOT-CANCEL] Detectado redireccionamiento inicial. Mostrando opciones al pasajero.");
             mostrarBotoneraOCodigo(session, phoneNumber);
             return;
         }
@@ -54,7 +53,6 @@ public class CancelReservationHandler implements ConversationStepHandler {
 
         if (optRes.isPresent()) {
             Reservation res = optRes.get();
-            System.out.println("[BOT-CANCEL] Reserva encontrada para cancelar: " + res.getReservationCode());
 
             if (!res.getPassenger().getPhone().equals(phoneNumber)) {
                 messaging.sendText(phoneNumber, "⚠️ El viaje seleccionado no corresponde a tu número por seguridad.");
@@ -83,7 +81,6 @@ public class CancelReservationHandler implements ConversationStepHandler {
             session.setCurrentStep("START");
             conversationSessionRepository.saveAndFlush(session);
         } else {
-            System.out.println("[BOT-CANCEL] El input no coincide con ninguna reserva. Re-mostrando opciones.");
             messaging.sendText(phoneNumber, "⚠️ Código inválido.");
             mostrarBotoneraOCodigo(session, phoneNumber);
         }
@@ -95,46 +92,44 @@ public class CancelReservationHandler implements ConversationStepHandler {
                 .filter(r -> !"CANCELLED".equalsIgnoreCase(r.getStatus()))
                 .toList();
 
-        System.out.println("[BOT-CANCEL] Cantidad de reservas activas encontradas en BD: " + reservasActivas.size());
-
         if (reservasActivas.isEmpty()) {
-            System.out.println("[BOT-CANCEL] Sin reservas activas. Enviando texto alternativo.");
             messaging.sendText(phoneNumber, "⚠️ No registrás ningún viaje activo o próximo para poder cancelar.\n\nEscribí *Menú* para volver.");
             session.setCurrentStep("START");
             conversationSessionRepository.saveAndFlush(session);
-        } else {
-            List<Button> botonesAEnviar = new ArrayList<>();
-            int limite = Math.min(reservasActivas.size(), 3);
+            return;
+        }
 
-            for (int i = 0; i < limite; i++) {
-                Reservation r = reservasActivas.get(i);
-                String label = "Cancelar " + r.getReservationCode();
-                botonesAEnviar.add(new Button(r.getReservationCode(), label));
-            }
+        List<Button> botonesAEnviar = new ArrayList<>();
+        int limite = Math.min(reservasActivas.size(), 3);
 
-            // Fallback en texto por si falla el envío interactivo de Meta
-            StringBuilder sb = new StringBuilder();
-            sb.append("📋 *Gestión de Cancelaciones* 🚐\n\n");
-            sb.append("Seleccioná cuál de tus próximos viajes deseas dar de baja automáticamente.\n");
-            sb.append("Por favor, *escribí el código* del viaje a cancelar:\n\n");
-            for (int i = 0; i < limite; i++) {
-                Reservation r = reservasActivas.get(i);
-                sb.append(String.format("🔹 *%s* (%s ➡️ %s)\n", r.getReservationCode(), r.getPickupLocality(), r.getDestination()));
-            }
-            sb.append("\nEscribí *Menú* para regresar.");
+        for (int i = 0; i < limite; i++) {
+            Reservation r = reservasActivas.get(i);
+            String codigo = r.getReservationCode().trim();
+            
+            // 🛡️ SOLUCIÓN AL ERROR 400 DE META: El label del botón jamás supera los 20 caracteres
+            String label = codigo.length() > 20 ? codigo.substring(0, 20) : codigo;
+            botonesAEnviar.add(new Button(codigo, label));
+        }
 
-            try {
-                System.out.println("[BOT-CANCEL] Enviando " + botonesAEnviar.size() + " botones interactivos a WhatsApp.");
-                messaging.sendButtons(
-                        phoneNumber,
-                        "Gestión de Cancelaciones 🚐",
-                        "Seleccioná de la pantalla cuál de tus próximos viajes deseas dar de baja automáticamente:",
-                        botonesAEnviar
-                );
-            } catch (Exception e) {
-                System.err.println("[BOT-CANCEL] Error al enviar botones a WhatsApp (Meta falló). Enviando fallback texto: " + e.getMessage());
-                messaging.sendText(phoneNumber, sb.toString());
-            }
+        StringBuilder sb = new StringBuilder();
+        sb.append("📋 *Gestión de Cancelaciones* 🚐\n\n");
+        sb.append("Seleccioná cuál de tus próximos viajes deseas dar de baja automáticamente.\n");
+        sb.append("Por favor, *escribí el código* del viaje a cancelar:\n\n");
+        for (int i = 0; i < limite; i++) {
+            Reservation r = reservasActivas.get(i);
+            sb.append(String.format("🔹 *%s* (%s ➡️ %s)\n", r.getReservationCode(), r.getPickupLocality(), r.getDestination()));
+        }
+        sb.append("\nEscribí *Menú* para regresar.");
+
+        try {
+            messaging.sendButtons(
+                    phoneNumber,
+                    "Gestión de Cancelaciones 🚐",
+                    "Seleccioná de la pantalla cuál de tus próximos viajes deseas dar de baja:",
+                    botonesAEnviar
+            );
+        } catch (Exception e) {
+            messaging.sendText(phoneNumber, sb.toString());
         }
     }
 }

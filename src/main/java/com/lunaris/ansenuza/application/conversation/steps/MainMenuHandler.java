@@ -24,6 +24,7 @@ public class MainMenuHandler implements ConversationStepHandler {
     private final ConversationPresenter presenter;
     private final MessagingPort messaging;
     private final OperationControlService operationControlService;
+    private final CancelReservationHandler cancelReservationHandler; // Inyectamos el handler para invocarlo directo
 
     @Override
     public String step() {
@@ -44,12 +45,12 @@ public class MainMenuHandler implements ConversationStepHandler {
         } else if ("2".equals(body)) {
             session.setCurrentStep("ASK_LOCALITY");
             conversationSessionRepository.saveAndFlush(session);
-            String ganchoMarketing = "💰 *¡Viajá al mejor precio con Lunaris Ansenusa!*\nContamos con las tarifas más competitivas del sector, descuentos especiales por tramos de ida y vuelta coordinados, y unidades premium climatizadas con total puntualidad.\n\n";
+            String ganchoMarketing = "💰 *¡Viajá al mejor precio con Lunaris Ansenusa!*\\nContamos con las tarifas más competitivas del sector, descuentos especiales por tramos de ida y vuelta coordinados, y unidades premium climatizadas con total puntualidad.\\n\\n";
             presenter.sendAllLocalitiesList(phoneNumber, ganchoMarketing);
             return;
         } else if ("3".equals(body)) {
             if (!operationControlService.isHumanActionEnabled()) {
-                messaging.sendText(phoneNumber, "🌙 *Atención Telefónica Finalizada.*\n\nNuestro equipo humano se encuentra descansando en este momento para iniciar las rutas temprano. 🚐💨\n\nTe sugerimos usar las opciones *1* o *2* para registrar tu viaje de forma **100% automática** en menos de un minuto. ¡El bot te guiará solo!");
+                messaging.sendText(phoneNumber, "🌙 *Atención Telefónica Finalizada.*\\n\\nNuestro equipo humano se encuentra descansando en este momento para iniciar las rutas temprano. 🚐💨\\n\\nTe sugerimos usar las opciones *1* o *2* para registrar tu viaje de forma **100% automática** en menos de un minuto. ¡El bot te guiará solo!");
                 return;
             }
             session.setBotPaused(true);
@@ -68,17 +69,17 @@ public class MainMenuHandler implements ConversationStepHandler {
                 return;
             }
 
-            StringBuilder listado = new StringBuilder("📋 *TUS PRÓXIMOS VIAJES EN LUNARIS:*\n\n");
+            StringBuilder listado = new StringBuilder("📋 *TUS PRÓXIMOS VIAJES EN LUNARIS:*\\n\\n");
             LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
             for (int i = 0; i < viajesActivos.size(); i++) {
                 Reservation r = viajesActivos.get(i);
                 String fechaStr = r.getTravelDate().equals(fechaCentinela) ? "🛑 VUELTA ABIERTA (Pendiente confirmar)" : r.getTravelDate().format(dateFormatter);
-                listado.append(String.format("🔹 *Viaje #%d*\n", i + 1));
-                listado.append(String.format("🆔 Código: *%s*\n", r.getReservationCode()));
-                listado.append(String.format("📅 Fecha: %s\n", fechaStr));
-                listado.append(String.format("📍 Ruta: %s ➡️ %s\n", r.getPickupLocality(), r.getDestination()));
-                listado.append(String.format("💵 Estado: %s\n\n", "CONFIRMED".equals(r.getStatus()) ? "✅ Confirmado" : "⏳ Pago Pendiente"));
+                listado.append(String.format("🔹 *Viaje #%d*\\n", i + 1));
+                listado.append(String.format("🆔 Código: *%s*\\n", r.getReservationCode()));
+                listado.append(String.format("📅 Fecha: %s\\n", fechaStr));
+                listado.append(String.format("📍 Ruta: %s ➡️ %s\\n", r.getPickupLocality(), r.getDestination()));
+                listado.append(String.format("💵 Estado: %s\\n\\n", "CONFIRMED".equals(r.getStatus()) ? "✅ Confirmado" : "⏳ Pago Pendiente"));
             }
             listado.append("Escribí *Menú* para volver a la pantalla de opciones.");
             messaging.sendText(phoneNumber, listado.toString());
@@ -86,10 +87,10 @@ public class MainMenuHandler implements ConversationStepHandler {
             conversationSessionRepository.saveAndFlush(session);
             return;
         } else if ("5".equals(body) || body.contains("cancelar")) {
+            // 💡 FLUJO OPTIMIZADO: Cambiamos de paso y llamamos en caliente al handler de cancelaciones de inmediato
             session.setCurrentStep("WAITING_CANCEL_CODE");
             conversationSessionRepository.saveAndFlush(session);
-            // Ejecutamos la llamada directa mandándole un mensaje base y gatillamos el Handler siguiente en la secuencia
-            messaging.sendText(phoneNumber, "⏳ _Accediendo al módulo de cancelaciones... Escribí cualquier palabra o presioná una tecla para listar tus opciones._");
+            cancelReservationHandler.handle(session, message);
             return;
         } else {
             messaging.sendText(phoneNumber, "⚠️ Opción inválida. Por favor, seleccioná una opción del menú (1 al 5) o escribí *Menú*.");
