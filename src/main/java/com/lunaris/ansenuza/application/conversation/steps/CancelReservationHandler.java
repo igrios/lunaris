@@ -6,8 +6,8 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
-import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.application.port.Button;
+import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -43,15 +43,13 @@ public class CancelReservationHandler implements ConversationStepHandler {
             return;
         }
 
-        // 💡 CORRECCIÓN CRUCIAL: Si el input es "5" o "CANCELAR", significa que recién viene del menú principal.
-        // No tenemos que buscar una reserva llamada "5", tenemos que mostrar los botones directo.
-        if ("5".equals(input) || "CANCELAR".equals(input)) {
+        // 💡 DEUDA TÉCNICA SALDADA: Si recién viene del menú, mostramos las opciones directamente
+        if ("5".equals(input) || input.contains("CANCELAR")) {
             System.out.println("[BOT-CANCEL] Detectado redireccionamiento inicial. Mostrando opciones al pasajero.");
             mostrarBotoneraOCodigo(session, phoneNumber);
             return;
         }
 
-        // Si no es el comando inicial, asumimos que tocó un botón o tipeó un código manual
         Optional<Reservation> optRes = reservationRepository.findByReservationCode(input);
 
         if (optRes.isPresent()) {
@@ -67,7 +65,7 @@ public class CancelReservationHandler implements ConversationStepHandler {
             boolean esViajeCompleto = res.getRoundTrip() != null && res.getRoundTrip();
 
             reservationService.cancelReservation(res.getId(), "BOT_WHATSAPP");
-            
+
             if (esViajeCompleto) {
                 if (esPagoPendiente) {
                     messaging.sendText(phoneNumber, "✅ Tu viaje completo (Ida y Vuelta) ha sido cancelado con éxito.\n\nAl encontrarse la reserva con *pago pendiente*, la operación se cerró sin cargos adicionales.\n\nEscribí *Menú* para regresar.");
@@ -107,20 +105,36 @@ public class CancelReservationHandler implements ConversationStepHandler {
         } else {
             List<Button> botonesAEnviar = new ArrayList<>();
             int limite = Math.min(reservasActivas.size(), 3);
-            
+
             for (int i = 0; i < limite; i++) {
                 Reservation r = reservasActivas.get(i);
-                String label = "Cancelar " + r.getReservationCode(); 
+                String label = "Cancelar " + r.getReservationCode();
                 botonesAEnviar.add(new Button(r.getReservationCode(), label));
             }
 
-            System.out.println("[BOT-CANCEL] Enviando " + botonesAEnviar.size() + " botones interactivos a WhatsApp.");
-            messaging.sendButtons(
-                phoneNumber,
-                "Gestión de Cancelaciones 🚐",
-                "Seleccioná de la pantalla cuál de tus próximos viajes deseas dar de baja automáticamente:",
-                botonesAEnviar
-            );
+            // Fallback en texto por si falla el envío interactivo de Meta
+            StringBuilder sb = new StringBuilder();
+            sb.append("📋 *Gestión de Cancelaciones* 🚐\n\n");
+            sb.append("Seleccioná cuál de tus próximos viajes deseas dar de baja automáticamente.\n");
+            sb.append("Por favor, *escribí el código* del viaje a cancelar:\n\n");
+            for (int i = 0; i < limite; i++) {
+                Reservation r = reservasActivas.get(i);
+                sb.append(String.format("🔹 *%s* (%s ➡️ %s)\n", r.getReservationCode(), r.getPickupLocality(), r.getDestination()));
+            }
+            sb.append("\nEscribí *Menú* para regresar.");
+
+            try {
+                System.out.println("[BOT-CANCEL] Enviando " + botonesAEnviar.size() + " botones interactivos a WhatsApp.");
+                messaging.sendButtons(
+                        phoneNumber,
+                        "Gestión de Cancelaciones 🚐",
+                        "Seleccioná de la pantalla cuál de tus próximos viajes deseas dar de baja automáticamente:",
+                        botonesAEnviar
+                );
+            } catch (Exception e) {
+                System.err.println("[BOT-CANCEL] Error al enviar botones a WhatsApp (Meta falló). Enviando fallback texto: " + e.getMessage());
+                messaging.sendText(phoneNumber, sb.toString());
+            }
         }
     }
 }
