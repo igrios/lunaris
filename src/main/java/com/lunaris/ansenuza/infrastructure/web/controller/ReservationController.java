@@ -13,14 +13,14 @@ import com.lunaris.ansenuza.infrastructure.web.dto.ReservationCreateDTO;
 import lombok.RequiredArgsConstructor;
 
 @Controller
-@RequestMapping("/reservations")
+@RequestMapping("/admin/bot/monitor")
 @RequiredArgsConstructor
 public class ReservationController {
 
     private final ReservationService reservationService;
     private final PassengerRepository passengerRepository;
 
-    @PostMapping("/new")
+    @PostMapping("/cargar-reserva")
     public String saveReservation(@ModelAttribute("reservation") ReservationCreateDTO dto) {
         // 1. Buscamos o creamos el Pasajero usando su teléfono de forma unificada
         String telefonoClean = dto.getPhone().trim();
@@ -33,7 +33,7 @@ public class ReservationController {
                     return newPassenger;
                 });
 
-        // ✅ Corregido: Asignamos Nombre y Apellido por separado usando las propiedades reales de tu clase Passenger
+        // Asignamos Nombre y Apellido de forma separada
         passenger.setFirstName(dto.getFirstName().trim());
         passenger.setLastName(dto.getLastName().trim());
         
@@ -52,15 +52,27 @@ public class ReservationController {
         reservation.setRoundTrip(dto.getRoundTrip() != null ? dto.getRoundTrip() : false);
         reservation.setReturnDate(dto.getReturnDate());
         
-        // ✅ Corregido: Asignamos el horario usando el campo real que agregamos en la entidad Reservation
+        // Asignamos el horario de salida (departure_schedule)
         reservation.setDepartureSchedule(dto.getDepartureSchedule());
         
         reservation.setPassengerCount(dto.getPassengerCount() != null ? dto.getPassengerCount() : 1);
         
-        // ✅ Corregido: Transformamos List<String> a un String con comas para que sea compatible con el modelo
-        if (dto.getCompanionNames() != null && !dto.getCompanionNames().isEmpty()) {
-            String companionsString = String.join(", ", dto.getCompanionNames());
-            reservation.setCompanionNames(companionsString);
+        // ✅ SOLUCIÓN AL ERROR DE COMPILACIÓN:
+        // Soportamos de manera segura tanto si el DTO tiene List<String> como si tiene String
+        Object companionObj = dto.getCompanionNames();
+        if (companionObj instanceof java.util.List) {
+            java.util.List<?> list = (java.util.List<?>) companionObj;
+            if (!list.isEmpty()) {
+                java.util.StringJoiner joiner = new java.util.StringJoiner(", ");
+                for (Object item : list) {
+                    if (item != null) joiner.add(item.toString());
+                }
+                reservation.setCompanionNames(joiner.toString());
+            } else {
+                reservation.setCompanionNames(null);
+            }
+        } else if (companionObj instanceof String) {
+            reservation.setCompanionNames((String) companionObj);
         } else {
             reservation.setCompanionNames(null);
         }
@@ -71,12 +83,13 @@ public class ReservationController {
         reservation.setPaymentVerified(dto.getPaymentVerified() != null ? dto.getPaymentVerified() : false);
         reservation.setStatus(Boolean.TRUE.equals(reservation.getPaymentVerified()) ? "CONFIRMED" : "PENDING_PAYMENT");
         
-        // Seteamos el costo inicial estimativo (el servicio luego lo dividirá si es RoundTrip)
+        // Seteamos el costo inicial estimativo
         reservation.setAmount(BigDecimal.ZERO); 
 
         // 3. Procesamos la reserva a través de tu lógica transaccional de negocio
         reservationService.saveReservationFlow(reservation);
 
-        return "redirect:/agenda?success=true";
+        // Redirigimos de vuelta al monitor del bot
+        return "redirect:/admin/bot/monitor?success=true";
     }
 }
