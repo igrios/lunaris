@@ -1,14 +1,10 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +17,6 @@ import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,7 +45,7 @@ public class ReservationViewController {
         return "reservation-form";
     }
 
-    @PostMapping("/new")
+   /* @PostMapping("/new")
     public String createReservation(
             @Valid @ModelAttribute("reservation") CreateReservationForm form,
             BindingResult bindingResult,
@@ -108,7 +103,7 @@ public class ReservationViewController {
 
         return "redirect:/agenda";
     }
-
+ */
     // 👥 VISTA WEB: Renderiza el panel HTML de pasajeros con link directo a WhatsApp
     @GetMapping("/passengers-panel")
     public String listPassengersPanel(Model model) {
