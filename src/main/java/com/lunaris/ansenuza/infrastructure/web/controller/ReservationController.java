@@ -1,62 +1,82 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import com.lunaris.ansenuza.application.usecase.CreateReservationUseCase;
+import java.math.BigDecimal;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
-import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
+import com.lunaris.ansenuza.domain.repository.PassengerRepository;
+import com.lunaris.ansenuza.infrastructure.web.dto.ReservationCreateDTO;
 import lombok.RequiredArgsConstructor;
 
-@RestController
+@Controller
 @RequestMapping("/reservations")
 @RequiredArgsConstructor
 public class ReservationController {
 
-    private final ReservationRepository repository;
-    private final CreateReservationUseCase createReservationUseCase;
     private final ReservationService reservationService;
+    private final PassengerRepository passengerRepository;
 
-    @GetMapping
-    public List<Reservation> findAll() {
-        return repository.findAll();
-    }
+    @PostMapping("/new")
+    public String saveReservation(@ModelAttribute("reservation") ReservationCreateDTO dto) {
+        // 1. Buscamos o creamos el Pasajero usando su teléfono de forma unificada
+        String telefonoClean = dto.getPhone().trim();
 
-    @PostMapping
-    public Reservation create(@RequestBody CreateReservationRequest request) {
-        return createReservationUseCase.execute(request);
-    }
+        Passenger passenger = passengerRepository.findByPhone(telefonoClean)
+                .orElseGet(() -> {
+                    Passenger newPassenger = new Passenger();
+                    newPassenger.setPhone(telefonoClean);
+                    newPassenger.setCurrentBalance(BigDecimal.ZERO);
+                    return newPassenger;
+                });
 
-    @GetMapping("/date/{travelDate}")
-    public List<Reservation> findByDate(@PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate) {
-        return repository.findByTravelDate(travelDate);
-    }
-
-    // 🤖 BAJA DESDE EL BOT / REST ASÍNCRONO
-    @DeleteMapping("/api/{id}")
-    public ResponseEntity<?> deleteFromBot(@PathVariable(value = "id") UUID id) {
-        try {
-            reservationService.cancelReservation(id, "BOT_CHAT");
-            return ResponseEntity.ok().body(Map.of("status", "CANCELLED"));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
+        // ✅ Corregido: Asignamos Nombre y Apellido por separado usando las propiedades reales de tu clase Passenger
+        passenger.setFirstName(dto.getFirstName().trim());
+        passenger.setLastName(dto.getLastName().trim());
+        
+        if (dto.getCuil() != null && !dto.getCuil().isBlank()) {
+            passenger.setCuil(dto.getCuil());
         }
-    }
+        passengerRepository.saveAndFlush(passenger);
 
-    // 🤖 MODIFICACIÓN DESDE EL BOT / REST ASÍNCRONO
-    @PutMapping("/api/{id}")
-    public ResponseEntity<?> updateFromBot(@PathVariable(value = "id") UUID id, @RequestBody Reservation updatedData) {
-        try {
-            Reservation result = reservationService.updateReservation(id, updatedData, "BOT_CHAT");
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(e.getMessage());
+        // 2. Mapeamos los datos del DTO a la entidad de dominio de Reserva
+        Reservation reservation = new Reservation();
+        reservation.setPassenger(passenger);
+        reservation.setPickupLocality(dto.getPickupLocality());
+        reservation.setPickupAddress(dto.getPickupAddress());
+        reservation.setDestination(dto.getDestination());
+        reservation.setTravelDate(dto.getTravelDate());
+        reservation.setRoundTrip(dto.getRoundTrip() != null ? dto.getRoundTrip() : false);
+        reservation.setReturnDate(dto.getReturnDate());
+        
+        // ✅ Corregido: Asignamos el horario usando el campo real que agregamos en la entidad Reservation
+        reservation.setDepartureSchedule(dto.getDepartureSchedule());
+        
+        reservation.setPassengerCount(dto.getPassengerCount() != null ? dto.getPassengerCount() : 1);
+        
+        // ✅ Corregido: Transformamos List<String> a un String con comas para que sea compatible con el modelo
+        if (dto.getCompanionNames() != null && !dto.getCompanionNames().isEmpty()) {
+            String companionsString = String.join(", ", dto.getCompanionNames());
+            reservation.setCompanionNames(companionsString);
+        } else {
+            reservation.setCompanionNames(null);
         }
+        
+        reservation.setNotes(dto.getNotes());
+
+        // Verificación de Pago y Estado Inicial
+        reservation.setPaymentVerified(dto.getPaymentVerified() != null ? dto.getPaymentVerified() : false);
+        reservation.setStatus(Boolean.TRUE.equals(reservation.getPaymentVerified()) ? "CONFIRMED" : "PENDING_PAYMENT");
+        
+        // Seteamos el costo inicial estimativo (el servicio luego lo dividirá si es RoundTrip)
+        reservation.setAmount(BigDecimal.ZERO); 
+
+        // 3. Procesamos la reserva a través de tu lógica transaccional de negocio
+        reservationService.saveReservationFlow(reservation);
+
+        return "redirect:/agenda?success=true";
     }
 }

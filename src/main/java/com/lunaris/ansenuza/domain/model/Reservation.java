@@ -97,6 +97,10 @@ public class Reservation {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // 🕒 Campo de horario de salida (unificado con el bot y la agenda)
+    @Column(name = "departure_schedule")
+    private String departureSchedule;
+
     public int getTotalSeats() {
         if (this.passengerCount == null || this.passengerCount < 1) {
             return 1;
@@ -107,4 +111,12 @@ public class Reservation {
     public void setReservationCode(String reservationCode) {
         this.reservationCode = reservationCode;
     }
+
+    public void setScheduleBlock(String departureSchedule) {
+      // TODO Auto-generated method stub
+      throw new UnsupportedOperationException("Unimplemented method 'setScheduleBlock'");
+    }
+
+
+    
 }
