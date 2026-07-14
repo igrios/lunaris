@@ -1,13 +1,13 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
-import java.security.Principal; // 👈 NUEVO IMPORT
+import java.security.Principal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors; // 👈 NUEVO IMPORT
+import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,7 +54,7 @@ public class BotMonitorController {
 
     // 🖥️ Muestra la lista de conversaciones en el monitor filtrada por operador logueado
     @GetMapping("/monitor")
-    public String getMonitor(Model model, Principal principal) { // 👈 INYECTAMOS EL PRINCIPAL DE SEGURIDAD
+    public String getMonitor(Model model, Principal principal) {
         List<ConversationSession> sesiones = sessionRepository.findAll();
         
         String username = (principal != null) ? principal.getName() : "anonimo";
@@ -137,12 +137,15 @@ public class BotMonitorController {
             @RequestParam("phone") String phone,
             @RequestParam("firstName") String firstName, 
             @RequestParam("lastName") String lastName,   
+            @RequestParam(value = "cuil", required = false) String cuil, // 👈 NUEVO: CUIT / DNI de facturación
             @RequestParam("pickupLocality") String pickupLocality,
             @RequestParam("destination") String destination,
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
-            @RequestParam(value = "isRoundTrip", defaultValue = "false") boolean isRoundTrip,
+            @RequestParam("departureSchedule") String departureSchedule, // 👈 NUEVO: Horario de salida
+            @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip, // 👈 NUEVO: Switch unificado
+            @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice, // 👈 NUEVO: Flag de facturación
             @RequestParam(value = "chatReceiptUrl", required = false, defaultValue = "null") String chatReceiptUrl,
             RedirectAttributes redirectAttributes) {
 
@@ -150,11 +153,17 @@ public class BotMonitorController {
             Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
                 Passenger newP = new Passenger();
                 newP.setPhone(phone);
+                newP.setCurrentBalance(java.math.BigDecimal.ZERO);
                 return newP;
             });
             
             passenger.setFirstName(firstName.trim());
             passenger.setLastName(lastName.trim() + " (Manual)"); 
+            
+            // Si viene el CUIL desde la pantalla dividida, lo persistimos en el Pasajero
+            if (cuil != null && !cuil.isBlank()) {
+                passenger.setCuil(cuil.trim());
+            }
             passengerRepository.save(passenger);
 
             java.math.BigDecimal montoComboCompleto =
@@ -163,7 +172,7 @@ public class BotMonitorController {
             java.math.BigDecimal montoIda;
             java.math.BigDecimal montoVuelta;
 
-            if (isRoundTrip) {
+            if (roundTrip) {
                 java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
                 montoIda = mitadCombo;
                 montoVuelta = mitadCombo;
@@ -212,13 +221,15 @@ public class BotMonitorController {
             ida.setPaymentReceiptUrl(urlComprobantePermanente); 
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
-            ida.setRoundTrip(isRoundTrip);
+            ida.setRoundTrip(roundTrip);
+            ida.setDepartureSchedule(departureSchedule); // 👈 NUEVO: Persistimos el horario en la base de datos
+            ida.setRequiresInvoice(requiresInvoice); // 👈 NUEVO: Persistimos el flag de factura
             ida.setReservationCode(codigoBase + "-IDA");
             ida.setNotes(notasAuditoria);
 
             reservationRepository.saveAndFlush(ida);
 
-            if (isRoundTrip) {
+            if (roundTrip) {
                 Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
                 vuelta.setTravelDate(LocalDate.of(2099, 12, 31));
@@ -231,6 +242,8 @@ public class BotMonitorController {
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
+                vuelta.setDepartureSchedule(departureSchedule); // Seteamos el mismo horario para consistencia
+                vuelta.setRequiresInvoice(requiresInvoice);
                 vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
                 vuelta.setNotes(notasAuditoria);
