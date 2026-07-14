@@ -6,14 +6,17 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" crossorigin="anonymous">
     <style>
-        body { background-color: #f4f7f6; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: #f4f7f6; font-family: system-ui, -apple-system, sans-serif; padding-top: 75px; }
         .alert-pulse { animation: pulse 1.5s infinite; background-color: #f8d7da !important; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         .status-badge { font-weight: bold; padding: 6px 12px; border-radius: 30px; font-size: 0.85rem; }
         .card-monitor { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
     </style>
 </head>
-<body class="p-4">
+<body class="px-4 pb-4">
+
+    <!-- Menú de Navegación Unificado -->
+    <nav th:replace="~{fragments/nav :: bar('bot')}"></nav>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -124,7 +127,7 @@
             return;
         }
 
-        console.log("Solicitando cambio de estado del bot para sesión ID:", sessionId);
+        console.log("Solicitando cambio of estado del bot para sesión ID:", sessionId);
         stomp.send('/app/bot.toggle', {}, JSON.stringify({ id: sessionId }));
     }
 </script>
