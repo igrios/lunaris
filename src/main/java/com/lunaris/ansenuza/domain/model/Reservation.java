@@ -101,6 +101,10 @@ public class Reservation {
     @Column(name = "departure_schedule")
     private String departureSchedule;
 
+    @Column(name = "requires_invoice")
+    private Boolean requiresInvoice; // 🧾 Flag unificado para facturación
+
+
     public int getTotalSeats() {
         if (this.passengerCount == null || this.passengerCount < 1) {
             return 1;
