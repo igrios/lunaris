@@ -37,7 +37,6 @@
 
                 <hr class="text-muted mb-4">
 
-                <!-- ⚠️ ALERTA INTERACTIVA DE SALDO A FAVOR (SÓLO SE MUESTRA SI TIENE SALDO CC) -->
                 <div id="alertaSaldoFavor" class="alert alert-warning d-none align-items-center mb-4" role="alert" style="border-radius: 12px; border: 1px solid #ffd75a;">
                     <i class="bi bi-wallet2 fs-4 me-2 text-dark"></i>
                     <div>
@@ -47,7 +46,7 @@
 
                 <form th:action="@{/admin/bot/monitor/cargar-reserva-web}" method="post">
 
-                    <!-- 👤 SECCIÓN: DATOS DEL PASAJERO -->
+                    <!-- 👤 PASAJERO -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-person-fill"></i> Datos del Pasajero</h5>
                     
                     <div class="row g-3 mb-3">
@@ -57,54 +56,43 @@
                                 <span class="input-group-text bg-light">+54</span>
                                 <input type="tel" name="phone" id="phoneInput" class="form-control border-primary fw-bold" placeholder="Ej: 3562400111" required>
                             </div>
-                            <small class="text-muted" style="font-size: 0.8rem;">Escribe el celular para buscar al cliente automáticamente.</small>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Nombre</label>
-                            <input type="text" name="firstName" id="firstNameInput" class="form-control" placeholder="Ej: Juan" required>
+                            <input type="text" name="firstName" id="firstNameInput" class="form-control" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Apellido</label>
-                            <input type="text" name="lastName" id="lastNameInput" class="form-control" placeholder="Ej: Pérez" required>
+                            <input type="text" name="lastName" id="lastNameInput" class="form-control" required>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-dark">DNI / CUIL (Para Facturación)</label>
-                            <input type="text" name="cuil" id="cuilInput" class="form-control" placeholder="Ej: 20384445559" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                            <input type="text" name="cuil" id="cuilInput" class="form-control" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                         </div>
                     </div>
 
                     <hr class="text-muted my-4">
 
-                    <!-- 📍 SECCIÓN: DATOS DEL VIAJE (PUEBLOS DESPLEGABLES DINÁMICOS) -->
+                    <!-- 📍 TRAYECTO -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-geo-alt-fill"></i> Detalles del Trayecto</h5>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
                             <select class="form-select" id="inputOrigen" name="pickupLocality" required>
-                                <option value="" disabled selected>Seleccione origen...</option>
-                                <option value="Córdoba">Córdoba</option> <!-- Córdoba fijo por ser hub -->
-                                <!-- Iteramos los pueblos de la base de datos -->
-                                <option th:each="loc : ${localidades}" 
-                                        th:value="${loc}" 
-                                        th:text="${loc}"></option>
+                                <option value="" disabled selected>Cargando pueblos...</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
                             <select class="form-select" id="inputDestino" name="destination" required>
-                                <option value="" disabled selected>Seleccione destino...</option>
-                                <option value="Córdoba">Córdoba</option> <!-- Córdoba fijo por ser hub -->
-                                <!-- Iteramos los pueblos de la base de datos -->
-                                <option th:each="loc : ${localidades}" 
-                                        th:value="${loc}" 
-                                        th:text="${loc}"></option>
+                                <option value="" disabled selected>Cargando pueblos...</option>
                             </select>
                         </div>
                     </div>
@@ -116,7 +104,7 @@
 
                     <hr class="text-muted my-4">
 
-                    <!-- 📅 SECCIÓN: FECHAS Y HORARIOS -->
+                    <!-- 📅 FECHA Y HORARIO -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-calendar-event-fill"></i> Fecha, Horario y Asientos</h5>
 
                     <div class="row g-3 mb-3">
@@ -137,7 +125,6 @@
                         </div>
                     </div>
 
-                    <!-- Switches de Ida/Vuelta y Facturación -->
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="form-check form-switch p-3 bg-light rounded-3 border border-dashed h-100">
@@ -157,19 +144,18 @@
                         </div>
                     </div>
 
-                    <!-- 📅 SECCIÓN: MODALIDAD DE RETORNO (Sólo si está activo Ida y Vuelta) -->
+                    <!-- SECCIÓN CONDICIONAL DE REGRESO -->
                     <div id="sectionOpcionesRetorno" class="p-3 bg-light rounded-3 mb-4 border d-none" style="font-size: 0.95rem;">
                         <label class="form-label small fw-bold text-primary d-block mb-2">Modalidad de Regreso</label>
                         <div class="form-check form-check-inline mb-2">
                             <input class="form-check-input" type="radio" name="retornoTipo" id="retornoAbiertoForm" value="abierto" checked>
-                            <label class="form-check-label" for="retornoAbiertoForm">📂 Vuelta Abierta (Sin fecha)</label>
+                            <label class="form-check-label" for="retornoAbiertoForm">📂 Vuelta Abierta</label>
                         </div>
                         <div class="form-check form-check-inline mb-2">
                             <input class="form-check-input" type="radio" name="retornoTipo" id="retornoProgramadoForm" value="programado">
                             <label class="form-check-label" for="retornoProgramadoForm">📅 Fecha Programada</label>
                         </div>
 
-                        <!-- Calendario para regreso programado -->
                         <div id="sectionFechaVuelta" class="mt-2 d-none">
                             <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
                             <input type="date" name="returnDate" id="returnDateInput" class="form-control fw-bold border-primary">
@@ -181,11 +167,9 @@
                         <textarea class="form-control" name="notes" rows="3" placeholder="Ej: Viaja con equipaje grande, etc."></textarea>
                     </div>
 
-                    <!-- 💰 PREVISUALIZACIÓN DE COSTOS -->
                     <div class="p-3 mb-4 rounded-3 d-flex justify-content-between align-items-center" style="background-color: #e8f0fe; border: 1px solid #b3cefb;">
                         <div>
                             <span class="text-secondary fw-semibold d-block" style="font-size: 0.85rem;">Código Estimado: <strong id="previewCodigo" class="text-primary">---</strong></span>
-                            <small class="text-muted">Las tarifas se computarán usando el calculador de Lunaris</small>
                         </div>
                         <div class="text-end">
                             <span class="text-secondary d-block small fw-bold">Monto Calculado</span>
@@ -208,6 +192,30 @@
 
     <!-- SCRIPTS INTERACTIVOS -->
     <script th:inline="javascript">
+        // ⚡ CARGA ASÍNCRONA DE LOCALIDADES DESDE LA API UNIFICADA
+        function cargarLocalidadesDropdown() {
+            fetch('/admin/bot/monitor/localidades')
+                .then(res => res.json())
+                .then(localidades => {
+                    const origenSel = document.getElementById('inputOrigen');
+                    const destinoSel = document.getElementById('inputDestino');
+
+                    origenSel.innerHTML = '<option value="" disabled selected>Seleccione origen...</option><option value="Córdoba">Córdoba</option>';
+                    destinoSel.innerHTML = '<option value="" disabled selected>Seleccione destino...</option><option value="Córdoba">Córdoba</option>';
+
+                    localidades.forEach(loc => {
+                        const optO = document.createElement('option');
+                        optO.value = loc; optO.textContent = loc;
+                        origenSel.appendChild(optO);
+
+                        const optD = document.createElement('option');
+                        optD.value = loc; optD.textContent = loc;
+                        destinoSel.appendChild(optD);
+                    });
+                })
+                .catch(err => console.error("Error cargando pueblos:", err));
+        }
+
         const orig = document.getElementById('inputOrigen');
         const dest = document.getElementById('inputDestino');
         const asie = document.getElementById('inputAsientos');
@@ -219,7 +227,6 @@
         const alertaDiv = document.getElementById('alertaSaldoFavor');
         const saldoSpan = document.getElementById('saldoMontoText');
 
-        // 1. Cotizar en tiempo real
         function actualizarCotizacion() {
             const origenVal = orig.value;
             const destinoVal = dest.value;
@@ -236,7 +243,6 @@
             }
         }
 
-        // 2. Buscador y Autocompletado de Pasajero por Teléfono (blur)
         if (phoneInput) {
             phoneInput.addEventListener('blur', () => {
                 const telefono = phoneInput.value.trim();
@@ -245,12 +251,10 @@
                         .then(res => res.json())
                         .then(data => {
                             if (data.existe) {
-                                // Autocompletamos los campos del pasajero
                                 firstNameInput.value = data.firstName;
                                 lastNameInput.value = data.lastName;
                                 cuilInput.value = data.cuil;
 
-                                // Si tiene saldo a favor, mostramos el cartel
                                 if (parseFloat(data.saldo) > 0) {
                                     saldoSpan.innerText = parseFloat(data.saldo).toFixed(2);
                                     alertaDiv.classList.remove('d-none');
@@ -259,10 +263,6 @@
                                     alertaDiv.classList.add('d-none');
                                     alertaDiv.classList.remove('d-flex');
                                 }
-                            } else {
-                                // Si no existe, no pisamos lo que haya escrito y ocultamos el cartel de saldo
-                                alertaDiv.classList.add('d-none');
-                                alertaDiv.classList.remove('d-flex');
                             }
                         })
                         .catch(err => console.error("Error al consultar pasajero:", err));
@@ -270,12 +270,10 @@
             });
         }
 
-        // 3. Lógica interactiva de Retorno (Abierto o Programado con calendario)
         const isRoundTripCheck = document.getElementById('isRoundTripCheck');
         const sectionOpcionesRetorno = document.getElementById('sectionOpcionesRetorno');
         const sectionFechaVuelta = document.getElementById('sectionFechaVuelta');
         const returnDateInput = document.getElementById('returnDateInput');
-        
         const retornoAbiertoForm = document.getElementById('retornoAbiertoForm');
         const retornoProgramadoForm = document.getElementById('retornoProgramadoForm');
 
@@ -283,29 +281,29 @@
             isRoundTripCheck.addEventListener('change', () => {
                 if (isRoundTripCheck.checked) {
                     sectionOpcionesRetorno.classList.remove('d-none');
-                    actualizarVisibilidadCalendarioVueltaForm();
+                    actualizarCalendarioVueltaForm();
                 } else {
                     sectionOpcionesRetorno.classList.add('d-none');
                     sectionFechaVuelta.classList.add('d-none');
-                    returnDateInput.value = ""; // Limpiamos la fecha si desmarca
+                    returnDateInput.value = "";
                 }
             });
         }
 
-        function actualizarVisibilidadCalendarioVueltaForm() {
+        function actualizarCalendarioVueltaForm() {
             if (retornoProgramadoForm.checked) {
                 sectionFechaVuelta.classList.remove('d-none');
                 returnDateInput.setAttribute('required', 'required');
             } else {
                 sectionFechaVuelta.classList.add('d-none');
                 returnDateInput.removeAttribute('required');
-                returnDateInput.value = ""; // Si es abierta, no enviamos fecha para el centinela 2099
+                returnDateInput.value = "";
             }
         }
 
         if (retornoAbiertoForm && retornoProgramadoForm) {
-            retornoAbiertoForm.addEventListener('change', actualizarVisibilidadCalendarioVueltaForm);
-            retornoProgramadoForm.addEventListener('change', actualizarVisibilidadCalendarioVueltaForm);
+            retornoAbiertoForm.addEventListener('change', actualizarCalendarioVueltaForm);
+            retornoProgramadoForm.addEventListener('change', actualizarCalendarioVueltaForm);
         }
 
         if (orig && dest && asie) {
@@ -314,6 +312,8 @@
             asie.addEventListener('input', actualizarCotizacion);
             asie.addEventListener('change', actualizarCotizacion);
         }
+
+        window.addEventListener('DOMContentLoaded', cargarLocalidadesDropdown);
     </script>
 </body>
 </html>

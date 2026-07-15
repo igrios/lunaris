@@ -28,7 +28,7 @@ import com.lunaris.ansenuza.domain.model.service.OperationControlService;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
-import com.lunaris.ansenuza.domain.repository.LocalityRepository; // ✅ Importación de Localidades de la Base de Datos
+import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -48,7 +48,7 @@ public class BotMonitorController {
     private final ReservationRepository reservationRepository;
     private final PassengerRepository passengerRepository;
     private final ChatMessageRepository messageRepository; 
-    private final LocalityRepository localityRepository; // ✅ Inyectamos el repositorio para consultar los pueblos de la BD
+    private final LocalityRepository localityRepository; 
     private final WhatsAppService whatsAppService;
     private final PricingAndScheduleService tarifaService;
     private final ReceiptStoragePort cloudinaryService;
@@ -79,17 +79,33 @@ public class BotMonitorController {
         return "admin/bot-monitor";
     }
 
-    // 🖥️ NUEVO ENDPOINT: Abre el formulario tradicional de nueva reserva alimentado con la base de datos
+    // 🖥️ Abre el formulario tradicional de nueva reserva
     @GetMapping("/monitor/nueva-reserva")
     public String mostrarFormularioManual(Model model) {
-        // Traemos todos los pueblos registrados en la BD ordenados alfabéticamente para los dropdowns
+        // Mantenemos soporte Thymeleaf tradicional por si acaso
         List<String> localidades = localityRepository.findAll().stream()
                 .map(locality -> locality.getName())
                 .sorted()
                 .collect(Collectors.toList());
         
         model.addAttribute("localidades", localidades);
-        return "reservation-form"; // Abre src/main/resources/templates/reservation-form.html
+        return "reservation-form"; 
+    }
+
+    // 📡 NUEVO ENDPOINT API: Retorna todas las localidades en JSON para que las consuman vía JS en caliente
+    @GetMapping("/monitor/localidades")
+    @ResponseBody
+    public ResponseEntity<List<String>> obtenerLocalidades() {
+        try {
+            List<String> localidades = localityRepository.findAll().stream()
+                    .map(locality -> locality.getName())
+                    .sorted()
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(localidades);
+        } catch (Exception e) {
+            log.error("[API Localidades] Error al consultar de la BD: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     // 🌙 Acción POST para encender o apagar la jornada de atención humana
@@ -175,7 +191,6 @@ public class BotMonitorController {
     }
 
     // 🚀 CARGA MANUAL ASISTIDA (Desde la pantalla dividida del chat en vivo)
-  // 🚀 CARGA MANUAL ASISTIDA (Desde la pantalla dividida del chat en vivo)
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
@@ -187,7 +202,7 @@ public class BotMonitorController {
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
-            @RequestParam(value = "returnDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate, // ✅ Recibe fecha de vuelta precisa si es programada
+            @RequestParam(value = "returnDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate, 
             @RequestParam("departureSchedule") String departureSchedule,
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
@@ -274,7 +289,7 @@ public class BotMonitorController {
             if (roundTrip) {
                 Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
-                // ✅ Si viene returnDate lo usamos (programada), de lo contrario usa el centinela 2099 (abierta)
+                // Si viene returnDate de formulario (Fecha Cerrada), se asigna, sino centinela (Fecha Abierta)
                 vuelta.setTravelDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
                 vuelta.setPickupLocality(destination);
                 vuelta.setDestination(pickupLocality);
@@ -301,7 +316,7 @@ public class BotMonitorController {
                     + "*Viaje:* " + pickupLocality + " ➡️ " + destination + "\n" 
                     + "*Fecha:* " + travelDate.toString() + "\n" 
                     + "*Asientos:* " + passengerCount + "\n\n"
-                    + "En cuanto validemos la transferencia, el sistema te enviará la confirmación definitiva.";
+                    + "En cuanto validemos la transferencia en el homebanking, el sistema te enviará la confirmación definitiva.";
 
             whatsAppService.sendMessage(phone, textoConfirmacion);
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito!");
@@ -326,7 +341,7 @@ public class BotMonitorController {
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
-            @RequestParam(value = "returnDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate, // ✅ Recibe la fecha de regreso desde la web
+            @RequestParam(value = "returnDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate, 
             @RequestParam("departureSchedule") String departureSchedule,
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
@@ -377,7 +392,7 @@ public class BotMonitorController {
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
             ida.setAmount(montoIda); 
-            ida.setStatus("CONFIRMED"); // Confirmado directo por oficina
+            ida.setStatus("CONFIRMED"); 
             ida.setPaymentVerified(true);
             ida.setRoundTrip(roundTrip);
             ida.setDepartureSchedule(departureSchedule);
@@ -390,7 +405,7 @@ public class BotMonitorController {
             if (roundTrip) {
                 Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
-                // Si viene una fecha de regreso del formulario la aplicamos, sino default al centinela (2099)
+                // Si viene returnDate de formulario (Fecha Cerrada), se asigna, sino centinela (Fecha Abierta)
                 vuelta.setTravelDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
                 vuelta.setPickupLocality(destination);
                 vuelta.setDestination(pickupLocality);
