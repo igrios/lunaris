@@ -145,9 +145,6 @@
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
                                     <i class="bi bi-arrow-left-right"></i> ¿Es Ida y Vuelta?
                                 </label>
-                                <div class="text-muted mt-1" style="font-size: 0.75rem; margin-left: 2rem;">
-                                    Permite definir una fecha de regreso para la vuelta.
-                                </div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -160,10 +157,23 @@
                         </div>
                     </div>
 
-                    <!-- 📅 CAMPO DINÁMICO: Fecha de Regreso (Aparece solo si el switch anterior está activo) -->
-                    <div id="sectionFechaVuelta" class="mb-4 d-none">
-                        <label class="form-label small fw-bold text-primary"><i class="bi bi-calendar-check"></i> Fecha de Regreso (Vuelta)</label>
-                        <input type="date" name="returnDate" class="form-control fw-bold border-primary">
+                    <!-- 📅 SECCIÓN: MODALIDAD DE RETORNO (Sólo si está activo Ida y Vuelta) -->
+                    <div id="sectionOpcionesRetorno" class="p-3 bg-light rounded-3 mb-4 border d-none" style="font-size: 0.95rem;">
+                        <label class="form-label small fw-bold text-primary d-block mb-2">Modalidad de Regreso</label>
+                        <div class="form-check form-check-inline mb-2">
+                            <input class="form-check-input" type="radio" name="retornoTipo" id="retornoAbiertoForm" value="abierto" checked>
+                            <label class="form-check-label" for="retornoAbiertoForm">📂 Vuelta Abierta (Sin fecha)</label>
+                        </div>
+                        <div class="form-check form-check-inline mb-2">
+                            <input class="form-check-input" type="radio" name="retornoTipo" id="retornoProgramadoForm" value="programado">
+                            <label class="form-check-label" for="retornoProgramadoForm">📅 Fecha Programada</label>
+                        </div>
+
+                        <!-- Calendario para regreso programado -->
+                        <div id="sectionFechaVuelta" class="mt-2 d-none">
+                            <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
+                            <input type="date" name="returnDate" id="returnDateInput" class="form-control fw-bold border-primary">
+                        </div>
                     </div>
 
                     <div class="mb-4">
@@ -260,18 +270,42 @@
             });
         }
 
-        // 3. Mostrar/Ocultar dinámicamente el campo de Fecha de Regreso
+        // 3. Lógica interactiva de Retorno (Abierto o Programado con calendario)
         const isRoundTripCheck = document.getElementById('isRoundTripCheck');
+        const sectionOpcionesRetorno = document.getElementById('sectionOpcionesRetorno');
         const sectionFechaVuelta = document.getElementById('sectionFechaVuelta');
+        const returnDateInput = document.getElementById('returnDateInput');
+        
+        const retornoAbiertoForm = document.getElementById('retornoAbiertoForm');
+        const retornoProgramadoForm = document.getElementById('retornoProgramadoForm');
 
-        if (isRoundTripCheck && sectionFechaVuelta) {
+        if (isRoundTripCheck && sectionOpcionesRetorno) {
             isRoundTripCheck.addEventListener('change', () => {
                 if (isRoundTripCheck.checked) {
-                    sectionFechaVuelta.classList.remove('d-none');
+                    sectionOpcionesRetorno.classList.remove('d-none');
+                    actualizarVisibilidadCalendarioVueltaForm();
                 } else {
+                    sectionOpcionesRetorno.classList.add('d-none');
                     sectionFechaVuelta.classList.add('d-none');
+                    returnDateInput.value = ""; // Limpiamos la fecha si desmarca
                 }
             });
+        }
+
+        function actualizarVisibilidadCalendarioVueltaForm() {
+            if (retornoProgramadoForm.checked) {
+                sectionFechaVuelta.classList.remove('d-none');
+                returnDateInput.setAttribute('required', 'required');
+            } else {
+                sectionFechaVuelta.classList.add('d-none');
+                returnDateInput.removeAttribute('required');
+                returnDateInput.value = ""; // Si es abierta, no enviamos fecha para el centinela 2099
+            }
+        }
+
+        if (retornoAbiertoForm && retornoProgramadoForm) {
+            retornoAbiertoForm.addEventListener('change', actualizarVisibilidadCalendarioVueltaForm);
+            retornoProgramadoForm.addEventListener('change', actualizarVisibilidadCalendarioVueltaForm);
         }
 
         if (orig && dest && asie) {

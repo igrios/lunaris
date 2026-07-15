@@ -88,7 +88,7 @@
                 </div>
             </div>
 
-            <!-- COLUMNA DERECHA: CONSOLA DE CARGA MANUAL HOMOLOGADA CON EL BOT -->
+            <!-- COLUMNA DERECHA: CONSOLA DE CARGA MANUAL -->
             <div class="col-md-6 scrollable-panel pb-5">
                 <div class="card shadow mb-4" style="border-radius: 12px;">
                     <div class="card-body p-4">
@@ -203,8 +203,24 @@
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
                                     <i class="bi bi-arrow-left-right"></i> ¿Es pasaje de Ida y Vuelta?
                                 </label>
-                                <div class="text-muted xtra-small ms-4" style="font-size: 0.75rem;">
-                                    Permite definir una fecha de regreso precisa para la vuelta.
+                            </div>
+
+                            <!-- 📅 OPCIONES DE RETORNO (Sólo visible si Ida y Vuelta está tildado) -->
+                            <div id="sectionOpcionesRetorno" class="p-3 bg-light rounded-3 mb-3 border d-none" style="font-size: 0.9rem;">
+                                <label class="form-label small fw-bold text-primary d-block mb-2">Modalidad de Regreso</label>
+                                <div class="form-check form-check-inline mb-2">
+                                    <input class="form-check-input" type="radio" name="retornoTipo" id="retornoAbierto" value="abierto" checked>
+                                    <label class="form-check-label" for="retornoAbierto">📂 Vuelta Abierta (Sin fecha)</label>
+                                </div>
+                                <div class="form-check form-check-inline mb-2">
+                                    <input class="form-check-input" type="radio" name="retornoTipo" id="retornoProgramado" value="programado">
+                                    <label class="form-check-label" for="retornoProgramado">📅 Fecha Programada</label>
+                                </div>
+
+                                <!-- Calendario condicional para fecha de regreso programada -->
+                                <div id="sectionFechaVuelta" class="mt-2 d-none">
+                                    <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
+                                    <input type="date" name="returnDate" id="returnDateInput" class="form-control form-control-sm fw-bold border-primary">
                                 </div>
                             </div>
 
@@ -214,12 +230,6 @@
                                 <label class="form-check-label fw-bold text-info" for="requiresInvoice">
                                     <i class="bi bi-file-earmark-text"></i> ¿Requiere factura A o B?
                                 </label>
-                            </div>
-
-                            <!-- 📅 CAMPO DINÁMICO: Fecha de Regreso (Aparece solo si el switch anterior está activo) -->
-                            <div id="sectionFechaVuelta" class="mb-3 d-none">
-                                <label class="form-label small fw-bold text-primary"><i class="bi bi-calendar-check"></i> Fecha de Regreso (Vuelta)</label>
-                                <input type="date" name="returnDate" class="form-control form-control-sm fw-bold border-primary">
                             </div>
 
                             <!-- 💰 RECUADRO DINÁMICO DE PREVISUALIZACIÓN DE COSTOS -->
@@ -412,18 +422,42 @@
             }
         });
 
-        // 📅 Mostrar/Ocultar dinámicamente el campo de Fecha de Regreso
+        // 📅 LÓGICA DE IDA/VUELTA (MUESTRA EL SELECTOR DE RETORNO Y EL CALENDARIO SÓLO SI CORRESPONDE)
         const isRoundTripCheck = document.getElementById('isRoundTripCheck');
+        const sectionOpcionesRetorno = document.getElementById('sectionOpcionesRetorno');
         const sectionFechaVuelta = document.getElementById('sectionFechaVuelta');
+        const returnDateInput = document.getElementById('returnDateInput');
+        
+        const retornoAbierto = document.getElementById('retornoAbierto');
+        const retornoProgramado = document.getElementById('retornoProgramado');
 
-        if (isRoundTripCheck && sectionFechaVuelta) {
+        if (isRoundTripCheck && sectionOpcionesRetorno) {
             isRoundTripCheck.addEventListener('change', () => {
                 if (isRoundTripCheck.checked) {
-                    sectionFechaVuelta.classList.remove('d-none');
+                    sectionOpcionesRetorno.classList.remove('d-none');
+                    actualizarVisibilidadCalendarioVuelta();
                 } else {
+                    sectionOpcionesRetorno.classList.add('d-none');
                     sectionFechaVuelta.classList.add('d-none');
+                    returnDateInput.value = ""; // Limpiamos la fecha si desmarca ida y vuelta
                 }
             });
+        }
+
+        function actualizarVisibilidadCalendarioVuelta() {
+            if (retornoProgramado.checked) {
+                sectionFechaVuelta.classList.remove('d-none');
+                returnDateInput.setAttribute('required', 'required');
+            } else {
+                sectionFechaVuelta.classList.add('d-none');
+                returnDateInput.removeAttribute('required');
+                returnDateInput.value = ""; // Si es abierta, no enviamos fecha para que el backend asigne 2099
+            }
+        }
+
+        if (retornoAbierto && retornoProgramado) {
+            retornoAbierto.addEventListener('change', actualizarVisibilidadCalendarioVuelta);
+            retornoProgramado.addEventListener('change', actualizarVisibilidadCalendarioVuelta);
         }
     </script>
 </body>

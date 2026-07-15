@@ -175,6 +175,7 @@ public class BotMonitorController {
     }
 
     // 🚀 CARGA MANUAL ASISTIDA (Desde la pantalla dividida del chat en vivo)
+  // 🚀 CARGA MANUAL ASISTIDA (Desde la pantalla dividida del chat en vivo)
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
@@ -186,6 +187,7 @@ public class BotMonitorController {
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            @RequestParam(value = "returnDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate, // ✅ Recibe fecha de vuelta precisa si es programada
             @RequestParam("departureSchedule") String departureSchedule,
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
@@ -247,8 +249,8 @@ public class BotMonitorController {
                     + destination.substring(0, 3).toUpperCase() + "-" + shortId;
 
             String notasAuditoria = urlComprobantePermanente != null
-                    ? "Cargado por Operador desde Monitor. Comprobante enlazado y persistido en Cloudinary de forma definitiva."
-                    : "Cargado por Operador desde Monitor. ⚠️ Comprobante no pudo persistirse automáticamente, requiere carga manual.";
+                    ? "Cargado por Operador desde Monitor. Comprobante enlazado y persistido en Cloudinary."
+                    : "Cargado por Operador desde Monitor. ⚠️ Comprobante no pudo persistirse.";
 
             Reservation ida = new Reservation();
             ida.setPassenger(passenger);
@@ -272,10 +274,11 @@ public class BotMonitorController {
             if (roundTrip) {
                 Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
-                vuelta.setTravelDate(LocalDate.of(2099, 12, 31));
+                // ✅ Si viene returnDate lo usamos (programada), de lo contrario usa el centinela 2099 (abierta)
+                vuelta.setTravelDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
                 vuelta.setPickupLocality(destination);
                 vuelta.setDestination(pickupLocality);
-                vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
+                vuelta.setPickupAddress(returnDate != null ? "A coordinar domicilio de vuelta" : "A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
                 vuelta.setAmount(montoVuelta); 
                 vuelta.setPaymentReceiptUrl(urlComprobantePermanente); 
@@ -284,7 +287,7 @@ public class BotMonitorController {
                 vuelta.setRoundTrip(true);
                 vuelta.setDepartureSchedule(departureSchedule);
                 vuelta.setRequiresInvoice(requiresInvoice);
-                vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
+                vuelta.setReturnDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
                 vuelta.setNotes(notasAuditoria);
 
@@ -298,15 +301,14 @@ public class BotMonitorController {
                     + "*Viaje:* " + pickupLocality + " ➡️ " + destination + "\n" 
                     + "*Fecha:* " + travelDate.toString() + "\n" 
                     + "*Asientos:* " + passengerCount + "\n\n"
-                    + "En cuanto validemos la transferencia en el homebanking, el sistema te enviará la confirmación definitiva.";
+                    + "En cuanto validemos la transferencia, el sistema te enviará la confirmación definitiva.";
 
             whatsAppService.sendMessage(phone, textoConfirmacion);
-
-            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito! Comprobante enlazado y persistido.");
+            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito!");
 
         } catch (Exception e) {
             log.error("[Carga Manual] Falló el flujo asistido: ", e);
-            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar carga: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar: " + e.getMessage());
         }
 
         return "redirect:/admin/chat/" + phone;
