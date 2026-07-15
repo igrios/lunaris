@@ -131,7 +131,7 @@ public class BotMonitorController {
         }
     }
 
-    // 🔍 NUEVO ENDPOINT: Consulta asíncrona de saldo a favor por número de teléfono
+// 🔍 ENDPOINT EXTENDIDO: Busca pasajero por teléfono y retorna todos sus datos y saldo actual
     @GetMapping("/monitor/pasajero/saldo")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> obtenerSaldoPasajero(@RequestParam("phone") String phone) {
@@ -143,7 +143,9 @@ public class BotMonitorController {
             if (passengerOpt.isPresent()) {
                 Passenger p = passengerOpt.get();
                 respuesta.put("existe", true);
-                respuesta.put("nombre", p.getFirstName() + " " + p.getLastName());
+                respuesta.put("firstName", p.getFirstName() != null ? p.getFirstName() : "");
+                respuesta.put("lastName", p.getLastName() != null ? p.getLastName() : "");
+                respuesta.put("cuil", p.getCuil() != null ? p.getCuil() : "");
                 respuesta.put("saldo", p.getCurrentBalance() != null ? p.getCurrentBalance() : java.math.BigDecimal.ZERO);
             } else {
                 respuesta.put("existe", false);
@@ -151,12 +153,12 @@ public class BotMonitorController {
             }
             return ResponseEntity.ok(respuesta);
         } catch (Exception e) {
-            log.error("[Saldo Pasajero] Error al consultar para el teléfono {}: ", phone, e);
+            log.error("[Buscador Pasajero] Error al consultar para el teléfono {}: ", phone, e);
             respuesta.put("error", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
         }
     }
-
+    
     // 🚀 CARGA MANUAL ASISTIDA (Desde la pantalla dividida del chat en vivo)
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(

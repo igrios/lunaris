@@ -8,8 +8,7 @@
     <style>
         body { background-color: #f4f6f9; font-family: system-ui, -apple-system, sans-serif; }
         .form-card { border-radius: 16px; border: none; }
-        .btn-agenda { background-color: #6f42c1; color: white; }
-        .btn-agenda:hover { background-color: #59359a; color: white; }
+        .badge-cc { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
     </style>
 </head>
 <body class="py-5">
@@ -32,66 +31,83 @@
                     </div>
                     <div>
                         <h2 class="fw-bold text-dark mb-0">Nueva Reserva Manual</h2>
-                        <p class="text-muted mb-0">Carga reservas directas desde la administración web que se confirmarán automáticamente</p>
+                        <p class="text-muted mb-0">Carga reservas directas desde la administración con autocompletado y tarifas dinámicas</p>
                     </div>
                 </div>
 
                 <hr class="text-muted mb-4">
 
+                <!-- ⚠️ ALERTA INTERACTIVA DE SALDO A FAVOR (SÓLO SE MUESTRA SI TIENE SALDO CC) -->
+                <div id="alertaSaldoFavor" class="alert alert-warning d-none align-items-center mb-4" role="alert" style="border-radius: 12px; border: 1px solid #ffd75a;">
+                    <i class="bi bi-wallet2 fs-4 me-2 text-dark"></i>
+                    <div>
+                        <strong>¡Pasajero Frecuente!</strong> Cuenta con un saldo a favor de <strong>$<span id="saldoMontoText">0.00</span></strong> en su cuenta corriente.
+                    </div>
+                </div>
+
                 <form th:action="@{/admin/bot/monitor/cargar-reserva-web}" method="post">
 
-
-
+                    <!-- 👤 SECCIÓN: DATOS DEL PASAJERO -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-person-fill"></i> Datos del Pasajero</h5>
-                    <!-- ⚠️ ALERTA INTERACTIVA DE SALDO A FAVOR (Se activa dinámicamente) -->
-<div id="alertaSaldoFavor" class="alert alert-warning d-none align-items-center mb-3" role="alert" style="border-radius: 8px;">
-    <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
-    <div>
-        <strong>¡Atención!</strong> Este pasajero tiene un saldo a favor de <strong>$<span id="saldoMontoText">0.00</span></strong> en su cuenta corriente.
-    </div>
-</div>
-
-
-
+                    
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-dark">Número de Teléfono (WhatsApp)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">+54</span>
+                                <input type="tel" name="phone" id="phoneInput" class="form-control border-primary fw-bold" placeholder="Ej: 3562400111" required>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.8rem;">Escribe el celular para buscar al cliente automáticamente.</small>
+                        </div>
+                    </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Nombre</label>
-                            <input type="text" name="firstName" class="form-control" placeholder="Ej: Juan" required>
+                            <input type="text" name="firstName" id="firstNameInput" class="form-control" placeholder="Ej: Juan" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Apellido</label>
-                            <input type="text" name="lastName" class="form-control" placeholder="Ej: Pérez" required>
+                            <input type="text" name="lastName" id="lastNameInput" class="form-control" placeholder="Ej: Pérez" required>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-dark">Número de Teléfono (WhatsApp)</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light">+54</span>
-                                <input type="tel" name="phone" class="form-control" placeholder="Ej: 3562400111" required>
-                            </div>
-                            <small class="text-muted" style="font-size: 0.8rem;">Sin el 0 ni el 15. Solo números.</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-bold text-dark">DNI / CUIL (Opcional para Factura)</label>
-                            <input type="text" name="cuil" class="form-control" placeholder="Ej: 20384445559" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold text-dark">DNI / CUIL (Para Facturación)</label>
+                            <input type="text" name="cuil" id="cuilInput" class="form-control" placeholder="Ej: 20384445559" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                         </div>
                     </div>
 
                     <hr class="text-muted my-4">
 
+                    <!-- 📍 SECCIÓN: DATOS DEL VIAJE (PUEBLOS DESPLEGABLES) -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-geo-alt-fill"></i> Detalles del Trayecto</h5>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
-                            <input type="text" id="inputOrigen" name="pickupLocality" class="form-control" placeholder="Ej: Morteros" required>
+                            <select class="form-select" id="inputOrigen" name="pickupLocality" required>
+                                <option value="" disabled selected>Seleccione origen...</option>
+                                <option value="Morteros">Morteros</option>
+                                <option value="Brinkmann">Brinkmann</option>
+                                <option value="Porteña">Porteña</option>
+                                <option value="San Francisco">San Francisco</option>
+                                <option value="Córdoba">Córdoba</option>
+                                <option value="Villariza">Villariza</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
-                            <input type="text" id="inputDestino" name="destination" class="form-control" placeholder="Ej: Córdoba" required>
+                            <select class="form-select" id="inputDestino" name="destination" required>
+                                <option value="" disabled selected>Seleccione destino...</option>
+                                <option value="Córdoba">Córdoba</option>
+                                <option value="Morteros">Morteros</option>
+                                <option value="Brinkmann">Brinkmann</option>
+                                <option value="Porteña">Porteña</option>
+                                <option value="San Francisco">San Francisco</option>
+                                <option value="Villariza">Villariza</option>
+                            </select>
                         </div>
                     </div>
 
@@ -102,6 +118,7 @@
 
                     <hr class="text-muted my-4">
 
+                    <!-- 📅 SECCIÓN: FECHAS Y HORARIOS -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-calendar-event-fill"></i> Fecha, Horario y Asientos</h5>
 
                     <div class="row g-3 mb-3">
@@ -122,6 +139,7 @@
                         </div>
                     </div>
 
+                    <!-- Switches de Ida/Vuelta y Facturación -->
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="form-check form-switch p-3 bg-light rounded-3 border border-dashed h-100">
@@ -130,7 +148,7 @@
                                     <i class="bi bi-arrow-left-right"></i> ¿Es Ida y Vuelta?
                                 </label>
                                 <div class="text-muted mt-1" style="font-size: 0.75rem; margin-left: 2rem;">
-                                    Generará automáticamente la Vuelta Abierta con fecha centinela (2099).
+                                    Permite definir una fecha de regreso para la vuelta.
                                 </div>
                             </div>
                         </div>
@@ -140,18 +158,22 @@
                                 <label class="form-check-label fw-bold text-info" for="requiresInvoice">
                                     <i class="bi bi-file-earmark-text"></i> ¿Requiere Factura?
                                 </label>
-                                <div class="text-muted mt-1" style="font-size: 0.75rem; margin-left: 2rem;">
-                                    Habilitará la solicitud de comprobante A o B en el sistema de facturas.
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label small fw-bold text-dark">Acompañantes / Notas / Observaciones</label>
-                        <textarea class="form-control" name="notes" rows="3" placeholder="Ej: Viaja con el gato en canil, acompañantes: Juan, María."></textarea>
+                    <!-- 📅 CAMPO DINÁMICO: Fecha de Regreso (Aparece solo si el switch anterior está activo) -->
+                    <div id="sectionFechaVuelta" class="mb-4 d-none">
+                        <label class="form-label small fw-bold text-primary"><i class="bi bi-calendar-check"></i> Fecha de Regreso (Vuelta)</label>
+                        <input type="date" name="returnDate" class="form-control fw-bold border-primary">
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark">Notas u Observaciones de la Oficina</label>
+                        <textarea class="form-control" name="notes" rows="3" placeholder="Ej: Viaja con equipaje grande, etc."></textarea>
+                    </div>
+
+                    <!-- 💰 PREVISUALIZACIÓN DE COSTOS -->
                     <div class="p-3 mb-4 rounded-3 d-flex justify-content-between align-items-center" style="background-color: #e8f0fe; border: 1px solid #b3cefb;">
                         <div>
                             <span class="text-secondary fw-semibold d-block" style="font-size: 0.85rem;">Código Estimado: <strong id="previewCodigo" class="text-primary">---</strong></span>
@@ -166,7 +188,7 @@
                     <div class="d-flex justify-content-end gap-2 pt-3 border-top">
                         <a th:href="@{/agenda}" class="btn btn-light fw-bold px-4">Cancelar</a>
                         <button type="submit" class="btn btn-primary fw-bold px-5 shadow-sm">
-                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Crear Reserva Directa ✅
+                            <i class="bi bi-check-circle-fill me-1"></i> Confirmar y Guardar ✅
                         </button>
                     </div>
 
@@ -176,17 +198,26 @@
         </div>
     </div>
 
+    <!-- SCRIPTS INTERACTIVOS -->
     <script th:inline="javascript">
         const orig = document.getElementById('inputOrigen');
         const dest = document.getElementById('inputDestino');
         const asie = document.getElementById('inputAsientos');
+        const phoneInput = document.getElementById('phoneInput');
+        
+        const firstNameInput = document.getElementById('firstNameInput');
+        const lastNameInput = document.getElementById('lastNameInput');
+        const cuilInput = document.getElementById('cuilInput');
+        const alertaDiv = document.getElementById('alertaSaldoFavor');
+        const saldoSpan = document.getElementById('saldoMontoText');
 
+        // 1. Cotizar en tiempo real
         function actualizarCotizacion() {
-            const origenVal = orig.value.trim();
-            const destinoVal = dest.value.trim();
+            const origenVal = orig.value;
+            const destinoVal = dest.value;
             const asientosVal = asie.value;
 
-            if (origenVal.length >= 3 && destinoVal.length >= 3) {
+            if (origenVal && destinoVal) {
                 fetch(`/admin/bot/monitor/cotizar?pickupLocality=${encodeURIComponent(origenVal)}&destination=${encodeURIComponent(destinoVal)}&passengerCount=${asientosVal}`)
                     .then(response => response.json())
                     .then(data => {
@@ -197,37 +228,60 @@
             }
         }
 
+        // 2. Buscador y Autocompletado de Pasajero por Teléfono (blur)
+        if (phoneInput) {
+            phoneInput.addEventListener('blur', () => {
+                const telefono = phoneInput.value.trim();
+                if (telefono.length >= 8) {
+                    fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(telefono)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.existe) {
+                                // Autocompletamos los campos del pasajero
+                                firstNameInput.value = data.firstName;
+                                lastNameInput.value = data.lastName;
+                                cuilInput.value = data.cuil;
+
+                                // Si tiene saldo a favor, mostramos el cartel
+                                if (parseFloat(data.saldo) > 0) {
+                                    saldoSpan.innerText = parseFloat(data.saldo).toFixed(2);
+                                    alertaDiv.classList.remove('d-none');
+                                    alertaDiv.classList.add('d-flex');
+                                } else {
+                                    alertaDiv.classList.add('d-none');
+                                    alertaDiv.classList.remove('d-flex');
+                                }
+                            } else {
+                                // Si no existe, no pisamos lo que haya escrito y ocultamos el cartel de saldo
+                                alertaDiv.classList.add('d-none');
+                                alertaDiv.classList.remove('d-flex');
+                            }
+                        })
+                        .catch(err => console.error("Error al consultar pasajero:", err));
+                }
+            });
+        }
+
+        // 3. Mostrar/Ocultar dinámicamente el campo de Fecha de Regreso
+        const isRoundTripCheck = document.getElementById('isRoundTripCheck');
+        const sectionFechaVuelta = document.getElementById('sectionFechaVuelta');
+
+        if (isRoundTripCheck && sectionFechaVuelta) {
+            isRoundTripCheck.addEventListener('change', () => {
+                if (isRoundTripCheck.checked) {
+                    sectionFechaVuelta.classList.remove('d-none');
+                } else {
+                    sectionFechaVuelta.classList.add('d-none');
+                }
+            });
+        }
+
         if (orig && dest && asie) {
-            orig.addEventListener('input', actualizarCotizacion);
-            dest.addEventListener('input', actualizarCotizacion);
+            orig.addEventListener('change', actualizarCotizacion);
+            dest.addEventListener('change', actualizarCotizacion);
             asie.addEventListener('input', actualizarCotizacion);
             asie.addEventListener('change', actualizarCotizacion);
         }
-
-
-// Consulta automática de saldo de cuenta corriente en caliente al abrir el chat
-window.addEventListener('DOMContentLoaded', () => {
-    // Tomamos el teléfono de la sesión de chat actual
-    // Nota: Reemplazá 'seguroPhone' por la variable JS que almacene el teléfono en tu plantilla si tiene otro nombre
-    const telefono = typeof seguroPhone !== 'undefined' ? seguroPhone : null; 
-    
-    if (telefono) {
-        fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(telefono)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.existe && parseFloat(data.saldo) > 0) {
-                    document.getElementById('saldoMontoText').innerText = parseFloat(data.saldo).toFixed(2);
-                    const alertaDiv = document.getElementById('alertaSaldoFavor');
-                    if (alertaDiv) {
-                        alertaDiv.classList.remove('d-none');
-                        alertaDiv.classList.add('d-flex');
-                    }
-                }
-            })
-            .catch(err => console.error("Error al obtener saldo del cliente:", err));
-    }
-});
-
     </script>
 </body>
 </html>
