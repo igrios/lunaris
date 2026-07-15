@@ -114,6 +114,13 @@
                             <!-- Campo oculto que recibirá la URL recolectada por el interceptor JS -->
                             <input type="hidden" id="chatReceiptUrl" name="chatReceiptUrl" value="null">
 
+                            <!-- ⚠️ ALERTA INTERACTIVA DE SALDO A FAVOR (Se activa dinámicamente) -->
+<div id="alertaSaldoFavor" class="alert alert-warning d-none align-items-center mb-3" role="alert" style="border-radius: 8px;">
+    <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
+    <div>
+        <strong>¡Atención!</strong> Este pasajero tiene un saldo a favor de <strong>$<span id="saldoMontoText">0.00</span></strong> en su cuenta corriente.
+    </div>
+</div>
                             <!-- 👤 SECCIÓN: DATOS DEL PASAJERO -->
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">👤 Datos del Pasajero</h4>
                             <div class="row g-3 mb-3">
@@ -347,6 +354,32 @@
                 document.getElementById('chatReceiptUrl').value = ultimaImagenUrl;
             }
         });
+
+
+        // Consulta automática de saldo de cuenta corriente en caliente al abrir el chat
+window.addEventListener('DOMContentLoaded', () => {
+    // Tomamos el teléfono de la sesión de chat actual
+    // Nota: Reemplazá 'seguroPhone' por la variable JS que almacene el teléfono en tu plantilla si tiene otro nombre
+    const telefono = typeof seguroPhone !== 'undefined' ? seguroPhone : null; 
+    
+    if (telefono) {
+        fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(telefono)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.existe && parseFloat(data.saldo) > 0) {
+                    document.getElementById('saldoMontoText').innerText = parseFloat(data.saldo).toFixed(2);
+                    const alertaDiv = document.getElementById('alertaSaldoFavor');
+                    if (alertaDiv) {
+                        alertaDiv.classList.remove('d-none');
+                        alertaDiv.classList.add('d-flex');
+                    }
+                }
+            })
+            .catch(err => console.error("Error al obtener saldo del cliente:", err));
+    }
+});
+
+
     </script>
 </body>
 </html>

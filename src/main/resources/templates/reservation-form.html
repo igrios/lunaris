@@ -1,235 +1,233 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Nueva Reserva</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Nueva Reserva Manual - Lunaris</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" crossorigin="anonymous">
     <style>
-        body {
-            background-color: #f4f6f9 !important;
-            padding-top: 75px;
-        }
-        .card {
-            border: none;
-            border-radius: 12px;
-        }
-        .card-body {
-            padding: 2rem;
-        }
-        h2, h4 {
-            color: #343a40;
-        }
-        .bg-navbar {
-            background-color: #1e293b !important;
-        }
+        body { background-color: #f4f6f9; font-family: system-ui, -apple-system, sans-serif; }
+        .form-card { border-radius: 16px; border: none; }
+        .btn-agenda { background-color: #6f42c1; color: white; }
+        .btn-agenda:hover { background-color: #59359a; color: white; }
     </style>
 </head>
-<body>
+<body class="py-5">
 
-    <nav th:replace="~{fragments/nav :: bar('nueva')}"></nav>
+    <div class="container" style="max-width: 750px;">
+        
+        <div class="mb-4 d-flex justify-content-between align-items-center">
+            <a th:href="@{/agenda}" class="btn btn-outline-secondary btn-sm fw-bold">
+                <i class="bi bi-arrow-left"></i> Volver al Calendario
+            </a>
+            <span class="text-muted fw-semibold">Lunaris Ansenuza</span>
+        </div>
 
-    <div class="container mt-4 mb-5">
-
-        <div class="card shadow mt-4">
+        <div class="card form-card shadow-lg p-4 bg-white">
             <div class="card-body">
-
-                <h2 class="mb-4 fw-bold">
-                   📝 Nueva Reserva
-                </h2>
-
-                <form th:action="@{/reservations/new}" th:object="${reservation}" method="post">
-
-                    <div class="alert alert-danger" th:if="${#fields.hasAnyErrors()}">
-                        Por favor complete todos los campos obligatorios.
+                
+                <div class="d-flex align-items-center mb-4">
+                    <div class="p-3 bg-primary bg-opacity-10 rounded-3 me-3 text-primary">
+                        <i class="bi bi-journal-plus fs-3"></i>
                     </div>
-
-                    <h4 class="mb-3 fw-bold">
-                        Datos del Pasajero
-                    </h4>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Nombre</label>
-                        <input type="text" class="form-control" th:field="*{firstName}" id="firstName" required>
-                        <div class="text-danger" th:errors="*{firstName}"></div>
+                    <div>
+                        <h2 class="fw-bold text-dark mb-0">Nueva Reserva Manual</h2>
+                        <p class="text-muted mb-0">Carga reservas directas desde la administración web que se confirmarán automáticamente</p>
                     </div>
+                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Apellido</label>
-                        <input type="text" class="form-control" th:field="*{lastName}" id="lastName" required>
-                        <div class="text-danger" th:errors="*{lastName}"></div>
-                    </div>
+                <hr class="text-muted mb-4">
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Teléfono</label>
-                        <input type="text" class="form-control" th:field="*{phone}" id="phone" maxlength="15" inputmode="numeric"
-                            oninput="this.value=this.value.replace(/[^0-9]/g,'')" required>
-                        <div class="text-danger" th:errors="*{phone}"></div>
-                    </div>
+                <form th:action="@{/admin/bot/monitor/cargar-reserva-web}" method="post">
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">DNI / CUIT</label>
-                        <input type="text" class="form-control" th:field="*{cuil}" id="cuil" maxlength="11" inputmode="numeric"
-                            oninput="this.value=this.value.replace(/[^0-9]/g,'')">
-                    </div>
 
-                    <hr class="my-4">
 
-                    <h4 class="mb-3 fw-bold">
-                        Datos del Viaje
-                    </h4>
+                    <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-person-fill"></i> Datos del Pasajero</h5>
+                    <!-- ⚠️ ALERTA INTERACTIVA DE SALDO A FAVOR (Se activa dinámicamente) -->
+<div id="alertaSaldoFavor" class="alert alert-warning d-none align-items-center mb-3" role="alert" style="border-radius: 8px;">
+    <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
+    <div>
+        <strong>¡Atención!</strong> Este pasajero tiene un saldo a favor de <strong>$<span id="saldoMontoText">0.00</span></strong> en su cuenta corriente.
+    </div>
+</div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Fecha del Viaje</label>
-                        <input type="date" class="form-control" th:field="*{travelDate}" required>
-                        <div class="text-danger" th:errors="*{travelDate}"></div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Tipo de Viaje</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" th:field="*{roundTrip}" value="false" id="soloIda">
-                            <label class="form-check-label" for="soloIda">Solo Ida</label>
+
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Nombre</label>
+                            <input type="text" name="firstName" class="form-control" placeholder="Ej: Juan" required>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" th:field="*{roundTrip}" value="true" id="idaVuelta">
-                            <label class="form-check-label" for="idaVuelta">Ida y Vuelta</label>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Apellido</label>
+                            <input type="text" name="lastName" class="form-control" placeholder="Ej: Pérez" required>
                         </div>
                     </div>
 
-                    <div id="returnSectionContainer" class="p-3 border rounded mb-3 bg-light" style="display: none;">
-                        
-                        <div class="form-check form-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="openReturnSwitch" onchange="toggleOpenReturn()">
-                            <label class="form-check-label fw-bold text-warning" for="openReturnSwitch">🛑 Dejar Vuelta Abierta (Sin fecha definida)</label>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Número de Teléfono (WhatsApp)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">+54</span>
+                                <input type="tel" name="phone" class="form-control" placeholder="Ej: 3562400111" required>
+                            </div>
+                            <small class="text-muted" style="font-size: 0.8rem;">Sin el 0 ni el 15. Solo números.</small>
                         </div>
-
-                        <div id="returnDateInputContainer">
-                            <label class="form-label fw-semibold">Fecha Regreso</label>
-                            <input type="date" class="form-control" th:field="*{returnDate}" id="returnDate">
-                            <div class="text-danger" th:errors="*{returnDate}"></div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">DNI / CUIL (Opcional para Factura)</label>
+                            <input type="text" name="cuil" class="form-control" placeholder="Ej: 20384445559" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Horario de Salida</label>
-                        <select class="form-select" th:field="*{departureSchedule}" required>
-                            <option value="03:00 AM">🌙 Primer Horario (03:00 AM)</option>
-                            <option value="08:00 AM">☀️ Segundo Horario (08:00 AM)</option>
-                        </select>
-                        <div class="form-text">Mismo criterio que el bot de WhatsApp. Se muestra en la agenda.</div>
-                    </div>
+                    <hr class="text-muted my-4">
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Localidad de Retiro</label>
-                        <select class="form-select" th:field="*{pickupLocality}" required>
-                            <option value="">-- Seleccionar pueblo de origen --</option>
-                            <option th:each="org : ${origenes}" th:value="${org.name}" th:text="${org.name}"></option>
-                        </select>
-                        <div class="text-danger" th:errors="*{pickupLocality}"></div>
-                    </div>
+                    <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-geo-alt-fill"></i> Detalles del Trayecto</h5>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Dirección de Retiro</label>
-                        <input type="text" class="form-control" th:field="*{pickupAddress}" required>
-                        <div class="text-danger" th:errors="*{pickupAddress}"></div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Destino</label>
-                        <select class="form-select" th:field="*{destination}" required>
-                            <option value="">-- Seleccionar destino Hub --</option>
-                            <option value="Córdoba">Córdoba</option>
-                            <option value="Aeropuerto CBA">Aeropuerto CBA</option>
-                        </select>
-                        <div class="text-danger" th:errors="*{destination}"></div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <h4 class="mb-3 fw-bold">Gestión de Asientos</h4>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Cantidad Asientos Ocupados totales</label>
-                        <input type="number" class="form-control" th:field="*{passengerCount}" id="passengerCount" min="1" max="4">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Nombres de los Acompañantes</label>
-                        <input type="text" class="form-control" th:field="*{companionNames}" id="companionNames" placeholder="Ej: Luis Gómez, Ana Pérez">
-                    </div>
-
-                    <div class="form-check mb-3 mt-4">
-                        <input class="form-check-input" type="checkbox" th:field="*{paymentVerified}">
-                        <label class="form-check-label fw-bold text-success">💸 Pago Verificado</label>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
+                            <input type="text" id="inputOrigen" name="pickupLocality" class="form-control" placeholder="Ej: Morteros" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
+                            <input type="text" id="inputDestino" name="destination" class="form-control" placeholder="Ej: Córdoba" required>
+                        </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">Observaciones</label>
-                        <textarea class="form-control" rows="3" th:field="*{notes}"></textarea>
+                        <label class="form-label small fw-bold text-dark">Dirección de Retiro / Domicilio</label>
+                        <input type="text" name="pickupAddress" class="form-control" placeholder="Ej: Bv. Belgrano 450" required>
+                    </div>
+
+                    <hr class="text-muted my-4">
+
+                    <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-calendar-event-fill"></i> Fecha, Horario y Asientos</h5>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark">Cantidad de Asientos</label>
+                            <input type="number" id="inputAsientos" name="passengerCount" class="form-control fw-bold text-center border-primary" value="1" min="1" max="4" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark">Fecha de Viaje (Ida)</label>
+                            <input type="date" name="travelDate" class="form-control fw-bold" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold text-dark">Horario de Salida</label>
+                            <select class="form-select fw-bold" name="departureSchedule" required>
+                                <option value="03:00 AM">🌙 Primer Horario (03:00 AM)</option>
+                                <option value="08:00 AM" selected>☀️ Segundo Horario (08:00 AM)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch p-3 bg-light rounded-3 border border-dashed h-100">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="roundTrip" id="isRoundTripCheck" value="true">
+                                <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
+                                    <i class="bi bi-arrow-left-right"></i> ¿Es Ida y Vuelta?
+                                </label>
+                                <div class="text-muted mt-1" style="font-size: 0.75rem; margin-left: 2rem;">
+                                    Generará automáticamente la Vuelta Abierta con fecha centinela (2099).
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch p-3 bg-light rounded-3 border border-dashed h-100">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="requiresInvoice" id="requiresInvoice" value="true">
+                                <label class="form-check-label fw-bold text-info" for="requiresInvoice">
+                                    <i class="bi bi-file-earmark-text"></i> ¿Requiere Factura?
+                                </label>
+                                <div class="text-muted mt-1" style="font-size: 0.75rem; margin-left: 2rem;">
+                                    Habilitará la solicitud de comprobante A o B en el sistema de facturas.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-dark">Acompañantes / Notas / Observaciones</label>
+                        <textarea class="form-control" name="notes" rows="3" placeholder="Ej: Viaja con el gato en canil, acompañantes: Juan, María."></textarea>
+                    </div>
+
+                    <div class="p-3 mb-4 rounded-3 d-flex justify-content-between align-items-center" style="background-color: #e8f0fe; border: 1px solid #b3cefb;">
+                        <div>
+                            <span class="text-secondary fw-semibold d-block" style="font-size: 0.85rem;">Código Estimado: <strong id="previewCodigo" class="text-primary">---</strong></span>
+                            <small class="text-muted">Las tarifas se computarán usando el calculador de Lunaris</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="text-secondary d-block small fw-bold">Monto Calculado</span>
+                            <span class="fs-4 fw-bold text-success">$<span id="previewMonto">0.00</span></span>
+                        </div>
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 pt-3 border-top">
-                        <a th:href="@{/agenda}" class="btn btn-light px-4 border">📅 Agenda</a>
-                        <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm">Guardar Reserva ✅</button>
+                        <a th:href="@{/agenda}" class="btn btn-light fw-bold px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-primary fw-bold px-5 shadow-sm">
+                            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Crear Reserva Directa ✅
+                        </button>
                     </div>
 
                 </form>
+
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:inline="javascript">
+        const orig = document.getElementById('inputOrigen');
+        const dest = document.getElementById('inputDestino');
+        const asie = document.getElementById('inputAsientos');
 
-    <script>
-        function toggleReturnVisibility() {
-            const idaVueltaBtn = document.getElementById("idaVuelta");
-            const container = document.getElementById("returnSectionContainer");
-            
-            if (idaVueltaBtn && idaVueltaBtn.checked) {
-                container.style.display = "block";
-                toggleOpenReturn(); 
-            } else {
-                container.style.display = "none";
-                const returnDateInput = document.getElementById("returnDate");
-                const openReturnSwitch = document.getElementById("openReturnSwitch");
-                
-                if (returnDateInput) {
-                    returnDateInput.value = "";
-                    returnDateInput.disabled = false;
-                }
-                if (openReturnSwitch) {
-                    openReturnSwitch.checked = false;
-                }
+        function actualizarCotizacion() {
+            const origenVal = orig.value.trim();
+            const destinoVal = dest.value.trim();
+            const asientosVal = asie.value;
+
+            if (origenVal.length >= 3 && destinoVal.length >= 3) {
+                fetch(`/admin/bot/monitor/cotizar?pickupLocality=${encodeURIComponent(origenVal)}&destination=${encodeURIComponent(destinoVal)}&passengerCount=${asientosVal}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('previewMonto').innerText = parseFloat(data.monto).toFixed(2);
+                        document.getElementById('previewCodigo').innerText = data.codigo;
+                    })
+                    .catch(err => console.error("Error al cotizar:", err));
             }
         }
 
-        function toggleOpenReturn() {
-            const openReturnSwitch = document.getElementById("openReturnSwitch");
-            const inputContainer = document.getElementById("returnDateInputContainer");
-            const returnDateInput = document.getElementById("returnDate");
-
-            if (openReturnSwitch && openReturnSwitch.checked) {
-                if (inputContainer) inputContainer.style.display = "none";
-                if (returnDateInput) {
-                    returnDateInput.value = "";
-                    returnDateInput.disabled = true; 
-                }
-            } else {
-                if (inputContainer) inputContainer.style.display = "block";
-                if (returnDateInput) returnDateInput.disabled = false;
-            }
+        if (orig && dest && asie) {
+            orig.addEventListener('input', actualizarCotizacion);
+            dest.addEventListener('input', actualizarCotizacion);
+            asie.addEventListener('input', actualizarCotizacion);
+            asie.addEventListener('change', actualizarCotizacion);
         }
 
-        document.addEventListener("DOMContentLoaded", () => {
-            toggleReturnVisibility();
-            
-            const soloIdaBtn = document.getElementById("soloIda");
-            const idaVueltaBtn = document.getElementById("idaVuelta");
-            
-            if (soloIdaBtn) soloIdaBtn.addEventListener("change", toggleReturnVisibility);
-            if (idaVueltaBtn) idaVueltaBtn.addEventListener("change", toggleReturnVisibility);
-        });
+
+// Consulta automática de saldo de cuenta corriente en caliente al abrir el chat
+window.addEventListener('DOMContentLoaded', () => {
+    // Tomamos el teléfono de la sesión de chat actual
+    // Nota: Reemplazá 'seguroPhone' por la variable JS que almacene el teléfono en tu plantilla si tiene otro nombre
+    const telefono = typeof seguroPhone !== 'undefined' ? seguroPhone : null; 
+    
+    if (telefono) {
+        fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(telefono)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.existe && parseFloat(data.saldo) > 0) {
+                    document.getElementById('saldoMontoText').innerText = parseFloat(data.saldo).toFixed(2);
+                    const alertaDiv = document.getElementById('alertaSaldoFavor');
+                    if (alertaDiv) {
+                        alertaDiv.classList.remove('d-none');
+                        alertaDiv.classList.add('d-flex');
+                    }
+                }
+            })
+            .catch(err => console.error("Error al obtener saldo del cliente:", err));
+    }
+});
+
     </script>
 </body>
 </html>

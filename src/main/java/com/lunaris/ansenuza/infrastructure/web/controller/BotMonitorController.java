@@ -131,21 +131,47 @@ public class BotMonitorController {
         }
     }
 
-    // 🚀 CARGA MANUAL INTELIGENTE CON PERSISTENCIA EN CLOUDINARY Y REGLA DE MARTÍN
+    // 🔍 NUEVO ENDPOINT: Consulta asíncrona de saldo a favor por número de teléfono
+    @GetMapping("/monitor/pasajero/saldo")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> obtenerSaldoPasajero(@RequestParam("phone") String phone) {
+        Map<String, Object> respuesta = new HashMap<>();
+        try {
+            String telefonoClean = phone.trim();
+            java.util.Optional<Passenger> passengerOpt = passengerRepository.findByPhone(telefonoClean);
+            
+            if (passengerOpt.isPresent()) {
+                Passenger p = passengerOpt.get();
+                respuesta.put("existe", true);
+                respuesta.put("nombre", p.getFirstName() + " " + p.getLastName());
+                respuesta.put("saldo", p.getCurrentBalance() != null ? p.getCurrentBalance() : java.math.BigDecimal.ZERO);
+            } else {
+                respuesta.put("existe", false);
+                respuesta.put("saldo", java.math.BigDecimal.ZERO);
+            }
+            return ResponseEntity.ok(respuesta);
+        } catch (Exception e) {
+            log.error("[Saldo Pasajero] Error al consultar para el teléfono {}: ", phone, e);
+            respuesta.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
+        }
+    }
+
+    // 🚀 CARGA MANUAL ASISTIDA (Desde la pantalla dividida del chat en vivo)
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
             @RequestParam("phone") String phone,
             @RequestParam("firstName") String firstName, 
             @RequestParam("lastName") String lastName,   
-            @RequestParam(value = "cuil", required = false) String cuil, // 👈 NUEVO: CUIT / DNI de facturación
+            @RequestParam(value = "cuil", required = false) String cuil,
             @RequestParam("pickupLocality") String pickupLocality,
             @RequestParam("destination") String destination,
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
-            @RequestParam("departureSchedule") String departureSchedule, // 👈 NUEVO: Horario de salida
-            @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip, // 👈 NUEVO: Switch unificado
-            @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice, // 👈 NUEVO: Flag de facturación
+            @RequestParam("departureSchedule") String departureSchedule,
+            @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
+            @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
             @RequestParam(value = "chatReceiptUrl", required = false, defaultValue = "null") String chatReceiptUrl,
             RedirectAttributes redirectAttributes) {
 
@@ -159,8 +185,6 @@ public class BotMonitorController {
             
             passenger.setFirstName(firstName.trim());
             passenger.setLastName(lastName.trim() + " (Manual)"); 
-            
-            // Si viene el CUIL desde la pantalla dividida, lo persistimos en el Pasajero
             if (cuil != null && !cuil.isBlank()) {
                 passenger.setCuil(cuil.trim());
             }
@@ -179,7 +203,6 @@ public class BotMonitorController {
             } else {
                 java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
                 java.math.BigDecimal recargoFijo = java.math.BigDecimal.valueOf(8000);
-                
                 montoIda = mitadCombo.add(recargoFijo);
                 montoVuelta = java.math.BigDecimal.ZERO;
             }
@@ -222,8 +245,8 @@ public class BotMonitorController {
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(roundTrip);
-            ida.setDepartureSchedule(departureSchedule); // 👈 NUEVO: Persistimos el horario en la base de datos
-            ida.setRequiresInvoice(requiresInvoice); // 👈 NUEVO: Persistimos el flag de factura
+            ida.setDepartureSchedule(departureSchedule);
+            ida.setRequiresInvoice(requiresInvoice);
             ida.setReservationCode(codigoBase + "-IDA");
             ida.setNotes(notasAuditoria);
 
@@ -242,7 +265,7 @@ public class BotMonitorController {
                 vuelta.setStatus("PENDING_VERIFICATION");
                 vuelta.setPaymentVerified(false);
                 vuelta.setRoundTrip(true);
-                vuelta.setDepartureSchedule(departureSchedule); // Seteamos el mismo horario para consistencia
+                vuelta.setDepartureSchedule(departureSchedule);
                 vuelta.setRequiresInvoice(requiresInvoice);
                 vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
@@ -270,6 +293,109 @@ public class BotMonitorController {
         }
 
         return "redirect:/admin/chat/" + phone;
+    }
+
+    // 🖥️ CARGA MANUAL WEB TRADICIONAL (Desde el formulario web de administración)
+    @PostMapping("/monitor/cargar-reserva-web")
+    public String cargarReservaWebTradicional(
+            @RequestParam("phone") String phone,
+            @RequestParam("firstName") String firstName, 
+            @RequestParam("lastName") String lastName,   
+            @RequestParam(value = "cuil", required = false) String cuil,
+            @RequestParam("pickupLocality") String pickupLocality,
+            @RequestParam("destination") String destination,
+            @RequestParam("pickupAddress") String pickupAddress,
+            @RequestParam("passengerCount") int passengerCount,
+            @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            @RequestParam("departureSchedule") String departureSchedule,
+            @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
+            @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
+            @RequestParam(value = "notes", required = false) String notes,
+            RedirectAttributes redirectAttributes) {
+
+        try {
+            Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
+                Passenger newP = new Passenger();
+                newP.setPhone(phone);
+                newP.setCurrentBalance(java.math.BigDecimal.ZERO);
+                return newP;
+            });
+            
+            passenger.setFirstName(firstName.trim());
+            passenger.setLastName(lastName.trim()); 
+            if (cuil != null && !cuil.isBlank()) {
+                passenger.setCuil(cuil.trim());
+            }
+            passengerRepository.save(passenger);
+
+            java.math.BigDecimal montoComboCompleto =
+                    tarifaService.calculateReservationAmount(pickupLocality, destination, true, passengerCount);
+
+            java.math.BigDecimal montoIda;
+            java.math.BigDecimal montoVuelta;
+
+            if (roundTrip) {
+                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
+                montoIda = mitadCombo;
+                montoVuelta = mitadCombo;
+            } else {
+                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal recargoFijo = java.math.BigDecimal.valueOf(8000);
+                montoIda = mitadCombo.add(recargoFijo);
+                montoVuelta = java.math.BigDecimal.ZERO;
+            }
+
+            String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
+            String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
+                    + destination.substring(0, 3).toUpperCase() + "-" + shortId;
+
+            Reservation ida = new Reservation();
+            ida.setPassenger(passenger);
+            ida.setTravelDate(travelDate);
+            ida.setPickupLocality(pickupLocality);
+            ida.setPickupAddress(pickupAddress);
+            ida.setDestination(destination);
+            ida.setPassengerCount(passengerCount);
+            ida.setAmount(montoIda); 
+            ida.setStatus("CONFIRMED"); // Confirmado directo por oficina
+            ida.setPaymentVerified(true);
+            ida.setRoundTrip(roundTrip);
+            ida.setDepartureSchedule(departureSchedule);
+            ida.setRequiresInvoice(requiresInvoice);
+            ida.setReservationCode(codigoBase + "-IDA");
+            ida.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
+
+            reservationRepository.saveAndFlush(ida);
+
+            if (roundTrip) {
+                Reservation vuelta = new Reservation();
+                vuelta.setPassenger(passenger);
+                vuelta.setTravelDate(LocalDate.of(2099, 12, 31));
+                vuelta.setPickupLocality(destination);
+                vuelta.setDestination(pickupLocality);
+                vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
+                vuelta.setPassengerCount(passengerCount);
+                vuelta.setAmount(montoVuelta); 
+                vuelta.setStatus("CONFIRMED");
+                vuelta.setPaymentVerified(true);
+                vuelta.setRoundTrip(true);
+                vuelta.setDepartureSchedule(departureSchedule);
+                vuelta.setRequiresInvoice(requiresInvoice);
+                vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
+                vuelta.setReservationCode(codigoBase + "-VUELTA");
+                vuelta.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
+
+                reservationRepository.saveAndFlush(vuelta);
+            }
+
+            redirectAttributes.addFlashAttribute("successMessage", "¡Reserva manual creada correctamente!");
+
+        } catch (Exception e) {
+            log.error("[Carga Web] Error al procesar reserva manual: ", e);
+            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar: " + e.getMessage());
+        }
+
+        return "redirect:/agenda?success=true";
     }
 
     private String persistirComprobanteEnCloudinary(String urlOrigen, String phone) {
