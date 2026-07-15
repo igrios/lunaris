@@ -109,48 +109,61 @@
                         <form id="formReservaManual" th:action="@{/admin/bot/monitor/cargar-reserva}" method="post">
 
                             <!-- Campo oculto para inyectar automáticamente el teléfono de la sesión de chat -->
-                            <input type="hidden" name="phone" th:value="${sessionPhone ?: phone}">
+                            <input type="hidden" name="phone" id="phoneInputHidden" th:value="${sessionPhone ?: phone}">
 
                             <!-- Campo oculto que recibirá la URL recolectada por el interceptor JS -->
                             <input type="hidden" id="chatReceiptUrl" name="chatReceiptUrl" value="null">
 
                             <!-- ⚠️ ALERTA INTERACTIVA DE SALDO A FAVOR (Se activa dinámicamente) -->
-<div id="alertaSaldoFavor" class="alert alert-warning d-none align-items-center mb-3" role="alert" style="border-radius: 8px;">
-    <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
-    <div>
-        <strong>¡Atención!</strong> Este pasajero tiene un saldo a favor de <strong>$<span id="saldoMontoText">0.00</span></strong> en su cuenta corriente.
-    </div>
-</div>
+                            <div id="alertaSaldoFavor" class="alert alert-warning d-none align-items-center mb-3" role="alert" style="border-radius: 8px; border: 1px solid #ffd75a;">
+                                <i class="bi bi-wallet2 fs-5 me-2 text-dark"></i>
+                                <div>
+                                    <strong>¡Pasajero con saldo a favor!</strong> Cuenta con un saldo de <strong>$<span id="saldoMontoText">0.00</span></strong> en su cuenta corriente.
+                                </div>
+                            </div>
+
                             <!-- 👤 SECCIÓN: DATOS DEL PASAJERO -->
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">👤 Datos del Pasajero</h4>
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Nombre</label>
-                                    <input type="text" name="firstName" class="form-control form-control-sm" placeholder="Ej: Juan" required>
+                                    <input type="text" name="firstName" id="firstNameInput" class="form-control form-control-sm" placeholder="Ej: Juan" required>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Apellido</label>
-                                    <input type="text" name="lastName" class="form-control form-control-sm" placeholder="Ej: Pérez" required>
+                                    <input type="text" name="lastName" id="lastNameInput" class="form-control form-control-sm" placeholder="Ej: Pérez" required>
                                 </div>
                             </div>
 
                             <!-- DNI / CUIL para Facturación -->
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">DNI / CUIL (Facturación)</label>
-                                <input type="text" name="cuil" class="form-control form-control-sm" placeholder="Ej: 20384445559" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                                <input type="text" name="cuil" id="cuilInput" class="form-control form-control-sm" placeholder="Ej: 20384445559" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                             </div>
 
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">📍 Datos del Viaje</h4>
 
-                            <!-- Origen y Destino -->
+                            <!-- Origen y Destino (PUEBLOS DESPLEGABLES DINÁMICOS DESDE BD) -->
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
-                                    <input type="text" id="inputOrigen" name="pickupLocality" class="form-control form-control-sm" placeholder="Ej: Morteros" required>
+                                    <select class="form-select form-select-sm" id="inputOrigen" name="pickupLocality" required>
+                                        <option value="" disabled selected>Origen...</option>
+                                        <option value="Córdoba">Córdoba</option>
+                                        <option th:each="loc : ${localidades}" 
+                                                th:value="${loc}" 
+                                                th:text="${loc}"></option>
+                                    </select>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
-                                    <input type="text" id="inputDestino" name="destination" class="form-control form-control-sm" placeholder="Ej: Córdoba" required>
+                                    <select class="form-select form-select-sm" id="inputDestino" name="destination" required>
+                                        <option value="" disabled selected>Destino...</option>
+                                        <option value="Córdoba">Córdoba</option>
+                                        <option th:each="loc : ${localidades}" 
+                                                th:value="${loc}" 
+                                                th:text="${loc}"></option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -191,7 +204,7 @@
                                     <i class="bi bi-arrow-left-right"></i> ¿Es pasaje de Ida y Vuelta?
                                 </label>
                                 <div class="text-muted xtra-small ms-4" style="font-size: 0.75rem;">
-                                    Esto generará la Vuelta Abierta automática (fecha centinela 2099) en el sistema.
+                                    Permite definir una fecha de regreso precisa para la vuelta.
                                 </div>
                             </div>
 
@@ -201,6 +214,12 @@
                                 <label class="form-check-label fw-bold text-info" for="requiresInvoice">
                                     <i class="bi bi-file-earmark-text"></i> ¿Requiere factura A o B?
                                 </label>
+                            </div>
+
+                            <!-- 📅 CAMPO DINÁMICO: Fecha de Regreso (Aparece solo si el switch anterior está activo) -->
+                            <div id="sectionFechaVuelta" class="mb-3 d-none">
+                                <label class="form-label small fw-bold text-primary"><i class="bi bi-calendar-check"></i> Fecha de Regreso (Vuelta)</label>
+                                <input type="date" name="returnDate" class="form-control form-control-sm fw-bold border-primary">
                             </div>
 
                             <!-- 💰 RECUADRO DINÁMICO DE PREVISUALIZACIÓN DE COSTOS -->
@@ -320,11 +339,11 @@
         const asie = document.getElementById('inputAsientos');
 
         function actualizarCotizacion() {
-            const origenVal = orig.value.trim();
-            const destinoVal = dest.value.trim();
+            const origenVal = orig.value;
+            const destinoVal = dest.value;
             const asientosVal = asie.value;
 
-            if (origenVal.length >= 3 && destinoVal.length >= 3) {
+            if (origenVal && destinoVal) {
                 fetch(`/admin/bot/monitor/cotizar?pickupLocality=${encodeURIComponent(origenVal)}&destination=${encodeURIComponent(destinoVal)}&passengerCount=${asientosVal}`)
                     .then(response => response.json())
                     .then(data => {
@@ -336,8 +355,8 @@
         }
 
         if (orig && dest && asie) {
-            orig.addEventListener('input', actualizarCotizacion);
-            dest.addEventListener('input', actualizarCotizacion);
+            orig.addEventListener('change', actualizarCotizacion);
+            dest.addEventListener('change', actualizarCotizacion);
             asie.addEventListener('input', actualizarCotizacion);
             asie.addEventListener('change', actualizarCotizacion);
         }
@@ -355,31 +374,57 @@
             }
         });
 
+        // 👤 AUTOCOMPLETADO INTERACTIVO Y VERIFICACIÓN DE SALDO EN CALIENTE AL ABRIR EL CHAT
+        window.addEventListener('DOMContentLoaded', () => {
+            const telefono = seguroPhone; 
+            
+            const firstNameInput = document.getElementById('firstNameInput');
+            const lastNameInput = document.getElementById('lastNameInput');
+            const cuilInput = document.getElementById('cuilInput');
+            const alertaDiv = document.getElementById('alertaSaldoFavor');
+            const saldoSpan = document.getElementById('saldoMontoText');
 
-        // Consulta automática de saldo de cuenta corriente en caliente al abrir el chat
-window.addEventListener('DOMContentLoaded', () => {
-    // Tomamos el teléfono de la sesión de chat actual
-    // Nota: Reemplazá 'seguroPhone' por la variable JS que almacene el teléfono en tu plantilla si tiene otro nombre
-    const telefono = typeof seguroPhone !== 'undefined' ? seguroPhone : null; 
-    
-    if (telefono) {
-        fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(telefono)}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.existe && parseFloat(data.saldo) > 0) {
-                    document.getElementById('saldoMontoText').innerText = parseFloat(data.saldo).toFixed(2);
-                    const alertaDiv = document.getElementById('alertaSaldoFavor');
-                    if (alertaDiv) {
-                        alertaDiv.classList.remove('d-none');
-                        alertaDiv.classList.add('d-flex');
-                    }
+            if (telefono) {
+                fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(telefono)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.existe) {
+                            // Autocompletamos los campos del pasajero si ya existen registros
+                            firstNameInput.value = data.firstName;
+                            lastNameInput.value = data.lastName;
+                            cuilInput.value = data.cuil;
+
+                            // Si posee saldo a favor en cuenta corriente, destellamos la advertencia
+                            if (parseFloat(data.saldo) > 0) {
+                                saldoSpan.innerText = parseFloat(data.saldo).toFixed(2);
+                                alertaDiv.classList.remove('d-none');
+                                alertaDiv.classList.add('d-flex');
+                            } else {
+                                alertaDiv.classList.add('d-none');
+                                alertaDiv.classList.remove('d-flex');
+                            }
+                        } else {
+                            alertaDiv.classList.add('d-none');
+                            alertaDiv.classList.remove('d-flex');
+                        }
+                    })
+                    .catch(err => console.error("Error al obtener datos y saldo del cliente:", err));
+            }
+        });
+
+        // 📅 Mostrar/Ocultar dinámicamente el campo de Fecha de Regreso
+        const isRoundTripCheck = document.getElementById('isRoundTripCheck');
+        const sectionFechaVuelta = document.getElementById('sectionFechaVuelta');
+
+        if (isRoundTripCheck && sectionFechaVuelta) {
+            isRoundTripCheck.addEventListener('change', () => {
+                if (isRoundTripCheck.checked) {
+                    sectionFechaVuelta.classList.remove('d-none');
+                } else {
+                    sectionFechaVuelta.classList.add('d-none');
                 }
-            })
-            .catch(err => console.error("Error al obtener saldo del cliente:", err));
-    }
-});
-
-
+            });
+        }
     </script>
 </body>
 </html>

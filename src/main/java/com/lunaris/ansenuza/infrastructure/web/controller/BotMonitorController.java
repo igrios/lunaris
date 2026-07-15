@@ -28,6 +28,7 @@ import com.lunaris.ansenuza.domain.model.service.OperationControlService;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
+import com.lunaris.ansenuza.domain.repository.LocalityRepository; // ✅ Importación de Localidades de la Base de Datos
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -47,6 +48,7 @@ public class BotMonitorController {
     private final ReservationRepository reservationRepository;
     private final PassengerRepository passengerRepository;
     private final ChatMessageRepository messageRepository; 
+    private final LocalityRepository localityRepository; // ✅ Inyectamos el repositorio para consultar los pueblos de la BD
     private final WhatsAppService whatsAppService;
     private final PricingAndScheduleService tarifaService;
     private final ReceiptStoragePort cloudinaryService;
@@ -75,6 +77,19 @@ public class BotMonitorController {
         model.addAttribute("jornadaActiva", operationControlService.isHumanActionEnabled());
         
         return "admin/bot-monitor";
+    }
+
+    // 🖥️ NUEVO ENDPOINT: Abre el formulario tradicional de nueva reserva alimentado con la base de datos
+    @GetMapping("/monitor/nueva-reserva")
+    public String mostrarFormularioManual(Model model) {
+        // Traemos todos los pueblos registrados en la BD ordenados alfabéticamente para los dropdowns
+        List<String> localidades = localityRepository.findAll().stream()
+                .map(locality -> locality.getName())
+                .sorted()
+                .collect(Collectors.toList());
+        
+        model.addAttribute("localidades", localidades);
+        return "reservation-form"; // Abre src/main/resources/templates/reservation-form.html
     }
 
     // 🌙 Acción POST para encender o apagar la jornada de atención humana
@@ -131,7 +146,7 @@ public class BotMonitorController {
         }
     }
 
-// 🔍 ENDPOINT EXTENDIDO: Busca pasajero por teléfono y retorna todos sus datos y saldo actual
+    // 🔍 ENDPOINT EXTENDIDO: Busca pasajero por teléfono y retorna todos sus datos y saldo actual
     @GetMapping("/monitor/pasajero/saldo")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> obtenerSaldoPasajero(@RequestParam("phone") String phone) {
@@ -158,7 +173,7 @@ public class BotMonitorController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
         }
     }
-    
+
     // 🚀 CARGA MANUAL ASISTIDA (Desde la pantalla dividida del chat en vivo)
     @PostMapping("/monitor/cargar-reserva")
     public String cargarReservaManualOperador(
@@ -309,6 +324,7 @@ public class BotMonitorController {
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            @RequestParam(value = "returnDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate, // ✅ Recibe la fecha de regreso desde la web
             @RequestParam("departureSchedule") String departureSchedule,
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
@@ -372,10 +388,11 @@ public class BotMonitorController {
             if (roundTrip) {
                 Reservation vuelta = new Reservation();
                 vuelta.setPassenger(passenger);
-                vuelta.setTravelDate(LocalDate.of(2099, 12, 31));
+                // Si viene una fecha de regreso del formulario la aplicamos, sino default al centinela (2099)
+                vuelta.setTravelDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
                 vuelta.setPickupLocality(destination);
                 vuelta.setDestination(pickupLocality);
-                vuelta.setPickupAddress("A coordinar por WhatsApp (Vuelta Abierta)");
+                vuelta.setPickupAddress(returnDate != null ? "A coordinar domicilio de vuelta" : "A coordinar por WhatsApp (Vuelta Abierta)");
                 vuelta.setPassengerCount(passengerCount);
                 vuelta.setAmount(montoVuelta); 
                 vuelta.setStatus("CONFIRMED");
@@ -383,7 +400,7 @@ public class BotMonitorController {
                 vuelta.setRoundTrip(true);
                 vuelta.setDepartureSchedule(departureSchedule);
                 vuelta.setRequiresInvoice(requiresInvoice);
-                vuelta.setReturnDate(LocalDate.of(2099, 12, 31));
+                vuelta.setReturnDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
                 vuelta.setReservationCode(codigoBase + "-VUELTA");
                 vuelta.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
 

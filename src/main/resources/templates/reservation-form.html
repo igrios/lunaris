@@ -81,7 +81,7 @@
 
                     <hr class="text-muted my-4">
 
-                    <!-- 📍 SECCIÓN: DATOS DEL VIAJE (PUEBLOS DESPLEGABLES) -->
+                    <!-- 📍 SECCIÓN: DATOS DEL VIAJE (PUEBLOS DESPLEGABLES DINÁMICOS) -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-geo-alt-fill"></i> Detalles del Trayecto</h5>
 
                     <div class="row g-3 mb-3">
@@ -89,24 +89,22 @@
                             <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
                             <select class="form-select" id="inputOrigen" name="pickupLocality" required>
                                 <option value="" disabled selected>Seleccione origen...</option>
-                                <option value="Morteros">Morteros</option>
-                                <option value="Brinkmann">Brinkmann</option>
-                                <option value="Porteña">Porteña</option>
-                                <option value="San Francisco">San Francisco</option>
-                                <option value="Córdoba">Córdoba</option>
-                                <option value="Villariza">Villariza</option>
+                                <option value="Córdoba">Córdoba</option> <!-- Córdoba fijo por ser hub -->
+                                <!-- Iteramos los pueblos de la base de datos -->
+                                <option th:each="loc : ${localidades}" 
+                                        th:value="${loc}" 
+                                        th:text="${loc}"></option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
                             <select class="form-select" id="inputDestino" name="destination" required>
                                 <option value="" disabled selected>Seleccione destino...</option>
-                                <option value="Córdoba">Córdoba</option>
-                                <option value="Morteros">Morteros</option>
-                                <option value="Brinkmann">Brinkmann</option>
-                                <option value="Porteña">Porteña</option>
-                                <option value="San Francisco">San Francisco</option>
-                                <option value="Villariza">Villariza</option>
+                                <option value="Córdoba">Córdoba</option> <!-- Córdoba fijo por ser hub -->
+                                <!-- Iteramos los pueblos de la base de datos -->
+                                <option th:each="loc : ${localidades}" 
+                                        th:value="${loc}" 
+                                        th:text="${loc}"></option>
                             </select>
                         </div>
                     </div>
