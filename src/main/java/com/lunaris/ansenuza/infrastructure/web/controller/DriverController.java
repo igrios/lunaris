@@ -38,9 +38,9 @@ public class DriverController {
                 ? request.code().trim().toUpperCase()
                 : "";
 
-        if (code.length() != 6) {
+        if (code.isBlank()) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "El código de reserva debe tener exactamente 6 caracteres."));
+                    .body(Map.of("error", "El código de reserva es obligatorio."));
         }
 
         return reservationRepository.findByReservationCode(code)
