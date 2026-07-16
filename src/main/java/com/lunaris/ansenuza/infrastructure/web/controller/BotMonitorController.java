@@ -96,10 +96,10 @@ public class BotMonitorController {
     @GetMapping("/monitor/localidades")
     @ResponseBody
     public ResponseEntity<List<String>> obtenerLocalidades() {
-        try {
-            List<String> localidades = localityRepository.findAll().stream()
+      try {
+            // 🚀 Usamos el método que filtra solo pueblos con tarifas y los ordena de la A a la Z
+            List<String> localidades = localityRepository.findLocalitiesWithFares().stream()
                     .map(locality -> locality.getName())
-                    .sorted()
                     .collect(Collectors.toList());
             return ResponseEntity.ok(localidades);
         } catch (Exception e) {
