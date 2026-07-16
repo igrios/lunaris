@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.Reservation.TravelStatus;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
@@ -72,4 +73,54 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 💡 NUEVO MÉTODO FILTRADO: Para limpiar la grilla de vueltas abiertas en el controlador web
     @Query("SELECT r FROM Reservation r WHERE r.travelDate = :fechaCentinela AND r.status != 'CANCELLED'")
     List<Reservation> findVueltasAbiertasActive(@Param("fechaCentinela") LocalDate fechaCentinela);
+
+    @Query("""
+           SELECT ret FROM Reservation ret
+           WHERE ret.travelDate = :date
+           AND ret.status <> 'CANCELLED'
+           AND ret.reservationCode LIKE '%-VUELTA'
+           AND EXISTS (
+               SELECT outbound.id FROM Reservation outbound
+               WHERE outbound.reservationCode = CONCAT(SUBSTRING(ret.reservationCode, 1, LENGTH(ret.reservationCode) - 7), '-IDA')
+               AND outbound.travelStatus = :travelStatus
+           )
+           """)
+    List<Reservation> findScheduledReturnsWithRealizedOutbound(
+            @Param("date") LocalDate date,
+            @Param("travelStatus") TravelStatus travelStatus);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.returnDate = :date
+           AND r.travelStatus = :travelStatus
+           AND r.status <> 'CANCELLED'
+           """)
+    List<Reservation> findRealizedOutboundReservationsWithReturnDate(
+            @Param("date") LocalDate date,
+            @Param("travelStatus") TravelStatus travelStatus);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.passenger.phone = :phone
+           AND r.travelDate = :date
+           AND r.status <> 'CANCELLED'
+           AND r.reservationCode LIKE '%-VUELTA'
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findActiveReturnReservationsByPassengerPhoneAndDate(
+            @Param("phone") String phone,
+            @Param("date") LocalDate date);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.passenger.phone = :phone
+           AND r.returnDate = :date
+           AND r.travelStatus = :travelStatus
+           AND r.status <> 'CANCELLED'
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findRealizedOutboundReservationsByPassengerPhoneAndReturnDate(
+            @Param("phone") String phone,
+            @Param("date") LocalDate date,
+            @Param("travelStatus") TravelStatus travelStatus);
 }

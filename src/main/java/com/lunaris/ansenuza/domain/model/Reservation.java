@@ -8,11 +8,14 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,6 +31,14 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class Reservation {
+
+    public enum TravelStatus {
+        PENDING,
+        REALIZED,
+        OPEN_RETURN,
+        CANCELED,
+        NO_SHOW
+    }
 
     @Id
     @GeneratedValue
@@ -69,6 +80,11 @@ public class Reservation {
     @Column(name = "status") // Flujo canónico: PENDING_PAYMENT, PAYMENT_RECEIVED, CONFIRMED, CANCELLED
     private String status; 
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "travel_status", nullable = false, length = 20)
+    private TravelStatus travelStatus = TravelStatus.PENDING;
+
     @Column(name = "notes")
     private String notes;
 
@@ -104,6 +120,12 @@ public class Reservation {
     @Column(name = "requires_invoice")
     private Boolean requiresInvoice; // 🧾 Flag unificado para facturación
 
+    @PrePersist
+    void prePersist() {
+        if (travelStatus == null) {
+            travelStatus = TravelStatus.PENDING;
+        }
+    }
 
     public int getTotalSeats() {
         if (this.passengerCount == null || this.passengerCount < 1) {

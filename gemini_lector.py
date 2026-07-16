@@ -3,9 +3,9 @@ import sys
 from google import genai
 
 # ✅ Configuración de tu clave copiada de AI Studio
-API_KEY = "AQ.Ab8RN6I6j6RlJfqz7QXW25eojDGKuXAvR6PrEzl_5jiq1pr_dQ"  # <-- Pegá acá tu clave completa que termina en ...r_dQ
+API_KEY = "A"  # <-- Pegá acá tu clave completa que termina en ...r_dQ
 
-if API_KEY == "AIAQ.Ab8RN6I6j6RlJfqz7QXW25eojDGKuXAvR6PrEzl_5jiq1pr_dQ" or not API_KEY:
+if API_KEY == "A" or not API_KEY:
     print("❌ Por favor, poné tu API Key completa de Google AI Studio en la variable API_KEY.")
     sys.exit(1)
 

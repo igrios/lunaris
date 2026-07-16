@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
+import com.lunaris.ansenuza.domain.model.service.ReservationCancellationService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,16 +28,19 @@ public class ConversationOrchestrator {
     private final ConversationSessionRepository conversationSessionRepository;
     private final LiveChatPort liveChat;
     private final OperationControlService operationControlService; // 👈 NUEVO SERVICIO INYECTADO
+    private final ReservationCancellationService reservationCancellationService;
 
     public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
             ConversationSessionRepository conversationSessionRepository,
             LiveChatPort liveChat,
-            OperationControlService operationControlService) { // 👈 AGREGADO AL CONSTRUCTOR
+            OperationControlService operationControlService,
+            ReservationCancellationService reservationCancellationService) { // 👈 AGREGADO AL CONSTRUCTOR
         this.handlers = handlerList.stream()
                 .collect(Collectors.toMap(ConversationStepHandler::step, Function.identity()));
         this.conversationSessionRepository = conversationSessionRepository;
         this.liveChat = liveChat;
         this.operationControlService = operationControlService;
+        this.reservationCancellationService = reservationCancellationService;
     }
 
     public void process(IncomingMessage message) {
@@ -45,7 +49,8 @@ public class ConversationOrchestrator {
             return;
         }
         String phoneNumber = message.from();
-        String body = raw.trim().toLowerCase();
+        String rawTrimmed = raw.trim();
+        String body = rawTrimmed.toLowerCase();
 
         // ⚖️ LOAD BALANCER: Si la sesión es nueva, le asignamos el operador con menos carga activa
         ConversationSession session = conversationSessionRepository
@@ -77,6 +82,12 @@ public class ConversationOrchestrator {
         }
 
         conversationSessionRepository.saveAndFlush(session);
+
+        if (reservationCancellationService.isReturnDecision(rawTrimmed)) {
+            reservationCancellationService.processReturnDecision(phoneNumber, rawTrimmed);
+            log.info("[Bot] Decisión de vuelta '{}' procesada para {}.", rawTrimmed, phoneNumber);
+            return;
+        }
 
         if (session.isBotPaused()) {
             log.info("[Bypass] Bot muteado para {}. Derivando mensaje a la sala de chat humana.",

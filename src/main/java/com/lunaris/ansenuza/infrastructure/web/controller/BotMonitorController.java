@@ -83,9 +83,8 @@ public class BotMonitorController {
     @GetMapping("/monitor/nueva-reserva")
     public String mostrarFormularioManual(Model model) {
         // Mantenemos soporte Thymeleaf tradicional por si acaso
-        List<String> localidades = localityRepository.findAll().stream()
+        List<String> localidades = localityRepository.findLocalitiesWithFares().stream()
                 .map(locality -> locality.getName())
-                .sorted()
                 .collect(Collectors.toList());
         
         model.addAttribute("localidades", localidades);
