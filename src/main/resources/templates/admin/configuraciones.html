@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Configuraciones - Lunaris Ansenuza</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <style>
+        body {
+            background: #eef2f5;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding-top: 72px;
+        }
+        .page-shell {
+            max-width: 1180px;
+        }
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            color: #495057;
+            margin-bottom: 1rem;
+        }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+        .config-block {
+            background: #fff;
+            border: 1px solid #dfe5eb;
+            border-radius: 10px;
+            padding: 1rem;
+        }
+        .config-block.full {
+            grid-column: 1 / -1;
+        }
+        .config-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #6c757d;
+            margin-bottom: 0.35rem;
+        }
+        .config-key {
+            font-size: 0.78rem;
+            color: #868e96;
+            margin-bottom: 0.6rem;
+        }
+        textarea.form-control {
+            min-height: 130px;
+            resize: vertical;
+        }
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav th:replace="~{fragments/nav :: bar('admin')}"></nav>
+
+    <main class="container page-shell pb-5">
+        <div class="d-flex justify-content-between align-items-end mb-4">
+            <div>
+                <h1 class="h3 fw-bold mb-1">Configuraciones del sistema</h1>
+                <p class="text-muted mb-0">Ajustes operativos para retornos, sesiones y textos del bot.</p>
+            </div>
+        </div>
+
+        <div th:if="${successMessage}" class="alert alert-success border-0 shadow-sm" role="alert" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-danger border-0 shadow-sm" role="alert" th:text="${errorMessage}"></div>
+
+        <form th:action="@{/admin/configuraciones}" method="post" th:object="${form}" class="config-grid">
+            <section class="config-block">
+                <div class="section-title">Scheduler de retornos</div>
+                <label class="config-label" for="returnSchedulerTime">Hora de envío</label>
+                <div class="config-key">`return.scheduler.time`</div>
+                <input id="returnSchedulerTime" type="time" class="form-control" th:field="*{returnSchedulerTime}">
+            </section>
+
+            <section class="config-block">
+                <div class="section-title">Inactividad de sesión</div>
+                <label class="config-label" for="sessionInactivityTimeoutMinutes">Minutos sin actividad</label>
+                <div class="config-key">`session.inactivity.timeout.minutes`</div>
+                <input id="sessionInactivityTimeoutMinutes" type="number" min="1" step="1" class="form-control"
+                       th:field="*{sessionInactivityTimeoutMinutes}">
+            </section>
+
+            <section class="config-block full">
+                <div class="section-title">Mensaje de WhatsApp</div>
+                <label class="config-label" for="returnMessageHeader">Encabezado</label>
+                <div class="config-key">`return.message.header`</div>
+                <input id="returnMessageHeader" type="text" class="form-control mb-3" th:field="*{returnMessageHeader}">
+
+                <label class="config-label" for="returnMessageBody">Cuerpo</label>
+                <div class="config-key">`return.message.body`</div>
+                <textarea id="returnMessageBody" class="form-control" th:field="*{returnMessageBody}"></textarea>
+            </section>
+
+            <section class="config-block">
+                <div class="section-title">Botón 1</div>
+                <label class="config-label" for="returnButtonYesTitle">Texto visible</label>
+                <div class="config-key">`return.button.yes.title`</div>
+                <input id="returnButtonYesTitle" type="text" class="form-control" th:field="*{returnButtonYesTitle}">
+            </section>
+
+            <section class="config-block">
+                <div class="section-title">Botón 2</div>
+                <label class="config-label" for="returnButtonLaterTitle">Texto visible</label>
+                <div class="config-key">`return.button.later.title`</div>
+                <input id="returnButtonLaterTitle" type="text" class="form-control" th:field="*{returnButtonLaterTitle}">
+            </section>
+
+            <section class="config-block full">
+                <div class="section-title">Botón 3</div>
+                <label class="config-label" for="returnButtonNoTitle">Texto visible</label>
+                <div class="config-key">`return.button.no.title`</div>
+                <input id="returnButtonNoTitle" type="text" class="form-control" th:field="*{returnButtonNoTitle}">
+            </section>
+
+            <div class="d-flex justify-content-end gap-2 mt-2">
+                <a th:href="@{/admin/bot/monitor}" class="btn btn-outline-secondary">Volver</a>
+                <button type="submit" class="btn btn-primary px-4">Guardar cambios</button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>
