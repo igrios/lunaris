@@ -2,11 +2,11 @@ package com.lunaris.ansenuza.application.conversation;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
+import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,14 +30,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ConversationSessionCleanupScheduler {
 
-    private final ConversationSessionRepository conversationSessionRepository;
+    private static final String SESSION_INACTIVITY_TIMEOUT_KEY = "session.inactivity.timeout.minutes";
+    private static final long DEFAULT_INACTIVE_MINUTES = 30;
 
-    @Value("${bot.session.inactive-minutes:30}")
-    private long inactiveMinutes;
+    private final ConversationSessionRepository conversationSessionRepository;
+    private final SystemConfigurationService configurationService;
 
     @Scheduled(fixedDelayString = "${bot.session.cleanup-interval-ms:600000}")
     @Transactional
     public void purgeInactiveSessions() {
+        long inactiveMinutes = resolveInactiveMinutes();
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(inactiveMinutes);
         List<ConversationSession> abandonadas =
                 conversationSessionRepository.findByBotPausedFalseAndLastInteractionBefore(cutoff);
@@ -49,5 +51,19 @@ public class ConversationSessionCleanupScheduler {
         conversationSessionRepository.deleteAll(abandonadas);
         log.info("[Cleanup] Se cerraron {} sesiones de bot inactivas (sin actividad > {} min).",
                 abandonadas.size(), inactiveMinutes);
+    }
+
+    private long resolveInactiveMinutes() {
+        String configuredValue = configurationService.getValue(
+                SESSION_INACTIVITY_TIMEOUT_KEY,
+                String.valueOf(DEFAULT_INACTIVE_MINUTES));
+        try {
+            long minutes = Long.parseLong(configuredValue.trim());
+            return minutes > 0 ? minutes : DEFAULT_INACTIVE_MINUTES;
+        } catch (NumberFormatException e) {
+            log.warn("[Cleanup] Timeout de inactividad inválido '{}'. Usando {} min.",
+                    configuredValue, DEFAULT_INACTIVE_MINUTES);
+            return DEFAULT_INACTIVE_MINUTES;
+        }
     }
 }
