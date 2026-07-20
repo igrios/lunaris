@@ -45,9 +45,9 @@ public class DailyReturnScheduler {
 
     @Scheduled(fixedDelayString = "60000")
     public void askPassengersAboutTodayReturn() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
         LocalTime configuredTime = resolveConfiguredReturnTime();
-        LocalTime now = LocalTime.now().withSecond(0).withNano(0);
+        LocalTime now = LocalTime.now(java.time.ZoneId.of("America/Argentina/Cordoba")).withSecond(0).withNano(0);
 
         if (!now.equals(configuredTime)) {
             return;

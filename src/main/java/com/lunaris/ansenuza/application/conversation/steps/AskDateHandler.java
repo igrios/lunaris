@@ -42,7 +42,7 @@ public class AskDateHandler implements ConversationStepHandler {
         }
 
         LocalDate travelDate = fechaParseada.get();
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
 
         // Mantenemos tu validación de negocio intacta
         if (travelDate.isBefore(hoy)) {

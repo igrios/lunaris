@@ -26,6 +26,7 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
+import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.RequiredArgsConstructor;
 
@@ -43,7 +44,7 @@ public class AgendaViewController {
     // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
     @GetMapping("/agenda")
     public String agenda(Model model) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
         LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
         // 🌟 Modificado: Pasamos de 5 a 7 en el IntStream.range para cubrir la semana completa
@@ -167,62 +168,57 @@ public class AgendaViewController {
         }
     }
 
-    // 🚖 5. Envío de Hoja de Ruta AL CHOFER CORREGIDO CON DESGLOSE DE LUGARES OCUPADOS
+    // 🚖 5. Envío de Hoja de Ruta AL CHOFER CORREGIDO CON PLANTILLA Y ASIGNACIÓN
     @PostMapping("/api/agenda/enviar-hoja-ruta")
-    public ResponseEntity<Void> enviarHojaRuta(@RequestParam("phone") String choferPhone,
-            @RequestBody List<UUID> reservationIds) {
+    public ResponseEntity<Void> enviarHojaRuta(@RequestBody EnviarHojaRutaRequest request) {
+        String choferPhone = request.phone();
+        List<UUID> reservationIds = request.reservationIds();
 
-        if (reservationIds == null || reservationIds.isEmpty()) {
+        if (reservationIds == null || reservationIds.isEmpty() || choferPhone == null || choferPhone.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
 
-        StringBuilder mensaje = new StringBuilder();
-        mensaje.append("📋 *HOJA DE RUTA - TRASLADOS LUNARIS*\n");
-        mensaje.append("--------------------------------------------------\n\n");
-
-        int index = 1;
-        for (UUID id : reservationIds) {
-            Reservation res = reservationRepository.findById(id).orElse(null);
-            if (res == null)
-                continue;
-
-            String nombre = res.getPassenger().getFirstName() + " " + res.getPassenger().getLastName();
-            String origen = res.getPickupLocality();
-            String destino = res.getDestination();
-            String direccion = (res.getPickupAddress() != null && !res.getPickupAddress().isEmpty())
-                    ? res.getPickupAddress()
-                    : "No especificada";
-            String telefono = res.getPassenger().getPhone();
-            String observaciones = (res.getNotes() != null && !res.getNotes().isEmpty()) ? res.getNotes() : "-";
-
-            int asientos = res.getPassengerCount() != null ? res.getPassengerCount() : 1;
-            String listaAcompanantes = (res.getCompanionNames() != null && !res.getCompanionNames().isEmpty())
-                            ? res.getCompanionNames()
-                            : "Ninguno";
-
-            mensaje.append(String.format("🚐 *VIAJE #%d*\n", index));
-            mensaje.append(String.format("👤 *Pasajero Titular:* %s\n", nombre));
-            mensaje.append(String.format("🔢 *Asientos a Ocupar:* %d\n", asientos));
-            mensaje.append(String.format("👥 *Acompañantes:* %s\n", listaAcompanantes));
-            mensaje.append(String.format("📍 *Origen:* %s\n", origen));
-            mensaje.append(String.format("🏁 *Destino:* %s\n", destino));
-            mensaje.append(String.format("🏠 *Dirección:* %s\n", direccion));
-            mensaje.append(String.format("📞 *Tel:* %s\n", telefono));
-            mensaje.append(String.format("📝 *Obs:* %s\n", observaciones));
-            mensaje.append("--------------------------------------------------\n\n");
-            index++;
+        // 1. Buscar chofer por teléfono normalizado
+        String normalizedPhone = normalizeWhatsAppNumber(choferPhone);
+        java.util.Optional<Driver> driverOpt = driverRepository.findByPhone(normalizedPhone);
+        if (driverOpt.isEmpty()) {
+            List<Driver> allDrivers = driverRepository.findAll();
+            driverOpt = allDrivers.stream()
+                    .filter(d -> normalizeWhatsAppNumber(d.getPhone()).equals(normalizedPhone))
+                    .findFirst();
         }
 
-        mensaje.append("_¡Buen viaje! Por cualquier duda comunicarse con la base._");
+        if (driverOpt.isEmpty()) {
+            org.slf4j.LoggerFactory.getLogger(getClass())
+                    .warn("No se encontró chofer con el teléfono: {}", choferPhone);
+            return ResponseEntity.status(404).build();
+        }
 
+        Driver driver = driverOpt.get();
+
+        // 2. Asignar el chofer a cada reserva en BD
+        for (UUID id : reservationIds) {
+            reservationRepository.findById(id).ifPresent(res -> {
+                res.setDriver(driver);
+                reservationRepository.saveAndFlush(res);
+            });
+        }
+
+        // 3. Enviar plantilla 'despierta_chofer' al celular del chofer
         try {
-            whatsAppService.sendMessage(choferPhone, mensaje.toString());
+            whatsAppService.sendDespiertaChoferTemplate(normalizedPhone, driver.getFullName());
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(getClass())
-                    .error("Error al enviar la hoja de ruta al chofer por webhook/API", e);
+                    .error("Error al enviar la plantilla despierta_chofer al chofer", e);
             return ResponseEntity.status(500).build();
         }
+    }
+
+    private String normalizeWhatsAppNumber(String phone) {
+        if (phone == null) return "";
+        String clean = phone.replaceAll("[^0-9]", "");
+        return clean.startsWith("549") ? "54" + clean.substring(3) : clean;
     }
 
     // 💬 6. Habilita http://localhost:8080/chat-room apuntando adentro de admin/
@@ -250,7 +246,7 @@ public class AgendaViewController {
     // 📋 8. Habilita http://localhost:8080/hoja-ruta apuntando adentro de admin/
     @GetMapping("/hoja-ruta")
     public String showHojaRuta(Model model) {
-        model.addAttribute("date", LocalDate.now());
+        model.addAttribute("date", LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba")));
         return "admin/hoja-ruta"; // 👈 Corregido: va a buscar a templates/admin/hoja-ruta.html
     }
 

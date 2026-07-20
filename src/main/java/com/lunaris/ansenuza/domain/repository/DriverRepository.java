@@ -9,4 +9,5 @@ import java.util.UUID; // 🔥 Agregamos el import
 @Repository
 public interface DriverRepository extends JpaRepository<Driver, UUID> { // 👈 Cambiado Long por UUID
     List<Driver> findByActiveTrue();
+    java.util.Optional<Driver> findByPhone(String phone);
 }

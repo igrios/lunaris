@@ -212,12 +212,42 @@ public void sendMediaMessage(String to, String type, String mediaUrl, String cap
         log.info("[WhatsApp API] Comprobante manual enviado con éxito al número: {}", to);
 
     } catch (Exception e) {
-        log.error("[CRÍTICO] Error al enviar el comprobante por WhatsApp API al número {}: ", to, e);
+        log.error("[CRÍTICO] Error al enviar the comprobante por WhatsApp API al número {}: ", to, e);
     }
 }
 
+public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
+    try {
+        String url = "https://graph.facebook.com/v25.0/" + this.phoneNumberId + "/messages";
+        org.springframework.http.HttpHeaders headers = createHeaders();
 
+        java.util.Map<String, Object> bodyParam = java.util.Map.of(
+            "type", "text",
+            "text", nombreChofer
+        );
 
+        java.util.Map<String, Object> bodyComponent = java.util.Map.of(
+            "type", "body",
+            "parameters", java.util.List.of(bodyParam)
+        );
 
+        java.util.Map<String, Object> templateMap = java.util.Map.of(
+            "name", "despierta_chofer",
+            "language", java.util.Map.of("code", "en"),
+            "components", java.util.List.of(bodyComponent)
+        );
 
+        java.util.Map<String, Object> body = java.util.Map.of(
+            "messaging_product", "whatsapp",
+            "recipient_type", "individual",
+            "to", to,
+            "type", "template",
+            "template", templateMap
+        );
+
+        executePostCall(url, headers, body, "TEMPLATE DESPIERTA CHOFER");
+    } catch (Exception e) {
+        log.error("Error al enviar la plantilla despierta_chofer a {}: ", to, e);
+    }
+}
 }

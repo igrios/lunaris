@@ -51,11 +51,24 @@ public class WhatsAppWebhookParser {
             return new IncomingMessage(from, MessageType.TEXT, body, null);
         }
 
+        if ("button".equals(type)) {
+            Map<String, Object> buttonData = (Map<String, Object>) message.get("button");
+            String body = buttonData != null ? (String) buttonData.get("payload") : null;
+            if (body == null && buttonData != null) {
+                body = (String) buttonData.get("text");
+            }
+            return new IncomingMessage(from, MessageType.INTERACTIVE, body, null);
+        }
+
         if ("interactive".equals(type)) {
             String body = null;
             Map<String, Object> interactive = (Map<String, Object>) message.get("interactive");
-            if (interactive != null && "button_reply".equals(interactive.get("type"))) {
-                body = (String) ((Map<String, Object>) interactive.get("button_reply")).get("id");
+            if (interactive != null) {
+                if ("button_reply".equals(interactive.get("type"))) {
+                    body = (String) ((Map<String, Object>) interactive.get("button_reply")).get("id");
+                } else if ("list_reply".equals(interactive.get("type"))) {
+                    body = (String) ((Map<String, Object>) interactive.get("list_reply")).get("id");
+                }
             }
             return new IncomingMessage(from, MessageType.INTERACTIVE, body, null);
         }

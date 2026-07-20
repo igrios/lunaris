@@ -254,12 +254,15 @@
                 reservationIds.push(id);
             });
 
-            fetch(`/api/agenda/enviar-hoja-ruta?phone=${celularChofer}`, {
+            fetch(`/api/agenda/enviar-hoja-ruta`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(reservationIds)
+                body: JSON.stringify({
+                    phone: celularChofer,
+                    reservationIds: reservationIds
+                })
             })
                 .then(response => {
                     if (!response.ok) throw new Error();

@@ -123,4 +123,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
             @Param("phone") String phone,
             @Param("date") LocalDate date,
             @Param("travelStatus") TravelStatus travelStatus);
+
+    @Query("SELECT r FROM Reservation r WHERE r.driver.id = :driverId AND r.travelDate = :date AND r.status <> 'CANCELLED'")
+    List<Reservation> findByDriverIdAndTravelDate(@Param("driverId") java.util.UUID driverId, @Param("date") java.time.LocalDate date);
 }

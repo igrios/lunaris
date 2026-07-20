@@ -37,7 +37,8 @@ public class Reservation {
         REALIZED,
         OPEN_RETURN,
         CANCELED,
-        NO_SHOW
+        NO_SHOW,
+        BOARDED
     }
 
     @Id
@@ -47,6 +48,10 @@ public class Reservation {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "passenger_id", nullable = false)
     private Passenger passenger;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "driver_id")
+    private Driver driver;
 
     // 🛠️ CORRECCIÓN CRÍTICA: Se cambia a nullable = true para sincronizar con la migración V31 de Flyway
     // Evita que Hibernate lance una excepción en Render al procesar flujos o vueltas diferidas
