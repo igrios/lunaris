@@ -148,6 +148,13 @@ public class ConversationOrchestrator {
         return clean.startsWith("549") ? "54" + clean.substring(3) : clean;
     }
 
+    private String truncateSafe(String text, int maxLength) {
+        if (text == null) return "";
+        text = text.trim();
+        if (text.length() <= maxLength) return text;
+        return text.substring(0, maxLength - 3) + "...";
+    }
+
     private void handleVerRuta(String phone) {
         String normalizedPhone = normalizeWhatsAppNumber(phone);
         java.util.Optional<Driver> driverOpt = driverRepository.findByPhone(normalizedPhone);
@@ -195,8 +202,8 @@ public class ConversationOrchestrator {
             }
             rows.add(java.util.Map.of(
                 "id", "BOARD_ID_" + res.getId(),
-                "title", passengerName,
-                "description", description
+                "title", truncateSafe(passengerName, 24),
+                "description", truncateSafe(description, 72)
             ));
         }
 
