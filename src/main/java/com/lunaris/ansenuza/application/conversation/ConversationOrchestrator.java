@@ -1,8 +1,12 @@
 package com.lunaris.ansenuza.application.conversation;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -182,43 +186,82 @@ public class ConversationOrchestrator {
             return;
         }
 
-        // Send interactive list of passengers
-        List<java.util.Map<String, Object>> rows = new java.util.ArrayList<>();
+        reservations.sort(Comparator
+                .comparing(Reservation::getTravelDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Reservation::getDepartureSchedule,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
+
+        StringBuilder routeMessage = new StringBuilder("🗺️ Hoja de ruta\n\n");
+        for (Reservation reservation : reservations) {
+            String passengerName = reservation.getPassenger().getFirstName() + " "
+                    + reservation.getPassenger().getLastName();
+            String schedule = reservation.getDepartureSchedule() == null
+                    || reservation.getDepartureSchedule().isBlank()
+                            ? "Horario a confirmar"
+                            : reservation.getDepartureSchedule().trim();
+
+            routeMessage.append("👤 ").append(passengerName).append(" (")
+                    .append(schedule).append(" hs)\n")
+                    .append("📞 ").append(reservation.getPassenger().getPhone())
+                    .append(" | 📍 ").append(pickupLocation(reservation))
+                    .append(" ➔ ").append(reservation.getDestination()).append("\n\n");
+        }
+        routeMessage.append("📍 Mapa: ").append(buildGoogleMapsUrl(reservations));
+        whatsAppService.sendMessage(phone, routeMessage.toString());
+
+        // Segundo mensaje: lista de onboarding para confirmar abordajes.
+        List<Map<String, Object>> rows = new ArrayList<>();
         for (Reservation res : reservations) {
             String passengerName = res.getPassenger().getFirstName() + " " + res.getPassenger().getLastName();
             String schedule = res.getDepartureSchedule() == null || res.getDepartureSchedule().isBlank()
                     ? "Horario a confirmar"
-                    : res.getDepartureSchedule();
-            String pickupAddress = res.getPickupAddress() == null || res.getPickupAddress().isBlank()
-                    ? res.getPickupLocality()
-                    : res.getPickupAddress() + ", " + res.getPickupLocality();
-            String travelDay = res.getTravelDate().equals(today) ? "Hoy" : "Mañana";
-            String description = travelDay + " " + schedule + " | " + pickupAddress + " → " + res.getDestination();
-            if (res.getTravelStatus() == Reservation.TravelStatus.BOARDED) {
-                passengerName = "✅ " + passengerName;
-                description = "[A bordo] " + description;
-            } else {
-                description = "[" + res.getPassengerCount() + " as.] " + description;
-            }
+                    : res.getDepartureSchedule().trim();
             rows.add(java.util.Map.of(
                 "id", "BOARD_ID_" + res.getId(),
-                "title", truncateSafe(passengerName, 24),
-                "description", truncateSafe(description, 72)
+                "title", truncateSafe(schedule + " - " + passengerName, 24),
+                "description", truncateSafe("Confirmar a bordo", 72)
             ));
         }
 
         java.util.Map<String, Object> section = java.util.Map.of(
-            "title", "Pasajeros hoy y mañana",
+            "title", "Onboarding",
             "rows", rows
         );
 
         whatsAppService.sendInteractiveList(
             phone,
-            "Hoja de Ruta - Lunaris",
-            "Hola " + driver.getFullName() + ". Seleccioná un pasajero para marcarlo a bordo cuando suba a la combi:",
+            "Onboarding",
+            "Seleccioná un pasajero para confirmar que está a bordo.",
             "Ver Pasajeros",
             List.of(section)
         );
+    }
+
+    private String pickupLocation(Reservation reservation) {
+        if (reservation.getPickupAddress() == null || reservation.getPickupAddress().isBlank()) {
+            return reservation.getPickupLocality();
+        }
+        return reservation.getPickupAddress() + ", " + reservation.getPickupLocality();
+    }
+
+    private String buildGoogleMapsUrl(List<Reservation> reservations) {
+        Reservation firstReservation = reservations.get(0);
+        Reservation lastReservation = reservations.get(reservations.size() - 1);
+        List<String> waypoints = reservations.stream()
+                .skip(1)
+                .map(this::pickupLocation)
+                .limit(9)
+                .toList();
+
+        return "https://www.google.com/maps/dir/?api=1&origin="
+                + encodeMapParameter(pickupLocation(firstReservation))
+                + "&destination=" + encodeMapParameter(lastReservation.getDestination())
+                + "&waypoints=" + encodeMapParameter(String.join("|", waypoints))
+                + "&travelmode=driving";
+    }
+
+    private String encodeMapParameter(String value) {
+        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 
     private void handleBoardPassenger(String phone, String rawTrimmed) {
