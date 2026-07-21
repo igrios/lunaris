@@ -221,9 +221,13 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
         String url = "https://graph.facebook.com/v25.0/" + this.phoneNumberId + "/messages";
         org.springframework.http.HttpHeaders headers = createHeaders();
 
+        // Validamos que si llega nulo o vacío, use un valor por defecto para que Meta no rebote
+        String nombreValido = (nombreChofer != null && !nombreChofer.isBlank()) ? nombreChofer : "Chofer";
+
         java.util.Map<String, Object> bodyParam = java.util.Map.of(
             "type", "text",
-            "text", nombreChofer
+            "parameter_name", "nombre_chofer", // <--- ¡CLAVE OBLIGATORIA DE META PARA NAMED VARIABLES!
+            "text", nombreValido
         );
 
         java.util.Map<String, Object> bodyComponent = java.util.Map.of(
