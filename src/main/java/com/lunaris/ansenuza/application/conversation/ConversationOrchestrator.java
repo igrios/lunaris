@@ -1,6 +1,8 @@
 package com.lunaris.ansenuza.application.conversation;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -28,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class ConversationOrchestrator {
+
+    private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Cordoba");
 
     private final Map<String, ConversationStepHandler> handlers;
     private final ConversationSessionRepository conversationSessionRepository;
@@ -161,11 +165,13 @@ public class ConversationOrchestrator {
         }
 
         Driver driver = driverOpt.get();
-        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
-        List<Reservation> reservations = reservationRepository.findByDriverIdAndTravelDate(driver.getId(), today);
+        LocalDate today = LocalDate.now(ARGENTINA_ZONE);
+        LocalDate tomorrow = today.plusDays(1);
+        List<Reservation> reservations = reservationRepository
+                .findByDriverIdAndTravelDateBetween(driver.getId(), today, tomorrow);
 
         if (reservations.isEmpty()) {
-            whatsAppService.sendMessage(phone, "Hola " + driver.getFullName() + ", no tienes pasajeros asignados para el día de hoy.");
+            whatsAppService.sendMessage(phone, "ℹ️ No tenés viajes asignados para hoy o mañana.");
             return;
         }
 
@@ -173,7 +179,14 @@ public class ConversationOrchestrator {
         List<java.util.Map<String, Object>> rows = new java.util.ArrayList<>();
         for (Reservation res : reservations) {
             String passengerName = res.getPassenger().getFirstName() + " " + res.getPassenger().getLastName();
-            String description = res.getPickupLocality() + " -> " + res.getDestination();
+            String schedule = res.getDepartureSchedule() == null || res.getDepartureSchedule().isBlank()
+                    ? "Horario a confirmar"
+                    : res.getDepartureSchedule();
+            String pickupAddress = res.getPickupAddress() == null || res.getPickupAddress().isBlank()
+                    ? res.getPickupLocality()
+                    : res.getPickupAddress() + ", " + res.getPickupLocality();
+            String travelDay = res.getTravelDate().equals(today) ? "Hoy" : "Mañana";
+            String description = travelDay + " " + schedule + " | " + pickupAddress + " → " + res.getDestination();
             if (res.getTravelStatus() == Reservation.TravelStatus.BOARDED) {
                 passengerName = "✅ " + passengerName;
                 description = "[A bordo] " + description;
@@ -188,14 +201,14 @@ public class ConversationOrchestrator {
         }
 
         java.util.Map<String, Object> section = java.util.Map.of(
-            "title", "Pasajeros de Hoy",
+            "title", "Pasajeros hoy y mañana",
             "rows", rows
         );
 
         whatsAppService.sendInteractiveList(
             phone,
             "Hoja de Ruta - Lunaris",
-            "Hola " + driver.getFullName() + ". Selecciona un pasajero de la lista para marcarlo a bordo una vez que suba a la combi:",
+            "Hola " + driver.getFullName() + ". Seleccioná un pasajero para marcarlo a bordo cuando suba a la combi:",
             "Ver Pasajeros",
             List.of(section)
         );

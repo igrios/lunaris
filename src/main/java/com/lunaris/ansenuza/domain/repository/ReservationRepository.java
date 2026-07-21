@@ -124,6 +124,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
             @Param("date") LocalDate date,
             @Param("travelStatus") TravelStatus travelStatus);
 
-    @Query("SELECT r FROM Reservation r WHERE r.driver.id = :driverId AND r.travelDate = :date AND r.status <> 'CANCELLED'")
-    List<Reservation> findByDriverIdAndTravelDate(@Param("driverId") java.util.UUID driverId, @Param("date") java.time.LocalDate date);
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.driver.id = :driverId
+           AND r.travelDate BETWEEN :startDate AND :endDate
+           AND r.status <> 'CANCELLED'
+           ORDER BY r.travelDate ASC, r.departureSchedule ASC
+           """)
+    List<Reservation> findByDriverIdAndTravelDateBetween(
+            @Param("driverId") UUID driverId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }
