@@ -213,12 +213,12 @@ public class ConversationOrchestrator {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (Reservation res : reservations) {
             String passengerName = res.getPassenger().getFirstName() + " " + res.getPassenger().getLastName();
-            String schedule = res.getDepartureSchedule() == null || res.getDepartureSchedule().isBlank()
-                    ? "Horario a confirmar"
+            String scheduleShort = res.getDepartureSchedule() == null || res.getDepartureSchedule().isBlank()
+                    ? "S/H"
                     : res.getDepartureSchedule().trim();
             rows.add(java.util.Map.of(
                 "id", "BOARD_ID_" + res.getId(),
-                "title", truncateSafe(schedule + " - " + passengerName, 24),
+                "title", truncateSafe(scheduleShort + " - " + passengerName, 24),
                 "description", truncateSafe("Confirmar a bordo", 72)
             ));
         }
