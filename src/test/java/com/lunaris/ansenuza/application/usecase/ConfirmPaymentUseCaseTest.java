@@ -30,7 +30,7 @@ class ConfirmPaymentUseCaseTest {
 
         new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);
 
-        verify(promotionService).consume("1234");
+        verify(promotionService).consume("1234", null);
         verify(repository).saveAll(List.of(outbound, inbound));
         assertTrue(outbound.getPaymentVerified());
         assertTrue(inbound.getPaymentVerified());
@@ -50,7 +50,7 @@ class ConfirmPaymentUseCaseTest {
 
         new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);
 
-        verify(promotionService).consumeIfAvailable("5678");
+        verify(promotionService).consumeIfAvailable("5678", null);
     }
 
     private Reservation reservation(UUID id, String reservationCode, String promotionCode, boolean paid) {

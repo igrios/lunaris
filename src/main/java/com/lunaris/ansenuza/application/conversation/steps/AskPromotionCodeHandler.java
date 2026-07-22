@@ -33,11 +33,12 @@ public class AskPromotionCodeHandler implements ConversationStepHandler {
             session.setPromotionDiscountPercentage(null);
         } else if (response.matches("\\d{4}")) {
             try {
-                Promotion promotion = promotionService.requireAvailable(response);
+                Promotion promotion = promotionService.requireAvailable(response, session.getPhoneNumber());
                 session.setPromotionCode(promotion.getCode());
                 session.setPromotionDiscountPercentage(promotion.getDiscountPercentage());
             } catch (IllegalArgumentException exception) {
-                messaging.sendText(session.getPhoneNumber(), "❌ El código no es válido o ya fue utilizado. Ingresá otro código de 4 dígitos o escribí *SIN PROMO*.");
+                messaging.sendText(session.getPhoneNumber(), "❌ " + exception.getMessage()
+                        + ". Ingresá otro código de 4 dígitos o escribí *SIN PROMO*.");
                 return;
             }
         } else {

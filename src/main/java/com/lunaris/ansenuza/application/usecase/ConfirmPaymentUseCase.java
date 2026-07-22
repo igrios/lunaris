@@ -31,14 +31,15 @@ public class ConfirmPaymentUseCase {
                 .filter(code -> code != null && !code.isBlank())
                 .findFirst()
                 .orElse(null);
+        String phoneNumber = selected.getPassenger() != null ? selected.getPassenger().getPhone() : null;
 
         if (group.stream().allMatch(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()))) {
             // Repara reservas confirmadas por flujos anteriores que no consumieron la promoción.
-            promotionService.consumeIfAvailable(promotionCode);
+            promotionService.consumeIfAvailable(promotionCode, phoneNumber);
             return selected;
         }
 
-        promotionService.consume(promotionCode);
+        promotionService.consume(promotionCode, phoneNumber);
 
         LocalDateTime confirmedAt = LocalDateTime.now();
         group.forEach(reservation -> {

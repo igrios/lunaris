@@ -33,8 +33,14 @@ public class Promotion {
     @Column(nullable = false)
     private boolean used;
 
+    @Column(name = "is_massive", nullable = false)
+    private boolean massive;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
 
     @PrePersist
     void prePersist() {

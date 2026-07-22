@@ -71,12 +71,12 @@ public class ConfirmationHandler implements ConversationStepHandler {
             if (session.getPromotionCode() != null) {
                 Promotion promotion;
                 try {
-                    promotion = promotionService.requireAvailable(session.getPromotionCode());
+                    promotion = promotionService.requireAvailable(session.getPromotionCode(), phoneNumber);
                 } catch (IllegalArgumentException exception) {
                     session.setCurrentStep("ASK_PROMOTION_CODE");
                     conversationSessionRepository.saveAndFlush(session);
                     messaging.sendText(phoneNumber,
-                            "❌ El código promocional ya no está disponible. Ingresá otro código o escribí *SIN PROMO*.");
+                            "❌ " + exception.getMessage() + ". Ingresá otro código o escribí *SIN PROMO*.");
                     return;
                 }
                 discountAmount = promotionService.calculateDiscount(price, promotion.getDiscountPercentage());
@@ -114,7 +114,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
             boolean paymentConfirmed = savedReservations.stream()
                     .allMatch(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()));
             if (session.getPromotionCode() != null && paymentConfirmed) {
-                promotionService.consume(session.getPromotionCode());
+                promotionService.consume(session.getPromotionCode(), phoneNumber);
             }
             conversationSessionRepository.delete(session);
 
