@@ -33,10 +33,10 @@ public class GetBillingPanelUseCase {
         BigDecimal ingresoMes = reservationRepository.sumConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
         long countMes = reservationRepository.countConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
 
-        // Pendientes de factura: pago confirmado, monto > 0, sin factura previa.
-        // Excluimos el tramo de VUELTA (_V) porque el monto ya cubre ida y vuelta: una factura por viaje.
+        // Pendientes de factura: pago confirmado, importe total > 0, sin factura previa.
+        // El importe cubre la reserva completa: amount + extra_amount.
         List<PendingInvoiceRow> pendientes = reservationRepository.findByStatus("CONFIRMED").stream()
-                .filter(r -> r.getAmount() != null && r.getAmount().signum() > 0)
+                .filter(r -> totalReservationAmount(r).signum() > 0)
                 .filter(r -> r.getReservationCode() == null || !r.getReservationCode().endsWith("_V"))
                 .filter(r -> !invoiceRepository.existsByReservationId(r.getId()))
                 .map(this::toRow)
@@ -63,9 +63,15 @@ public class GetBillingPanelUseCase {
                 r.getPassenger().getPhone(),
                 rawDoc,
                 CuilCalculator.suggestCuil(rawDoc),
-                r.getAmount(),
+                totalReservationAmount(r),
                 r.getTravelDate(),
                 route
         );
+    }
+
+    private BigDecimal totalReservationAmount(Reservation reservation) {
+        BigDecimal amount = reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
+        BigDecimal extraAmount = reservation.getExtraAmount() == null ? BigDecimal.ZERO : reservation.getExtraAmount();
+        return amount.add(extraAmount);
     }
 }

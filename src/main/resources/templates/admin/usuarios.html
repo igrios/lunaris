@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lunaris - Gestión de usuarios</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>body { background:#f4f6f9; padding-top:75px; } .card { border:0; border-radius:12px; }</style>
+</head>
+<body>
+  <nav th:replace="~{fragments/nav :: bar('usuarios')}"></nav>
+  <main class="container my-4">
+    <div class="mb-4">
+      <h1 class="h3 fw-bold">Gestión de usuarios</h1>
+      <p class="text-muted mb-0">Administrá cuentas, contraseñas, roles y accesos.</p>
+    </div>
+
+    <div th:if="${ok}" class="alert alert-success" th:text="${ok}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+    <section class="card shadow-sm mb-4">
+      <div class="card-body p-4">
+        <h2 id="form-title" class="h5 mb-3">Nuevo usuario</h2>
+        <form th:action="@{/admin/usuarios/guardar}" method="post" class="row g-3">
+          <input id="account-id" type="hidden" name="id">
+          <div class="col-md-4"><label class="form-label">Usuario</label><input id="username" class="form-control" name="username" required></div>
+          <div class="col-md-4"><label class="form-label">Nombre visible</label><input id="display-name" class="form-control" name="displayName" required></div>
+          <div class="col-md-4"><label class="form-label">Contraseña <span class="text-muted" id="password-hint">(obligatoria)</span></label><input id="password" class="form-control" name="password" type="password"></div>
+          <div class="col-md-8">
+            <label class="form-label d-block">Roles</label>
+            <div class="form-check form-check-inline" th:each="role : ${roles}">
+              <input class="form-check-input account-role" type="checkbox" name="roles" th:value="${role}" th:id="'role-' + ${role}">
+              <label class="form-check-label" th:for="'role-' + ${role}" th:text="${role}"></label>
+            </div>
+          </div>
+          <div class="col-md-2"><div class="form-check mt-4"><input id="active" class="form-check-input" type="checkbox" name="active" value="true" checked><label class="form-check-label" for="active">Activo</label></div></div>
+          <div class="col-md-2 d-grid gap-2"><button class="btn btn-primary" type="submit">Guardar</button><button id="cancel" class="btn btn-outline-secondary d-none" type="button" onclick="resetForm()">Cancelar</button></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card shadow-sm"><div class="card-body p-4"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+      <thead class="table-dark"><tr><th>Usuario</th><th>Nombre</th><th>Roles</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+      <tbody>
+        <tr th:each="account : ${usuarios}">
+          <td class="fw-semibold" th:text="${account.username}"></td><td th:text="${account.displayName}"></td>
+          <td><span class="badge text-bg-secondary me-1" th:each="role : ${account.roles}" th:text="${role}"></span></td>
+          <td><span class="badge" th:classappend="${account.active} ? ' text-bg-success' : ' text-bg-secondary'" th:text="${account.active} ? 'Activo' : 'Inactivo'"></span></td>
+          <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary" th:attr="data-id=${account.id},data-username=${account.username},data-name=${account.displayName},data-roles=${account.roles},data-active=${account.active}" onclick="editAccount(this)">Editar</button>
+            <form class="d-inline" method="post" th:action="@{'/admin/usuarios/eliminar/' + ${account.id}}" onsubmit="return confirm('¿Eliminar este usuario?');"><button class="btn btn-sm btn-outline-danger">Eliminar</button></form></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(usuarios)}"><td colspan="5" class="text-center text-muted py-4">No hay usuarios registrados.</td></tr>
+      </tbody>
+    </table></div></div></section>
+  </main>
+  <script>
+    function editAccount(button) {
+      document.getElementById('account-id').value = button.dataset.id;
+      document.getElementById('username').value = button.dataset.username;
+      document.getElementById('display-name').value = button.dataset.name;
+      document.getElementById('password').value = '';
+      document.getElementById('password-hint').textContent = '(dejar vacía para conservarla)';
+      document.getElementById('active').checked = button.dataset.active === 'true';
+      document.querySelectorAll('.account-role').forEach(input => input.checked = button.dataset.roles.includes(input.value));
+      document.getElementById('form-title').textContent = 'Editar usuario';
+      document.getElementById('cancel').classList.remove('d-none');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function resetForm() {
+      document.querySelector('form').reset(); document.getElementById('account-id').value = '';
+      document.getElementById('active').checked = true; document.getElementById('form-title').textContent = 'Nuevo usuario';
+      document.getElementById('password-hint').textContent = '(obligatoria)'; document.getElementById('cancel').classList.add('d-none');
+    }
+  </script>
+</body>
+</html>

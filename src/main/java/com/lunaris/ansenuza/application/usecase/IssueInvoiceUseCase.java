@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.application.usecase;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.UUID;
@@ -45,7 +46,7 @@ public class IssueInvoiceUseCase {
         invoice.setReservationId(reservationId);
         invoice.setPassengerName(reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName());
         invoice.setPassengerCuil(CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()));
-        invoice.setAmount(reservation.getAmount());
+        invoice.setAmount(totalReservationAmount(reservation));
         invoice.setPdfUrl(stored.webUrl());
 
         boolean sent = sendByWhatsApp(reservation, invoice, stored.absolutePath());
@@ -95,5 +96,11 @@ public class IssueInvoiceUseCase {
     private String nextInvoiceNumber() {
         long sequence = invoiceRepository.count() + 1;
         return String.format("F-%d-%05d", Year.now().getValue(), sequence);
+    }
+
+    private BigDecimal totalReservationAmount(Reservation reservation) {
+        BigDecimal amount = reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
+        BigDecimal extraAmount = reservation.getExtraAmount() == null ? BigDecimal.ZERO : reservation.getExtraAmount();
+        return amount.add(extraAmount);
     }
 }

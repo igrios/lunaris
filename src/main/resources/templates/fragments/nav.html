@@ -6,7 +6,7 @@
     Barra de navegación UNIFICADA de Lunaris Ansenuza.
     Se incluye en cada pantalla con:
       <nav th:replace="~{fragments/nav :: bar('clave-activa')}"></nav>
-    Claves: dashboard | reservas | agenda | vueltas | pasajeros | tarifas | facturacion | choferes | nueva
+    Claves: dashboard | reservas | agenda | vueltas | pasajeros | tarifas | facturacion | choferes | usuarios | nueva
   -->
   <nav th:fragment="bar(active)" class="navbar navbar-expand-lg navbar-dark fixed-top shadow-sm"
     style="background-color:#1e293b;">
@@ -26,6 +26,7 @@
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'tarifas'} ? 'active fw-bold'" th:href="@{/fares}">💵 Tarifas</a></li>
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'facturacion'} ? 'active fw-bold'" th:href="@{/facturacion}">🧾 Facturación</a></li>
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'choferes'} ? 'active fw-bold'" th:href="@{/choferes}">🚗 Choferes</a></li>
+          <li class="nav-item"><a class="nav-link" th:classappend="${active == 'usuarios'} ? 'active fw-bold'" th:href="@{/admin/usuarios}">👤 Usuarios</a></li>
           <li class="nav-item"><a class="nav-link text-warning fw-semibold" th:href="@{/admin/bot/monitor}">🎛️ Bot</a></li>
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <a class="btn btn-primary btn-sm fw-bold w-100" th:href="@{/reservations/new}">➕ Nueva Reserva</a>

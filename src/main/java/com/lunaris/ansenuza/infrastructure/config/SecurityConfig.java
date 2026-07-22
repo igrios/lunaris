@@ -1,17 +1,21 @@
 package com.lunaris.ansenuza.infrastructure.config;
 
+import com.lunaris.ansenuza.domain.model.Account;
 import com.lunaris.ansenuza.domain.model.Role;
+import com.lunaris.ansenuza.domain.repository.AccountRepository;
+import java.util.HashSet;
+import java.util.Set;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -30,7 +34,7 @@ public class SecurityConfig {
                         .permitAll()
 
                         // Administración completa y configuración sensible.
-                        .requestMatchers("/admin/configuraciones/**", "/api/configurations/**", "/choferes/**", "/drivers/**", "/vehicles/**")
+                        .requestMatchers("/admin/usuarios/**", "/admin/configuraciones/**", "/api/configurations/**", "/choferes/**", "/drivers/**", "/vehicles/**")
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/admin/bot/toggle-bot", "/admin/bot/toggle-jornada", "/admin/bot/configurar-jornada")
                         .hasRole(Role.ADMIN.name())
@@ -52,13 +56,16 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .formLogin(login -> login
                         .successHandler((request, response, authentication) -> {
+                            boolean admin = authentication.getAuthorities().stream()
+                                    .anyMatch(authority -> authority.getAuthority()
+                                            .equals("ROLE_" + Role.ADMIN.name()));
                             boolean billing = authentication.getAuthorities().stream()
                                     .anyMatch(authority -> authority.getAuthority()
                                             .equals("ROLE_" + Role.FACTURACION.name()));
                             boolean driver = authentication.getAuthorities().stream()
                                     .anyMatch(authority -> authority.getAuthority()
                                             .equals("ROLE_" + Role.CHOFER.name()));
-                            response.sendRedirect(billing ? "/facturacion"
+                            response.sendRedirect(admin ? "/dashboard" : billing ? "/facturacion"
                                     : driver ? "/admin/hoja-ruta" : "/dashboard");
                         })
                         .permitAll())
@@ -71,20 +78,42 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        UserDetails admin = User.builder()
-                .username("ignacio")
-                .password(passwordEncoder.encode("Ignacio2026!"))
-                .roles(Role.ADMIN.name())
-                .build();
+    public UserDetailsService userDetailsService(AccountRepository accountRepository) {
+        return username -> accountRepository.findByUsernameIgnoreCase(username)
+                .map(this::toUserDetails)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+    }
 
-        UserDetails operator = User.builder()
-                .username("martin")
-                .password(passwordEncoder.encode("MartinLunaris2026"))
-                .roles(Role.OPERADOR.name())
-                .build();
+    @Bean
+    public ApplicationRunner bootstrapAccounts(AccountRepository accountRepository,
+            PasswordEncoder passwordEncoder) {
+        return args -> {
+            createIfMissing(accountRepository, passwordEncoder, "ignacio", "Ignacio", "Ignacio2026!", Role.ADMIN);
+            createIfMissing(accountRepository, passwordEncoder, "martin", "Martín", "MartinLunaris2026", Role.OPERADOR);
+        };
+    }
 
-        return new InMemoryUserDetailsManager(admin, operator);
+    private void createIfMissing(AccountRepository accountRepository, PasswordEncoder passwordEncoder,
+            String username, String displayName, String password, Role role) {
+        if (!accountRepository.existsByUsernameIgnoreCase(username)) {
+            accountRepository.save(Account.builder()
+                    .username(username)
+                    .displayName(displayName)
+                    .passwordHash(passwordEncoder.encode(password))
+                    .active(true)
+                    .roles(new HashSet<>(Set.of(role)))
+                    .build());
+        }
+    }
+
+    private org.springframework.security.core.userdetails.UserDetails toUserDetails(Account account) {
+        String[] roles = account.getRoles().stream().map(Role::name).toArray(String[]::new);
+        return User.builder()
+                .username(account.getUsername())
+                .password(account.getPasswordHash())
+                .roles(roles)
+                .disabled(!account.isActive())
+                .build();
     }
 
     @Bean
