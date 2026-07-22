@@ -48,6 +48,9 @@ public class DriverViewController {
         driver.setPhone(phone.trim());
         driver.setRanking(ranking);
         driver.setActive(active);
+        if (driver.getId() == null) {
+            driver.setId(UUID.randomUUID());
+        }
         driverRepository.save(driver);
 
         return "redirect:/choferes";

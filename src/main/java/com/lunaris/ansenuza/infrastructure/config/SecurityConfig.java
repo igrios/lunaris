@@ -1,7 +1,9 @@
 package com.lunaris.ansenuza.infrastructure.config;
 
+import com.lunaris.ansenuza.domain.model.Role;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
@@ -19,54 +21,67 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Desactivado para facilitar WebSockets sin tokens complejos
-            .authorizeHttpRequests(auth -> auth
-                // 🟢 PUENTE LIBRE PARA META (WHATSAPP) Y SWAGGER UI 🚀
-                .requestMatchers("/whatsapp/**").permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        // Integraciones externas y documentación pública.
+                        .requestMatchers("/whatsapp/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                        .permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**")
+                        .permitAll()
 
-                // 🛑 Solo VOS (ADMIN) vas a poder tocar el interruptor global de jornada o configuraciones críticas
-                .requestMatchers("/admin/bot/toggle-bot").hasRole("ADMIN")
-                .requestMatchers("/admin/bot/configurar-jornada").hasRole("ADMIN")
-                
-                // 💼 Tanto Vos como Martín (OPERATOR) manejan el monitor, chats y la agenda diaria
-                .requestMatchers("/admin/bot/monitor/**").hasAnyRole("ADMIN", "OPERATOR")
-                .requestMatchers("/admin/chat/**").hasAnyRole("ADMIN", "OPERATOR")
-                .requestMatchers("/agenda/**").hasAnyRole("ADMIN", "OPERATOR")
-                
-                // 🛠️ Permitir recursos estáticos para que no se rompa el diseño visual de Bootstrap
-                .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
-                
-                // Todo lo demás requiere login obligatorio
-                .anyRequest().authenticated()
-            )
-            .formLogin(login -> login
-                .defaultSuccessUrl("/admin/bot/monitor", true) // Al loguearse van derecho a la torre de control
-                .permitAll()
-            )
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout")
-                .permitAll()
-            );
+                        // Administración completa y configuración sensible.
+                        .requestMatchers("/admin/configuraciones/**", "/api/configurations/**", "/choferes/**", "/drivers/**", "/vehicles/**")
+                        .hasRole(Role.ADMIN.name())
+                        .requestMatchers("/admin/bot/toggle-bot", "/admin/bot/toggle-jornada", "/admin/bot/configurar-jornada")
+                        .hasRole(Role.ADMIN.name())
+
+                        // Facturas, saldos y comprobantes de facturación.
+                        .requestMatchers("/facturacion/**")
+                        .hasAnyRole(Role.ADMIN.name(), Role.FACTURACION.name())
+
+                        // Hoja de ruta y confirmación de asistencia del chofer.
+                        .requestMatchers(HttpMethod.GET, "/admin/hoja-ruta", "/hoja-ruta")
+                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
+                        .requestMatchers(HttpMethod.POST, "/api/driver/confirm-assistance")
+                        .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
+
+                        // Operación diaria: viajes, agenda, reservas, chat y rutas.
+                        .requestMatchers("/agenda/**", "/api/agenda/**", "/dashboard/**", "/reservas-panel/**", "/reservations/**", "/admin/reservations/**", "/admin/bot/monitor/**", "/admin/chat/**", "/chat-room", "/bot-monitor", "/passengers/**", "/localities", "/fares")
+                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
+
+                        .anyRequest().authenticated())
+                .formLogin(login -> login
+                        .successHandler((request, response, authentication) -> {
+                            boolean billing = authentication.getAuthorities().stream()
+                                    .anyMatch(authority -> authority.getAuthority()
+                                            .equals("ROLE_" + Role.FACTURACION.name()));
+                            boolean driver = authentication.getAuthorities().stream()
+                                    .anyMatch(authority -> authority.getAuthority()
+                                            .equals("ROLE_" + Role.CHOFER.name()));
+                            response.sendRedirect(billing ? "/facturacion"
+                                    : driver ? "/admin/hoja-ruta" : "/dashboard");
+                        })
+                        .permitAll())
+                .logout(logout -> logout
+                        .logoutUrl("/logout")
+                        .logoutSuccessUrl("/login?logout")
+                        .permitAll());
 
         return http.build();
     }
 
     @Bean
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        // 👤 Tu usuario con control absoluto del bot y de las variables
         UserDetails admin = User.builder()
                 .username("ignacio")
-                .password(passwordEncoder.encode("Ignacio2026!")) 
-                .roles("ADMIN")
+                .password(passwordEncoder.encode("Ignacio2026!"))
+                .roles(Role.ADMIN.name())
                 .build();
 
-        // 👤 El usuario de Martín (y futuros operadores) para la gestión diaria
         UserDetails operator = User.builder()
                 .username("martin")
-                .password(passwordEncoder.encode("MartinLunaris2026")) 
-                .roles("OPERATOR")
+                .password(passwordEncoder.encode("MartinLunaris2026"))
+                .roles(Role.OPERADOR.name())
                 .build();
 
         return new InMemoryUserDetailsManager(admin, operator);

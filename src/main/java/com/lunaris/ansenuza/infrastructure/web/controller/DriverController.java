@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
@@ -28,7 +29,9 @@ public class DriverController {
     @PostMapping("/drivers")
     public Driver create(
             @RequestBody Driver driver) {
-
+        if (driver.getId() == null) {
+            driver.setId(UUID.randomUUID());
+        }
         return repository.save(driver);
     }
 

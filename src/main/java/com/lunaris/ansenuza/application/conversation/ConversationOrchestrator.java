@@ -161,7 +161,7 @@ public class ConversationOrchestrator {
 
     private void handleVerRuta(String phone) {
         String normalizedPhone = normalizeWhatsAppNumber(phone);
-        java.util.Optional<Driver> driverOpt = driverRepository.findByPhone(normalizedPhone);
+        java.util.Optional<Driver> driverOpt = driverRepository.findFirstByPhone(normalizedPhone);
         if (driverOpt.isEmpty()) {
             List<Driver> allDrivers = driverRepository.findAll();
             driverOpt = allDrivers.stream()

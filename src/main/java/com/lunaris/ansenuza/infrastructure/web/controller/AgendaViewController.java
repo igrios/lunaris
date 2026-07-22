@@ -180,7 +180,7 @@ public class AgendaViewController {
 
         // 1. Buscar chofer por teléfono normalizado
         String normalizedPhone = normalizeWhatsAppNumber(choferPhone);
-        java.util.Optional<Driver> driverOpt = driverRepository.findByPhone(normalizedPhone);
+        java.util.Optional<Driver> driverOpt = driverRepository.findFirstByPhone(normalizedPhone);
         if (driverOpt.isEmpty()) {
             List<Driver> allDrivers = driverRepository.findAll();
             driverOpt = allDrivers.stream()
