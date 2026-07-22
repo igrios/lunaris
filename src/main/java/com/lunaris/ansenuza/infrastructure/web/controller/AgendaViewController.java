@@ -199,14 +199,29 @@ public class AgendaViewController {
         Driver driver = driverOpt.get();
 
         // 2. Asignar el chofer a cada reserva en BD
+        List<Reservation> assignedReservations = new java.util.ArrayList<>();
         for (UUID id : reservationIds) {
             reservationRepository.findById(id).ifPresent(res -> {
                 res.setDriver(driver);
                 reservationRepository.saveAndFlush(res);
+                assignedReservations.add(res);
             });
         }
 
-        // 3. Enviar plantilla 'despierta_chofer' al celular del chofer
+        assignedReservations.stream()
+                .filter(reservation -> reservation.getPassenger() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        reservation -> normalizeWhatsAppNumber(reservation.getPassenger().getPhone()),
+                        reservation -> reservation,
+                        (first, ignored) -> first,
+                        java.util.LinkedHashMap::new))
+                .forEach((passengerPhone, reservation) -> {
+                    String passengerName = reservation.getPassenger().getFirstName();
+                    whatsAppService.sendChoferAsignadoTemplate(
+                            passengerPhone, passengerName, driver.getFullName());
+                });
+
+        // 3. Enviar plantilla al chofer para abrir su hoja de ruta.
         try {
             whatsAppService.sendDespiertaChoferTemplate(normalizedPhone, driver.getFullName());
             return ResponseEntity.ok().build();

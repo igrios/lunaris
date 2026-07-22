@@ -36,6 +36,9 @@ public class WhatsAppService {
     @Value("${whatsapp.access-token}")
     private String accessToken;
 
+    @Value("${whatsapp.template-language:es_AR}")
+    private String templateLanguage;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     // MENSAJE TEXTO TRADICIONAL
@@ -254,4 +257,42 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
         log.error("Error al enviar la plantilla despierta_chofer a {}: ", to, e);
     }
 }
+
+    public void sendContactoPasajeroTemplate(String to, String passengerName) {
+        sendTemplate(to, "contacto_pasajero", List.of(safeTemplateValue(passengerName, "Pasajero")));
+    }
+
+    public void sendChoferAsignadoTemplate(String to, String passengerName, String driverName) {
+        sendTemplate(to, "chofer_asignado", List.of(
+                safeTemplateValue(passengerName, "Pasajero"),
+                safeTemplateValue(driverName, "Chofer")));
+    }
+
+    public void sendProximoEnCaminoTemplate(String to, String passengerName, String driverName) {
+        sendTemplate(to, "proximo_en_camino", List.of(
+                safeTemplateValue(passengerName, "Pasajero"),
+                safeTemplateValue(driverName, "Chofer")));
+    }
+
+    private void sendTemplate(String to, String templateName, List<String> values) {
+        List<Map<String, Object>> parameters = values.stream()
+                .map(value -> Map.<String, Object>of("type", "text", "text", value))
+                .toList();
+        Map<String, Object> template = Map.of(
+                "name", templateName,
+                "language", Map.of("code", templateLanguage),
+                "components", List.of(Map.of("type", "body", "parameters", parameters)));
+        Map<String, Object> body = Map.of(
+                "messaging_product", "whatsapp",
+                "recipient_type", "individual",
+                "to", to,
+                "type", "template",
+                "template", template);
+        executePostCall("https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages",
+                createHeaders(), body, "TEMPLATE " + templateName.toUpperCase());
+    }
+
+    private String safeTemplateValue(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
+    }
 }

@@ -6,12 +6,17 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.lunaris.ansenuza.domain.model.ChatMessage;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation; // 🚐 Importación de tu modelo de Reserva
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository; // 📍 Tu repositorio de localidades
+import com.lunaris.ansenuza.domain.repository.PassengerRepository;
+import com.lunaris.ansenuza.domain.model.service.WhatsAppConversationWindowService;
+import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.AllArgsConstructor;
 
 @Controller
@@ -22,6 +27,9 @@ public class ChatController {
     private final ChatMessageRepository messageRepository;
     private final ConversationSessionRepository sessionRepository;
     private final LocalityRepository localityRepository; // 👈 Agregado para soportar el formulario de la derecha
+    private final PassengerRepository passengerRepository;
+    private final WhatsAppConversationWindowService conversationWindowService;
+    private final WhatsAppService whatsAppService;
 
     @GetMapping("/{phoneNumber}")
     public String openChat(@PathVariable String phoneNumber, Model model) {
@@ -34,11 +42,27 @@ public class ChatController {
         model.addAttribute("session", session);
         model.addAttribute("historial", historial);
         model.addAttribute("phone", phoneNumber);
+        model.addAttribute("chatWindowActive", conversationWindowService.isActive(phoneNumber));
+        model.addAttribute("chatWindowExpiresAt",
+                conversationWindowService.expirationFor(phoneNumber).orElse(null));
 
         // 2. Datos dinámicos para habilitar la Nueva Reserva Asistida en espejo
         model.addAttribute("localities", localityRepository.findAll()); 
         model.addAttribute("reservation", new Reservation()); 
 
         return "admin/chat-room";
+    }
+
+    @PostMapping("/{phoneNumber}/contactar")
+    public String reopenConversation(@PathVariable String phoneNumber,
+            RedirectAttributes redirectAttributes) {
+        String passengerName = passengerRepository.findByPhone(phoneNumber)
+                .map(passenger -> passenger.getFirstName())
+                .filter(name -> !name.isBlank())
+                .orElse("Pasajero");
+        whatsAppService.sendContactoPasajeroTemplate(phoneNumber, passengerName);
+        redirectAttributes.addFlashAttribute("successMessage",
+                "Plantilla contacto_pasajero enviada. El chat se habilitará cuando el pasajero responda.");
+        return "redirect:/admin/chat/" + phoneNumber;
     }
 }

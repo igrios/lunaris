@@ -290,9 +290,41 @@ public class ConversationOrchestrator {
 
             String passengerName = reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName();
             whatsAppService.sendMessage(phone, "✓ Pasajero [" + passengerName + "] marcado a bordo.");
+            notifyNextPassenger(reservation);
         } catch (Exception e) {
             log.error("Error al marcar pasajero a bordo: ", e);
             whatsAppService.sendMessage(phone, "❌ Ocurrió un error al procesar el abordaje del pasajero.");
         }
+    }
+
+    private void notifyNextPassenger(Reservation boardedReservation) {
+        if (boardedReservation.getDriver() == null || boardedReservation.getTravelDate() == null) {
+            return;
+        }
+        List<Reservation> route = reservationRepository.findByDriverIdAndTravelDateBetween(
+                boardedReservation.getDriver().getId(), boardedReservation.getTravelDate(),
+                boardedReservation.getTravelDate());
+        route.sort(Comparator
+                .comparing(Reservation::getDepartureSchedule,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Reservation::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
+
+        int boardedIndex = route.stream()
+                .map(Reservation::getId)
+                .toList()
+                .indexOf(boardedReservation.getId());
+        if (boardedIndex < 0) return;
+
+        route.stream()
+                .skip(boardedIndex + 1L)
+                .filter(candidate -> candidate.getTravelStatus() != Reservation.TravelStatus.BOARDED)
+                .filter(candidate -> candidate.getTravelStatus() != Reservation.TravelStatus.REALIZED)
+                .filter(candidate -> candidate.getPassenger() != null)
+                .findFirst()
+                .ifPresent(next -> whatsAppService.sendProximoEnCaminoTemplate(
+                        next.getPassenger().getPhone(),
+                        next.getPassenger().getFirstName(),
+                        boardedReservation.getDriver().getFullName()));
     }
 }

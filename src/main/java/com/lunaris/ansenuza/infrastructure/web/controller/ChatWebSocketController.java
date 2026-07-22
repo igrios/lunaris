@@ -15,6 +15,7 @@ import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository; // 👈 Agregado para el
                                                                              // monitor
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
+import com.lunaris.ansenuza.domain.model.service.WhatsAppConversationWindowService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,11 +30,17 @@ public class ChatWebSocketController {
                                                                                // la Torre de
                                                                                // Control
     private final SimpMessagingTemplate messagingTemplate; // 👈 Inyectado para refrescar el monitor
+    private final WhatsAppConversationWindowService conversationWindowService;
                                                            // en vivo
 
     @MessageMapping("/chat.send/{phoneNumber}")
     @SendTo("/topic/messages/{phoneNumber}")
     public ChatMessage sendMessage(@DestinationVariable String phoneNumber, ChatMessage message) {
+
+        if (!conversationWindowService.isActive(phoneNumber)) {
+            throw new IllegalStateException(
+                    "La ventana de WhatsApp venció. Reenviá la plantilla contacto_pasajero.");
+        }
 
         message.setPhoneNumber(phoneNumber);
         message.setTimestamp(LocalDateTime.now());

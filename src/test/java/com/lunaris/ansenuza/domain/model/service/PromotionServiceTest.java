@@ -60,7 +60,7 @@ class PromotionServiceTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                 () -> fixtures.service.requireAvailable("1234", "+54 9 3564 00-0000"));
 
-        assertEquals("Este teléfono ya utilizó el código promocional.", exception.getMessage());
+        assertEquals("Ya has utilizado este código", exception.getMessage());
     }
 
     @Test

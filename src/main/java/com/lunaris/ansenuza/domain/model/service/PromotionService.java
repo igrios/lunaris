@@ -113,7 +113,7 @@ public class PromotionService {
             throw new IllegalArgumentException("No se pudo identificar el teléfono para aplicar la promoción.");
         }
         if (promotionUsageRepository.existsByPromotionIdAndPhoneNumber(promotion.getId(), normalizedPhone)) {
-            throw new IllegalArgumentException("Este teléfono ya utilizó el código promocional.");
+            throw new IllegalArgumentException("Ya has utilizado este código");
         }
     }
 
