@@ -51,8 +51,9 @@
                 <td th:text="${p.cuil != null ? p.cuil : '-'}">-</td>
                 <td th:text="${p.phone}">-</td>
                 <td class="text-center">
-                  <a th:href="'https://wa.me/' + ${p.phone}" target="_blank"
-                    class="btn btn-success btn-sm px-3 fw-semibold shadow-sm">
+                  <a th:href="@{/admin/chat/{phone}(phone=${p.phone})}"
+                    class="btn btn-success btn-sm px-3 fw-semibold shadow-sm"
+                    title="Abrir chat integrado de WhatsApp">
                     <i class="bi bi-whatsapp me-2"></i> Abrir Chat
                   </a>
                 </td>
