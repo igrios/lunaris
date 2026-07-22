@@ -42,11 +42,13 @@ class PromotionServiceTest {
         Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
         when(fixtures.promotions.findByCodeForUpdate("1234")).thenReturn(Optional.of(promotion));
 
-        fixtures.service.consume("1234", "+54 9 3564 00-0000");
+        fixtures.service.consume("1234", "+54 351 228-2251");
 
         ArgumentCaptor<PromotionUsage> captor = ArgumentCaptor.forClass(PromotionUsage.class);
+        verify(fixtures.usages).countByPromotionAndNormalizedPhone(
+                promotion.getId(), "543512282251");
         verify(fixtures.usages).saveAndFlush(captor.capture());
-        assertEquals("5493564000000", captor.getValue().getPhoneNumber());
+        assertEquals("543512282251", captor.getValue().getPhoneNumber());
     }
 
     @Test
@@ -54,11 +56,11 @@ class PromotionServiceTest {
         Fixtures fixtures = fixtures();
         Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
         when(fixtures.promotions.findFirstByCode("1234")).thenReturn(Optional.of(promotion));
-        when(fixtures.usages.existsByPromotionIdAndPhoneNumber(promotion.getId(), "5493564000000"))
-                .thenReturn(true);
+        when(fixtures.usages.countByPromotionAndNormalizedPhone(promotion.getId(), "543512282251"))
+                .thenReturn(1L);
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                () -> fixtures.service.requireAvailable("1234", "+54 9 3564 00-0000"));
+                () -> fixtures.service.requireAvailable("1234", "+54 351 228-2251"));
 
         assertEquals("Ya has utilizado este código", exception.getMessage());
     }

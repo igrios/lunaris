@@ -32,8 +32,8 @@ public class PromotionUsage {
     @Column(name = "phone_number", nullable = false, length = 30)
     private String phoneNumber;
 
-    @Column(name = "used_at", nullable = false, updatable = false)
-    private LocalDateTime usedAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     public PromotionUsage(Promotion promotion, String phoneNumber) {
         this.promotion = promotion;
@@ -43,6 +43,6 @@ public class PromotionUsage {
     @PrePersist
     void prePersist() {
         if (id == null) id = UUID.randomUUID();
-        if (usedAt == null) usedAt = LocalDateTime.now();
+        if (createdAt == null) createdAt = LocalDateTime.now();
     }
 }
