@@ -1,7 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.lunaris.ansenuza.application.usecase.GetDailyOperationSummaryUseCase;
+import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -31,6 +31,7 @@ public class DashboardViewController {
     private final ReservationRepository reservationRepository;
     private final FareRepository fareRepository;
     private final ReservationService reservationService;
+    private final ConfirmPaymentUseCase confirmPaymentUseCase;
 
     /**
      * 📊 Vista del Dashboard Principal
@@ -114,12 +115,7 @@ public class DashboardViewController {
         try {
             log.info("[Validación] Procesando confirmación individual para UUID: {}", id);
             
-            Reservation updateData = new Reservation();
-            updateData.setStatus("CONFIRMED");
-            updateData.setPaymentVerified(true);
-            updateData.setPaymentConfirmedAt(LocalDateTime.now());
-            
-            reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
+            confirmPaymentUseCase.execute(id);
             log.info("[Validación] Éxito. Tramo validado de forma individual.");
             
         } catch (Exception e) {

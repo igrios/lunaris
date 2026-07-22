@@ -15,6 +15,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -26,6 +27,7 @@ public class AgendaDayController {
 
     private final ReservationRepository reservationRepository;
     private final WhatsAppService whatsAppService;
+    private final ConfirmPaymentUseCase confirmPaymentUseCase;
 
     @Value("${whatsapp.access-token}")
     private String whatsappToken;
@@ -54,9 +56,7 @@ public class AgendaDayController {
     public ResponseEntity<Void> verifyPayment(@PathVariable UUID id) {
         return reservationRepository.findById(id)
                 .map(reservation -> {
-                    reservation.setPaymentVerified(true);
-                    reservation.setStatus("CONFIRMED");
-                    reservationRepository.saveAndFlush(reservation);
+                    confirmPaymentUseCase.execute(id);
 
                     try {
                         String clienteCelular = reservation.getPassenger().getPhone();

@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
 import java.math.BigDecimal;
+import java.util.List;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -109,8 +110,10 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     .companionNames(session.getCompanionNames())
                     .build();
 
-            reservationService.saveReservationFlow(nuevaReserva);
-            if (freePromotion) {
+            List<Reservation> savedReservations = reservationService.saveReservationFlow(nuevaReserva);
+            boolean paymentConfirmed = savedReservations.stream()
+                    .allMatch(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()));
+            if (session.getPromotionCode() != null && paymentConfirmed) {
                 promotionService.consume(session.getPromotionCode());
             }
             conversationSessionRepository.delete(session);

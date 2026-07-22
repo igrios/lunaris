@@ -46,9 +46,23 @@ public class PromotionService {
 
     @Transactional
     public void consume(String code) {
+        if (code == null || code.isBlank()) {
+            return;
+        }
         Promotion promotion = promotionRepository.findFirstByCodeAndUsedFalse(code)
                 .orElseThrow(() -> new IllegalStateException("La promoción ya fue utilizada o no existe."));
         promotion.setUsed(true);
-        promotionRepository.save(promotion);
+        promotionRepository.saveAndFlush(promotion);
+    }
+
+    @Transactional
+    public void consumeIfAvailable(String code) {
+        if (code == null || code.isBlank()) {
+            return;
+        }
+        promotionRepository.findFirstByCodeAndUsedFalse(code).ifPresent(promotion -> {
+            promotion.setUsed(true);
+            promotionRepository.saveAndFlush(promotion);
+        });
     }
 }

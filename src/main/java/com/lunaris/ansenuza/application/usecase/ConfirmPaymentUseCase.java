@@ -21,18 +21,24 @@ public class ConfirmPaymentUseCase {
     public Reservation execute(UUID reservationId) {
         Reservation selected = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
-        List<Reservation> group = reservationRepository.findByReservationCodeStartingWith(groupCode(selected.getReservationCode()));
-        if (group.isEmpty()) {
-            group = List.of(selected);
-        }
+        String groupCode = groupCode(selected.getReservationCode());
+        List<Reservation> group = groupCode == null
+                ? List.of(selected)
+                : reservationRepository.findByReservationCodeStartingWith(groupCode);
+        if (group.isEmpty()) group = List.of(selected);
+        String promotionCode = group.stream()
+                .map(Reservation::getPromotionCode)
+                .filter(code -> code != null && !code.isBlank())
+                .findFirst()
+                .orElse(null);
+
         if (group.stream().allMatch(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()))) {
+            // Repara reservas confirmadas por flujos anteriores que no consumieron la promoción.
+            promotionService.consumeIfAvailable(promotionCode);
             return selected;
         }
 
-        String promotionCode = selected.getPromotionCode();
-        if (promotionCode != null && !promotionCode.isBlank()) {
-            promotionService.consume(promotionCode);
-        }
+        promotionService.consume(promotionCode);
 
         LocalDateTime confirmedAt = LocalDateTime.now();
         group.forEach(reservation -> {
@@ -45,8 +51,8 @@ public class ConfirmPaymentUseCase {
     }
 
     private String groupCode(String reservationCode) {
-        if (reservationCode == null) {
-            return "";
+        if (reservationCode == null || reservationCode.isBlank()) {
+            return null;
         }
         return reservationCode.replaceFirst("-(IDA|VUELTA)$", "");
     }
