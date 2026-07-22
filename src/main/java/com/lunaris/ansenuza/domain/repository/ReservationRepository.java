@@ -21,6 +21,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 🤖 2. BUSCADOR POR CÓDIGO: Necesario para que el Bot valide y procese la BAJA (Opción 5)
     Optional<Reservation> findByReservationCode(String reservationCode);
 
+    List<Reservation> findByReservationCodeStartingWith(String reservationCode);
+
     // 📱 3. BUSCADOR POR TELÉFONO: Permite a la consulta del Bot (Opción 4) traer el historial por nro de celular
     @Query("SELECT r FROM Reservation r WHERE r.passenger.phone = :phone")
     List<Reservation> findByPassengerPhone(@Param("phone") String phone);
@@ -56,18 +58,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 🧾 Listado para el panel de Facturación (reservas con pago confirmado)
     List<Reservation> findByStatus(String status);
 
-    // 💰 INGRESO DE DINERO: suma de montos con pago confirmado en el rango.
-    // Excluimos el tramo de VUELTA (_V) porque su monto duplica el de la ida (precio ida y vuelta único).
+    // 💰 INGRESO DE DINERO: suma de todos los tramos confirmados; en ida y vuelta
+    // cada tramo lleva la mitad del importe neto, por lo que la suma es el total cobrado.
     @Query("SELECT COALESCE(SUM(r.amount), 0) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
-           "AND r.status <> 'CANCELLED' " +
-           "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%\\_V' ESCAPE '\\')")
+           "AND r.status <> 'CANCELLED'")
     BigDecimal sumConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("SELECT COUNT(r) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
            "AND r.status <> 'CANCELLED' " +
-           "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%\\_V' ESCAPE '\\')")
+           "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%-VUELTA')")
     long countConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     // 💡 NUEVO MÉTODO FILTRADO: Para limpiar la grilla de vueltas abiertas en el controlador web

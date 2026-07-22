@@ -33,11 +33,11 @@ public class GetBillingPanelUseCase {
         BigDecimal ingresoMes = reservationRepository.sumConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
         long countMes = reservationRepository.countConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
 
-        // Pendientes de factura: pago confirmado, importe total > 0, sin factura previa.
-        // El importe cubre la reserva completa: amount + extra_amount.
+        // Pendientes de factura: se toma exclusivamente la ida como cabecera del grupo
+        // para facturar el importe neto realmente cobrado por todo el viaje.
         List<PendingInvoiceRow> pendientes = reservationRepository.findByStatus("CONFIRMED").stream()
-                .filter(r -> totalReservationAmount(r).signum() > 0)
-                .filter(r -> r.getReservationCode() == null || !r.getReservationCode().endsWith("_V"))
+                .filter(r -> r.getReservationCode() == null || r.getReservationCode().endsWith("-IDA"))
+                .filter(r -> groupTotalAmount(r).signum() > 0)
                 .filter(r -> !invoiceRepository.existsByReservationId(r.getId()))
                 .map(this::toRow)
                 .toList();
@@ -63,7 +63,7 @@ public class GetBillingPanelUseCase {
                 r.getPassenger().getPhone(),
                 rawDoc,
                 CuilCalculator.suggestCuil(rawDoc),
-                totalReservationAmount(r),
+                groupTotalAmount(r),
                 r.getTravelDate(),
                 route
         );
@@ -73,5 +73,15 @@ public class GetBillingPanelUseCase {
         BigDecimal amount = reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
         BigDecimal extraAmount = reservation.getExtraAmount() == null ? BigDecimal.ZERO : reservation.getExtraAmount();
         return amount.add(extraAmount);
+    }
+
+    private BigDecimal groupTotalAmount(Reservation reservation) {
+        if (reservation.getReservationCode() == null) {
+            return totalReservationAmount(reservation);
+        }
+        String groupCode = reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
+        return reservationRepository.findByReservationCodeStartingWith(groupCode).stream()
+                .map(this::totalReservationAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

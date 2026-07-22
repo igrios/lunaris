@@ -79,6 +79,13 @@ public class Reservation {
     @Column(name = "extra_amount")
     private BigDecimal extraAmount;
 
+    @Column(name = "promotion_code", length = 4)
+    private String promotionCode;
+
+    @Builder.Default
+    @Column(name = "discount_amount", nullable = false)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
     @Column(name = "payment_verified", nullable = false)
     private Boolean paymentVerified;
 

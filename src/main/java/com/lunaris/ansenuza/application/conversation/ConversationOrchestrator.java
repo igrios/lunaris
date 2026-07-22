@@ -13,6 +13,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
+import com.lunaris.ansenuza.application.usecase.ProcessPromotionCommandUseCase;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -45,6 +46,7 @@ public class ConversationOrchestrator {
     private final DriverRepository driverRepository;
     private final ReservationRepository reservationRepository;
     private final WhatsAppService whatsAppService;
+    private final ProcessPromotionCommandUseCase processPromotionCommandUseCase;
 
     public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
             ConversationSessionRepository conversationSessionRepository,
@@ -53,7 +55,8 @@ public class ConversationOrchestrator {
             ReservationCancellationService reservationCancellationService,
             DriverRepository driverRepository,
             ReservationRepository reservationRepository,
-            WhatsAppService whatsAppService) {
+            WhatsAppService whatsAppService,
+            ProcessPromotionCommandUseCase processPromotionCommandUseCase) {
         this.handlers = handlerList.stream()
                 .collect(Collectors.toMap(ConversationStepHandler::step, Function.identity()));
         this.conversationSessionRepository = conversationSessionRepository;
@@ -63,6 +66,7 @@ public class ConversationOrchestrator {
         this.driverRepository = driverRepository;
         this.reservationRepository = reservationRepository;
         this.whatsAppService = whatsAppService;
+        this.processPromotionCommandUseCase = processPromotionCommandUseCase;
     }
 
     public void process(IncomingMessage message) {
@@ -73,6 +77,12 @@ public class ConversationOrchestrator {
         String phoneNumber = message.from();
         String rawTrimmed = raw.trim();
         String body = rawTrimmed.toLowerCase();
+
+        if (processPromotionCommandUseCase.isPromotionCommand(rawTrimmed)) {
+            liveChat.recordIncomingMessage(phoneNumber, rawTrimmed);
+            processPromotionCommandUseCase.execute(phoneNumber, rawTrimmed);
+            return;
+        }
 
         // ⚖️ LOAD BALANCER: Si la sesión es nueva, le asignamos el operador con menos carga activa
         ConversationSession session = conversationSessionRepository

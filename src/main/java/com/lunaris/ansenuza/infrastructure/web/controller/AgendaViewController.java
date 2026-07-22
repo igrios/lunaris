@@ -1,7 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +24,7 @@ import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -37,6 +37,7 @@ public class AgendaViewController {
     private final ReservationRepository reservationRepository;
     private final WhatsAppService whatsAppService;
     private final DriverRepository driverRepository;
+    private final ConfirmPaymentUseCase confirmPaymentUseCase;
 
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
@@ -103,11 +104,8 @@ public class AgendaViewController {
     @PostMapping("/api/agenda/confirmar-pago/{id}")
     @ResponseBody
     public ResponseEntity<Void> verifyPayment(@PathVariable UUID id) {
-        return reservationRepository.findById(id).map(reservation -> {
-            reservation.setPaymentVerified(true);
-            reservation.setStatus("CONFIRMED");
-            reservation.setPaymentConfirmedAt(LocalDateTime.now());
-            reservationRepository.saveAndFlush(reservation);
+        try {
+            Reservation reservation = confirmPaymentUseCase.execute(id);
 
             try {
                 String clienteCelular = reservation.getPassenger().getPhone();
@@ -130,8 +128,12 @@ public class AgendaViewController {
                         .error("No se pudo enviar el WhatsApp de confirmación de pago", e);
             }
 
-            return ResponseEntity.ok().<Void>build();
-        }).orElse(ResponseEntity.notFound().build());
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException exception) {
+            return ResponseEntity.status(409).build();
+        }
     }
 
     // 📄 4. Descarga del comprobante

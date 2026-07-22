@@ -7,12 +7,15 @@ import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 
 /** ASK_CONFIRMATION: confirma o cancela la reserva; al confirmar persiste pasajero + reserva(s). */
 @Component
@@ -22,6 +25,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
     private final ConversationSessionRepository conversationSessionRepository;
     private final PassengerRepository passengerRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
+    private final PromotionService promotionService;
     private final ReservationService reservationService;
     private final MessagingPort messaging;
 
@@ -31,6 +35,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
     }
 
     @Override
+    @Transactional
     public void handle(ConversationSession session, IncomingMessage message) {
         String phoneNumber = session.getPhoneNumber();
         String body = message.body().trim().toLowerCase();
@@ -60,6 +65,24 @@ public class ConfirmationHandler implements ConversationStepHandler {
             BigDecimal price = pricingAndScheduleService.calculateTripPrice(
                     session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
 
+            BigDecimal discountAmount = BigDecimal.ZERO;
+            boolean freePromotion = false;
+            if (session.getPromotionCode() != null) {
+                Promotion promotion;
+                try {
+                    promotion = promotionService.requireAvailable(session.getPromotionCode());
+                } catch (IllegalArgumentException exception) {
+                    session.setCurrentStep("ASK_PROMOTION_CODE");
+                    conversationSessionRepository.saveAndFlush(session);
+                    messaging.sendText(phoneNumber,
+                            "❌ El código promocional ya no está disponible. Ingresá otro código o escribí *SIN PROMO*.");
+                    return;
+                }
+                discountAmount = promotionService.calculateDiscount(price, promotion.getDiscountPercentage());
+                price = price.subtract(discountAmount).max(BigDecimal.ZERO);
+                freePromotion = promotion.getDiscountPercentage() == 100;
+            }
+
             // 🕒 REPARACIÓN FASE 3: Tomamos el bloque dinámico real elegido por el cliente
             String baseHour = session.getScheduleBlock() != null ? session.getScheduleBlock() : "03:00 AM";
             
@@ -76,16 +99,31 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     .pickupAddress(session.getPickupAddress())
                     .destination(session.getDestination())
                     .roundTrip(session.getRoundTrip())
-                    .paymentVerified(false)
+                    .paymentVerified(freePromotion)
                     .amount(price)
+                    .discountAmount(discountAmount)
+                    .promotionCode(session.getPromotionCode())
                     .notes(notes)
-                    .status("PENDING_PAYMENT")
+                    .status(freePromotion ? "CONFIRMED" : "PENDING_PAYMENT")
                     .passengerCount(totalAsientos)
                     .companionNames(session.getCompanionNames())
                     .build();
 
             reservationService.saveReservationFlow(nuevaReserva);
+            if (freePromotion) {
+                promotionService.consume(session.getPromotionCode());
+            }
             conversationSessionRepository.delete(session);
+
+            if (freePromotion) {
+                messaging.sendText(phoneNumber, """
+                        ✅ *¡Reserva confirmada con promoción 100% bonificada!*
+
+                        🎟️ Tu código fue aplicado y el pasaje quedó emitido. No necesitás realizar ningún pago ni se emitirá factura fiscal por un importe de $0.
+                        ¡Buen viaje con Lunaris! 🚐
+                        """);
+                return;
+            }
 
             messaging.sendText(phoneNumber, """
                     ✅ *¡Tu traslado ha sido registrado con éxito!*

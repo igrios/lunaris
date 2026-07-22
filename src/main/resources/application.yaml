@@ -28,6 +28,9 @@ whatsapp:
   phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
   access-token: ${WHATSAPP_ACCESS_TOKEN:EAAjg5ZALoQWABR1Lgd3paLGp6NNrEMZCN0PSDq15h5ZAIJnYeZB3XZCcfaFknm4AFQhPfWkGjwp5nA05rd2ZBET0mDZANhOFBcqE17h1AU6siILKOfUi204A8iYXvOi29aK57peVM3yKaZBmFRW8onJwwhVpVMW1v4pccWGakw70mxyMPzpDw0iDhAuwker9uOSyv6951qiZC64WhAZB4aW7mS5qMwPRqh1OBgk5msn9uLKyiSkqTzMsGjskfI8ZAp9qdYwyWeO7ZC4C5a930I6mRSpiAd6n5ZADkvE00MewZD}
 
+promotions:
+  authorized-operator-phone: ${PROMOTIONS_AUTHORIZED_OPERATOR_PHONE:}
+
 storage:
   local-dir: ${STORAGE_LOCAL_DIR:/tmp/comprobantes/}
   invoices-dir: ${STORAGE_INVOICES_DIR:/tmp/facturas/}

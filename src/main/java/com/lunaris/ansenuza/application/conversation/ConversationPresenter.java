@@ -86,6 +86,13 @@ public class ConversationPresenter {
             saldoAplicado = priceBase;
         }
 
+        BigDecimal descuentoPromo = BigDecimal.ZERO;
+        if (session.getPromotionDiscountPercentage() != null) {
+            descuentoPromo = priceBase.multiply(BigDecimal.valueOf(session.getPromotionDiscountPercentage()))
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            totalNeto = totalNeto.subtract(descuentoPromo).max(BigDecimal.ZERO);
+        }
+
         String paxLine = session.getPassengerName();
         if (session.getCompanionNames() != null && !session.getCompanionNames().isBlank()) {
             paxLine += "\n👥 *Acompañantes:* " + session.getCompanionNames();
@@ -107,12 +114,13 @@ public class ConversationPresenter {
                 🧾 *Documento Factura:* %s
                 💵 *Precio Base del Viaje:* $%,.2f
                 📉 *Saldo a Favor Aplicado:* -$%,.2f
+                🎟️ *Descuento promocional:* -$%,.2f
                 💰 *Total Neto a Transferir:* $%,.2f
                 """.formatted(displayCode, paxLine, totalAsientos, session.getPickupLocality(),
                 session.getPickupAddress(), session.getDestination(), blockInfo,
                 estimatedPickupTime,
                 Boolean.TRUE.equals(session.getRoundTrip()) ? "Ida y vuelta" : "Solo ida",
-                dates, session.getCuil(), priceBase, saldoAplicado, totalNeto);
+                dates, session.getCuil(), priceBase, saldoAplicado, descuentoPromo, totalNeto);
 
         messaging.sendButtons(phoneNumber, "Verificación del Itinerario", summary,
                 List.of(new Button("confirm_ok", "Confirmar 👍"),

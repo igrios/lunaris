@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort.StoredInvoice;
@@ -34,6 +35,12 @@ public class IssueInvoiceUseCase {
     public Invoice issue(UUID reservationId, byte[] pdfBytes) {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
+        if (!Boolean.TRUE.equals(reservation.getPaymentVerified()) || !"CONFIRMED".equals(reservation.getStatus())) {
+            throw new IllegalStateException("La factura solo puede emitirse después de confirmar el pago.");
+        }
+        if (totalGroupAmount(reservation).signum() <= 0) {
+            throw new IllegalStateException("No se emiten facturas fiscales para reservas bonificadas al 100%.");
+        }
 
         Invoice invoice = invoiceRepository.findByReservationId(reservationId).orElseGet(Invoice::new);
         if (invoice.getInvoiceNumber() == null) {
@@ -46,7 +53,7 @@ public class IssueInvoiceUseCase {
         invoice.setReservationId(reservationId);
         invoice.setPassengerName(reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName());
         invoice.setPassengerCuil(CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()));
-        invoice.setAmount(totalReservationAmount(reservation));
+        invoice.setAmount(totalGroupAmount(reservation));
         invoice.setPdfUrl(stored.webUrl());
 
         boolean sent = sendByWhatsApp(reservation, invoice, stored.absolutePath());
@@ -102,5 +109,18 @@ public class IssueInvoiceUseCase {
         BigDecimal amount = reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
         BigDecimal extraAmount = reservation.getExtraAmount() == null ? BigDecimal.ZERO : reservation.getExtraAmount();
         return amount.add(extraAmount);
+    }
+
+    private BigDecimal totalGroupAmount(Reservation reservation) {
+        if (reservation.getReservationCode() == null) {
+            return totalReservationAmount(reservation);
+        }
+        String groupCode = reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
+        List<Reservation> group = reservationRepository.findByReservationCodeStartingWith(groupCode);
+        if (group.stream().anyMatch(item -> !Boolean.TRUE.equals(item.getPaymentVerified())
+                || !"CONFIRMED".equals(item.getStatus()))) {
+            throw new IllegalStateException("El pago del viaje completo todavía no fue confirmado.");
+        }
+        return group.stream().map(this::totalReservationAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

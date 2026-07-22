@@ -1,7 +1,6 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
 import org.springframework.stereotype.Component;
-import com.lunaris.ansenuza.application.conversation.ConversationPresenter;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
@@ -15,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 public class AskDniHandler implements ConversationStepHandler {
 
     private final ConversationSessionRepository conversationSessionRepository;
-    private final ConversationPresenter presenter;
     private final MessagingPort messaging;
 
     @Override
@@ -35,8 +33,9 @@ public class AskDniHandler implements ConversationStepHandler {
             return;
         }
         session.setCuil(cleanDni);
-        session.setCurrentStep("ASK_CONFIRMATION");
+        session.setCurrentStep("ASK_PROMOTION_CODE");
         conversationSessionRepository.saveAndFlush(session);
-        presenter.sendReservationSummaryWithButtons(phoneNumber, session);
+        messaging.sendText(phoneNumber,
+                "🎟️ Si tenés un código promocional de 4 dígitos, ingresalo ahora. Si no tenés, escribí *SIN PROMO*.");
     }
 }

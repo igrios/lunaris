@@ -72,6 +72,9 @@ public class ReservationService {
         BigDecimal montoPorTramo = Boolean.TRUE.equals(mainReservation.getRoundTrip()) 
                 ? mainReservation.getAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
                 : mainReservation.getAmount();
+        BigDecimal descuentoPorTramo = Boolean.TRUE.equals(mainReservation.getRoundTrip())
+                ? mainReservation.getDiscountAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
+                : mainReservation.getDiscountAmount();
 
         // --- PROCESAMIENTO TRAMO: IDA ---
         mainReservation.setReservationCode(codigoBase + "-IDA");
@@ -83,6 +86,7 @@ public class ReservationService {
         }
         
         mainReservation.setAmount(montoPorTramo);
+        mainReservation.setDiscountAmount(descuentoPorTramo);
 
         Reservation savedMain = reservationRepository.save(mainReservation);
         savedReservations.add(savedMain);
@@ -110,6 +114,8 @@ public class ReservationService {
             }
 
             returnReservation.setAmount(montoPorTramo);
+            returnReservation.setDiscountAmount(descuentoPorTramo);
+            returnReservation.setPromotionCode(mainReservation.getPromotionCode());
             returnReservation.setPassengerCount(mainReservation.getPassengerCount());
             returnReservation.setCompanionNames(mainReservation.getCompanionNames());
             returnReservation.setPaymentVerified(mainReservation.getPaymentVerified());

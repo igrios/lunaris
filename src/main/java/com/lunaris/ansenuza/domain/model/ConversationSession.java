@@ -45,6 +45,12 @@ public class ConversationSession {
     private Boolean requiresInvoice;
     private String cuil;
 
+    @Column(name = "promotion_code", length = 4)
+    private String promotionCode;
+
+    @Column(name = "promotion_discount_percentage")
+    private Integer promotionDiscountPercentage;
+
     @Column(name = "passenger_count")
     private Integer passengerCount;
 
