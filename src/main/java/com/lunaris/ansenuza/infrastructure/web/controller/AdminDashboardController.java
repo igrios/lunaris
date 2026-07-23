@@ -29,7 +29,12 @@ public class AdminDashboardController {
         LocalDate fecha = (fechaStr == null || fechaStr.isEmpty()) ? LocalDate.now() : LocalDate.parse(fechaStr);
         
         // 2. Traemos solo las reservas activas, IGNORANDO por completo las canceladas
-        List<Reservation> reservas = reservationRepository.findByTravelDateAndStatusNot(fecha, "CANCELLED");
+        List<Reservation> reservas = reservationRepository.findByTravelDateAndStatusNot(fecha, "CANCELLED")
+                .stream()
+                .sorted(java.util.Comparator.comparing(
+                        Reservation::getRouteSequence,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .toList();
         
         // 3. Calculamos el total yendo desde la zona de los pueblos hacia Córdoba (filtrado automático)
         int totalYendoDesdeZona = reservas.stream()

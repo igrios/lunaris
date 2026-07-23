@@ -80,6 +80,7 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
+                            <th class="text-center">Orden</th>
                             <th>Pasajero</th>
                             <th>Teléfono</th>
                             <th>Origen</th>
@@ -93,6 +94,8 @@
                         <tr th:each="reserva : ${reservas}"
                             th:classappend="${reserva.pickupLocality == 'Córdoba'} ? 'table-info text-dark' : ''">
 
+                            <td class="text-center fw-bold"
+                                th:text="${reserva.routeSequence != null ? reserva.routeSequence : '-'}">1</td>
                             <td th:text="${reserva.passenger != null ? (reserva.passenger.firstName + ' ' + reserva.passenger.lastName) : 'Sin Nombre'}" class="fw-bold">Juan Pérez</td>
                             <td th:text="${reserva.passenger != null ? reserva.passenger.phone : 'Sin Teléfono'}">3562-123456</td>
                             <td>
@@ -108,7 +111,7 @@
                             </td>
                         </tr>
                         <tr th:if="${reservas.isEmpty()}">
-                            <td colspan="7" class="text-center text-muted py-4">No hay reservas registradas para esta fecha.</td>
+                            <td colspan="8" class="text-center text-muted py-4">No hay reservas registradas para esta fecha.</td>
                         </tr>
                     </tbody>
                 </table>

@@ -39,6 +39,7 @@ public class Reservation {
         OPEN_RETURN,
         CANCELED,
         NO_SHOW,
+        ONBOARD,
         BOARDED
     }
 
@@ -135,6 +136,9 @@ public class Reservation {
     // 🕒 Campo de horario de salida (unificado con el bot y la agenda)
     @Column(name = "departure_schedule")
     private String departureSchedule;
+
+    @Column(name = "route_sequence")
+    private Integer routeSequence;
 
     @Column(name = "requires_invoice")
     private Boolean requiresInvoice; // 🧾 Flag unificado para facturación

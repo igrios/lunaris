@@ -55,7 +55,8 @@ public class MainMenuHandler implements ConversationStepHandler {
             }
             session.setBotPaused(true);
             conversationSessionRepository.saveAndFlush(session);
-            messaging.sendText(phoneNumber, "🔔 *Un operador fue notificado.* En instantes Martín se comunicará con vos de forma manual por este canal. ¡Muchas gracias por tu paciencia!");
+            messaging.sendText(phoneNumber,
+                    "Todos nuestros operadores están ocupados, en breve serás atendido.");
             return;
         } else if ("4".equals(body) || body.contains("consultar")) {
             List<Reservation> viajesActivos = reservationRepository.findByPassengerPhone(phoneNumber).stream()

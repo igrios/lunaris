@@ -84,7 +84,7 @@
             </div>
         </div>
 
-        <div th:each="reservation : ${reservations}" th:id="'reservation-card-' + ${reservation.id}"
+        <div th:each="reservation, reservationStat : ${reservations}" th:id="'reservation-card-' + ${reservation.id}"
             class="card shadow-sm mb-3">
 
             <div class="card-body">
@@ -95,6 +95,14 @@
                     <label class="form-check-label fw-bold text-muted" th:for="'check-' + ${reservation.id}">
                         Incluir en hoja de ruta del chofer
                     </label>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted"
+                        th:for="'sequence-' + ${reservation.id}">Orden en la ruta</label>
+                    <input type="number" min="1" class="form-control form-control-sm route-sequence"
+                        th:id="'sequence-' + ${reservation.id}"
+                        th:value="${reservation.routeSequence != null ? reservation.routeSequence : reservationStat.index + 1}">
                 </div>
 
                 <div class="reservation-data d-none"
@@ -262,12 +270,15 @@
                 return;
             }
 
-            const reservationIds = [];
+            const selectedReservations = [];
             checkboxes.forEach(checkbox => {
                 const card = checkbox.closest(".card");
                 const id = card.id.replace("reservation-card-", "");
-                reservationIds.push(id);
+                const sequence = Number(card.querySelector(".route-sequence").value);
+                selectedReservations.push({ id, sequence });
             });
+            selectedReservations.sort((first, second) => first.sequence - second.sequence);
+            const reservationIds = selectedReservations.map(item => item.id);
 
             fetch(`/api/agenda/enviar-hoja-ruta`, {
                 method: 'POST',

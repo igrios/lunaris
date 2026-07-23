@@ -268,10 +268,12 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
                 safeTemplateValue(driverName, "Chofer")));
     }
 
-    public void sendProximoEnCaminoTemplate(String to, String passengerName, String driverName) {
+    public void sendProximoEnCaminoTemplate(
+            String to, String passengerName, String driverName, int etaMinutes) {
         sendTemplate(to, "proximo_en_camino", List.of(
                 safeTemplateValue(passengerName, "Pasajero"),
-                safeTemplateValue(driverName, "Chofer")));
+                safeTemplateValue(driverName, "Chofer"),
+                String.valueOf(Math.max(0, etaMinutes))));
     }
 
     private void sendTemplate(String to, String templateName, List<String> values) {

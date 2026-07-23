@@ -22,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.service.DriverRouteService;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
@@ -38,6 +39,7 @@ public class AgendaViewController {
     private final WhatsAppService whatsAppService;
     private final DriverRepository driverRepository;
     private final ConfirmPaymentUseCase confirmPaymentUseCase;
+    private final DriverRouteService driverRouteService;
 
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
@@ -91,6 +93,9 @@ public class AgendaViewController {
                 .filter(r -> r != null)
                 .filter(r -> r.getStatus() == null || !"CANCELLED".equalsIgnoreCase(r.getStatus()))
                 .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
+                .sorted(java.util.Comparator.comparing(
+                        Reservation::getRouteSequence,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
                 .toList();
 
         model.addAttribute("date", date);
@@ -212,14 +217,16 @@ public class AgendaViewController {
 
         Driver driver = driverOpt.get();
 
-        // 2. Asignar el chofer a cada reserva en BD
-        List<Reservation> assignedReservations = new java.util.ArrayList<>();
-        for (UUID id : reservationIds) {
-            reservationRepository.findById(id).ifPresent(res -> {
-                res.setDriver(driver);
-                reservationRepository.saveAndFlush(res);
-                assignedReservations.add(res);
-            });
+        Reservation firstReservation = reservationRepository.findById(reservationIds.get(0)).orElse(null);
+        if (firstReservation == null || firstReservation.getTravelDate() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        List<Reservation> assignedReservations;
+        try {
+            assignedReservations = driverRouteService.replaceRoute(
+                    driver, firstReservation.getTravelDate(), reservationIds);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().build();
         }
 
         assignedReservations.stream()

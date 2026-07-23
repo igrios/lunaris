@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.usecase.ProcessPromotionCommandUseCase;
+import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -47,6 +48,7 @@ public class ConversationOrchestrator {
     private final ReservationRepository reservationRepository;
     private final WhatsAppService whatsAppService;
     private final ProcessPromotionCommandUseCase processPromotionCommandUseCase;
+    private final OnboardPassengerUseCase onboardPassengerUseCase;
 
     public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
             ConversationSessionRepository conversationSessionRepository,
@@ -56,7 +58,8 @@ public class ConversationOrchestrator {
             DriverRepository driverRepository,
             ReservationRepository reservationRepository,
             WhatsAppService whatsAppService,
-            ProcessPromotionCommandUseCase processPromotionCommandUseCase) {
+            ProcessPromotionCommandUseCase processPromotionCommandUseCase,
+            OnboardPassengerUseCase onboardPassengerUseCase) {
         this.handlers = handlerList.stream()
                 .collect(Collectors.toMap(ConversationStepHandler::step, Function.identity()));
         this.conversationSessionRepository = conversationSessionRepository;
@@ -67,6 +70,7 @@ public class ConversationOrchestrator {
         this.reservationRepository = reservationRepository;
         this.whatsAppService = whatsAppService;
         this.processPromotionCommandUseCase = processPromotionCommandUseCase;
+        this.onboardPassengerUseCase = onboardPassengerUseCase;
     }
 
     public void process(IncomingMessage message) {
@@ -198,11 +202,14 @@ public class ConversationOrchestrator {
 
         reservations.sort(Comparator
                 .comparing(Reservation::getTravelDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Reservation::getRouteSequence,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
                 .thenComparing(Reservation::getDepartureSchedule,
                         Comparator.nullsLast(Comparator.naturalOrder())));
 
         StringBuilder routeMessage = new StringBuilder("🗺️ Hoja de ruta\n\n");
-        for (Reservation reservation : reservations) {
+        for (int index = 0; index < reservations.size(); index++) {
+            Reservation reservation = reservations.get(index);
             String passengerName = reservation.getPassenger().getFirstName() + " "
                     + reservation.getPassenger().getLastName();
             String schedule = reservation.getDepartureSchedule() == null
@@ -210,7 +217,7 @@ public class ConversationOrchestrator {
                             ? "Horario a confirmar"
                             : reservation.getDepartureSchedule().trim();
 
-            routeMessage.append("👤 ").append(passengerName).append(" (")
+            routeMessage.append(index + 1).append(". 👤 ").append(passengerName).append(" (")
                     .append(schedule).append(" hs)\n")
                     .append("📞 ").append(reservation.getPassenger().getPhone())
                     .append(" | 📍 ").append(pickupLocation(reservation))
@@ -284,47 +291,14 @@ public class ConversationOrchestrator {
                 return;
             }
 
-            Reservation reservation = resOpt.get();
-            reservation.setTravelStatus(Reservation.TravelStatus.BOARDED);
-            reservationRepository.saveAndFlush(reservation);
+            Reservation reservation = onboardPassengerUseCase.execute(reservationId);
 
             String passengerName = reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName();
             whatsAppService.sendMessage(phone, "✓ Pasajero [" + passengerName + "] marcado a bordo.");
-            notifyNextPassenger(reservation);
         } catch (Exception e) {
             log.error("Error al marcar pasajero a bordo: ", e);
             whatsAppService.sendMessage(phone, "❌ Ocurrió un error al procesar el abordaje del pasajero.");
         }
     }
 
-    private void notifyNextPassenger(Reservation boardedReservation) {
-        if (boardedReservation.getDriver() == null || boardedReservation.getTravelDate() == null) {
-            return;
-        }
-        List<Reservation> route = reservationRepository.findByDriverIdAndTravelDateBetween(
-                boardedReservation.getDriver().getId(), boardedReservation.getTravelDate(),
-                boardedReservation.getTravelDate());
-        route.sort(Comparator
-                .comparing(Reservation::getDepartureSchedule,
-                        Comparator.nullsLast(Comparator.naturalOrder()))
-                .thenComparing(Reservation::getCreatedAt,
-                        Comparator.nullsLast(Comparator.naturalOrder())));
-
-        int boardedIndex = route.stream()
-                .map(Reservation::getId)
-                .toList()
-                .indexOf(boardedReservation.getId());
-        if (boardedIndex < 0) return;
-
-        route.stream()
-                .skip(boardedIndex + 1L)
-                .filter(candidate -> candidate.getTravelStatus() != Reservation.TravelStatus.BOARDED)
-                .filter(candidate -> candidate.getTravelStatus() != Reservation.TravelStatus.REALIZED)
-                .filter(candidate -> candidate.getPassenger() != null)
-                .findFirst()
-                .ifPresent(next -> whatsAppService.sendProximoEnCaminoTemplate(
-                        next.getPassenger().getPhone(),
-                        next.getPassenger().getFirstName(),
-                        boardedReservation.getDriver().getFullName()));
-    }
 }
