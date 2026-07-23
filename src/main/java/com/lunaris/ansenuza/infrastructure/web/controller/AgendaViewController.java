@@ -103,9 +103,12 @@ public class AgendaViewController {
     // 💳 3. Confirmación asíncrona de pago
     @PostMapping("/api/agenda/confirmar-pago/{id}")
     @ResponseBody
-    public ResponseEntity<Void> verifyPayment(@PathVariable UUID id) {
+    public ResponseEntity<PaymentVerificationResponse> verifyPayment(@PathVariable UUID id) {
         try {
             Reservation reservation = confirmPaymentUseCase.execute(id);
+            List<UUID> synchronizedReservationIds = linkedReservations(reservation).stream()
+                    .map(Reservation::getId)
+                    .toList();
 
             try {
                 String clienteCelular = reservation.getPassenger().getPhone();
@@ -128,12 +131,23 @@ public class AgendaViewController {
                         .error("No se pudo enviar el WhatsApp de confirmación de pago", e);
             }
 
-            return ResponseEntity.ok().build();
+            return ResponseEntity.ok(new PaymentVerificationResponse(
+                    synchronizedReservationIds, true, "CONFIRMED"));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).build();
         }
+    }
+
+    private List<Reservation> linkedReservations(Reservation reservation) {
+        String reservationCode = reservation.getReservationCode();
+        if (reservationCode == null || reservationCode.isBlank()) {
+            return List.of(reservation);
+        }
+        String groupCode = reservationCode.replaceFirst("-(IDA|VUELTA)$", "");
+        List<Reservation> linked = reservationRepository.findByReservationCodeStartingWith(groupCode);
+        return linked.isEmpty() ? List.of(reservation) : linked;
     }
 
     // 📄 4. Descarga del comprobante
@@ -268,5 +282,9 @@ public class AgendaViewController {
     }
 
     public record Chofer(String nombre, String telefono) {
+    }
+
+    public record PaymentVerificationResponse(
+            List<UUID> reservationIds, boolean paymentVerified, String status) {
     }
 }

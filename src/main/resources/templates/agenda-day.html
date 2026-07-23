@@ -224,17 +224,22 @@
             })
                 .then(response => {
                     if (!response.ok) throw new Error();
+                    return response.json();
+                })
+                .then(result => {
+                    result.reservationIds.forEach(synchronizedId => {
+                        const card = document.getElementById(`reservation-card-${synchronizedId}`);
+                        if (!card) return;
 
-                    const card = document.getElementById(`reservation-card-${reservationId}`);
+                        const statusContainer = card.querySelector(".status-container");
+                        statusContainer.innerHTML = `<span class="badge bg-success px-3 py-1 fs-6">✅ Confirmada</span>`;
 
-                    const statusContainer = card.querySelector(".status-container");
-                    statusContainer.innerHTML = `<span class="badge bg-success px-3 py-1 fs-6">✅ Confirmada</span>`;
+                        const actionContainer = card.querySelector(".payment-action-container");
+                        const btnVerificar = actionContainer.querySelector("button");
+                        if (btnVerificar) btnVerificar.remove();
+                    });
 
-                    const actionContainer = card.querySelector(".payment-action-container");
-                    const btnVerificar = actionContainer.querySelector("button");
-                    if (btnVerificar) btnVerificar.remove();
-
-                    alert("Pago verificado correctamente y notificación de WhatsApp enviada.");
+                    alert("Pago verificado en todos los tramos vinculados y sincronizado con Reservas.");
                 })
                 .catch(error => {
                     console.error(error);

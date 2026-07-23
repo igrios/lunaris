@@ -125,6 +125,15 @@
                               <input type="date" name="travelDate" class="form-control fw-bold border-success" required>
                             </div>
 
+                            <div class="mb-3">
+                              <label class="form-label fw-bold">Chofer asignado:</label>
+                              <select name="driverId" class="form-select fw-bold border-success" required>
+                                <option value="">-- Seleccionar chofer --</option>
+                                <option th:each="chofer : ${choferes}" th:value="${chofer.id}"
+                                  th:text="${chofer.fullName}"></option>
+                              </select>
+                            </div>
+
                             <input type="hidden" name="pickupAddress" th:value="${v.pickupAddress}">
                             <input type="hidden" name="status" value="CONFIRMED">
                             <input type="hidden" name="source" value="vueltas">

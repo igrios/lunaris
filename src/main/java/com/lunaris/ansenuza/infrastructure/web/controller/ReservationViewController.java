@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,10 +13,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
+import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm;
@@ -33,6 +36,7 @@ public class ReservationViewController {
     private final ReservationService reservationService;
     private final ReservationRepository reservationRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
+    private final DriverRepository driverRepository;
 
     @GetMapping("/new")
     public String newReservation(Model model) {
@@ -163,11 +167,13 @@ public class ReservationViewController {
         return "redirect:/agenda";
     }
 
-  @PostMapping("/update/{id}")
+@Transactional
+@PostMapping("/update/{id}")
 public String updateFromPanel(
         @PathVariable(value = "id") UUID id,
         @RequestParam(value = "travelDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
         @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
+        @RequestParam(value = "driverId", required = false) UUID driverId,
         @RequestParam(value = "status", required = false) String status,
         @RequestParam(value = "cantidadVuelven", defaultValue = "1") int cantidadVuelven,
         @RequestParam(value = "source", defaultValue = "agenda") String source) {
@@ -175,10 +181,16 @@ public String updateFromPanel(
     Reservation original = reservationRepository.findById(id).orElse(null);
     
     if (original != null) {
+        Driver assignedDriver = driverId == null ? null : driverRepository.findById(driverId)
+                .orElseThrow(() -> new IllegalArgumentException("Chofer no encontrado: " + driverId));
         LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
         boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
         
         if (isOpenReturn) {
+            if (travelDate == null || assignedDriver == null) {
+                throw new IllegalArgumentException(
+                        "Para programar una vuelta abierta se requieren fecha y chofer.");
+            }
             int asientosOriginales = original.getPassengerCount() != null ? original.getPassengerCount() : 1;
             
             // A. Si eligen volver MENOS pasajeros de los que tiene el grupo actualmente (Split por Bloque)
@@ -204,6 +216,7 @@ public String updateFromPanel(
                 tramoIndependiente.setStatus("CONFIRMED");
                 tramoIndependiente.setRoundTrip(false); // Desactivado para evitar bucles de combo
                 tramoIndependiente.setPaymentVerified(true);
+                tramoIndependiente.setDriver(assignedDriver);
                 tramoIndependiente.setReturnDate(null);
                 tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Bloque" : "Split Bloque");
                 
@@ -221,6 +234,7 @@ public String updateFromPanel(
                 original.setReturnDate(null);
                 original.setStatus("CONFIRMED");
                 original.setPaymentVerified(true);
+                original.setDriver(assignedDriver);
                 if (status != null && "CONFIRMED".equals(status)) original.setStatus("CONFIRMED");
                 
                 reservationRepository.saveAndFlush(original);
@@ -249,8 +263,9 @@ public String updateFromPanel(
     @GetMapping("/vueltas-abiertas")
     public String listOpenReturns(Model model) {
         java.time.LocalDate fechaCentinela = java.time.LocalDate.of(2099, 12, 31);
-        List<Reservation> abiertas = reservationRepository.findByTravelDate(fechaCentinela);
+        List<Reservation> abiertas = reservationRepository.findVueltasAbiertasActive(fechaCentinela);
         model.addAttribute("vueltasAbiertas", abiertas);
+        model.addAttribute("choferes", driverRepository.findByActiveTrue());
         return "vueltas-abiertas";
     }
 }

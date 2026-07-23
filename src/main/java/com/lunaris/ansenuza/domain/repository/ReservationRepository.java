@@ -72,7 +72,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     long countConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     // 💡 NUEVO MÉTODO FILTRADO: Para limpiar la grilla de vueltas abiertas en el controlador web
-    @Query("SELECT r FROM Reservation r WHERE r.travelDate = :fechaCentinela AND r.status != 'CANCELLED'")
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.travelDate = :fechaCentinela
+           AND r.driver IS NULL
+           AND r.status <> 'CANCELLED'
+           """)
     List<Reservation> findVueltasAbiertasActive(@Param("fechaCentinela") LocalDate fechaCentinela);
 
     @Query("""
