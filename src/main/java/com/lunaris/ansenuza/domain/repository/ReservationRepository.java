@@ -171,4 +171,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            """)
     List<Reservation> findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
             @Param("driverId") UUID driverId, @Param("travelDate") LocalDate travelDate);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.driver.id = :driverId
+           AND r.status <> 'CANCELLED'
+           AND (
+               r.travelDate = :effectiveDate
+               OR (r.reservationCode LIKE '%-VUELTA' AND r.returnDate = :effectiveDate)
+           )
+           ORDER BY r.routeSequence ASC NULLS LAST
+           """)
+    List<Reservation> findRouteByEffectiveDate(
+            @Param("driverId") UUID driverId,
+            @Param("effectiveDate") LocalDate effectiveDate);
 }

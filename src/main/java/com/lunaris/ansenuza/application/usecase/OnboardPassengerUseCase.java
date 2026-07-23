@@ -1,7 +1,9 @@
 package com.lunaris.ansenuza.application.usecase;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +28,8 @@ public class OnboardPassengerUseCase {
     public Reservation execute(UUID reservationId) {
         Reservation initial = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
-        if (initial.getDriver() == null || initial.getTravelDate() == null) {
+        LocalDate effectiveDate = effectiveLegDate(initial);
+        if (initial.getDriver() == null || effectiveDate == null) {
             throw new IllegalStateException("La reserva no pertenece a una ruta asignada.");
         }
         UUID driverId = initial.getDriver().getId();
@@ -35,8 +38,9 @@ public class OnboardPassengerUseCase {
         }
         Reservation onboard = reservationRepository.findByIdForUpdate(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
+        LocalDate lockedEffectiveDate = effectiveLegDate(onboard);
         if (onboard.getDriver() == null || !driverId.equals(onboard.getDriver().getId())
-                || onboard.getTravelDate() == null) {
+                || lockedEffectiveDate == null || !effectiveDate.equals(lockedEffectiveDate)) {
             throw new IllegalStateException(
                     "La ruta cambió durante el abordaje. Reintentá la operación.");
         }
@@ -48,18 +52,47 @@ public class OnboardPassengerUseCase {
         onboard.setTravelStatus(Reservation.TravelStatus.ONBOARD);
         reservationRepository.saveAndFlush(onboard);
 
-        List<Reservation> route =
-                reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
-                        onboard.getDriver().getId(), onboard.getTravelDate()).stream()
-                        .sorted(Comparator.comparing(
-                                Reservation::getRouteSequence,
-                                Comparator.nullsLast(Comparator.naturalOrder())))
-                        .toList();
-        int currentIndex = route.stream().map(Reservation::getId).toList().indexOf(onboard.getId());
-        if (currentIndex >= 0 && currentIndex + 1 < route.size()) {
-            notifyNext(onboard, route.get(currentIndex + 1));
-        }
+        findNextPassengerInRoute(onboard, lockedEffectiveDate)
+                .ifPresent(next -> notifyNext(onboard, next));
         return onboard;
+    }
+
+    private Optional<Reservation> findNextPassengerInRoute(
+            Reservation onboard, LocalDate effectiveDate) {
+        List<Reservation> route = reservationRepository.findRouteByEffectiveDate(
+                onboard.getDriver().getId(), effectiveDate);
+        Comparator<Reservation> fallbackOrder = Comparator
+                .comparing(Reservation::getDepartureSchedule,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Reservation::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Reservation::getId,
+                        Comparator.nullsLast(Comparator.naturalOrder()));
+        Comparator<Reservation> routeOrder = onboard.getRouteSequence() == null
+                ? fallbackOrder
+                : Comparator.comparing(
+                        Reservation::getRouteSequence,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(fallbackOrder);
+        List<Reservation> orderedRoute = route.stream().sorted(routeOrder).toList();
+        int currentIndex = orderedRoute.stream()
+                .map(Reservation::getId)
+                .toList()
+                .indexOf(onboard.getId());
+        return currentIndex >= 0 && currentIndex + 1 < orderedRoute.size()
+                ? Optional.of(orderedRoute.get(currentIndex + 1))
+                : Optional.empty();
+    }
+
+    private LocalDate effectiveLegDate(Reservation reservation) {
+        boolean returnLeg = reservation.getReservationCode() != null
+                && reservation.getReservationCode().endsWith("-VUELTA");
+        if (returnLeg && reservation.getReturnDate() != null) {
+            return reservation.getReturnDate();
+        }
+        return reservation.getTravelDate() != null
+                ? reservation.getTravelDate()
+                : reservation.getReturnDate();
     }
 
     private void notifyNext(Reservation onboard, Reservation next) {

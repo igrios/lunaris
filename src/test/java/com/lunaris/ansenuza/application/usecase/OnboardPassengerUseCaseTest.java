@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,12 +42,53 @@ class OnboardPassengerUseCaseTest {
         when(reservations.findByIdForUpdate(current.getId())).thenReturn(Optional.of(current));
         when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
                 .thenReturn(List.of(driver));
-        when(reservations.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(driver.getId(), date))
+        when(reservations.findRouteByEffectiveDate(driver.getId(), date))
                 .thenReturn(List.of(current, next));
         when(localities.findFirstByNameIgnoreCase("Morteros"))
                 .thenReturn(Optional.of(locality("Morteros", 40)));
         when(localities.findFirstByNameIgnoreCase("Porteña"))
                 .thenReturn(Optional.of(locality("Porteña", 70)));
+
+        useCase.execute(current.getId());
+
+        assertEquals(Reservation.TravelStatus.ONBOARD, current.getTravelStatus());
+        verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName(), 30);
+    }
+
+    @Test
+    void returnLegUsesReturnDateAndNullSafeFallbackOrderToNotifyNextPassenger() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        LocalityRepository localities = mock(LocalityRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        WhatsAppService whatsApp = mock(WhatsAppService.class);
+        OnboardPassengerUseCase useCase =
+                new OnboardPassengerUseCase(reservations, drivers, localities, whatsApp);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        driver.setFullName("Juan Chofer");
+        LocalDate outboundDate = LocalDate.of(2026, 7, 20);
+        LocalDate returnDate = LocalDate.of(2026, 7, 23);
+        Reservation current =
+                reservation(driver, outboundDate, null, "Porteña", "111", "Actual");
+        current.setReservationCode("RES-1-VUELTA");
+        current.setReturnDate(returnDate);
+        current.setCreatedAt(LocalDateTime.of(2026, 7, 20, 10, 0));
+        Reservation next =
+                reservation(driver, null, null, "Morteros", "222", "Siguiente");
+        next.setReservationCode("RES-2-VUELTA");
+        next.setReturnDate(returnDate);
+        next.setCreatedAt(LocalDateTime.of(2026, 7, 20, 10, 1));
+
+        when(reservations.findById(current.getId())).thenReturn(Optional.of(current));
+        when(reservations.findByIdForUpdate(current.getId())).thenReturn(Optional.of(current));
+        when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
+                .thenReturn(List.of(driver));
+        when(reservations.findRouteByEffectiveDate(driver.getId(), returnDate))
+                .thenReturn(List.of(next, current));
+        when(localities.findFirstByNameIgnoreCase("Porteña"))
+                .thenReturn(Optional.of(locality("Porteña", 70)));
+        when(localities.findFirstByNameIgnoreCase("Morteros"))
+                .thenReturn(Optional.of(locality("Morteros", 40)));
 
         useCase.execute(current.getId());
 
@@ -85,7 +127,7 @@ class OnboardPassengerUseCaseTest {
     }
 
     private Reservation reservation(
-            Driver driver, LocalDate date, int sequence, String locality, String phone, String name) {
+            Driver driver, LocalDate date, Integer sequence, String locality, String phone, String name) {
         return Reservation.builder()
                 .id(UUID.randomUUID())
                 .driver(driver)
