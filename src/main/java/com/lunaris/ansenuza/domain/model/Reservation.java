@@ -12,6 +12,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -42,7 +43,7 @@ public class Reservation {
     }
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -81,6 +82,12 @@ public class Reservation {
 
     @Column(name = "promotion_code", length = 4)
     private String promotionCode;
+
+    @Column(name = "promotion_id")
+    private UUID promotionId;
+
+    @Column(name = "promotion_discount_percentage")
+    private Integer promotionDiscountPercentage;
 
     @Builder.Default
     @Column(name = "discount_amount", nullable = false)

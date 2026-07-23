@@ -116,6 +116,8 @@ public class ReservationService {
             returnReservation.setAmount(montoPorTramo);
             returnReservation.setDiscountAmount(descuentoPorTramo);
             returnReservation.setPromotionCode(mainReservation.getPromotionCode());
+            returnReservation.setPromotionId(mainReservation.getPromotionId());
+            returnReservation.setPromotionDiscountPercentage(mainReservation.getPromotionDiscountPercentage());
             returnReservation.setPassengerCount(mainReservation.getPassengerCount());
             returnReservation.setCompanionNames(mainReservation.getCompanionNames());
             returnReservation.setPaymentVerified(mainReservation.getPaymentVerified());

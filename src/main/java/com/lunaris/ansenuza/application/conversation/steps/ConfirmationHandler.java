@@ -68,6 +68,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
 
             BigDecimal discountAmount = BigDecimal.ZERO;
             boolean freePromotion = false;
+            Promotion appliedPromotion = null;
             if (session.getPromotionCode() != null) {
                 Promotion promotion;
                 try {
@@ -82,6 +83,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 discountAmount = promotionService.calculateDiscount(price, promotion.getDiscountPercentage());
                 price = price.subtract(discountAmount).max(BigDecimal.ZERO);
                 freePromotion = promotion.getDiscountPercentage() == 100;
+                appliedPromotion = promotion;
             }
 
             // 🕒 REPARACIÓN FASE 3: Tomamos el bloque dinámico real elegido por el cliente
@@ -104,6 +106,9 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     .amount(price)
                     .discountAmount(discountAmount)
                     .promotionCode(session.getPromotionCode())
+                    .promotionId(appliedPromotion != null ? appliedPromotion.getId() : null)
+                    .promotionDiscountPercentage(
+                            appliedPromotion != null ? appliedPromotion.getDiscountPercentage() : null)
                     .notes(notes)
                     .status(freePromotion ? "CONFIRMED" : "PENDING_PAYMENT")
                     .passengerCount(totalAsientos)

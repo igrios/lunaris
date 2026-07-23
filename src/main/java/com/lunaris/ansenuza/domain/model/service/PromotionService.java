@@ -73,12 +73,12 @@ public class PromotionService {
         Promotion promotion = promotionRepository.findByCodeForUpdate(code)
                 .orElseThrow(() -> new IllegalStateException("La promoción no existe."));
         validateAvailable(promotion, phoneNumber);
-        if (promotion.isMassive()) {
-            promotionUsageRepository.saveAndFlush(new PromotionUsage(promotion, normalizePhone(phoneNumber)));
-        } else {
+        String normalizedPhone = normalizePhone(phoneNumber);
+        if (!promotion.isMassive()) {
             promotion.setUsed(true);
             promotionRepository.saveAndFlush(promotion);
         }
+        promotionUsageRepository.saveAndFlush(new PromotionUsage(promotion, normalizedPhone));
     }
 
     @Transactional
@@ -97,11 +97,19 @@ public class PromotionService {
             } else if (!promotion.isUsed()) {
                 promotion.setUsed(true);
                 promotionRepository.saveAndFlush(promotion);
+                if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
+                        promotion.getId(), normalizedPhone) == 0) {
+                    promotionUsageRepository.saveAndFlush(new PromotionUsage(promotion, normalizedPhone));
+                }
             }
         });
     }
 
     private void validateAvailable(Promotion promotion, String phoneNumber) {
+        String normalizedPhone = normalizePhone(phoneNumber);
+        if (normalizedPhone.isBlank()) {
+            throw new IllegalArgumentException("No se pudo identificar el teléfono para aplicar la promoción.");
+        }
         if (!promotion.isMassive()) {
             if (promotion.isUsed()) {
                 throw new IllegalArgumentException("El código promocional ya fue utilizado.");
@@ -109,10 +117,6 @@ public class PromotionService {
             return;
         }
         validateNotExpired(promotion);
-        String normalizedPhone = normalizePhone(phoneNumber);
-        if (normalizedPhone.isBlank()) {
-            throw new IllegalArgumentException("No se pudo identificar el teléfono para aplicar la promoción.");
-        }
         if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
                 promotion.getId(), normalizedPhone) > 0) {
             throw new IllegalArgumentException("Ya has utilizado este código");
@@ -126,6 +130,10 @@ public class PromotionService {
     }
 
     private String normalizePhone(String phoneNumber) {
-        return phoneNumber == null ? "" : phoneNumber.replaceAll("[^0-9]", "");
+        if (phoneNumber == null) {
+            return "";
+        }
+        String digits = phoneNumber.replaceAll("[^0-9]", "");
+        return digits.startsWith("549") ? "54" + digits.substring(3) : digits;
     }
 }

@@ -146,6 +146,16 @@
                 <p class="mb-3" th:if="${reservation.amount != null}">💰 <strong>Importe del Tramo:</strong> <span
                         class="fw-bold text-dark">$<span th:text="${reservation.amount}"></span></span></p>
 
+                <div class="alert alert-success py-2 mb-3"
+                    th:if="${reservation.promotionId != null or (reservation.promotionCode != null and reservation.promotionCode != '')}">
+                    🎟️ <strong>Promoción aplicada:</strong>
+                    <span class="font-monospace" th:text="${reservation.promotionCode}"></span>
+                    <span th:if="${reservation.promotionDiscountPercentage != null}"
+                        th:text="' · ' + ${reservation.promotionDiscountPercentage} + '% de descuento'"></span>
+                    <small class="d-block text-muted" th:if="${reservation.promotionId != null}"
+                        th:text="'ID: ' + ${reservation.promotionId}"></small>
+                </div>
+
                 <div class="mb-3 status-container">
                     <span th:if="${reservation.status == 'PENDING_PAYMENT'}"
                         class="badge bg-warning text-dark px-3 py-1 fs-6">⏳ Pago Pendiente</span>

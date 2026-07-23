@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,7 +32,9 @@ class PromotionServiceTest {
 
         assertTrue(promotion.isUsed());
         verify(fixtures.promotions).saveAndFlush(promotion);
-        verify(fixtures.usages, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+        ArgumentCaptor<PromotionUsage> usage = ArgumentCaptor.forClass(PromotionUsage.class);
+        verify(fixtures.usages).saveAndFlush(usage.capture());
+        assertEquals("543564000000", usage.getValue().getPhoneNumber());
     }
 
     @Test
@@ -42,7 +43,7 @@ class PromotionServiceTest {
         Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
         when(fixtures.promotions.findByCodeForUpdate("1234")).thenReturn(Optional.of(promotion));
 
-        fixtures.service.consume("1234", "+54 351 228-2251");
+        fixtures.service.consume("1234", "+54 9 351 228-2251");
 
         ArgumentCaptor<PromotionUsage> captor = ArgumentCaptor.forClass(PromotionUsage.class);
         verify(fixtures.usages).countByPromotionAndNormalizedPhone(
