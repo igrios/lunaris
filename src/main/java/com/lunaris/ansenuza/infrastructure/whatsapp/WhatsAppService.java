@@ -24,7 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 
 public class WhatsAppService {
 
-    private static final String APPROVED_TEMPLATE_LANGUAGE = "es";
+    private static final Map<String, String> TEMPLATE_LANGUAGES = Map.of(
+            "despierta_chofer", "en",
+            "proximo_en_camino", "en",
+            "chofer_asignado", "es",
+            "contacto_pasajero", "es");
 
     @Value("${whatsapp.access-token}")
     private String whatsappToken;
@@ -189,6 +193,14 @@ public class WhatsAppService {
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
             log.info("Éxito Meta [{}]: Envío hacia {}. Status: {}", tipoMensaje, destination, response.getStatusCode());
         } catch (HttpClientErrorException e) {
+            if (isTemplateUnavailable(
+                    tipoMensaje, e.getStatusCode().value(), e.getResponseBodyAsString())) {
+                log.warn(
+                        "Plantilla de Meta no disponible o en revisión [{}] para {}. "
+                                + "La operación principal continúa. Respuesta: {}",
+                        tipoMensaje, destination, e.getResponseBodyAsString());
+                return;
+            }
             log.error("Error de Meta HTTP [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
         } catch (Exception e) {
             log.error("Falla de red en HTTP call Meta: ", e);
@@ -253,7 +265,7 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
 
         java.util.Map<String, Object> templateMap = java.util.Map.of(
             "name", "despierta_chofer",
-            "language", java.util.Map.of("code", APPROVED_TEMPLATE_LANGUAGE),
+            "language", java.util.Map.of("code", templateLanguageFor("despierta_chofer")),
             "components", java.util.List.of(bodyComponent)
         );
 
@@ -295,7 +307,7 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
                 .toList();
         Map<String, Object> template = Map.of(
                 "name", templateName,
-                "language", Map.of("code", APPROVED_TEMPLATE_LANGUAGE),
+                "language", Map.of("code", templateLanguageFor(templateName)),
                 "components", List.of(Map.of("type", "body", "parameters", parameters)));
         Map<String, Object> body = Map.of(
                 "messaging_product", "whatsapp",
@@ -309,5 +321,16 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
 
     private String safeTemplateValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    static String templateLanguageFor(String templateName) {
+        return TEMPLATE_LANGUAGES.getOrDefault(templateName, "es");
+    }
+
+    static boolean isTemplateUnavailable(String messageType, int httpStatus, String responseBody) {
+        if (messageType == null || !messageType.startsWith("TEMPLATE")) {
+            return false;
+        }
+        return httpStatus == 404 || responseBody != null && responseBody.contains("132001");
     }
 }
