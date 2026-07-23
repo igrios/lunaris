@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 
 public class WhatsAppService {
 
+    private static final String APPROVED_TEMPLATE_LANGUAGE = "es";
+
     @Value("${whatsapp.access-token}")
     private String whatsappToken;
 
@@ -35,9 +37,6 @@ public class WhatsAppService {
 
     @Value("${whatsapp.access-token}")
     private String accessToken;
-
-    @Value("${whatsapp.template-language:es_AR}")
-    private String templateLanguage;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -254,7 +253,7 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
 
         java.util.Map<String, Object> templateMap = java.util.Map.of(
             "name", "despierta_chofer",
-            "language", java.util.Map.of("code", "en"),
+            "language", java.util.Map.of("code", APPROVED_TEMPLATE_LANGUAGE),
             "components", java.util.List.of(bodyComponent)
         );
 
@@ -296,7 +295,7 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
                 .toList();
         Map<String, Object> template = Map.of(
                 "name", templateName,
-                "language", Map.of("code", templateLanguage),
+                "language", Map.of("code", APPROVED_TEMPLATE_LANGUAGE),
                 "components", List.of(Map.of("type", "body", "parameters", parameters)));
         Map<String, Object> body = Map.of(
                 "messaging_product", "whatsapp",
