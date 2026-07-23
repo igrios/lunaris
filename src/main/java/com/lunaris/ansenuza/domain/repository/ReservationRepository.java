@@ -7,11 +7,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.Reservation.TravelStatus;
+import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
@@ -21,7 +23,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 🤖 2. BUSCADOR POR CÓDIGO: Necesario para que el Bot valide y procese la BAJA (Opción 5)
     Optional<Reservation> findByReservationCode(String reservationCode);
 
-    List<Reservation> findByReservationCodeStartingWith(String reservationCode);
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.reservationCode = CONCAT(:groupCode, '-IDA')
+              OR r.reservationCode = CONCAT(:groupCode, '-VUELTA')
+           """)
+    List<Reservation> findReservationGroup(@Param("groupCode") String groupCode);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Reservation r WHERE r.id = :id")
+    Optional<Reservation> findByIdForUpdate(@Param("id") UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.reservationCode = CONCAT(:groupCode, '-IDA')
+              OR r.reservationCode = CONCAT(:groupCode, '-VUELTA')
+           ORDER BY r.reservationCode
+           """)
+    List<Reservation> findReservationGroupForUpdate(@Param("groupCode") String groupCode);
 
     // 📱 3. BUSCADOR POR TELÉFONO: Permite a la consulta del Bot (Opción 4) traer el historial por nro de celular
     @Query("SELECT r FROM Reservation r WHERE r.passenger.phone = :phone")

@@ -39,19 +39,19 @@ public class AdminDashboardController {
         // 3. Calculamos el total yendo desde la zona de los pueblos hacia Córdoba (filtrado automático)
         int totalYendoDesdeZona = reservas.stream()
                 .filter(r -> !"Córdoba".equalsIgnoreCase(r.getPickupLocality()))
-                .mapToInt(Reservation::getPassengerCount)
+                .mapToInt(Reservation::getTotalSeats)
                 .sum();
 
         // 4. Calculamos el total volviendo desde Córdoba hacia el norte
         int totalVolviendoDesdeCba = reservas.stream()
                 .filter(r -> "Córdoba".equalsIgnoreCase(r.getPickupLocality()))
-                .mapToInt(Reservation::getPassengerCount)
+                .mapToInt(Reservation::getTotalSeats)
                 .sum();
                 
         // 5. Contamos de manera segura cuántos pasajeros activos viajan en el turno crítico de las 08:00 AM
         int pasajeros0800 = reservas.stream()
                 .filter(r -> r.getNotes() != null && r.getNotes().contains("08:00 AM"))
-                .mapToInt(Reservation::getPassengerCount)
+                .mapToInt(Reservation::getTotalSeats)
                 .sum();
 
         // 6. Traemos las conversaciones reales del bot desde la base de datos

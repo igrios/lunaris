@@ -17,6 +17,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -144,9 +145,13 @@ public class Reservation {
     private Boolean requiresInvoice; // 🧾 Flag unificado para facturación
 
     @PrePersist
+    @PreUpdate
     void prePersist() {
         if (travelStatus == null) {
             travelStatus = TravelStatus.PENDING;
+        }
+        if ("CANCELLED".equalsIgnoreCase(status)) {
+            routeSequence = null;
         }
     }
 

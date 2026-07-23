@@ -80,7 +80,7 @@ public class GetBillingPanelUseCase {
             return totalReservationAmount(reservation);
         }
         String groupCode = reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
-        return reservationRepository.findByReservationCodeStartingWith(groupCode).stream()
+        return reservationRepository.findReservationGroup(groupCode).stream()
                 .map(this::totalReservationAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

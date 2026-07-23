@@ -19,13 +19,24 @@ public class ConfirmPaymentUseCase {
 
     @Transactional
     public Reservation execute(UUID reservationId) {
-        Reservation selected = reservationRepository.findById(reservationId)
+        Reservation initial = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
-        String groupCode = groupCode(selected.getReservationCode());
-        List<Reservation> group = groupCode == null
-                ? List.of(selected)
-                : reservationRepository.findByReservationCodeStartingWith(groupCode);
-        if (group.isEmpty()) group = List.of(selected);
+        String groupCode = groupCode(initial.getReservationCode());
+        List<Reservation> group;
+        Reservation selected;
+        if (groupCode == null) {
+            selected = reservationRepository.findByIdForUpdate(reservationId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Reserva no encontrada: " + reservationId));
+            group = List.of(selected);
+        } else {
+            group = reservationRepository.findReservationGroupForUpdate(groupCode);
+            selected = group.stream()
+                    .filter(reservation -> reservationId.equals(reservation.getId()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "El grupo de reserva cambió durante la confirmación."));
+        }
         String promotionCode = group.stream()
                 .map(Reservation::getPromotionCode)
                 .filter(code -> code != null && !code.isBlank())

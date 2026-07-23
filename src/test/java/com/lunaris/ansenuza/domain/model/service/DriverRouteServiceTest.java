@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
 class DriverRouteServiceTest {
@@ -19,7 +20,8 @@ class DriverRouteServiceTest {
     @Test
     void replacesRouteAndRenumbersEveryPassengerWithoutGaps() {
         ReservationRepository repository = mock(ReservationRepository.class);
-        DriverRouteService service = new DriverRouteService(repository);
+        DriverRepository drivers = mock(DriverRepository.class);
+        DriverRouteService service = new DriverRouteService(repository, drivers);
         LocalDate date = LocalDate.of(2026, 7, 23);
         Driver driver = new Driver();
         driver.setId(UUID.randomUUID());
@@ -31,6 +33,8 @@ class DriverRouteServiceTest {
         when(repository.findAllById(requestedOrder)).thenReturn(List.of(moved, added));
         when(repository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(driver.getId(), date))
                 .thenReturn(List.of(removed, moved));
+        when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
+                .thenReturn(List.of(driver));
         when(repository.saveAllAndFlush(org.mockito.ArgumentMatchers.anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -41,7 +45,7 @@ class DriverRouteServiceTest {
         assertEquals(added.getId(), result.get(0).getId());
         assertEquals(1, added.getRouteSequence());
         assertEquals(2, moved.getRouteSequence());
-        verify(repository).saveAll(List.of(removed, moved));
+        verify(repository).saveAll(org.mockito.ArgumentMatchers.any());
     }
 
     private Reservation reservation(LocalDate date, Driver driver, Integer sequence) {

@@ -1,7 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +12,7 @@ import com.lunaris.ansenuza.application.conversation.ConversationOrchestrator;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.usecase.ProcessPaymentReceiptUseCase;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppWebhookParser;
+import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppMessageDispatcher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +33,7 @@ public class WhatsAppWebhookController {
     private final WhatsAppWebhookParser webhookParser;
     private final ConversationOrchestrator conversationOrchestrator;
     private final ProcessPaymentReceiptUseCase processPaymentReceiptUseCase;
+    private final WhatsAppMessageDispatcher messageDispatcher;
 
     @GetMapping("/webhook")
     public ResponseEntity<String> verify(@RequestParam("hub.mode") String mode,
@@ -52,15 +53,11 @@ public class WhatsAppWebhookController {
                 return ResponseEntity.ok().build();
             }
 
-            CompletableFuture.runAsync(() -> {
-                try {
-                    if (message.isImageWithMedia()) {
-                        processPaymentReceiptUseCase.execute(message.from(), message.mediaId());
-                    } else if (message.body() != null) {
-                        conversationOrchestrator.process(message);
-                    }
-                } catch (Exception ex) {
-                    log.error("Error asincrónico crítico: ", ex);
+            messageDispatcher.dispatch(message.from(), () -> {
+                if (message.isImageWithMedia()) {
+                    processPaymentReceiptUseCase.execute(message.from(), message.mediaId());
+                } else if (message.body() != null) {
+                    conversationOrchestrator.process(message);
                 }
             });
 

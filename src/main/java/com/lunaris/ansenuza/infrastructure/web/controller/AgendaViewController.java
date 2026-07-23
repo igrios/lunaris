@@ -151,7 +151,7 @@ public class AgendaViewController {
             return List.of(reservation);
         }
         String groupCode = reservationCode.replaceFirst("-(IDA|VUELTA)$", "");
-        List<Reservation> linked = reservationRepository.findByReservationCodeStartingWith(groupCode);
+        List<Reservation> linked = reservationRepository.findReservationGroup(groupCode);
         return linked.isEmpty() ? List.of(reservation) : linked;
     }
 

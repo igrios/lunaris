@@ -134,6 +134,12 @@ public class PromotionService {
             return "";
         }
         String digits = phoneNumber.replaceAll("[^0-9]", "");
-        return digits.startsWith("549") ? "54" + digits.substring(3) : digits;
+        if (digits.startsWith("549")) {
+            return "54" + digits.substring(3);
+        }
+        if (!digits.startsWith("54") && digits.length() == 10) {
+            return "54" + digits;
+        }
+        return digits;
     }
 }

@@ -25,7 +25,7 @@ class ConfirmPaymentUseCaseTest {
         ReservationRepository repository = mock(ReservationRepository.class);
         PromotionService promotionService = mock(PromotionService.class);
         when(repository.findById(selectedId)).thenReturn(Optional.of(outbound));
-        when(repository.findByReservationCodeStartingWith("MOR-COR-001"))
+        when(repository.findReservationGroupForUpdate("MOR-COR-001"))
                 .thenReturn(List.of(outbound, inbound));
 
         new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);
@@ -45,7 +45,7 @@ class ConfirmPaymentUseCaseTest {
         ReservationRepository repository = mock(ReservationRepository.class);
         PromotionService promotionService = mock(PromotionService.class);
         when(repository.findById(selectedId)).thenReturn(Optional.of(reservation));
-        when(repository.findByReservationCodeStartingWith("MOR-COR-002"))
+        when(repository.findReservationGroupForUpdate("MOR-COR-002"))
                 .thenReturn(List.of(reservation));
 
         new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);

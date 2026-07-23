@@ -116,7 +116,7 @@ public class IssueInvoiceUseCase {
             return totalReservationAmount(reservation);
         }
         String groupCode = reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
-        List<Reservation> group = reservationRepository.findByReservationCodeStartingWith(groupCode);
+        List<Reservation> group = reservationRepository.findReservationGroup(groupCode);
         if (group.stream().anyMatch(item -> !Boolean.TRUE.equals(item.getPaymentVerified())
                 || !"CONFIRMED".equals(item.getStatus()))) {
             throw new IllegalStateException("El pago del viaje completo todavía no fue confirmado.");

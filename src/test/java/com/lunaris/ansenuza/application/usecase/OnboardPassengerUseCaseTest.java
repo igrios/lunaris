@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.application.usecase;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
@@ -15,6 +16,7 @@ import com.lunaris.ansenuza.domain.model.Locality;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
+import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 
@@ -24,9 +26,10 @@ class OnboardPassengerUseCaseTest {
     void marksOnboardAndNotifiesNextPassengerWithLocalityEtaDifference() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         LocalityRepository localities = mock(LocalityRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
         OnboardPassengerUseCase useCase =
-                new OnboardPassengerUseCase(reservations, localities, whatsApp);
+                new OnboardPassengerUseCase(reservations, drivers, localities, whatsApp);
         Driver driver = new Driver();
         driver.setId(UUID.randomUUID());
         driver.setFullName("Juan Chofer");
@@ -35,6 +38,9 @@ class OnboardPassengerUseCaseTest {
         Reservation next = reservation(driver, date, 2, "Porteña", "222", "Siguiente");
 
         when(reservations.findById(current.getId())).thenReturn(Optional.of(current));
+        when(reservations.findByIdForUpdate(current.getId())).thenReturn(Optional.of(current));
+        when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
+                .thenReturn(List.of(driver));
         when(reservations.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(driver.getId(), date))
                 .thenReturn(List.of(current, next));
         when(localities.findFirstByNameIgnoreCase("Morteros"))
@@ -46,6 +52,36 @@ class OnboardPassengerUseCaseTest {
 
         assertEquals(Reservation.TravelStatus.ONBOARD, current.getTravelStatus());
         verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName(), 30);
+    }
+
+    @Test
+    void repeatedOnboardWebhookDoesNotNotifyNextPassengerTwice() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        LocalityRepository localities = mock(LocalityRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        WhatsAppService whatsApp = mock(WhatsAppService.class);
+        OnboardPassengerUseCase useCase =
+                new OnboardPassengerUseCase(reservations, drivers, localities, whatsApp);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        Reservation alreadyOnboard =
+                reservation(driver, LocalDate.of(2026, 7, 23), 1, "Morteros", "111", "Actual");
+        alreadyOnboard.setTravelStatus(Reservation.TravelStatus.ONBOARD);
+        when(reservations.findById(alreadyOnboard.getId()))
+                .thenReturn(Optional.of(alreadyOnboard));
+        when(reservations.findByIdForUpdate(alreadyOnboard.getId()))
+                .thenReturn(Optional.of(alreadyOnboard));
+        when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
+                .thenReturn(List.of(driver));
+
+        useCase.execute(alreadyOnboard.getId());
+
+        verify(reservations, never()).saveAndFlush(alreadyOnboard);
+        verify(whatsApp, never()).sendProximoEnCaminoTemplate(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyInt());
     }
 
     private Reservation reservation(
