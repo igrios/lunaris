@@ -1,7 +1,5 @@
 package com.lunaris.ansenuza.application.conversation;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -270,6 +268,7 @@ public class ConversationOrchestrator {
         List<String> waypoints = reservations.stream()
                 .skip(1)
                 .map(this::pickupLocation)
+                .map(GoogleMapsParameterFormatter::normalize)
                 .limit(9)
                 .toList();
 
@@ -281,7 +280,7 @@ public class ConversationOrchestrator {
     }
 
     private String encodeMapParameter(String value) {
-        return URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+        return GoogleMapsParameterFormatter.encode(value);
     }
 
     private void handleBoardPassenger(String phone, String rawTrimmed) {
