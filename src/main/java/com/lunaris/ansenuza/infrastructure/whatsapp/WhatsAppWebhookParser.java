@@ -51,6 +51,18 @@ public class WhatsAppWebhookParser {
             return new IncomingMessage(from, MessageType.TEXT, body, null);
         }
 
+        if ("location".equals(type)) {
+            Map<String, Object> location = (Map<String, Object>) message.get("location");
+            Double latitude = numberValue(location, "latitude");
+            Double longitude = numberValue(location, "longitude");
+            if (latitude == null || longitude == null) {
+                return new IncomingMessage(from, MessageType.OTHER, null, null);
+            }
+            String mapsUrl = "https://maps.google.com/?q=" + latitude + "," + longitude;
+            return new IncomingMessage(
+                    from, MessageType.LOCATION, mapsUrl, null, latitude, longitude);
+        }
+
         if ("button".equals(type)) {
             Map<String, Object> buttonData = (Map<String, Object>) message.get("button");
             String body = buttonData != null ? (String) buttonData.get("payload") : null;
@@ -78,5 +90,12 @@ public class WhatsAppWebhookParser {
 
     private String normalizeWhatsAppNumber(String phone) {
         return (phone != null && phone.startsWith("549")) ? "54" + phone.substring(3) : phone;
+    }
+
+    private Double numberValue(Map<String, Object> values, String key) {
+        if (values == null || !(values.get(key) instanceof Number number)) {
+            return null;
+        }
+        return number.doubleValue();
     }
 }

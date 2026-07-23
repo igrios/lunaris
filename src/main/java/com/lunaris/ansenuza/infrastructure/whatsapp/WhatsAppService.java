@@ -92,6 +92,20 @@ public class WhatsAppService {
         }
     }
 
+    public void sendLocationRequest(String phoneNumber, String message) {
+        Map<String, Object> body = Map.of(
+                "messaging_product", "whatsapp",
+                "recipient_type", "individual",
+                "to", phoneNumber,
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "location_request_message",
+                        "body", Map.of("text", message),
+                        "action", Map.of("name", "send_location")));
+        executePostCall("https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages",
+                createHeaders(), body, "SOLICITUD DE UBICACIÓN");
+    }
+
     // MENÚ DESPLEGABLE PREMIUM MULTI-SECCIÓN
     public void sendInteractiveList(String phoneNumber, String headerText, String bodyText, String buttonLabel, List<Map<String, Object>> sections) {
         String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";

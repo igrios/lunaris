@@ -258,6 +258,9 @@ public class ConversationOrchestrator {
         if (reservation.getPickupAddress() == null || reservation.getPickupAddress().isBlank()) {
             return reservation.getPickupLocality();
         }
+        if (reservation.getPickupAddress().startsWith("https://maps.google.com/?q=")) {
+            return reservation.getPickupAddress();
+        }
         return reservation.getPickupAddress() + ", " + reservation.getPickupLocality();
     }
 

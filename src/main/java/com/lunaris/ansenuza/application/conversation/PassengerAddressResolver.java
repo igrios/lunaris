@@ -44,8 +44,9 @@ public class PassengerAddressResolver {
         }
         session.setCurrentStep("ASK_ADDRESS_TEXT");
         conversationSessionRepository.saveAndFlush(session);
-        messaging.sendText(phoneNumber,
-                "🏠 *¿Por qué dirección exacta pasamos a buscarte en "
-                        + session.getPickupLocality() + "?*\n\n_Ejemplo: Av. San Martín 450_");
+        messaging.requestLocation(phoneNumber,
+                "🏠 Escribí la calle y número donde pasamos a buscarte en "
+                        + session.getPickupLocality()
+                        + " (ej.: Av. San Martín 450), o tocá el botón para compartir tu ubicación.");
     }
 }

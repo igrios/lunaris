@@ -7,14 +7,29 @@ package com.lunaris.ansenuza.application.conversation;
  * @param type    tipo de mensaje recibido
  * @param body    texto del mensaje (para TEXT) o id del botón pulsado (para INTERACTIVE); puede ser null
  * @param mediaId id del adjunto multimedia (para IMAGE); puede ser null
+ * @param latitude latitud compartida (para LOCATION); puede ser null
+ * @param longitude longitud compartida (para LOCATION); puede ser null
  */
-public record IncomingMessage(String from, MessageType type, String body, String mediaId) {
+public record IncomingMessage(
+        String from, MessageType type, String body, String mediaId,
+        Double latitude, Double longitude) {
 
     public enum MessageType {
-        TEXT, IMAGE, INTERACTIVE, OTHER
+        TEXT, IMAGE, INTERACTIVE, LOCATION, OTHER
+    }
+
+    public IncomingMessage(String from, MessageType type, String body, String mediaId) {
+        this(from, type, body, mediaId, null, null);
     }
 
     public boolean isImageWithMedia() {
         return type == MessageType.IMAGE && mediaId != null;
+    }
+
+    public String pickupAddress() {
+        if (type == MessageType.LOCATION && latitude != null && longitude != null) {
+            return "https://maps.google.com/?q=" + latitude + "," + longitude;
+        }
+        return body == null ? null : body.trim();
     }
 }

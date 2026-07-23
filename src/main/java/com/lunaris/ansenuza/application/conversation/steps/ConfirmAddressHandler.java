@@ -40,8 +40,8 @@ public class ConfirmAddressHandler implements ConversationStepHandler {
         if ("addr_no".equals(body)) {
             session.setCurrentStep("ASK_ADDRESS_TEXT");
             conversationSessionRepository.saveAndFlush(session);
-            messaging.sendText(phoneNumber,
-                    "🏠 *Ingresá la nueva dirección exacta para el retiro:*");
+            messaging.requestLocation(phoneNumber,
+                    "🏠 Escribí la nueva calle y número para el retiro, o tocá el botón para compartir tu ubicación.");
             return;
         }
     }

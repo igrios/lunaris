@@ -133,7 +133,11 @@
                 <p class="mb-2">📍 <strong>Origen:</strong> <span th:text="${reservation.pickupLocality}"></span></p>
                 <p class="mb-2">🏁 <strong>Destino:</strong> <span th:text="${reservation.destination}"></span></p>
                 <p class="mb-2" th:if="${reservation.pickupAddress != null and reservation.pickupAddress != ''}">
-                    🏠 <strong>Dirección de Retiro:</strong> <span th:text="${reservation.pickupAddress}"></span>
+                    🏠 <strong>Dirección de Retiro:</strong>
+                    <a th:if="${#strings.startsWith(reservation.pickupAddress, 'https://maps.google.com/?q=')}"
+                        th:href="${reservation.pickupAddress}" target="_blank" rel="noopener">Ver ubicación GPS</a>
+                    <span th:unless="${#strings.startsWith(reservation.pickupAddress, 'https://maps.google.com/?q=')}"
+                        th:text="${reservation.pickupAddress}"></span>
                 </p>
                 <p class="mb-2">📞 <strong>Teléfono Pasajero:</strong> <span
                         th:text="${reservation.passenger.phone}"></span></p>

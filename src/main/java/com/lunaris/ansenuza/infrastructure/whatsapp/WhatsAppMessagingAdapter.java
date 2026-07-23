@@ -32,6 +32,11 @@ public class WhatsAppMessagingAdapter implements MessagingPort {
     }
 
     @Override
+    public void requestLocation(String to, String message) {
+        whatsAppService.sendLocationRequest(to, message);
+    }
+
+    @Override
     public void sendDocument(String to, String absoluteFilePath, String fileName, String caption) {
         whatsAppService.sendDocument(to, absoluteFilePath, fileName, caption);
     }

@@ -26,7 +26,13 @@ public class AskAddressTextHandler implements ConversationStepHandler {
     @Override
     public void handle(ConversationSession session, IncomingMessage message) {
         String phoneNumber = session.getPhoneNumber();
-        session.setPickupAddress(message.body());
+        String pickupAddress = message.pickupAddress();
+        if (pickupAddress == null || pickupAddress.isBlank()) {
+            messaging.requestLocation(phoneNumber,
+                    "🏠 Enviá calle y número, o tocá el botón para compartir tu ubicación.");
+            return;
+        }
+        session.setPickupAddress(pickupAddress);
         session.setCurrentStep("ASK_DESTINATION");
         conversationSessionRepository.saveAndFlush(session);
 

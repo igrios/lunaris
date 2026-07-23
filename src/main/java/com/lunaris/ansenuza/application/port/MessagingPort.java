@@ -13,6 +13,8 @@ public interface MessagingPort {
 
     void sendButtons(String to, String header, String body, List<Button> buttons);
 
+    void requestLocation(String to, String message);
+
     /**
      * Envía un documento (PDF) ubicado en {@code absoluteFilePath} al destinatario.
      * Usado para mandar la factura por WhatsApp.
