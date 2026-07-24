@@ -47,7 +47,7 @@ public class AgendaViewController {
     // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
     @GetMapping("/agenda")
     public String agenda(Model model) {
-        LocalDate today = LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
+        LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
         // 🌟 Modificado: Pasamos de 5 a 7 en el IntStream.range para cubrir la semana completa
@@ -284,7 +284,7 @@ public class AgendaViewController {
     // 📋 8. Habilita http://localhost:8080/hoja-ruta apuntando adentro de admin/
     @GetMapping("/hoja-ruta")
     public String showHojaRuta(Model model) {
-        model.addAttribute("date", LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba")));
+        model.addAttribute("date", com.lunaris.ansenuza.shared.ArgentinaTime.today());
         return "admin/hoja-ruta"; // 👈 Corregido: va a buscar a templates/admin/hoja-ruta.html
     }
 

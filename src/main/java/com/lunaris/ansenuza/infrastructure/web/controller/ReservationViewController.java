@@ -22,6 +22,7 @@ import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm;
+import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,6 +38,7 @@ public class ReservationViewController {
     private final ReservationRepository reservationRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
     private final DriverRepository driverRepository;
+    private final WhatsAppService whatsAppService;
 
     @GetMapping("/new")
     public String newReservation(Model model) {
@@ -224,6 +226,7 @@ public String updateFromPanel(
                 tramoIndependiente.setReservationCode("VTA-BLK-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
                 
                 reservationRepository.saveAndFlush(tramoIndependiente);
+                sendOpenReturnConfirmation(tramoIndependiente);
                 log.info("[Split Bloque] Se procesó el regreso de {} pasajeros. Quedan {} en espera.", cantidadVuelven, original.getPassengerCount());
             } 
             // B. Si vuelven TODOS los pasajeros que quedaban en el grupo (Cierre definitivo)
@@ -238,6 +241,7 @@ public String updateFromPanel(
                 if (status != null && "CONFIRMED".equals(status)) original.setStatus("CONFIRMED");
                 
                 reservationRepository.saveAndFlush(original);
+                sendOpenReturnConfirmation(original);
                 log.info("[Cierre Grupo] Volvieron los últimos {} pasajeros del grupo.", cantidadVuelven);
             }
         } else {
@@ -257,7 +261,22 @@ public String updateFromPanel(
         return "redirect:/reservations/vueltas-abiertas";
     }
     return "redirect:/agenda";
-}
+    }
+
+    private void sendOpenReturnConfirmation(Reservation reservation) {
+        Passenger passenger = reservation.getPassenger();
+        if (passenger == null || passenger.getPhone() == null || passenger.getPhone().isBlank()) {
+            return;
+        }
+        String driverName = reservation.getDriver() != null
+                ? reservation.getDriver().getFullName()
+                : "a confirmar";
+        whatsAppService.sendMessage(
+                passenger.getPhone(),
+                "✅ Tu vuelta quedó confirmada para el " + reservation.getTravelDate()
+                        + ". Chofer: " + driverName + "."
+                        + " Código de reserva: " + reservation.getReservationCode() + ".");
+    }
 
     // 🛑 VISTA WEB: Muestra la pantalla de pasajes con Vuelta Abierta bajo /reservations/vueltas-abiertas
     @GetMapping("/vueltas-abiertas")

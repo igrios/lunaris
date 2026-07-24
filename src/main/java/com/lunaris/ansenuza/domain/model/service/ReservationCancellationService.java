@@ -72,7 +72,7 @@ public class ReservationCancellationService {
 
     private Reservation findTodayReturnReservation(String passengerPhone) {
         String normalizedPhone = passengerPhone != null ? passengerPhone.trim() : "";
-        LocalDate today = LocalDate.now();
+        LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
 
         List<Reservation> scheduledReturns =
                 reservationRepository.findActiveReturnReservationsByPassengerPhoneAndDate(normalizedPhone, today);

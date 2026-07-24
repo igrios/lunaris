@@ -61,7 +61,7 @@ public class OperationControlService {
 
     // ⏱️ VALIDACIÓN DE HORA DE CORTE (Deadline de las 19:00 Hs)
     public boolean isPastCutoffTime() {
-        LocalTime ahora = LocalTime.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
+        LocalTime ahora = com.lunaris.ansenuza.shared.ArgentinaTime.currentTime();
         LocalTime horaCorte = LocalTime.of(19, 0); // 19:00 Hs
         return ahora.isAfter(horaCorte);
     }

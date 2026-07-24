@@ -43,7 +43,7 @@ public class ChatWebSocketController {
         }
 
         message.setPhoneNumber(phoneNumber);
-        message.setTimestamp(LocalDateTime.now());
+        message.setTimestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now());
         message.setFromOperator(true);
 
         ChatMessage savedMessage = chatMessageRepository.save(message);

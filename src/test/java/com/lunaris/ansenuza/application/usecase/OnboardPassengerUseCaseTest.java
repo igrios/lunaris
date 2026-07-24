@@ -126,6 +126,64 @@ class OnboardPassengerUseCaseTest {
                 org.mockito.ArgumentMatchers.anyInt());
     }
 
+    @Test
+    void doesNotSkipASequenceOrMixOutboundAndReturnLegs() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        LocalityRepository localities = mock(LocalityRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        WhatsAppService whatsApp = mock(WhatsAppService.class);
+        OnboardPassengerUseCase useCase =
+                new OnboardPassengerUseCase(reservations, drivers, localities, whatsApp);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        LocalDate returnDate = LocalDate.of(2026, 7, 23);
+        Reservation current =
+                reservation(driver, returnDate, 1, "Porteña", "111", "Actual");
+        current.setReservationCode("RES-1-VUELTA");
+        current.setReturnDate(returnDate);
+        Reservation outbound =
+                reservation(driver, returnDate, 2, "Morteros", "222", "Ida");
+        outbound.setReservationCode("RES-2-IDA");
+        Reservation sequenceThree =
+                reservation(driver, returnDate, 3, "Morteros", "333", "Tercero");
+        sequenceThree.setReservationCode("RES-3-VUELTA");
+        sequenceThree.setReturnDate(returnDate);
+
+        when(reservations.findById(current.getId())).thenReturn(Optional.of(current));
+        when(reservations.findByIdForUpdate(current.getId())).thenReturn(Optional.of(current));
+        when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
+                .thenReturn(List.of(driver));
+        when(reservations.findRouteByEffectiveDate(driver.getId(), returnDate))
+                .thenReturn(List.of(current, outbound, sequenceThree));
+
+        useCase.execute(current.getId());
+
+        verify(whatsApp, never()).sendProximoEnCaminoTemplate(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void canonicalStatusUpdatePersistsNonOnboardStatusWithoutNotification() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        OnboardPassengerUseCase useCase = new OnboardPassengerUseCase(
+                reservations,
+                mock(DriverRepository.class),
+                mock(LocalityRepository.class),
+                mock(WhatsAppService.class));
+        Reservation reservation = Reservation.builder().id(UUID.randomUUID()).build();
+        when(reservations.findById(reservation.getId())).thenReturn(Optional.of(reservation));
+        when(reservations.saveAndFlush(reservation)).thenReturn(reservation);
+
+        Reservation updated = useCase.updateTravelStatus(
+                reservation.getId(), Reservation.TravelStatus.REALIZED);
+
+        assertEquals(Reservation.TravelStatus.REALIZED, updated.getTravelStatus());
+        verify(reservations).saveAndFlush(reservation);
+    }
+
     private Reservation reservation(
             Driver driver, LocalDate date, Integer sequence, String locality, String phone, String name) {
         return Reservation.builder()

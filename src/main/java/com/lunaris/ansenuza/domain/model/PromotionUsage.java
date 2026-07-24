@@ -43,6 +43,8 @@ public class PromotionUsage {
     @PrePersist
     void prePersist() {
         if (id == null) id = UUID.randomUUID();
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
+        }
     }
 }

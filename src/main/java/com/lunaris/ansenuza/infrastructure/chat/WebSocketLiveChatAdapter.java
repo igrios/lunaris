@@ -25,7 +25,7 @@ public class WebSocketLiveChatAdapter implements LiveChatPort {
                 .phoneNumber(phoneNumber)
                 .messageText(text)
                 .fromOperator(false)
-                .timestamp(LocalDateTime.now())
+                .timestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now())
                 .build());
 
         messagingTemplate.convertAndSend("/topic/messages/" + phoneNumber, msgCliente);

@@ -40,7 +40,8 @@ public class ConversationSessionCleanupScheduler {
     @Transactional
     public void purgeInactiveSessions() {
         long inactiveMinutes = resolveInactiveMinutes();
-        LocalDateTime cutoff = LocalDateTime.now().minusMinutes(inactiveMinutes);
+        LocalDateTime cutoff =
+                com.lunaris.ansenuza.shared.ArgentinaTime.now().minusMinutes(inactiveMinutes);
         List<ConversationSession> abandonadas =
                 conversationSessionRepository.findByBotPausedFalseAndLastInteractionBefore(cutoff);
 

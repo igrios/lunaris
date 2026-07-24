@@ -26,8 +26,18 @@ public class OnboardPassengerUseCase {
 
     @Transactional
     public Reservation execute(UUID reservationId) {
+        return updateTravelStatus(reservationId, Reservation.TravelStatus.ONBOARD);
+    }
+
+    @Transactional
+    public Reservation updateTravelStatus(
+            UUID reservationId, Reservation.TravelStatus newStatus) {
         Reservation initial = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
+        if (newStatus != Reservation.TravelStatus.ONBOARD) {
+            initial.setTravelStatus(newStatus);
+            return reservationRepository.saveAndFlush(initial);
+        }
         LocalDate effectiveDate = effectiveLegDate(initial);
         if (initial.getDriver() == null || effectiveDate == null) {
             throw new IllegalStateException("La reserva no pertenece a una ruta asignada.");
@@ -74,7 +84,17 @@ public class OnboardPassengerUseCase {
                         Reservation::getRouteSequence,
                         Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(fallbackOrder);
-        List<Reservation> orderedRoute = route.stream().sorted(routeOrder).toList();
+        List<Reservation> orderedRoute = route.stream()
+                .filter(candidate -> belongsToSameLegAndDate(onboard, candidate, effectiveDate))
+                .sorted(routeOrder)
+                .toList();
+        if (onboard.getRouteSequence() != null) {
+            return orderedRoute.stream()
+                    .filter(candidate -> candidate.getRouteSequence() != null)
+                    .filter(candidate -> candidate.getRouteSequence()
+                            == onboard.getRouteSequence() + 1)
+                    .findFirst();
+        }
         int currentIndex = orderedRoute.stream()
                 .map(Reservation::getId)
                 .toList()
@@ -84,15 +104,24 @@ public class OnboardPassengerUseCase {
                 : Optional.empty();
     }
 
+    private boolean belongsToSameLegAndDate(
+            Reservation onboard, Reservation candidate, LocalDate effectiveDate) {
+        return isReturnLeg(onboard) == isReturnLeg(candidate)
+                && effectiveDate.equals(effectiveLegDate(candidate));
+    }
+
     private LocalDate effectiveLegDate(Reservation reservation) {
-        boolean returnLeg = reservation.getReservationCode() != null
-                && reservation.getReservationCode().endsWith("-VUELTA");
-        if (returnLeg && reservation.getReturnDate() != null) {
+        if (isReturnLeg(reservation) && reservation.getReturnDate() != null) {
             return reservation.getReturnDate();
         }
         return reservation.getTravelDate() != null
                 ? reservation.getTravelDate()
                 : reservation.getReturnDate();
+    }
+
+    private boolean isReturnLeg(Reservation reservation) {
+        return reservation.getReservationCode() != null
+                && reservation.getReservationCode().endsWith("-VUELTA");
     }
 
     private void notifyNext(Reservation onboard, Reservation next) {

@@ -22,7 +22,7 @@ public class GetBillingPanelUseCase {
     private final InvoiceRepository invoiceRepository;
 
     public BillingPanelView execute() {
-        LocalDate today = LocalDate.now();
+        LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime startOfTomorrow = today.plusDays(1).atStartOfDay();
         LocalDateTime startOfMonth = today.withDayOfMonth(1).atStartOfDay();

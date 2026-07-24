@@ -59,7 +59,7 @@ public class IssueInvoiceUseCase {
         boolean sent = sendByWhatsApp(reservation, invoice, stored.absolutePath());
         invoice.setSentViaWhatsapp(sent);
         if (sent) {
-            invoice.setSentAt(LocalDateTime.now());
+            invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
         }
         return invoiceRepository.save(invoice);
     }
@@ -75,7 +75,7 @@ public class IssueInvoiceUseCase {
         boolean sent = sendByWhatsApp(reservation, invoice, absolutePath);
         invoice.setSentViaWhatsapp(sent || Boolean.TRUE.equals(invoice.getSentViaWhatsapp()));
         if (sent) {
-            invoice.setSentAt(LocalDateTime.now());
+            invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
         }
         return invoiceRepository.save(invoice);
     }

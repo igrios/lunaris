@@ -48,7 +48,7 @@ public class Promotion {
             id = UUID.randomUUID();
         }
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
         }
     }
 }

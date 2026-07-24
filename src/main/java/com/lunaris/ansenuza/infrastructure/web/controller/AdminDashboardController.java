@@ -26,7 +26,9 @@ public class AdminDashboardController {
     @GetMapping("/hoja-ruta")
     public String getHojaRuta(@RequestParam(value = "fecha", required = false) String fechaStr, Model model) {
         // 1. Parseamos la fecha elegida o usamos la de hoy por defecto
-        LocalDate fecha = (fechaStr == null || fechaStr.isEmpty()) ? LocalDate.now() : LocalDate.parse(fechaStr);
+        LocalDate fecha = (fechaStr == null || fechaStr.isEmpty())
+                ? com.lunaris.ansenuza.shared.ArgentinaTime.today()
+                : LocalDate.parse(fechaStr);
         
         // 2. Traemos solo las reservas activas, IGNORANDO por completo las canceladas
         List<Reservation> reservas = reservationRepository.findByTravelDateAndStatusNot(fecha, "CANCELLED")

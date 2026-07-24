@@ -35,7 +35,7 @@ public class StartHandler implements ConversationStepHandler {
     public void handle(ConversationSession session, IncomingMessage message) {
         String phoneNumber = session.getPhoneNumber();
         session.setCurrentStep("MAIN_MENU");
-        session.setLastInteraction(LocalDateTime.now());
+        session.setLastInteraction(com.lunaris.ansenuza.shared.ArgentinaTime.now());
         conversationSessionRepository.saveAndFlush(session);
 
         Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);

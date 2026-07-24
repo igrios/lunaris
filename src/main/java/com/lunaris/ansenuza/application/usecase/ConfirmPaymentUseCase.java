@@ -52,7 +52,7 @@ public class ConfirmPaymentUseCase {
 
         promotionService.consume(promotionCode, phoneNumber);
 
-        LocalDateTime confirmedAt = LocalDateTime.now();
+        LocalDateTime confirmedAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
         group.forEach(reservation -> {
             reservation.setPaymentVerified(true);
             reservation.setStatus("CONFIRMED");

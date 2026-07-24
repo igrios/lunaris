@@ -45,9 +45,10 @@ public class DailyReturnScheduler {
 
     @Scheduled(fixedDelayString = "60000")
     public void askPassengersAboutTodayReturn() {
-        LocalDate today = LocalDate.now(java.time.ZoneId.of("America/Argentina/Cordoba"));
+        LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalTime configuredTime = resolveConfiguredReturnTime();
-        LocalTime now = LocalTime.now(java.time.ZoneId.of("America/Argentina/Cordoba")).withSecond(0).withNano(0);
+        LocalTime now = com.lunaris.ansenuza.shared.ArgentinaTime.currentTime()
+                .withSecond(0).withNano(0);
 
         if (!now.equals(configuredTime)) {
             return;

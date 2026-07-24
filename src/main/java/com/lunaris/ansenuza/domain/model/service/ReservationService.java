@@ -59,7 +59,8 @@ public class ReservationService {
                 mainReservation.setAmount(BigDecimal.ZERO);
                 mainReservation.setPaymentVerified(true);
                 mainReservation.setStatus("CONFIRMED");
-                mainReservation.setPaymentConfirmedAt(LocalDateTime.now());
+                mainReservation.setPaymentConfirmedAt(
+                        com.lunaris.ansenuza.shared.ArgentinaTime.now());
             } else {
                 // El saldo cubre una parte del viaje
                 mainReservation.setAmount(costoTotalFlujo.subtract(saldoDisponible));
@@ -82,7 +83,8 @@ public class ReservationService {
             mainReservation.setStatus(Boolean.TRUE.equals(mainReservation.getPaymentVerified()) ? "CONFIRMED" : "PENDING_PAYMENT");
         }
         if (Boolean.TRUE.equals(mainReservation.getPaymentVerified()) && mainReservation.getPaymentConfirmedAt() == null) {
-            mainReservation.setPaymentConfirmedAt(LocalDateTime.now());
+            mainReservation.setPaymentConfirmedAt(
+                    com.lunaris.ansenuza.shared.ArgentinaTime.now());
         }
         
         mainReservation.setAmount(montoPorTramo);
@@ -233,7 +235,8 @@ public class ReservationService {
                 if (Boolean.TRUE.equals(updatedData.getPaymentVerified())) {
                     reservation.setStatus("CONFIRMED");
                     if (reservation.getPaymentConfirmedAt() == null) {
-                        reservation.setPaymentConfirmedAt(LocalDateTime.now());
+                        reservation.setPaymentConfirmedAt(
+                                com.lunaris.ansenuza.shared.ArgentinaTime.now());
                     }
                 }
             }

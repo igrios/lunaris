@@ -38,7 +38,7 @@ public class DashboardViewController {
      */
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         DailyOperationSummaryResponse summary = useCase.execute(today);
         model.addAttribute("summary", summary);
 

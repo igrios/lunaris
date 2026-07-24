@@ -2,7 +2,6 @@ package com.lunaris.ansenuza.application.conversation;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -35,7 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ConversationOrchestrator {
 
-    private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Cordoba");
 
     private final Map<String, ConversationStepHandler> handlers;
     private final ConversationSessionRepository conversationSessionRepository;
@@ -106,7 +104,7 @@ public class ConversationOrchestrator {
         liveChat.recordIncomingMessage(phoneNumber, raw.trim());
 
         // Marcamos actividad en cada mensaje para que el scheduler pueda detectar sesiones abandonadas
-        session.setLastInteraction(LocalDateTime.now());
+        session.setLastInteraction(com.lunaris.ansenuza.shared.ArgentinaTime.now());
 
         // 🌙 CONTROL DE JORNADA: Si la jornada humana terminó y el bot había quedado pausado,
         // lo despausamos automáticamente para que el cliente no quede hablando solo en la nada.
@@ -188,7 +186,7 @@ public class ConversationOrchestrator {
         }
 
         Driver driver = driverOpt.get();
-        LocalDate today = LocalDate.now(ARGENTINA_ZONE);
+        LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalDate tomorrow = today.plusDays(1);
         List<Reservation> reservations = reservationRepository
                 .findByDriverIdAndTravelDateBetween(driver.getId(), today, tomorrow);

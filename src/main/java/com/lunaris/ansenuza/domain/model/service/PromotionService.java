@@ -31,7 +31,9 @@ public class PromotionService {
         if (duration == null || duration.isZero() || duration.isNegative()) {
             throw new IllegalArgumentException("La duración de la promoción debe ser mayor a cero.");
         }
-        return createPromotion(discountPercentage, true, LocalDateTime.now().plus(duration));
+        return createPromotion(
+                discountPercentage, true,
+                com.lunaris.ansenuza.shared.ArgentinaTime.now().plus(duration));
     }
 
     private Promotion createPromotion(int discountPercentage, boolean massive, LocalDateTime expiresAt) {
@@ -124,7 +126,9 @@ public class PromotionService {
     }
 
     private void validateNotExpired(Promotion promotion) {
-        if (promotion.getExpiresAt() == null || LocalDateTime.now().isAfter(promotion.getExpiresAt())) {
+        if (promotion.getExpiresAt() == null
+                || com.lunaris.ansenuza.shared.ArgentinaTime.now()
+                        .isAfter(promotion.getExpiresAt())) {
             throw new PromotionExpiredException();
         }
     }

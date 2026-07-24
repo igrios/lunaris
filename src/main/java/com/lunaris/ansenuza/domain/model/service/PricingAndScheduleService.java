@@ -53,7 +53,7 @@ public class PricingAndScheduleService {
             int minutesFromHub = MINUTES_VUELTA_FROM_HUB.getOrDefault(key, 0);
 
             int pasajerosRegreso = reservationRepository.countPassengersByReturnDateAndNotesContaining(
-                    travelDate != null ? travelDate : LocalDate.now(), "08:00 AM");
+                    travelDate != null ? travelDate : com.lunaris.ansenuza.shared.ArgentinaTime.today(), "08:00 AM");
             
             if (pasajerosRegreso <= 8) {
                 return baseTime.plusMinutes(minutesFromHub).format(TIME_FORMATTER) + " hs";
@@ -144,7 +144,9 @@ public class PricingAndScheduleService {
     public String calculateEstimatedPickupTime(String localityName, String baseTimeStr) {
         if ("08:00".equals(baseTimeStr.trim())) {
             // Redirige dinámicamente usando la fecha de hoy como fallback seguro para calcular el desvío de las 08:00 AM
-            return calculateEstimatedPickupTime(localityName, baseTimeStr, false, LocalDate.now());
+            return calculateEstimatedPickupTime(
+                    localityName, baseTimeStr, false,
+                    com.lunaris.ansenuza.shared.ArgentinaTime.today());
         }
         
         // Mantiene el fallback de las 03:00 AM para el resto
