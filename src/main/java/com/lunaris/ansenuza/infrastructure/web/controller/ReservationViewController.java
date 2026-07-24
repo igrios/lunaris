@@ -177,6 +177,7 @@ public String updateFromPanel(
         @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
         @RequestParam(value = "driverId", required = false) UUID driverId,
         @RequestParam(value = "status", required = false) String status,
+        @RequestParam(value = "travelStatus", required = false) Reservation.TravelStatus travelStatus,
         @RequestParam(value = "cantidadVuelven", defaultValue = "1") int cantidadVuelven,
         @RequestParam(value = "source", defaultValue = "agenda") String source) {
         
@@ -189,6 +190,7 @@ public String updateFromPanel(
         boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
         
         if (isOpenReturn) {
+            Reservation scheduledReturn;
             if (travelDate == null || assignedDriver == null) {
                 throw new IllegalArgumentException(
                         "Para programar una vuelta abierta se requieren fecha y chofer.");
@@ -225,7 +227,7 @@ public String updateFromPanel(
                 String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
                 tramoIndependiente.setReservationCode("VTA-BLK-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
                 
-                reservationRepository.saveAndFlush(tramoIndependiente);
+                scheduledReturn = reservationRepository.saveAndFlush(tramoIndependiente);
                 sendOpenReturnConfirmation(tramoIndependiente);
                 log.info("[Split Bloque] Se procesó el regreso de {} pasajeros. Quedan {} en espera.", cantidadVuelven, original.getPassengerCount());
             } 
@@ -240,19 +242,27 @@ public String updateFromPanel(
                 original.setDriver(assignedDriver);
                 if (status != null && "CONFIRMED".equals(status)) original.setStatus("CONFIRMED");
                 
-                reservationRepository.saveAndFlush(original);
+                scheduledReturn = reservationRepository.saveAndFlush(original);
                 sendOpenReturnConfirmation(original);
                 log.info("[Cierre Grupo] Volvieron los últimos {} pasajeros del grupo.", cantidadVuelven);
+            }
+            if (travelStatus != null) {
+                Reservation travelStatusUpdate = new Reservation();
+                travelStatusUpdate.setTravelStatus(travelStatus);
+                reservationService.updateReservation(
+                        scheduledReturn.getId(), travelStatusUpdate, "ADMIN_PANEL");
             }
         } else {
             // Caso Ordinario para reservas normales de la agenda
             Reservation updateData = new Reservation();
+            updateData.setTravelStatus(null);
             if (travelDate != null) updateData.setTravelDate(travelDate);
             if (pickupAddress != null) updateData.setPickupAddress(pickupAddress);
             if (status != null) {
                 updateData.setStatus(status);
                 if ("CONFIRMED".equals(status)) updateData.setPaymentVerified(true);
             }
+            if (travelStatus != null) updateData.setTravelStatus(travelStatus);
             reservationService.updateReservation(id, updateData, "ADMIN_PANEL");
         }
     }

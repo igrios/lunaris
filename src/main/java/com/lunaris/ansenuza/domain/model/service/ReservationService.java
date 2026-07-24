@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationEvent;
@@ -24,6 +25,7 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final ReservationEventRepository reservationEventRepository;
     private final PassengerRepository passengerRepository;
+    private final OnboardPassengerUseCase onboardPassengerUseCase;
 
     @Transactional
     public List<Reservation> saveReservationFlow(Reservation mainReservation) {
@@ -213,6 +215,7 @@ public class ReservationService {
     @Transactional
     public Reservation updateReservation(UUID id, Reservation updatedData, String triggeredBy) {
         return reservationRepository.findById(id).map(reservation -> {
+            Reservation.TravelStatus requestedTravelStatus = updatedData.getTravelStatus();
             StringBuilder auditoriaDesc = new StringBuilder("Campos modificados: ");
             LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
@@ -242,6 +245,10 @@ public class ReservationService {
             }
             if (updatedData.getStatus() != null) reservation.setStatus(updatedData.getStatus());
             if (updatedData.getNotes() != null) reservation.setNotes(updatedData.getNotes());
+            if (requestedTravelStatus != null
+                    && requestedTravelStatus != Reservation.TravelStatus.ONBOARD) {
+                reservation.setTravelStatus(requestedTravelStatus);
+            }
 
             Reservation saved = reservationRepository.saveAndFlush(reservation);
 
@@ -253,6 +260,11 @@ public class ReservationService {
                     .build();
             reservationEventRepository.save(updateEvent);
 
+            if (requestedTravelStatus == Reservation.TravelStatus.ONBOARD
+                    && saved.getTravelStatus() != Reservation.TravelStatus.ONBOARD) {
+                return onboardPassengerUseCase.updateTravelStatus(
+                        saved.getId(), Reservation.TravelStatus.ONBOARD);
+            }
             return saved;
         }).orElseThrow(() -> new IllegalArgumentException("No se encontró la reserva con ID: " + id));
     }

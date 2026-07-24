@@ -64,7 +64,8 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             ReservationService reservationService = new ReservationService(                                                                               
                     reservationRepository,                                                                                                                
                     reservationEventRepository,                                                                                                           
-                    passengerRepository                                                                                                                   
+                    passengerRepository,
+                    mock(com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase.class)
             );                                                                                                                                            
                                                                                                                                                           
             when(reservationRepository.countSequenceByRouteAndDate(any(), any(), any())).thenReturn(0L);                                                  
@@ -102,4 +103,4 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertEquals("PENDING_PAYMENT", persisted.getStatus());                                                                                       
             assertSame(passenger, persisted.getPassenger());                                                                                              
         }                                                                                                                                                 
-    }      
+    }

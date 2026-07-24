@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -28,10 +30,11 @@ class ReservationViewControllerTest {
         ReservationRepository reservations = mock(ReservationRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
+        ReservationService reservationService = mock(ReservationService.class);
         ReservationViewController controller = new ReservationViewController(
                 mock(PassengerRepository.class),
                 mock(LocalityRepository.class),
-                mock(ReservationService.class),
+                reservationService,
                 reservations,
                 mock(PricingAndScheduleService.class),
                 drivers,
@@ -54,6 +57,7 @@ class ReservationViewControllerTest {
                 .build();
         when(reservations.findById(reservationId)).thenReturn(Optional.of(openReturn));
         when(drivers.findById(driverId)).thenReturn(Optional.of(driver));
+        when(reservations.saveAndFlush(openReturn)).thenReturn(openReturn);
 
         controller.updateFromPanel(
                 reservationId,
@@ -61,6 +65,7 @@ class ReservationViewControllerTest {
                 "Terminal",
                 driverId,
                 "CONFIRMED",
+                Reservation.TravelStatus.ONBOARD,
                 1,
                 "vueltas");
 
@@ -68,5 +73,12 @@ class ReservationViewControllerTest {
         verify(whatsApp).sendMessage(
                 eq("5493511111111"),
                 contains("Tu vuelta quedó confirmada para el " + confirmedDate));
+        ArgumentCaptor<Reservation> updateCaptor =
+                ArgumentCaptor.forClass(Reservation.class);
+        verify(reservationService).updateReservation(
+                eq(reservationId), updateCaptor.capture(), eq("ADMIN_PANEL"));
+        assertEquals(
+                Reservation.TravelStatus.ONBOARD,
+                updateCaptor.getValue().getTravelStatus());
     }
 }
