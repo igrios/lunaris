@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Locality;
 import com.lunaris.ansenuza.domain.model.Passenger;
@@ -52,6 +54,10 @@ class OnboardPassengerUseCaseTest {
         useCase.execute(current.getId());
 
         assertEquals(Reservation.TravelStatus.ONBOARD, current.getTravelStatus());
+        InOrder persistenceBeforeLookup = inOrder(reservations);
+        persistenceBeforeLookup.verify(reservations).saveAndFlush(current);
+        persistenceBeforeLookup.verify(reservations)
+                .findRouteByEffectiveDate(driver.getId(), date);
         verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName(), 30);
     }
 

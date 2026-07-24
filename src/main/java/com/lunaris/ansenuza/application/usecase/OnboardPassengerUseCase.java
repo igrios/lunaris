@@ -14,9 +14,11 @@ import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OnboardPassengerUseCase {
 
     private final ReservationRepository reservationRepository;
@@ -62,8 +64,21 @@ public class OnboardPassengerUseCase {
         onboard.setTravelStatus(Reservation.TravelStatus.ONBOARD);
         reservationRepository.saveAndFlush(onboard);
 
-        findNextPassengerInRoute(onboard, lockedEffectiveDate)
-                .ifPresent(next -> notifyNext(onboard, next));
+        Optional<Reservation> nextPassenger =
+                findNextPassengerInRoute(onboard, lockedEffectiveDate);
+        nextPassenger.ifPresentOrElse(
+                next -> {
+                    String phone = next.getPassenger() != null
+                            ? next.getPassenger().getPhone()
+                            : null;
+                    log.info(
+                            "[ONBOARD] Target N+1 passenger found. sequence={}, passengerId={}, phone={}",
+                            next.getRouteSequence(), next.getId(), phone);
+                    notifyNext(onboard, next);
+                },
+                () -> log.info(
+                        "[ONBOARD] No N+1 passenger found with sequence {}",
+                        expectedNextSequence(onboard)));
         return onboard;
     }
 
@@ -71,6 +86,9 @@ public class OnboardPassengerUseCase {
             Reservation onboard, LocalDate effectiveDate) {
         List<Reservation> route = reservationRepository.findRouteByEffectiveDate(
                 onboard.getDriver().getId(), effectiveDate);
+        log.info(
+                "[ONBOARD] Current passenger sequence={}, passengers found in route={}",
+                onboard.getRouteSequence(), route.size());
         Comparator<Reservation> fallbackOrder = Comparator
                 .comparing(Reservation::getDepartureSchedule,
                         Comparator.nullsLast(Comparator.naturalOrder()))
@@ -102,6 +120,12 @@ public class OnboardPassengerUseCase {
         return currentIndex >= 0 && currentIndex + 1 < orderedRoute.size()
                 ? Optional.of(orderedRoute.get(currentIndex + 1))
                 : Optional.empty();
+    }
+
+    private String expectedNextSequence(Reservation onboard) {
+        return onboard.getRouteSequence() == null
+                ? "UNKNOWN"
+                : String.valueOf(onboard.getRouteSequence() + 1);
     }
 
     private boolean belongsToSameLegAndDate(
