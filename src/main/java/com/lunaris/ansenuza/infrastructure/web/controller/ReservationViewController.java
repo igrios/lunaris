@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -177,10 +179,14 @@ public String updateFromPanel(
         @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
         @RequestParam(value = "driverId", required = false) UUID driverId,
         @RequestParam(value = "status", required = false) String status,
-        @RequestParam(value = "travelStatus", required = false) Reservation.TravelStatus travelStatus,
+        @RequestParam(value = "travelStatus", required = false) String rawTravelStatus,
         @RequestParam(value = "cantidadVuelven", defaultValue = "1") int cantidadVuelven,
         @RequestParam(value = "source", defaultValue = "agenda") String source) {
         
+    log.info(
+            "[Reservation Update] Incoming travelStatus={} for reservationId={}",
+            rawTravelStatus, id);
+    Reservation.TravelStatus travelStatus = parseTravelStatus(id, rawTravelStatus);
     Reservation original = reservationRepository.findById(id).orElse(null);
     
     if (original != null) {
@@ -271,6 +277,28 @@ public String updateFromPanel(
         return "redirect:/reservations/vueltas-abiertas";
     }
     return "redirect:/agenda";
+    }
+
+    private Reservation.TravelStatus parseTravelStatus(UUID reservationId, String rawTravelStatus) {
+        if (rawTravelStatus == null || rawTravelStatus.isBlank()) {
+            log.warn(
+                    "[Reservation Update] Null or blank travelStatus received. "
+                            + "reservationId={}, payload={}",
+                    reservationId, rawTravelStatus);
+            return null;
+        }
+        try {
+            return Reservation.TravelStatus.valueOf(rawTravelStatus);
+        } catch (IllegalArgumentException exception) {
+            log.warn(
+                    "[Reservation Update] Invalid travelStatus received. "
+                            + "reservationId={}, payload={}",
+                    reservationId, rawTravelStatus);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Estado de viaje inválido: " + rawTravelStatus,
+                    exception);
+        }
     }
 
     private void sendOpenReturnConfirmation(Reservation reservation) {

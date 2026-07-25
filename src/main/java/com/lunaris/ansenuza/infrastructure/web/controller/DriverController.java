@@ -7,6 +7,7 @@ import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
+@Slf4j
 public class DriverController {
 
     private final DriverRepository repository;
@@ -61,16 +63,37 @@ public class DriverController {
                         .body(Map.of("error", "No se encontró una reserva con el código indicado.")));
     }
 
-    @PatchMapping("/api/reservations/{id}/travel-status")
+    @RequestMapping(
+            value = "/api/reservations/{id}/travel-status",
+            method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<?> updateTravelStatus(
             @PathVariable UUID id,
-            @RequestBody UpdateTravelStatusRequest request) {
-        if (request == null || request.travelStatus() == null) {
+            @RequestBody(required = false) UpdateTravelStatusRequest request) {
+        String rawTravelStatus = request != null ? request.travelStatus() : null;
+        log.info(
+                "[TravelStatus API] Incoming travelStatus={} for reservationId={}",
+                rawTravelStatus, id);
+        if (rawTravelStatus == null || rawTravelStatus.isBlank()) {
+            log.warn(
+                    "[TravelStatus API] Null or blank travelStatus received. "
+                            + "reservationId={}, payload={}",
+                    id, request);
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "El estado de viaje es obligatorio."));
         }
+        TravelStatus travelStatus;
+        try {
+            travelStatus = TravelStatus.valueOf(rawTravelStatus);
+        } catch (IllegalArgumentException exception) {
+            log.warn(
+                    "[TravelStatus API] Invalid travelStatus received. "
+                            + "reservationId={}, payload={}",
+                    id, request);
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Estado de viaje inválido: " + rawTravelStatus));
+        }
         Reservation saved =
-                onboardPassengerUseCase.updateTravelStatus(id, request.travelStatus());
+                onboardPassengerUseCase.updateTravelStatus(id, travelStatus);
         return ResponseEntity.ok(Map.of(
                 "reservationId", saved.getId(),
                 "travelStatus", saved.getTravelStatus().name()));
@@ -79,6 +102,6 @@ public class DriverController {
     public record ConfirmAssistanceRequest(String code) {
     }
 
-    public record UpdateTravelStatusRequest(TravelStatus travelStatus) {
+    public record UpdateTravelStatusRequest(String travelStatus) {
     }
 }

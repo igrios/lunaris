@@ -65,7 +65,7 @@ class ReservationViewControllerTest {
                 "Terminal",
                 driverId,
                 "CONFIRMED",
-                Reservation.TravelStatus.ONBOARD,
+                "ONBOARD",
                 1,
                 "vueltas");
 

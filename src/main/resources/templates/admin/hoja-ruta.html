@@ -108,6 +108,14 @@
                             <td>
                                 <span th:if="${reserva.paymentVerified}" class="badge bg-success">Pagado</span>
                                 <span th:if="${!reserva.paymentVerified}" class="badge bg-warning text-dark">Efectivo en Ruta</span>
+                                <button type="button"
+                                    class="btn btn-primary btn-sm d-block mt-2 onboard-button"
+                                    th:if="${reserva.travelStatus == null or reserva.travelStatus.name() != 'ONBOARD'}"
+                                    th:attr="onclick=|markOnboard('${reserva.id}', this)|">
+                                    Subir a bordo
+                                </button>
+                                <span th:if="${reserva.travelStatus != null and reserva.travelStatus.name() == 'ONBOARD'}"
+                                    class="badge bg-primary d-block mt-2">A bordo</span>
                             </td>
                         </tr>
                         <tr th:if="${reservas.isEmpty()}">
@@ -172,5 +180,25 @@
         </div>
     </div>
 
+    <script>
+        async function markOnboard(reservationId, button) {
+            button.disabled = true;
+            try {
+                const response = await fetch(`/api/reservations/${reservationId}/travel-status`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ travelStatus: "ONBOARD" })
+                });
+                if (!response.ok) {
+                    throw new Error(await response.text());
+                }
+                button.outerHTML = '<span class="badge bg-primary d-block mt-2">A bordo</span>';
+            } catch (error) {
+                console.error("No se pudo marcar al pasajero a bordo", error);
+                button.disabled = false;
+                alert("No se pudo actualizar el estado del pasajero.");
+            }
+        }
+    </script>
 </body>
 </html>

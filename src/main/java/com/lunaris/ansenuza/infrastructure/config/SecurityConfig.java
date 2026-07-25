@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
                         .requestMatchers(HttpMethod.PATCH, "/api/reservations/*/travel-status")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
+                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/travel-status")
+                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
 
                         // Operación diaria: viajes, agenda, reservas, chat y rutas.
                         .requestMatchers("/agenda/**", "/api/agenda/**", "/dashboard/**", "/reservas-panel/**", "/reservations/**", "/admin/reservations/**", "/admin/bot/monitor/**", "/admin/chat/**", "/chat-room", "/bot-monitor", "/passengers/**", "/localities", "/fares")
