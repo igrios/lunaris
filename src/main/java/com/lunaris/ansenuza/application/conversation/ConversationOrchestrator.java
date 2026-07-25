@@ -37,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ConversationOrchestrator {
 
     private static final String BOARD_ID_PREFIX = "BOARD_ID_";
+    private static final String BOARD_PREFIX = "BOARD_";
     private static final String ONBOARD_PREFIX = "ONBOARD_";
     private static final String ONBOARD_COLON_PREFIX = "ONBOARD:";
 
@@ -303,7 +304,11 @@ public class ConversationOrchestrator {
         } else if (rawPayload.regionMatches(
                 true, 0, ONBOARD_COLON_PREFIX, 0, ONBOARD_COLON_PREFIX.length())) {
             candidate = rawPayload.substring(ONBOARD_COLON_PREFIX.length());
-        } else if (message.type() == IncomingMessage.MessageType.INTERACTIVE) {
+        } else if (rawPayload.regionMatches(
+                true, 0, BOARD_PREFIX, 0, BOARD_PREFIX.length())) {
+            candidate = rawPayload.substring(BOARD_PREFIX.length());
+        } else if (message.type() == IncomingMessage.MessageType.INTERACTIVE
+                && isActiveDriverPhone(message.from())) {
             candidate = rawPayload;
         }
         if (candidate == null) {
@@ -317,6 +322,17 @@ public class ConversationOrchestrator {
                     message.from(), rawPayload);
             return Optional.empty();
         }
+    }
+
+    private boolean isActiveDriverPhone(String phone) {
+        String normalizedPhone = normalizeWhatsAppNumber(phone);
+        Optional<Driver> exactMatch = driverRepository.findFirstByPhone(normalizedPhone);
+        if (exactMatch.isPresent()) {
+            return exactMatch.get().isActive();
+        }
+        return driverRepository.findByActiveTrue().stream()
+                .anyMatch(driver -> normalizeWhatsAppNumber(driver.getPhone())
+                        .equals(normalizedPhone));
     }
 
     private void handleBoardPassenger(String phone, UUID reservationId) {

@@ -6,11 +6,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.application.usecase.ProcessPromotionCommandUseCase;
+import com.lunaris.ansenuza.domain.model.ConversationSession;
+import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.OperationControlService;
@@ -68,7 +71,13 @@ class ConversationOrchestratorTest {
     @Test
     void rawReservationIdFromInteractiveReplyAlsoInvokesUseCase() {
         OnboardPassengerUseCase onboard = mock(OnboardPassengerUseCase.class);
+        DriverRepository drivers = mock(DriverRepository.class);
         UUID reservationId = UUID.randomUUID();
+        Driver activeDriver = new Driver();
+        activeDriver.setPhone("543512282251");
+        activeDriver.setActive(true);
+        when(drivers.findFirstByPhone("543512282251"))
+                .thenReturn(Optional.of(activeDriver));
         when(onboard.execute(reservationId)).thenReturn(Reservation.builder()
                 .id(reservationId)
                 .passenger(Passenger.builder()
@@ -82,7 +91,7 @@ class ConversationOrchestratorTest {
                 mock(LiveChatPort.class),
                 mock(OperationControlService.class),
                 mock(ReservationCancellationService.class),
-                mock(DriverRepository.class),
+                drivers,
                 mock(ReservationRepository.class),
                 mock(WhatsAppService.class),
                 mock(ProcessPromotionCommandUseCase.class),
@@ -95,5 +104,46 @@ class ConversationOrchestratorTest {
                 null));
 
         verify(onboard).execute(reservationId);
+    }
+
+    @Test
+    void passengerInteractiveReplyContinuesStandardChatFlow() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        OnboardPassengerUseCase onboard = mock(OnboardPassengerUseCase.class);
+        ConversationStepHandler startHandler = mock(ConversationStepHandler.class);
+        ConversationSession session = ConversationSession.builder()
+                .phoneNumber("543511111111")
+                .currentStep("START")
+                .botPaused(false)
+                .build();
+        when(startHandler.step()).thenReturn("START");
+        when(sessions.findByPhoneNumber("543511111111"))
+                .thenReturn(Optional.of(session));
+        when(drivers.findFirstByPhone("543511111111"))
+                .thenReturn(Optional.empty());
+        when(drivers.findByActiveTrue()).thenReturn(List.of());
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                List.of(startHandler),
+                sessions,
+                mock(LiveChatPort.class),
+                mock(OperationControlService.class),
+                mock(ReservationCancellationService.class),
+                drivers,
+                mock(ReservationRepository.class),
+                mock(WhatsAppService.class),
+                mock(ProcessPromotionCommandUseCase.class),
+                onboard);
+        IncomingMessage passengerReply = new IncomingMessage(
+                "543511111111",
+                IncomingMessage.MessageType.INTERACTIVE,
+                "OK avisarme",
+                null);
+
+        orchestrator.process(passengerReply);
+
+        verify(startHandler).handle(session, passengerReply);
+        verify(onboard, never()).execute(
+                org.mockito.ArgumentMatchers.any());
     }
 }
