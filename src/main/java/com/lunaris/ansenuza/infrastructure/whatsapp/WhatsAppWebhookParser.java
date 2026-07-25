@@ -77,11 +77,14 @@ public class WhatsAppWebhookParser {
             Map<String, Object> interactive = (Map<String, Object>) message.get("interactive");
             if (interactive != null) {
                 if ("button_reply".equals(interactive.get("type"))) {
-                    body = (String) ((Map<String, Object>) interactive.get("button_reply")).get("id");
+                    body = interactiveReplyId(interactive, "button_reply");
                 } else if ("list_reply".equals(interactive.get("type"))) {
-                    body = (String) ((Map<String, Object>) interactive.get("list_reply")).get("id");
+                    body = interactiveReplyId(interactive, "list_reply");
                 }
             }
+            log.info(
+                    "[WhatsApp Webhook] Interactive response parsed. from={}, type={}, payload={}",
+                    from, interactive != null ? interactive.get("type") : null, body);
             return new IncomingMessage(from, MessageType.INTERACTIVE, body, null);
         }
 
@@ -97,5 +100,14 @@ public class WhatsAppWebhookParser {
             return null;
         }
         return number.doubleValue();
+    }
+
+    private String interactiveReplyId(Map<String, Object> interactive, String replyKey) {
+        Object reply = interactive.get(replyKey);
+        if (!(reply instanceof Map<?, ?> replyData)) {
+            return null;
+        }
+        Object id = replyData.get("id");
+        return id instanceof String value ? value : null;
     }
 }

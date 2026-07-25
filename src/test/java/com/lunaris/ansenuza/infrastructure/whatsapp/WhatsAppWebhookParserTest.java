@@ -38,6 +38,40 @@ class WhatsAppWebhookParserTest {
         assertEquals("Av. San Martín 450", message.pickupAddress());
     }
 
+    @Test
+    void parsesInteractiveListReplyBoardingPayload() {
+        IncomingMessage message = parser.parse(payload(Map.of(
+                "from", "5493512282251",
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "list_reply",
+                        "list_reply", Map.of(
+                                "id", "ONBOARD_5ca1ab1e-6806-4a50-94e3-3785b4bf5b68",
+                                "title", "Pasajero a bordo")))));
+
+        assertEquals(IncomingMessage.MessageType.INTERACTIVE, message.type());
+        assertEquals(
+                "ONBOARD_5ca1ab1e-6806-4a50-94e3-3785b4bf5b68",
+                message.body());
+    }
+
+    @Test
+    void parsesInteractiveButtonReplyBoardingPayload() {
+        IncomingMessage message = parser.parse(payload(Map.of(
+                "from", "543512282251",
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "button_reply",
+                        "button_reply", Map.of(
+                                "id", "BOARD_ID_5ca1ab1e-6806-4a50-94e3-3785b4bf5b68",
+                                "title", "Confirmar")))));
+
+        assertEquals(IncomingMessage.MessageType.INTERACTIVE, message.type());
+        assertEquals(
+                "BOARD_ID_5ca1ab1e-6806-4a50-94e3-3785b4bf5b68",
+                message.body());
+    }
+
     private Map<String, Object> payload(Map<String, Object> message) {
         return Map.of("entry", List.of(Map.of(
                 "changes", List.of(Map.of(

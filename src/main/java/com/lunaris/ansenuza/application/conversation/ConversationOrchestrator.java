@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ConversationOrchestrator {
 
+    private static final String BOARD_ID_PREFIX = "BOARD_ID_";
+    private static final String ONBOARD_PREFIX = "ONBOARD_";
+    private static final String ONBOARD_COLON_PREFIX = "ONBOARD:";
 
     private final Map<String, ConversationStepHandler> handlers;
     private final ConversationSessionRepository conversationSessionRepository;
@@ -84,6 +89,16 @@ public class ConversationOrchestrator {
             return;
         }
 
+        Optional<UUID> boardingReservationId =
+                extractBoardingReservationId(message, rawTrimmed);
+        if (boardingReservationId.isPresent()) {
+            log.info(
+                    "[Driver Flow] Boarding action received. phone={}, reservationId={}, type={}",
+                    phoneNumber, boardingReservationId.get(), message.type());
+            handleBoardPassenger(phoneNumber, boardingReservationId.get());
+            return;
+        }
+
         // ⚖️ LOAD BALANCER: Si la sesión es nueva, le asignamos el operador con menos carga activa
         ConversationSession session = conversationSessionRepository
                 .findByPhoneNumber(phoneNumber).orElseGet(() -> {
@@ -118,11 +133,6 @@ public class ConversationOrchestrator {
         // 🚖 ACCIONES DEL CHOFER (Bypass del bot de pasajeros)
         if ("Ver Ruta".equalsIgnoreCase(rawTrimmed)) {
             handleVerRuta(phoneNumber);
-            return;
-        }
-
-        if (rawTrimmed.startsWith("BOARD_ID_")) {
-            handleBoardPassenger(phoneNumber, rawTrimmed);
             return;
         }
 
@@ -230,7 +240,7 @@ public class ConversationOrchestrator {
                     ? "S/H"
                     : res.getDepartureSchedule().trim();
             rows.add(java.util.Map.of(
-                "id", "BOARD_ID_" + res.getId(),
+                "id", ONBOARD_PREFIX + res.getId(),
                 "title", truncateSafe(scheduleShort + " - " + passengerName, 24),
                 "description", truncateSafe("Confirmar a bordo", 72)
             ));
@@ -281,20 +291,45 @@ public class ConversationOrchestrator {
         return GoogleMapsParameterFormatter.encode(value);
     }
 
-    private void handleBoardPassenger(String phone, String rawTrimmed) {
-        String resIdStr = rawTrimmed.substring("BOARD_ID_".length());
+    private Optional<UUID> extractBoardingReservationId(
+            IncomingMessage message, String rawPayload) {
+        String candidate = null;
+        if (rawPayload.regionMatches(
+                true, 0, BOARD_ID_PREFIX, 0, BOARD_ID_PREFIX.length())) {
+            candidate = rawPayload.substring(BOARD_ID_PREFIX.length());
+        } else if (rawPayload.regionMatches(
+                true, 0, ONBOARD_PREFIX, 0, ONBOARD_PREFIX.length())) {
+            candidate = rawPayload.substring(ONBOARD_PREFIX.length());
+        } else if (rawPayload.regionMatches(
+                true, 0, ONBOARD_COLON_PREFIX, 0, ONBOARD_COLON_PREFIX.length())) {
+            candidate = rawPayload.substring(ONBOARD_COLON_PREFIX.length());
+        } else if (message.type() == IncomingMessage.MessageType.INTERACTIVE) {
+            candidate = rawPayload;
+        }
+        if (candidate == null) {
+            return Optional.empty();
+        }
         try {
-            java.util.UUID reservationId = java.util.UUID.fromString(resIdStr);
-            java.util.Optional<Reservation> resOpt = reservationRepository.findById(reservationId);
-            if (resOpt.isEmpty()) {
-                whatsAppService.sendMessage(phone, "❌ No se encontró la reserva especificada.");
-                return;
-            }
+            return Optional.of(UUID.fromString(candidate.trim()));
+        } catch (IllegalArgumentException exception) {
+            log.warn(
+                    "[Driver Flow] Invalid boarding action payload. phone={}, payload={}",
+                    message.from(), rawPayload);
+            return Optional.empty();
+        }
+    }
 
+    private void handleBoardPassenger(String phone, UUID reservationId) {
+        try {
             Reservation reservation = onboardPassengerUseCase.execute(reservationId);
 
             String passengerName = reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName();
             whatsAppService.sendMessage(phone, "✓ Pasajero [" + passengerName + "] marcado a bordo.");
+        } catch (IllegalArgumentException exception) {
+            log.warn(
+                    "[Driver Flow] Boarding reservation not found. phone={}, reservationId={}",
+                    phone, reservationId);
+            whatsAppService.sendMessage(phone, "❌ No se encontró la reserva especificada.");
         } catch (Exception e) {
             log.error("Error al marcar pasajero a bordo: ", e);
             whatsAppService.sendMessage(phone, "❌ Ocurrió un error al procesar el abordaje del pasajero.");
