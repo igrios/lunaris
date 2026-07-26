@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 import com.lunaris.ansenuza.domain.model.BusinessParameter;
 
 @Repository
-public interface BusinessParameterRepository extends JpaRepository<BusinessParameter, Long> {
+public interface BusinessParameterRepository extends JpaRepository<BusinessParameter, String> {
     
     // Spring traduce automáticamente 'findByParameterKey' a la columna 'parameter_key' en Postgres
     Optional<BusinessParameter> findByParameterKey(String parameterKey);

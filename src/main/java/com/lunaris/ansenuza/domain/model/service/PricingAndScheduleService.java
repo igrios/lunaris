@@ -138,6 +138,10 @@ public class PricingAndScheduleService {
         return pickupLocality.toLowerCase().contains("córdoba") ? destination : pickupLocality;
     }
 
+    public long countReservedSeats(LocalDate date, String schedule) {
+        return reservationRepository.countReservedSeats(date, schedule);
+    }
+
     /**
      * ⏱️ REESCRITO COMPATIBILIDAD Y URGENCIA: Corrige el error que clavaba a las 03:00 AM el turno de las 08:00
      */

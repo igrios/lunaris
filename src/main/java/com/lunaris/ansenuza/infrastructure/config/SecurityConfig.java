@@ -17,16 +17,38 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            PassengerBearerAuthenticationFilter passengerBearerAuthenticationFilter)
+            throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/schedules").permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/reservations",
+                                "/api/drivers/apply",
+                                "/api/auth/send-otp",
+                                "/api/auth/verify-otp").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/passengers/me")
+                        .hasRole("PASSENGER")
                         // Integraciones externas y documentación pública.
                         .requestMatchers("/whatsapp/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
                         .permitAll()
@@ -58,6 +80,10 @@ public class SecurityConfig {
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
 
                         .anyRequest().authenticated())
+                .addFilterBefore(
+                        passengerBearerAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class)
+                .httpBasic(basic -> {})
                 .formLogin(login -> login
                         .successHandler((request, response, authentication) -> {
                             boolean admin = authentication.getAuthorities().stream()
@@ -79,6 +105,25 @@ public class SecurityConfig {
                         .permitAll());
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of(
+                "https://*.vercel.app",
+                "https://lunarisansenuza.com.ar",
+                "http://localhost:5173",
+                "http://localhost:3000"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Location"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

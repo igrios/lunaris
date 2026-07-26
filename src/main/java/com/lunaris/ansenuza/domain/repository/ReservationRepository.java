@@ -68,6 +68,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     List<Reservation> findByPassenger(Passenger passenger);
 
+    @Query("""
+           SELECT COALESCE(SUM(CASE WHEN r.passengerCount IS NULL OR r.passengerCount < 1
+                                   THEN 1 ELSE r.passengerCount END), 0)
+           FROM Reservation r
+           WHERE r.travelDate = :date
+           AND COALESCE(r.departureSchedule, '03:00 AM') = :schedule
+           AND r.status <> 'CANCELLED'
+           """)
+    long countReservedSeats(
+            @Param("date") LocalDate date,
+            @Param("schedule") String schedule);
+
     // 📊 Suma pasajeros reales para las tarjetas del panel ignorando los 'CANCELLED'
     @Query("SELECT COALESCE(SUM(r.passengerCount), 0) FROM Reservation r " +
            "WHERE r.travelDate = :fecha " +
