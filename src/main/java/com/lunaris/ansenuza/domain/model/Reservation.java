@@ -41,7 +41,8 @@ public class Reservation {
         CANCELED,
         NO_SHOW,
         ONBOARD,
-        BOARDED
+        BOARDED,
+        ONBOARDED
     }
 
     @Id

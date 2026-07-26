@@ -4,6 +4,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,43 @@ import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 class ConversationOrchestratorTest {
 
     @Test
+    void activeDriverLocationUpdatesCurrentGoogleMapsLink() {
+        DriverRepository drivers = mock(DriverRepository.class);
+        WhatsAppService whatsApp = mock(WhatsAppService.class);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        driver.setPhone("543512282251");
+        driver.setActive(true);
+        when(drivers.findFirstByPhone(driver.getPhone())).thenReturn(Optional.of(driver));
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                List.of(),
+                mock(ConversationSessionRepository.class),
+                mock(LiveChatPort.class),
+                mock(OperationControlService.class),
+                mock(ReservationCancellationService.class),
+                drivers,
+                mock(ReservationRepository.class),
+                whatsApp,
+                mock(ProcessPromotionCommandUseCase.class),
+                mock(OnboardPassengerUseCase.class));
+
+        orchestrator.process(new IncomingMessage(
+                driver.getPhone(),
+                IncomingMessage.MessageType.LOCATION,
+                "https://maps.google.com/?q=-31.42,-64.18",
+                null,
+                -31.42,
+                -64.18));
+
+        assertEquals(
+                "https://maps.google.com/?q=-31.42,-64.18",
+                driver.getCurrentLocationUrl());
+        verify(drivers).saveAndFlush(driver);
+        verify(whatsApp).sendMessage(
+                driver.getPhone(), "✓ Ubicación del chofer actualizada.");
+    }
+
+    @Test
     void interactiveOnboardSelectionBypassesChatAndInvokesUseCase() {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         LiveChatPort liveChat = mock(LiveChatPort.class);
@@ -39,7 +77,7 @@ class ConversationOrchestratorTest {
                         .lastName("Pérez")
                         .build())
                 .build();
-        when(onboard.execute(reservationId)).thenReturn(reservation);
+        when(onboard.execute(reservationId, "543512282251")).thenReturn(reservation);
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
                 List.of(),
                 sessions,
@@ -59,7 +97,7 @@ class ConversationOrchestratorTest {
                 "ONBOARD_" + reservationId,
                 null));
 
-        verify(onboard).execute(reservationId);
+        verify(onboard).execute(reservationId, driverPhone);
         verify(whatsApp).sendMessage(
                 driverPhone, "✓ Pasajero [Ana Pérez] marcado a bordo.");
         verify(sessions, never()).findByPhoneNumber(driverPhone);
@@ -78,7 +116,7 @@ class ConversationOrchestratorTest {
         activeDriver.setActive(true);
         when(drivers.findFirstByPhone("543512282251"))
                 .thenReturn(Optional.of(activeDriver));
-        when(onboard.execute(reservationId)).thenReturn(Reservation.builder()
+        when(onboard.execute(reservationId, "543512282251")).thenReturn(Reservation.builder()
                 .id(reservationId)
                 .passenger(Passenger.builder()
                         .firstName("Luis")
@@ -103,7 +141,7 @@ class ConversationOrchestratorTest {
                 reservationId.toString(),
                 null));
 
-        verify(onboard).execute(reservationId);
+        verify(onboard).execute(reservationId, "543512282251");
     }
 
     @Test
@@ -144,6 +182,7 @@ class ConversationOrchestratorTest {
 
         verify(startHandler).handle(session, passengerReply);
         verify(onboard, never()).execute(
-                org.mockito.ArgumentMatchers.any());
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 }

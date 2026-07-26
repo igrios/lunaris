@@ -36,6 +36,7 @@ class OnboardPassengerUseCaseTest {
         Driver driver = new Driver();
         driver.setId(UUID.randomUUID());
         driver.setFullName("Juan Chofer");
+        driver.setCurrentLocationUrl("https://maps.google.com/?q=-31.42,-64.18");
         LocalDate date = LocalDate.of(2026, 7, 23);
         Reservation current = reservation(driver, date, 1, "Morteros", "111", "Actual");
         Reservation next = reservation(driver, date, 2, "Porteña", "222", "Siguiente");
@@ -53,12 +54,14 @@ class OnboardPassengerUseCaseTest {
 
         useCase.execute(current.getId());
 
-        assertEquals(Reservation.TravelStatus.ONBOARD, current.getTravelStatus());
+        assertEquals(Reservation.TravelStatus.ONBOARDED, current.getTravelStatus());
         InOrder persistenceBeforeLookup = inOrder(reservations);
         persistenceBeforeLookup.verify(reservations).saveAndFlush(current);
         persistenceBeforeLookup.verify(reservations)
                 .findRouteByEffectiveDate(driver.getId(), date);
         verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName(), 30);
+        verify(whatsApp).sendMessage(
+                "222", "📍 Ubicación actual del chofer: https://maps.google.com/?q=-31.42,-64.18");
     }
 
     @Test
@@ -98,7 +101,7 @@ class OnboardPassengerUseCaseTest {
 
         useCase.execute(current.getId());
 
-        assertEquals(Reservation.TravelStatus.ONBOARD, current.getTravelStatus());
+        assertEquals(Reservation.TravelStatus.ONBOARDED, current.getTravelStatus());
         verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName(), 30);
     }
 
@@ -114,7 +117,7 @@ class OnboardPassengerUseCaseTest {
         driver.setId(UUID.randomUUID());
         Reservation alreadyOnboard =
                 reservation(driver, LocalDate.of(2026, 7, 23), 1, "Morteros", "111", "Actual");
-        alreadyOnboard.setTravelStatus(Reservation.TravelStatus.ONBOARD);
+        alreadyOnboard.setTravelStatus(Reservation.TravelStatus.ONBOARDED);
         when(reservations.findById(alreadyOnboard.getId()))
                 .thenReturn(Optional.of(alreadyOnboard));
         when(reservations.findByIdForUpdate(alreadyOnboard.getId()))
@@ -133,7 +136,7 @@ class OnboardPassengerUseCaseTest {
     }
 
     @Test
-    void doesNotSkipASequenceOrMixOutboundAndReturnLegs() {
+    void skipsCanceledAndOtherLegPassengersToNotifyNextPendingPassenger() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         LocalityRepository localities = mock(LocalityRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);
@@ -147,8 +150,13 @@ class OnboardPassengerUseCaseTest {
                 reservation(driver, returnDate, 1, "Porteña", "111", "Actual");
         current.setReservationCode("RES-1-VUELTA");
         current.setReturnDate(returnDate);
-        Reservation outbound =
+        Reservation canceled =
                 reservation(driver, returnDate, 2, "Morteros", "222", "Ida");
+        canceled.setReservationCode("RES-2-VUELTA");
+        canceled.setReturnDate(returnDate);
+        canceled.setTravelStatus(Reservation.TravelStatus.CANCELED);
+        Reservation outbound =
+                reservation(driver, returnDate, 2, "Morteros", "224", "Otra ida");
         outbound.setReservationCode("RES-2-IDA");
         Reservation sequenceThree =
                 reservation(driver, returnDate, 3, "Morteros", "333", "Tercero");
@@ -160,15 +168,43 @@ class OnboardPassengerUseCaseTest {
         when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
                 .thenReturn(List.of(driver));
         when(reservations.findRouteByEffectiveDate(driver.getId(), returnDate))
-                .thenReturn(List.of(current, outbound, sequenceThree));
+                .thenReturn(List.of(current, canceled, outbound, sequenceThree));
+        when(localities.findFirstByNameIgnoreCase("Porteña"))
+                .thenReturn(Optional.of(locality("Porteña", 70)));
+        when(localities.findFirstByNameIgnoreCase("Morteros"))
+                .thenReturn(Optional.of(locality("Morteros", 40)));
 
         useCase.execute(current.getId());
 
-        verify(whatsApp, never()).sendProximoEnCaminoTemplate(
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyInt());
+        verify(whatsApp).sendProximoEnCaminoTemplate(
+                "333", "Tercero", driver.getFullName(), 30);
+    }
+
+    @Test
+    void rejectsCallbackForDriverNotAssignedToReservation() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        OnboardPassengerUseCase useCase = new OnboardPassengerUseCase(
+                reservations,
+                drivers,
+                mock(LocalityRepository.class),
+                mock(WhatsAppService.class));
+        Driver assigned = new Driver();
+        assigned.setId(UUID.randomUUID());
+        Reservation reservation = reservation(
+                assigned, LocalDate.of(2026, 7, 23), 1, "Morteros", "111", "Actual");
+        Driver actor = new Driver();
+        actor.setId(UUID.randomUUID());
+        actor.setPhone("543512222222");
+        actor.setActive(true);
+        when(drivers.findFirstByPhone(actor.getPhone())).thenReturn(Optional.of(actor));
+        when(reservations.findById(reservation.getId())).thenReturn(Optional.of(reservation));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> useCase.execute(reservation.getId(), actor.getPhone()));
+
+        verify(reservations, never()).saveAndFlush(reservation);
     }
 
     @Test
@@ -197,6 +233,7 @@ class OnboardPassengerUseCaseTest {
                 .driver(driver)
                 .travelDate(date)
                 .routeSequence(sequence)
+                .status("CONFIRMED")
                 .pickupLocality(locality)
                 .passenger(Passenger.builder().firstName(name).lastName("Pasajero").phone(phone).build())
                 .build();

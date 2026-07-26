@@ -84,6 +84,20 @@ public class ConversationOrchestrator {
         String rawTrimmed = raw.trim();
         String body = rawTrimmed.toLowerCase();
 
+        if (message.type() == IncomingMessage.MessageType.LOCATION) {
+            Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
+            if (activeDriver.isPresent()) {
+                Driver driver = activeDriver.get();
+                driver.setCurrentLocationUrl(message.pickupAddress());
+                driver.setLocationUpdatedAt(
+                        com.lunaris.ansenuza.shared.ArgentinaTime.now());
+                driverRepository.saveAndFlush(driver);
+                whatsAppService.sendMessage(
+                        phoneNumber, "✓ Ubicación del chofer actualizada.");
+                return;
+            }
+        }
+
         if (processPromotionCommandUseCase.isPromotionCommand(rawTrimmed)) {
             liveChat.recordIncomingMessage(phoneNumber, rawTrimmed);
             processPromotionCommandUseCase.execute(phoneNumber, rawTrimmed);
@@ -325,19 +339,24 @@ public class ConversationOrchestrator {
     }
 
     private boolean isActiveDriverPhone(String phone) {
+        return findActiveDriverByPhone(phone).isPresent();
+    }
+
+    private Optional<Driver> findActiveDriverByPhone(String phone) {
         String normalizedPhone = normalizeWhatsAppNumber(phone);
         Optional<Driver> exactMatch = driverRepository.findFirstByPhone(normalizedPhone);
-        if (exactMatch.isPresent()) {
-            return exactMatch.get().isActive();
+        if (exactMatch.filter(Driver::isActive).isPresent()) {
+            return exactMatch;
         }
         return driverRepository.findByActiveTrue().stream()
-                .anyMatch(driver -> normalizeWhatsAppNumber(driver.getPhone())
-                        .equals(normalizedPhone));
+                .filter(driver -> normalizeWhatsAppNumber(driver.getPhone())
+                        .equals(normalizedPhone))
+                .findFirst();
     }
 
     private void handleBoardPassenger(String phone, UUID reservationId) {
         try {
-            Reservation reservation = onboardPassengerUseCase.execute(reservationId);
+            Reservation reservation = onboardPassengerUseCase.execute(reservationId, phone);
 
             String passengerName = reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName();
             whatsAppService.sendMessage(phone, "✓ Pasajero [" + passengerName + "] marcado a bordo.");

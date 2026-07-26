@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.UUID;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,4 +34,10 @@ public class Driver {
 
     @Column(name = "ranking")
     private Integer ranking;
+
+    @Column(name = "current_location_url", length = 500)
+    private String currentLocationUrl;
+
+    @Column(name = "location_updated_at")
+    private LocalDateTime locationUpdatedAt;
 }

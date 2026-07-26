@@ -28,7 +28,13 @@ public class OnboardPassengerUseCase {
 
     @Transactional
     public Reservation execute(UUID reservationId) {
-        return updateTravelStatus(reservationId, Reservation.TravelStatus.ONBOARD);
+        return updateTravelStatus(reservationId, Reservation.TravelStatus.ONBOARDED);
+    }
+
+    @Transactional
+    public Reservation execute(UUID reservationId, String driverPhone) {
+        DriverActor actor = resolveActiveDriver(driverPhone);
+        return boardPassenger(reservationId, actor.driverId());
     }
 
     @Transactional
@@ -36,15 +42,27 @@ public class OnboardPassengerUseCase {
             UUID reservationId, Reservation.TravelStatus newStatus) {
         Reservation initial = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
-        if (newStatus != Reservation.TravelStatus.ONBOARD) {
+        if (newStatus != Reservation.TravelStatus.ONBOARD
+                && newStatus != Reservation.TravelStatus.BOARDED
+                && newStatus != Reservation.TravelStatus.ONBOARDED) {
             initial.setTravelStatus(newStatus);
             return reservationRepository.saveAndFlush(initial);
         }
+        return boardPassenger(reservationId, null);
+    }
+
+    private Reservation boardPassenger(UUID reservationId, UUID actorDriverId) {
+        Reservation initial = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
         LocalDate effectiveDate = effectiveLegDate(initial);
         if (initial.getDriver() == null || effectiveDate == null) {
             throw new IllegalStateException("La reserva no pertenece a una ruta asignada.");
         }
         UUID driverId = initial.getDriver().getId();
+        if (actorDriverId != null && !actorDriverId.equals(driverId)) {
+            throw new IllegalStateException(
+                    "La reserva no pertenece al viaje del chofer autenticado.");
+        }
         if (driverId == null || driverRepository.findAllByIdForUpdate(java.util.Set.of(driverId)).isEmpty()) {
             throw new IllegalStateException("No se pudo bloquear el chofer de la ruta.");
         }
@@ -57,11 +75,16 @@ public class OnboardPassengerUseCase {
                     "La ruta cambió durante el abordaje. Reintentá la operación.");
         }
         if (onboard.getTravelStatus() == Reservation.TravelStatus.ONBOARD
-                || onboard.getTravelStatus() == Reservation.TravelStatus.BOARDED) {
+                || onboard.getTravelStatus() == Reservation.TravelStatus.BOARDED
+                || onboard.getTravelStatus() == Reservation.TravelStatus.ONBOARDED) {
             return onboard;
         }
+        if (!isBoardable(onboard)) {
+            throw new IllegalStateException(
+                    "La reserva debe estar CONFIRMED/PENDING para confirmar el abordaje.");
+        }
 
-        onboard.setTravelStatus(Reservation.TravelStatus.ONBOARD);
+        onboard.setTravelStatus(Reservation.TravelStatus.ONBOARDED);
         reservationRepository.saveAndFlush(onboard);
 
         Optional<Reservation> nextPassenger =
@@ -80,6 +103,35 @@ public class OnboardPassengerUseCase {
                         "[ONBOARD] No N+1 passenger found with sequence {}",
                         expectedNextSequence(onboard)));
         return onboard;
+    }
+
+    private DriverActor resolveActiveDriver(String phone) {
+        String normalized = normalizePhone(phone);
+        return driverRepository.findFirstByPhone(normalized)
+                .filter(com.lunaris.ansenuza.domain.model.Driver::isActive)
+                .or(() -> driverRepository.findByActiveTrue().stream()
+                        .filter(driver -> normalizePhone(driver.getPhone()).equals(normalized))
+                        .findFirst())
+                .map(driver -> new DriverActor(driver.getId()))
+                .orElseThrow(() ->
+                        new IllegalStateException("El callback no pertenece a un chofer activo."));
+    }
+
+    private String normalizePhone(String phone) {
+        if (phone == null) {
+            return "";
+        }
+        String clean = phone.replaceAll("[^0-9]", "");
+        return clean.startsWith("549") ? "54" + clean.substring(3) : clean;
+    }
+
+    private boolean isBoardable(Reservation reservation) {
+        String status = reservation.getStatus();
+        boolean validReservationStatus = "CONFIRMED".equalsIgnoreCase(status)
+                || "PENDING".equalsIgnoreCase(status);
+        return validReservationStatus
+                && reservation.getTravelStatus() != Reservation.TravelStatus.CANCELED
+                && reservation.getTravelStatus() != Reservation.TravelStatus.NO_SHOW;
     }
 
     private Optional<Reservation> findNextPassengerInRoute(
@@ -110,16 +162,23 @@ public class OnboardPassengerUseCase {
             return orderedRoute.stream()
                     .filter(candidate -> candidate.getRouteSequence() != null)
                     .filter(candidate -> candidate.getRouteSequence()
-                            == onboard.getRouteSequence() + 1)
+                            > onboard.getRouteSequence())
+                    .filter(this::isPendingCandidate)
                     .findFirst();
         }
         int currentIndex = orderedRoute.stream()
                 .map(Reservation::getId)
                 .toList()
                 .indexOf(onboard.getId());
-        return currentIndex >= 0 && currentIndex + 1 < orderedRoute.size()
-                ? Optional.of(orderedRoute.get(currentIndex + 1))
-                : Optional.empty();
+        return currentIndex < 0 ? Optional.empty() : orderedRoute.stream()
+                .skip(currentIndex + 1L)
+                .filter(this::isPendingCandidate)
+                .findFirst();
+    }
+
+    private boolean isPendingCandidate(Reservation reservation) {
+        return reservation.getTravelStatus() == null
+                || reservation.getTravelStatus() == Reservation.TravelStatus.PENDING;
     }
 
     private String expectedNextSequence(Reservation onboard) {
@@ -159,6 +218,12 @@ public class OnboardPassengerUseCase {
                 next.getPassenger().getFirstName(),
                 onboard.getDriver().getFullName(),
                 etaMinutes);
+        String locationUrl = onboard.getDriver().getCurrentLocationUrl();
+        if (locationUrl != null && !locationUrl.isBlank()) {
+            whatsAppService.sendMessage(
+                    next.getPassenger().getPhone(),
+                    "📍 Ubicación actual del chofer: " + locationUrl);
+        }
     }
 
     private int calculateEtaMinutes(String currentLocality, String nextLocality) {
@@ -169,5 +234,8 @@ public class OnboardPassengerUseCase {
                 .map(Locality::getMinutesFromOrigin)
                 .orElse(0);
         return Math.abs(nextMinutes - currentMinutes);
+    }
+
+    private record DriverActor(UUID driverId) {
     }
 }
