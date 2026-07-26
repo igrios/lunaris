@@ -35,22 +35,33 @@ public class SecurityConfig {
             throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        "/api/**",
+                        "/actuator/**",
+                        "/webhook/**",
+                        "/whatsapp/**"))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/schedules").permitAll()
-                        .requestMatchers(HttpMethod.POST,
-                                "/api/reservations",
+                        .requestMatchers(
+                                "/login",
+                                "/actuator/**",
+                                "/api/schedules/**",
+                                "/api/reservations/**",
                                 "/api/drivers/apply",
-                                "/api/auth/send-otp",
-                                "/api/auth/verify-otp").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                                "/api/auth/**",
+                                "/webhook/**",
+                                "/whatsapp/**")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/passengers/me")
                         .hasRole("PASSENGER")
                         // Integraciones externas y documentación pública.
-                        .requestMatchers("/whatsapp/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**")
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/api-docs/**",
+                                "/v3/api-docs/**")
                         .permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**")
                         .permitAll()
@@ -70,11 +81,6 @@ public class SecurityConfig {
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
                         .requestMatchers(HttpMethod.POST, "/api/driver/confirm-assistance")
                         .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
-                        .requestMatchers(HttpMethod.PATCH, "/api/reservations/*/travel-status")
-                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
-                        .requestMatchers(HttpMethod.PUT, "/api/reservations/*/travel-status")
-                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
-
                         // Operación diaria: viajes, agenda, reservas, chat y rutas.
                         .requestMatchers("/agenda/**", "/api/agenda/**", "/dashboard/**", "/reservas-panel/**", "/reservations/**", "/admin/reservations/**", "/admin/bot/monitor/**", "/admin/chat/**", "/chat-room", "/bot-monitor", "/passengers/**", "/localities", "/fares")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
