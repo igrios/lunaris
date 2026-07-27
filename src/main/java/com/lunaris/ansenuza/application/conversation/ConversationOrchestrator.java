@@ -372,6 +372,19 @@ public class ConversationOrchestrator {
 
     private void handleBoardPassenger(String phone, UUID reservationId) {
         try {
+            Optional<Reservation> current = reservationRepository.findById(reservationId);
+            if (current.isPresent() && isBoardingClosed(current.get())) {
+                log.warn(
+                        "[Driver Flow] Boarding ignored for closed reservation. "
+                                + "phone={}, reservationId={}, status={}, travelStatus={}",
+                        phone,
+                        reservationId,
+                        current.get().getStatus(),
+                        current.get().getTravelStatus());
+                whatsAppService.sendMessage(
+                        phone, "Esta reserva ya se encuentra abordada o finalizada.");
+                return;
+            }
             Reservation reservation = onboardPassengerUseCase.execute(reservationId, phone);
 
             String passengerName = reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName();
@@ -381,10 +394,31 @@ public class ConversationOrchestrator {
                     "[Driver Flow] Boarding reservation not found. phone={}, reservationId={}",
                     phone, reservationId);
             whatsAppService.sendMessage(phone, "❌ No se encontró la reserva especificada.");
+        } catch (IllegalStateException exception) {
+            log.warn(
+                    "[Driver Flow] Boarding rejected. phone={}, reservationId={}, reason={}",
+                    phone, reservationId, exception.getMessage());
+            whatsAppService.sendMessage(
+                    phone, "Esta reserva ya se encuentra abordada o finalizada.");
         } catch (Exception e) {
             log.error("Error al marcar pasajero a bordo: ", e);
             whatsAppService.sendMessage(phone, "❌ Ocurrió un error al procesar el abordaje del pasajero.");
         }
+    }
+
+    private boolean isBoardingClosed(Reservation reservation) {
+        Reservation.TravelStatus travelStatus = reservation.getTravelStatus();
+        if (travelStatus == Reservation.TravelStatus.ONBOARD
+                || travelStatus == Reservation.TravelStatus.BOARDED
+                || travelStatus == Reservation.TravelStatus.ONBOARDED
+                || travelStatus == Reservation.TravelStatus.REALIZED
+                || travelStatus == Reservation.TravelStatus.CANCELED
+                || travelStatus == Reservation.TravelStatus.NO_SHOW) {
+            return true;
+        }
+        String status = reservation.getStatus();
+        return !"CONFIRMED".equalsIgnoreCase(status)
+                && !"PENDING".equalsIgnoreCase(status);
     }
 
 }

@@ -294,11 +294,16 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
     }
 
     public void sendProximoEnCaminoTemplate(
-            String to, String passengerName, String driverName, int etaMinutes) {
-        sendTemplate(to, "proximo_en_camino", List.of(
+            String to, String passengerName, String driverName) {
+        sendTemplate(to, "proximo_en_camino", proximoEnCaminoParameters(
+                passengerName, driverName));
+    }
+
+    static List<String> proximoEnCaminoParameters(
+            String passengerName, String driverName) {
+        return List.of(
                 safeTemplateValue(passengerName, "Pasajero"),
-                safeTemplateValue(driverName, "Chofer"),
-                String.valueOf(Math.max(0, etaMinutes))));
+                safeTemplateValue(driverName, "Chofer"));
     }
 
     private void sendTemplate(String to, String templateName, List<String> values) {
@@ -319,7 +324,7 @@ public void sendDespiertaChoferTemplate(String to, String nombreChofer) {
                 createHeaders(), body, "TEMPLATE " + templateName.toUpperCase());
     }
 
-    private String safeTemplateValue(String value, String fallback) {
+    private static String safeTemplateValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 

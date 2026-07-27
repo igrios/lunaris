@@ -28,6 +28,44 @@ import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 class ConversationOrchestratorTest {
 
     @Test
+    void completedReservationReturnsFriendlyMessageWithoutBoardingAgain() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        WhatsAppService whatsApp = mock(WhatsAppService.class);
+        OnboardPassengerUseCase onboard = mock(OnboardPassengerUseCase.class);
+        UUID reservationId = UUID.randomUUID();
+        Reservation completed = Reservation.builder()
+                .id(reservationId)
+                .status("COMPLETED")
+                .travelStatus(Reservation.TravelStatus.REALIZED)
+                .build();
+        when(reservations.findById(reservationId)).thenReturn(Optional.of(completed));
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                List.of(),
+                mock(ConversationSessionRepository.class),
+                mock(LiveChatPort.class),
+                mock(OperationControlService.class),
+                mock(ReservationCancellationService.class),
+                mock(DriverRepository.class),
+                reservations,
+                whatsApp,
+                mock(ProcessPromotionCommandUseCase.class),
+                onboard);
+
+        orchestrator.process(new IncomingMessage(
+                "543512282251",
+                IncomingMessage.MessageType.INTERACTIVE,
+                "ONBOARD_" + reservationId,
+                null));
+
+        verify(onboard, never()).execute(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString());
+        verify(whatsApp).sendMessage(
+                "543512282251",
+                "Esta reserva ya se encuentra abordada o finalizada.");
+    }
+
+    @Test
     void anyRegisteredDriverCanQueryTripsOnFutureDatesWithoutConversationSession() {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);

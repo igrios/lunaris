@@ -77,11 +77,18 @@ public class OnboardPassengerUseCase {
         if (onboard.getTravelStatus() == Reservation.TravelStatus.ONBOARD
                 || onboard.getTravelStatus() == Reservation.TravelStatus.BOARDED
                 || onboard.getTravelStatus() == Reservation.TravelStatus.ONBOARDED) {
+            log.warn(
+                    "[ONBOARD] Duplicate boarding ignored. reservationId={}, travelStatus={}",
+                    onboard.getId(), onboard.getTravelStatus());
             return onboard;
         }
         if (!isBoardable(onboard)) {
+            log.warn(
+                    "[ONBOARD] Boarding rejected by reservation state. reservationId={}, "
+                            + "status={}, travelStatus={}",
+                    onboard.getId(), onboard.getStatus(), onboard.getTravelStatus());
             throw new IllegalStateException(
-                    "La reserva debe estar CONFIRMED/PENDING para confirmar el abordaje.");
+                    "Esta reserva ya se encuentra abordada, finalizada o en un estado inválido.");
         }
 
         onboard.setTravelStatus(Reservation.TravelStatus.ONBOARDED);
@@ -212,12 +219,10 @@ public class OnboardPassengerUseCase {
                 || next.getPassenger().getPhone().isBlank()) {
             return;
         }
-        int etaMinutes = calculateEtaMinutes(onboard.getPickupLocality(), next.getPickupLocality());
         whatsAppService.sendProximoEnCaminoTemplate(
                 next.getPassenger().getPhone(),
                 next.getPassenger().getFirstName(),
-                onboard.getDriver().getFullName(),
-                etaMinutes);
+                onboard.getDriver().getFullName());
         String locationUrl = onboard.getDriver().getCurrentLocationUrl();
         if (locationUrl != null && !locationUrl.isBlank()) {
             whatsAppService.sendMessage(

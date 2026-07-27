@@ -59,7 +59,7 @@ class OnboardPassengerUseCaseTest {
         persistenceBeforeLookup.verify(reservations).saveAndFlush(current);
         persistenceBeforeLookup.verify(reservations)
                 .findRouteByEffectiveDate(driver.getId(), date);
-        verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName(), 30);
+        verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName());
         verify(whatsApp).sendMessage(
                 "222", "📍 Ubicación actual del chofer: https://maps.google.com/?q=-31.42,-64.18");
     }
@@ -102,7 +102,7 @@ class OnboardPassengerUseCaseTest {
         useCase.execute(current.getId());
 
         assertEquals(Reservation.TravelStatus.ONBOARDED, current.getTravelStatus());
-        verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName(), 30);
+        verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName());
     }
 
     @Test
@@ -131,8 +131,7 @@ class OnboardPassengerUseCaseTest {
         verify(whatsApp, never()).sendProximoEnCaminoTemplate(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyInt());
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -177,7 +176,7 @@ class OnboardPassengerUseCaseTest {
         useCase.execute(current.getId());
 
         verify(whatsApp).sendProximoEnCaminoTemplate(
-                "333", "Tercero", driver.getFullName(), 30);
+                "333", "Tercero", driver.getFullName());
     }
 
     @Test

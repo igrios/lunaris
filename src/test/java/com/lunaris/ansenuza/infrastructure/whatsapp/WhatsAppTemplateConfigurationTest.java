@@ -26,4 +26,13 @@ class WhatsAppTemplateConfigurationTest {
                 "TEMPLATE DESPIERTA CHOFER", 404, "Not found"));
         assertFalse(WhatsAppService.isTemplateUnavailable("TEXTO", 404, "Not found"));
     }
+
+    @Test
+    void nextPassengerTemplateUsesExactlyTwoApprovedParameters() {
+        var parameters = WhatsAppService.proximoEnCaminoParameters("Ana", "Juan");
+
+        assertEquals(2, parameters.size());
+        assertEquals("Ana", parameters.get(0));
+        assertEquals("Juan", parameters.get(1));
+    }
 }
