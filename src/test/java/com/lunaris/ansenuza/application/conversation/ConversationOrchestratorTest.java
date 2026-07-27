@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
@@ -25,6 +26,66 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 
 class ConversationOrchestratorTest {
+
+    @Test
+    void anyRegisteredDriverCanQueryTripsOnFutureDatesWithoutConversationSession() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        WhatsAppService whatsApp = mock(WhatsAppService.class);
+        OnboardPassengerUseCase onboard = mock(OnboardPassengerUseCase.class);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        driver.setPhone("351 555-0101");
+        driver.setFullName("Chofer Asignado");
+        driver.setActive(false);
+        Reservation futureTrip = Reservation.builder()
+                .id(UUID.randomUUID())
+                .driver(driver)
+                .passenger(Passenger.builder()
+                        .firstName("Ana")
+                        .lastName("Pérez")
+                        .phone("3515550202")
+                        .build())
+                .travelDate(LocalDate.of(2030, 12, 15))
+                .routeSequence(1)
+                .departureSchedule("08:00")
+                .pickupLocality("Morteros")
+                .pickupAddress("San Martín 100")
+                .destination("Córdoba")
+                .status("CONFIRMED")
+                .build();
+        when(drivers.findFirstByPhone("3515550101")).thenReturn(Optional.of(driver));
+        when(reservations.findAllAssignedByDriverId(driver.getId()))
+                .thenReturn(new java.util.ArrayList<>(List.of(futureTrip)));
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                List.of(),
+                sessions,
+                mock(LiveChatPort.class),
+                mock(OperationControlService.class),
+                mock(ReservationCancellationService.class),
+                drivers,
+                reservations,
+                whatsApp,
+                mock(ProcessPromotionCommandUseCase.class),
+                onboard);
+
+        orchestrator.process(new IncomingMessage(
+                "3515550101",
+                IncomingMessage.MessageType.INTERACTIVE,
+                "MIS_VIAJES",
+                null));
+
+        verify(reservations).findAllAssignedByDriverId(driver.getId());
+        verify(whatsApp).sendMessage(
+                org.mockito.ArgumentMatchers.eq("3515550101"),
+                org.mockito.ArgumentMatchers.contains("Ana Pérez"));
+        verify(sessions, never()).findByPhoneNumber(
+                org.mockito.ArgumentMatchers.anyString());
+        verify(onboard, never()).execute(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
 
     @Test
     void activeDriverLocationUpdatesCurrentGoogleMapsLink() {

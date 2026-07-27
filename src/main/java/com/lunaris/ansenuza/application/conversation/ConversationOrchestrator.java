@@ -1,7 +1,5 @@
 package com.lunaris.ansenuza.application.conversation;
 
-import java.time.LocalDateTime;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -10,6 +8,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.text.Normalizer;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.usecase.ProcessPromotionCommandUseCase;
@@ -84,6 +84,12 @@ public class ConversationOrchestrator {
         String rawTrimmed = raw.trim();
         String body = rawTrimmed.toLowerCase();
 
+        Optional<Driver> routeDriver = findDriverByPhone(phoneNumber);
+        if (routeDriver.isPresent() && isDriverRouteCommand(rawTrimmed)) {
+            handleVerRuta(phoneNumber, routeDriver.get());
+            return;
+        }
+
         if (message.type() == IncomingMessage.MessageType.LOCATION) {
             Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
             if (activeDriver.isPresent()) {
@@ -145,12 +151,6 @@ public class ConversationOrchestrator {
 
         conversationSessionRepository.saveAndFlush(session);
 
-        // 🚖 ACCIONES DEL CHOFER (Bypass del bot de pasajeros)
-        if ("Ver Ruta".equalsIgnoreCase(rawTrimmed)) {
-            handleVerRuta(phoneNumber);
-            return;
-        }
-
         if (reservationCancellationService.isReturnDecision(rawTrimmed)) {
             reservationCancellationService.processReturnDecision(phoneNumber, rawTrimmed);
             log.info("[Bot] Decisión de vuelta '{}' procesada para {}.", rawTrimmed, phoneNumber);
@@ -194,30 +194,36 @@ public class ConversationOrchestrator {
         return text.substring(0, maxLength - 3) + "...";
     }
 
-    private void handleVerRuta(String phone) {
+    private boolean isDriverRouteCommand(String payload) {
+        String normalized = Normalizer.normalize(payload, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .trim()
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
+        return "ver ruta".equals(normalized)
+                || "mis viajes".equals(normalized)
+                || "agenda".equals(normalized)
+                || "mi agenda".equals(normalized)
+                || "ver agenda".equals(normalized);
+    }
+
+    private Optional<Driver> findDriverByPhone(String phone) {
         String normalizedPhone = normalizeWhatsAppNumber(phone);
-        java.util.Optional<Driver> driverOpt = driverRepository.findFirstByPhone(normalizedPhone);
-        if (driverOpt.isEmpty()) {
-            List<Driver> allDrivers = driverRepository.findAll();
-            driverOpt = allDrivers.stream()
-                    .filter(d -> normalizeWhatsAppNumber(d.getPhone()).equals(normalizedPhone))
-                    .findFirst();
-        }
+        return driverRepository.findFirstByPhone(normalizedPhone)
+                .or(() -> driverRepository.findAll().stream()
+                        .filter(driver -> normalizeWhatsAppNumber(driver.getPhone())
+                                .equals(normalizedPhone))
+                        .findFirst());
+    }
 
-        if (driverOpt.isEmpty()) {
-            log.warn("[Driver Flow] No se encontró chofer con el celular: {}", phone);
-            whatsAppService.sendMessage(phone, "Lo siento, no estás registrado como chofer en nuestro sistema.");
-            return;
-        }
-
-        Driver driver = driverOpt.get();
-        LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
-        LocalDate tomorrow = today.plusDays(1);
+    private void handleVerRuta(String phone, Driver driver) {
         List<Reservation> reservations = reservationRepository
-                .findByDriverIdAndTravelDateBetween(driver.getId(), today, tomorrow);
+                .findAllAssignedByDriverId(driver.getId());
 
         if (reservations.isEmpty()) {
-            whatsAppService.sendMessage(phone, "ℹ️ No tenés viajes asignados para hoy o mañana.");
+            whatsAppService.sendMessage(phone, "ℹ️ No tenés viajes asignados.");
             return;
         }
 
@@ -322,8 +328,9 @@ public class ConversationOrchestrator {
                 true, 0, BOARD_PREFIX, 0, BOARD_PREFIX.length())) {
             candidate = rawPayload.substring(BOARD_PREFIX.length());
         } else if (message.type() == IncomingMessage.MessageType.INTERACTIVE
-                && isActiveDriverPhone(message.from())) {
-            candidate = rawPayload;
+                && isActiveDriverPhone(message.from())
+                && isUuid(rawPayload)) {
+            candidate = rawPayload.trim();
         }
         if (candidate == null) {
             return Optional.empty();
@@ -335,6 +342,15 @@ public class ConversationOrchestrator {
                     "[Driver Flow] Invalid boarding action payload. phone={}, payload={}",
                     message.from(), rawPayload);
             return Optional.empty();
+        }
+    }
+
+    private boolean isUuid(String value) {
+        try {
+            UUID.fromString(value.trim());
+            return true;
+        } catch (IllegalArgumentException exception) {
+            return false;
         }
     }
 

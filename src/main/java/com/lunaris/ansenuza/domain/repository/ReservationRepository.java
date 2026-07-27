@@ -177,6 +177,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
            SELECT r FROM Reservation r
            WHERE r.driver.id = :driverId
+           AND (r.status IS NULL OR r.status <> 'CANCELLED')
+           ORDER BY r.travelDate ASC, r.routeSequence ASC NULLS LAST,
+                    r.departureSchedule ASC
+           """)
+    List<Reservation> findAllAssignedByDriverId(@Param("driverId") UUID driverId);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.driver.id = :driverId
            AND r.travelDate = :travelDate
            AND r.status <> 'CANCELLED'
            ORDER BY r.routeSequence ASC NULLS LAST
