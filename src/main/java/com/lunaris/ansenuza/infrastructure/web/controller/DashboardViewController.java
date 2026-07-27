@@ -36,7 +36,7 @@ public class DashboardViewController {
     /**
      * 📊 Vista del Dashboard Principal
      */
-    @GetMapping("/dashboard")
+    @GetMapping({"/dashboard", "/admin/dashboard"})
     public String dashboard(Model model) {
         LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         DailyOperationSummaryResponse summary = useCase.execute(today);

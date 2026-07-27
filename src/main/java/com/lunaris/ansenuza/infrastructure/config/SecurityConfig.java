@@ -8,6 +8,7 @@ import java.util.Set;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -29,23 +30,20 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
+    @Order(1)
+    public SecurityFilterChain apiSecurityFilterChain(
             HttpSecurity http,
             PassengerBearerAuthenticationFilter passengerBearerAuthenticationFilter)
             throws Exception {
         http
+                .securityMatcher("/api/**", "/webhook/**", "/whatsapp/**", "/actuator/**")
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.ignoringRequestMatchers(
-                        "/api/**",
-                        "/actuator/**",
-                        "/webhook/**",
-                        "/whatsapp/**"))
+                .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
-                                "/login",
                                 "/actuator/**",
                                 "/api/schedules/**",
                                 "/api/reservations/**",
@@ -56,54 +54,75 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/passengers/me")
                         .hasRole("PASSENGER")
-                        // Integraciones externas y documentación pública.
+                        .requestMatchers("/api/configurations/**")
+                        .hasRole(Role.ADMIN.name())
+                        .requestMatchers(HttpMethod.POST, "/api/driver/confirm-assistance")
+                        .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
+                        .requestMatchers("/api/agenda/**")
+                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
+                        .anyRequest().authenticated())
+                .addFilterBefore(
+                        passengerBearerAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class)
+                .httpBasic(basic -> {});
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/login",
+                                "/css/**",
+                                "/js/**",
+                                "/images/**",
+                                "/webjars/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/api-docs/**",
                                 "/v3/api-docs/**")
                         .permitAll()
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**")
-                        .permitAll()
-
-                        // Administración completa y configuración sensible.
-                        .requestMatchers("/admin/usuarios/**", "/admin/configuraciones/**", "/api/configurations/**", "/choferes/**", "/drivers/**", "/vehicles/**")
+                        .requestMatchers(
+                                "/admin/usuarios/**",
+                                "/admin/configuraciones/**",
+                                "/choferes/**",
+                                "/drivers/**",
+                                "/vehicles/**")
                         .hasRole(Role.ADMIN.name())
-                        .requestMatchers("/admin/bot/toggle-bot", "/admin/bot/toggle-jornada", "/admin/bot/configurar-jornada")
+                        .requestMatchers(
+                                "/admin/bot/toggle-bot",
+                                "/admin/bot/toggle-jornada",
+                                "/admin/bot/configurar-jornada")
                         .hasRole(Role.ADMIN.name())
-
-                        // Facturas, saldos y comprobantes de facturación.
                         .requestMatchers("/facturacion/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.FACTURACION.name())
-
-                        // Hoja de ruta y confirmación de asistencia del chofer.
                         .requestMatchers(HttpMethod.GET, "/admin/hoja-ruta", "/hoja-ruta")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
-                        .requestMatchers(HttpMethod.POST, "/api/driver/confirm-assistance")
-                        .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
-                        // Operación diaria: viajes, agenda, reservas, chat y rutas.
-                        .requestMatchers("/agenda/**", "/api/agenda/**", "/dashboard/**", "/reservas-panel/**", "/reservations/**", "/admin/reservations/**", "/admin/bot/monitor/**", "/admin/chat/**", "/chat-room", "/bot-monitor", "/passengers/**", "/localities", "/fares")
+                        .requestMatchers(
+                                "/admin/dashboard",
+                                "/dashboard/**",
+                                "/agenda/**",
+                                "/reservas-panel/**",
+                                "/reservations/**",
+                                "/admin/reservations/**",
+                                "/admin/bot/monitor/**",
+                                "/admin/chat/**",
+                                "/chat-room",
+                                "/bot-monitor",
+                                "/passengers/**",
+                                "/localities",
+                                "/fares")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
-
+                        .requestMatchers("/admin/**").hasRole(Role.ADMIN.name())
                         .anyRequest().authenticated())
-                .addFilterBefore(
-                        passengerBearerAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class)
-                .httpBasic(basic -> {})
                 .formLogin(login -> login
-                        .successHandler((request, response, authentication) -> {
-                            boolean admin = authentication.getAuthorities().stream()
-                                    .anyMatch(authority -> authority.getAuthority()
-                                            .equals("ROLE_" + Role.ADMIN.name()));
-                            boolean billing = authentication.getAuthorities().stream()
-                                    .anyMatch(authority -> authority.getAuthority()
-                                            .equals("ROLE_" + Role.FACTURACION.name()));
-                            boolean driver = authentication.getAuthorities().stream()
-                                    .anyMatch(authority -> authority.getAuthority()
-                                            .equals("ROLE_" + Role.CHOFER.name()));
-                            response.sendRedirect(admin ? "/dashboard" : billing ? "/facturacion"
-                                    : driver ? "/admin/hoja-ruta" : "/dashboard");
-                        })
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/admin/dashboard", true)
                         .permitAll())
                 .logout(logout -> logout
                         .logoutUrl("/logout")

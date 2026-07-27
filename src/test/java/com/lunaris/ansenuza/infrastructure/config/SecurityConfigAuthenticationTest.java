@@ -48,6 +48,7 @@ class SecurityConfigAuthenticationTest {
         var encoder = new SecurityConfig().passwordEncoder();
 
         assertInstanceOf(BCryptPasswordEncoder.class, encoder);
+        assertTrue(ADMIN_HASH.startsWith("$2a$10$"));
         assertTrue(encoder.matches("verification-password",
                 encoder.encode("verification-password")));
         assertFalse(encoder.matches("incorrect-password",
