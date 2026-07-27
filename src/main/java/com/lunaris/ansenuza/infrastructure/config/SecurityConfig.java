@@ -162,7 +162,6 @@ public class SecurityConfig {
     public ApplicationRunner bootstrapAccounts(AccountRepository accountRepository,
             PasswordEncoder passwordEncoder) {
         return args -> {
-            createIfMissing(accountRepository, passwordEncoder, "ignacio", "Ignacio", "Ignacio2026!", Role.ADMIN);
             createIfMissing(accountRepository, passwordEncoder, "martin", "Martín", "MartinLunaris2026", Role.OPERADOR);
         };
     }
