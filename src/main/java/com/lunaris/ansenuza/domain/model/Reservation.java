@@ -89,6 +89,10 @@ public class Reservation {
     @Column(name = "promotion_id")
     private UUID promotionId;
 
+    @ManyToOne
+    @JoinColumn(name = "promotion_id", insertable = false, updatable = false)
+    private Promotion promotion;
+
     @Column(name = "promotion_discount_percentage")
     private Integer promotionDiscountPercentage;
 
@@ -148,6 +152,9 @@ public class Reservation {
     @PrePersist
     @PreUpdate
     void prePersist() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
         if (travelStatus == null) {
             travelStatus = TravelStatus.PENDING;
         }
