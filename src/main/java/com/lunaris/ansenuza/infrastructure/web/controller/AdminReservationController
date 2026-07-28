@@ -76,7 +76,9 @@ public class ReservationViewController {
             log.info("[Tándem] Buscando tramos asociados para el pasajero: {}", currentRes.getPassenger().getLastName());
 
             // Filtramos todos los viajes del pasajero que requieran verificación de pago
-            List<Reservation> passengerReservations = reservationRepository.findByPassengerOrderByTravelDateAsc(currentRes.getPassenger());
+            List<Reservation> passengerReservations = reservationRepository
+                    .findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(
+                            currentRes.getPassenger());
             
             List<Reservation> toVerify = passengerReservations.stream()
                     .filter(r -> "PAYMENT_RECEIVED".equals(r.getStatus()) || "PENDING_PAYMENT".equals(r.getStatus()))

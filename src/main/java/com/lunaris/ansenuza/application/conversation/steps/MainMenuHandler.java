@@ -70,17 +70,29 @@ public class MainMenuHandler implements ConversationStepHandler {
                 return;
             }
 
-            StringBuilder listado = new StringBuilder("📋 *TUS PRÓXIMOS VIAJES EN LUNARIS:*\\n\\n");
+            StringBuilder listado = new StringBuilder(
+                    "📋 *TUS RESERVAS EN LUNARIS*\n"
+                            + "_Ordenadas por fecha y horario_\n\n");
             LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
             for (int i = 0; i < viajesActivos.size(); i++) {
                 Reservation r = viajesActivos.get(i);
-                String fechaStr = r.getTravelDate().equals(fechaCentinela) ? "🛑 VUELTA ABIERTA (Pendiente confirmar)" : r.getTravelDate().format(dateFormatter);
-                listado.append(String.format("🔹 *Viaje #%d*\\n", i + 1));
-                listado.append(String.format("🆔 Código: *%s*\\n", r.getReservationCode()));
-                listado.append(String.format("📅 Fecha: %s\\n", fechaStr));
-                listado.append(String.format("📍 Ruta: %s ➡️ %s\\n", r.getPickupLocality(), r.getDestination()));
-                listado.append(String.format("💵 Estado: %s\\n\\n", "CONFIRMED".equals(r.getStatus()) ? "✅ Confirmado" : "⏳ Pago Pendiente"));
+                String fechaStr = fechaCentinela.equals(r.getTravelDate())
+                        ? "🛑 VUELTA ABIERTA (pendiente de confirmación)"
+                        : r.getTravelDate() != null
+                                ? r.getTravelDate().format(dateFormatter)
+                                : "A confirmar";
+                String horario = r.getDepartureSchedule() == null
+                                || r.getDepartureSchedule().isBlank()
+                        ? "A confirmar" : r.getDepartureSchedule();
+                listado.append(String.format("*%d. %s*%n", i + 1, fechaStr));
+                listado.append(String.format("🕐 Horario: %s%n", horario));
+                listado.append(String.format("📍 %s ➡️ %s%n",
+                        r.getPickupLocality(), r.getDestination()));
+                listado.append(String.format("🆔 Código: *%s*%n", r.getReservationCode()));
+                listado.append(String.format("Estado: %s%n%n",
+                        "CONFIRMED".equals(r.getStatus())
+                                ? "✅ Confirmado" : "⏳ Pago pendiente"));
             }
             listado.append("Escribí *Menú* para volver a la pantalla de opciones.");
             messaging.sendText(phoneNumber, listado.toString());

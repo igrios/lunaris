@@ -44,7 +44,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     List<Reservation> findReservationGroupForUpdate(@Param("groupCode") String groupCode);
 
     // 📱 3. BUSCADOR POR TELÉFONO: Permite a la consulta del Bot (Opción 4) traer el historial por nro de celular
-    @Query("SELECT r FROM Reservation r WHERE r.passenger.phone = :phone")
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.passenger.phone = :phone
+           ORDER BY r.travelDate ASC, r.departureSchedule ASC, r.createdAt DESC
+           """)
     List<Reservation> findByPassengerPhone(@Param("phone") String phone);
 
     // 🤖 BUSCADOR PARA BOT: Trae las reservas activas confirmadas de un pasajero para poder listar en botones
@@ -64,7 +68,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     List<Reservation> findByTravelDateAndStatusNot(LocalDate travelDate, String status);
 
-    List<Reservation> findByPassengerOrderByTravelDateAsc(Passenger passenger);
+    List<Reservation> findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(
+            Passenger passenger);
 
     List<Reservation> findByPassenger(Passenger passenger);
 

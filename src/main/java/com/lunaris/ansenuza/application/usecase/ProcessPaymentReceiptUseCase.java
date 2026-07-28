@@ -47,7 +47,9 @@ public class ProcessPaymentReceiptUseCase {
         Optional<Passenger> passengerOpt = passengerRepository.findByPhone(phoneNumber);
         if (passengerOpt.isPresent()) {
             List<Reservation> activeReservations =
-                    reservationRepository.findByPassengerOrderByTravelDateAsc(passengerOpt.get());
+                    reservationRepository
+                            .findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(
+                                    passengerOpt.get());
 
             // 🎯 FILTRO INTELIGENTE: Busca la primera reserva cronológica esperando pago estricto
             Optional<Reservation> pendingReservation = activeReservations.stream()

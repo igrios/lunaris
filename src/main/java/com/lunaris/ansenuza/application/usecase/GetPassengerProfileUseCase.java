@@ -25,7 +25,10 @@ public class GetPassengerProfileUseCase {
         var passenger = passengerRepository.findByPhone(phone)
                 .orElseThrow(() -> new DomainValidationException("El pasajero autenticado no existe."));
         List<ReservationHistory> history =
-                reservationRepository.findByPassengerOrderByTravelDateAsc(passenger).stream()
+                reservationRepository
+                        .findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(
+                                passenger)
+                        .stream()
                         .map(reservation -> new ReservationHistory(
                                 reservation.getId(),
                                 reservation.getReservationCode(),
