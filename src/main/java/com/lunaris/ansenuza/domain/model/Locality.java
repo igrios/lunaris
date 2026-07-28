@@ -15,7 +15,7 @@ import java.util.UUID;
 public class Locality {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(nullable = false, unique = true)
@@ -28,4 +28,11 @@ public class Locality {
     // ⏱️ Minutos de viaje acumulados desde el inicio del recorrido en Morteros
     @Column(name = "minutes_from_origin")
     private Integer minutesFromOrigin;
+
+    @PrePersist
+    void prePersist() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+    }
 }
