@@ -40,11 +40,26 @@ public class DriverApplication {
     @Column(nullable = false)
     private String phone;
 
+    @Column(nullable = false)
+    private String locality;
+
     @Column(name = "vehicle_model", nullable = false)
     private String vehicleModel;
 
     @Column(name = "license_plate", nullable = false)
     private String licensePlate;
+
+    @Column(name = "wants_direct_contact", nullable = false)
+    private boolean wantsDirectContact;
+
+    @Column(name = "insurance_file_url", length = 500)
+    private String insuranceFileUrl;
+
+    @Column(name = "green_card_file_url", length = 500)
+    private String greenCardFileUrl;
+
+    @Column(name = "criminal_record_file_url", length = 500)
+    private String criminalRecordFileUrl;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)

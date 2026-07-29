@@ -45,13 +45,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/actuator/**",
+                                "/api/public/**",
                                 "/api/schedules/**",
                                 "/api/reservations/**",
                                 "/api/drivers/apply",
+                                "/api/drivers/applications",
                                 "/api/auth/**",
                                 "/webhook/**",
                                 "/whatsapp/**")
                         .permitAll()
+                        .requestMatchers("/api/admin/**")
+                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
                         .requestMatchers(HttpMethod.GET, "/api/passengers/me")
                         .hasRole("PASSENGER")
                         .requestMatchers("/api/configurations/**")

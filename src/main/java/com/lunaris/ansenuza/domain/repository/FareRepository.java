@@ -17,4 +17,6 @@ public interface FareRepository extends JpaRepository<Fare, UUID> {
 
     // 🌟 2. Busca la tarifa por nombre de forma segura ignorando mayúsculas/minúsculas
     Optional<Fare> findByLocalityNameIgnoreCase(String localityName);
+
+    Optional<Fare> findFirstByLocalityNameIgnoreCase(String localityName);
 }
