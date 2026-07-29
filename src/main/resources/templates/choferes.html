@@ -27,31 +27,57 @@
       <p class="text-muted mb-0">Cargá, editá y controlá el estado de tu flota de conductores.</p>
     </div>
 
+    <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+      <span th:text="${successMessage}"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+
     <!-- FORMULARIO DE ALTA / EDICIÓN -->
     <div class="card shadow-sm form-card mb-4">
       <div class="card-body p-4">
         <h5 class="fw-bold mb-3" id="formTitulo"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Nuevo Chofer</h5>
-        <form th:action="@{/choferes/guardar}" method="post" class="row g-3 align-items-end">
-          <input type="hidden" name="id" id="chofer-id">
+        <form th:action="@{/choferes/guardar}" th:object="${driver}" method="post"
+          class="row g-3 align-items-end">
+          <input type="hidden" th:field="*{id}" id="chofer-id">
+          <input th:if="${_csrf != null}" type="hidden"
+            th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+          <div class="col-12" th:if="${#fields.hasAnyErrors()}">
+            <div class="alert alert-danger mb-0" role="alert">
+              <strong>No se pudo guardar el chofer.</strong>
+              <ul class="mb-0 mt-2">
+                <li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li>
+              </ul>
+            </div>
+          </div>
 
           <div class="col-md-4">
-            <label class="form-label fw-semibold">Nombre y Apellido</label>
-            <input type="text" name="fullName" id="chofer-nombre" class="form-control" placeholder="Ej: Martín Cuestaz" required>
+            <label for="chofer-nombre" class="form-label fw-semibold">Nombre y Apellido</label>
+            <input type="text" th:field="*{fullName}" id="chofer-nombre"
+              class="form-control" th:classappend="${#fields.hasErrors('fullName')} ? 'is-invalid'"
+              placeholder="Ej: Martín Cuestaz" required>
+            <div class="invalid-feedback" th:errors="*{fullName}"></div>
           </div>
 
           <div class="col-md-3">
-            <label class="form-label fw-semibold">Teléfono (WhatsApp)</label>
-            <input type="text" name="phone" id="chofer-telefono" class="form-control" placeholder="Ej: 543564000000" required>
+            <label for="chofer-telefono" class="form-label fw-semibold">Teléfono (WhatsApp)</label>
+            <input type="text" th:field="*{phone}" id="chofer-telefono"
+              class="form-control" th:classappend="${#fields.hasErrors('phone')} ? 'is-invalid'"
+              placeholder="Ej: 543564000000" required>
+            <div class="invalid-feedback" th:errors="*{phone}"></div>
           </div>
 
           <div class="col-md-2">
-            <label class="form-label fw-semibold">Ranking</label>
-            <input type="number" name="ranking" id="chofer-ranking" class="form-control" min="1" max="5" placeholder="1-5">
+            <label for="chofer-ranking" class="form-label fw-semibold">Ranking</label>
+            <input type="number" th:field="*{ranking}" id="chofer-ranking"
+              class="form-control" th:classappend="${#fields.hasErrors('ranking')} ? 'is-invalid'"
+              min="1" max="5" placeholder="1-5">
+            <div class="invalid-feedback" th:errors="*{ranking}"></div>
           </div>
 
           <div class="col-md-1">
             <div class="form-check mt-4 pt-1">
-              <input class="form-check-input" type="checkbox" name="active" value="true" id="chofer-activo" checked>
+              <input class="form-check-input" type="checkbox" th:field="*{active}" id="chofer-activo">
               <label class="form-check-label fw-semibold" for="chofer-activo">Activo</label>
             </div>
           </div>

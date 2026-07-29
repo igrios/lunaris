@@ -1,16 +1,30 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import java.beans.PropertyEditorSupport;
 import java.util.UUID;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.InitBinder;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 
 /**
  * ABM web (Alta/Baja/Modificación) de choferes de la flota.
@@ -22,38 +36,86 @@ import lombok.RequiredArgsConstructor;
 @Controller
 @RequestMapping("/choferes")
 @RequiredArgsConstructor
+@Slf4j
 public class DriverViewController {
 
     private final DriverRepository driverRepository;
 
+    @InitBinder("driver")
+    void initDriverBinder(WebDataBinder binder) {
+        binder.registerCustomEditor(String.class, new StringTrimmerEditor(true));
+        binder.registerCustomEditor(UUID.class, new PropertyEditorSupport() {
+            @Override
+            public void setAsText(String text) {
+                setValue(text == null || text.isBlank() ? null : UUID.fromString(text.trim()));
+            }
+        });
+    }
+
     @GetMapping
     public String panel(Model model) {
-        model.addAttribute("choferes", driverRepository.findAll());
+        preparePanel(model);
+        if (!model.containsAttribute("driver")) {
+            model.addAttribute("driver", new DriverForm());
+        }
         return "choferes";
     }
 
     /** Alta (id vacío) o modificación (id presente) de un chofer. */
     @PostMapping("/guardar")
-    public String guardar(@RequestParam(required = false) String id,
-            @RequestParam String fullName,
-            @RequestParam String phone,
-            @RequestParam(required = false) Integer ranking,
-            @RequestParam(defaultValue = "false") boolean active) {
+    public String guardar(
+            @Valid @ModelAttribute("driver") DriverForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+        if (bindingResult.hasErrors()) {
+            logBindingErrors(bindingResult);
+            preparePanel(model);
+            return "choferes";
+        }
 
-        Driver driver = (id != null && !id.isBlank())
-                ? driverRepository.findById(UUID.fromString(id)).orElseGet(Driver::new)
-                : new Driver();
+        Driver driver;
+        if (form.getId() == null) {
+            driver = new Driver();
+        } else {
+            driver = driverRepository.findById(form.getId()).orElse(null);
+            if (driver == null) {
+                bindingResult.rejectValue(
+                        "id", "driver.notFound", "El chofer seleccionado ya no existe.");
+                logBindingErrors(bindingResult);
+                preparePanel(model);
+                return "choferes";
+            }
+        }
 
-        driver.setFullName(fullName.trim());
-        driver.setPhone(phone.trim());
-        driver.setRanking(ranking);
-        driver.setActive(active);
+        driver.setFullName(form.getFullName());
+        driver.setPhone(form.getPhone());
+        driver.setRanking(form.getRanking());
+        driver.setActive(form.isActive());
         if (driver.getId() == null) {
             driver.setId(UUID.randomUUID());
         }
-        driverRepository.save(driver);
+        driverRepository.saveAndFlush(driver);
 
+        redirectAttributes.addFlashAttribute(
+                "successMessage",
+                form.getId() == null
+                        ? "Chofer creado correctamente."
+                        : "Chofer actualizado correctamente.");
         return "redirect:/choferes";
+    }
+
+    private void preparePanel(Model model) {
+        model.addAttribute("choferes", driverRepository.findAll());
+    }
+
+    private void logBindingErrors(BindingResult bindingResult) {
+        bindingResult.getFieldErrors().forEach(error -> log.warn(
+                "[Choferes] Error de binding. field={}, rejectedValue={}, message={}",
+                error.getField(), error.getRejectedValue(), error.getDefaultMessage()));
+        bindingResult.getGlobalErrors().forEach(error -> log.warn(
+                "[Choferes] Error de binding global. object={}, message={}",
+                error.getObjectName(), error.getDefaultMessage()));
     }
 
     /** Baja/alta lógica: alterna el estado activo del chofer sin borrarlo. */
@@ -71,5 +133,26 @@ public class DriverViewController {
     public String eliminar(@PathVariable UUID id) {
         driverRepository.deleteById(id);
         return "redirect:/choferes";
+    }
+
+    @Getter
+    @Setter
+    public static class DriverForm {
+
+        private UUID id;
+
+        @NotBlank(message = "El nombre y apellido son obligatorios.")
+        @Size(max = 150, message = "El nombre no puede superar los 150 caracteres.")
+        private String fullName;
+
+        @NotBlank(message = "El teléfono es obligatorio.")
+        @Size(max = 30, message = "El teléfono no puede superar los 30 caracteres.")
+        private String phone;
+
+        @Min(value = 1, message = "El ranking mínimo es 1.")
+        @Max(value = 5, message = "El ranking máximo es 5.")
+        private Integer ranking;
+
+        private boolean active = true;
     }
 }

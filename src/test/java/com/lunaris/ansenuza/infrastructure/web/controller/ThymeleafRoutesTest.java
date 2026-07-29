@@ -22,4 +22,15 @@ class ThymeleafRoutesTest {
         assertTrue(Files.isRegularFile(
                 Path.of("src/main/resources/templates/passengers.html")));
     }
+
+    @Test
+    void driverFormUsesBoundObjectActionAndCsrfToken() throws Exception {
+        String template = Files.readString(
+                Path.of("src/main/resources/templates/choferes.html"));
+
+        assertTrue(template.contains("th:action=\"@{/choferes/guardar}\""));
+        assertTrue(template.contains("th:object=\"${driver}\""));
+        assertTrue(template.contains("th:name=\"${_csrf.parameterName}\""));
+        assertTrue(template.contains("th:value=\"${_csrf.token}\""));
+    }
 }
