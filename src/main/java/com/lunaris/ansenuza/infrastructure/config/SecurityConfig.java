@@ -48,8 +48,7 @@ public class SecurityConfig {
                                 "/api/public/**",
                                 "/api/schedules/**",
                                 "/api/reservations/**",
-                                "/api/drivers/apply",
-                                "/api/drivers/applications",
+                                "/api/drivers/**",
                                 "/api/auth/**",
                                 "/webhook/**",
                                 "/whatsapp/**")
@@ -140,8 +139,10 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of(
-                "https://*.vercel.app",
+                "https://www.lunarisansenuza.com.ar",
                 "https://lunarisansenuza.com.ar",
+                "https://lunaris-web-reload.vercel.app",
+                "https://*.vercel.app",
                 "http://localhost:5173",
                 "http://localhost:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));

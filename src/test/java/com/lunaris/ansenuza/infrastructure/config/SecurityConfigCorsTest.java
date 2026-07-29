@@ -15,10 +15,10 @@ class SecurityConfigCorsTest {
         var configuration = source.getCorsConfiguration(new MockHttpServletRequest());
 
         assertTrue(configuration.getAllowedOriginPatterns().containsAll(List.of(
-                "https://*.vercel.app",
+                "https://www.lunarisansenuza.com.ar",
                 "https://lunarisansenuza.com.ar",
-                "http://localhost:5173",
-                "http://localhost:3000")));
+                "https://lunaris-web-reload.vercel.app",
+                "http://localhost:5173")));
         assertTrue(configuration.getAllowedMethods().containsAll(
                 List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")));
         assertEquals(List.of("*"), configuration.getAllowedHeaders());
