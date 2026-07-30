@@ -34,6 +34,12 @@ class HojaRutaTemplateTest {
             assertTrue(template.contains("r.passengerPhone || (r.passenger ? r.passenger.phone : '')"));
             assertTrue(template.contains("routeMap.invalidateSize()"));
             assertTrue(template.contains("drawFallbackPolyline(uniqueCoordinates)"));
+            assertTrue(template.contains(
+                    "`${waypoint.address || ''}, ${waypoint.locality || 'Ansenuza'}, Córdoba, Argentina`"));
+            assertTrue(template.contains("encodeURIComponent(fullAddress(waypoint))"));
+            assertTrue(template.contains("https://www.google.com/maps/dir/?${parameters.toString()}"));
+            assertTrue(template.contains("pickupLocations.slice(1).join('|')"));
+            assertTrue(template.contains("#uris.escapeQueryParam(mapQuery)"));
         }
     }
 }

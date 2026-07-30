@@ -106,6 +106,20 @@
                             <td>
                                 <span th:if="${reserva.pickupLocality == 'Córdoba'}">🏙️ </span>
                                 <span th:text="${reserva.pickupLocality}">Morteros</span>
+                                <small class="d-block mt-1"
+                                       th:with="mapQuery=${(reserva.pickupAddress != null && !reserva.pickupAddress.isBlank() ? reserva.pickupAddress : reserva.pickupLocality)
+                                           + ', ' + (reserva.pickupLocality != null && !reserva.pickupLocality.isBlank() ? reserva.pickupLocality : 'Ansenuza')
+                                           + ', Córdoba, Argentina'}">
+                                    <a class="link-primary"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       th:href="${'https://www.google.com/maps/search/?api=1&amp;query=' + #uris.escapeQueryParam(mapQuery)}"
+                                       th:text="${reserva.pickupAddress != null && !reserva.pickupAddress.isBlank()
+                                           ? reserva.pickupAddress
+                                           : 'Ver ubicación en Google Maps'}">
+                                        Ver dirección
+                                    </a>
+                                </small>
                             </td>
                             <td th:text="${reserva.destination}">Córdoba</td>
                             <td th:text="${reserva.passengerCount}" class="text-center fw-bold">1</td>
@@ -139,6 +153,15 @@
                 </button>
             </div>
             <div class="card-body p-0">
+                <div class="p-3 border-bottom bg-light">
+                    <a id="google-maps-route-button"
+                       class="btn btn-success btn-lg fw-bold"
+                       href="https://www.google.com/maps/dir/?api=1"
+                       target="_blank"
+                       rel="noopener noreferrer">
+                        📍 Abrir en Google Maps / Waze
+                    </a>
+                </div>
                 <div id="route-map" role="region" aria-label="Mapa de la hoja de ruta"></div>
                 <div id="route-map-status" class="small text-muted px-3 py-2" aria-live="polite"></div>
             </div>
@@ -253,9 +276,34 @@
         }
 
         function fullAddress(waypoint) {
-            return [waypoint.address, waypoint.locality, 'Córdoba', 'Argentina']
-                .filter(Boolean)
-                .join(', ');
+            return `${waypoint.address || ''}, ${waypoint.locality || 'Ansenuza'}, Córdoba, Argentina`;
+        }
+
+        function buildGoogleMapsDirectionsUrl() {
+            if (!waypoints.length) return null;
+
+            const pickupLocations = waypoints.map(fullAddress);
+            const parameters = new URLSearchParams({
+                api: '1',
+                origin: pickupLocations[0],
+                destination: waypoints.at(-1).destination || 'Córdoba'
+            });
+            if (pickupLocations.length > 1) {
+                parameters.set('waypoints', pickupLocations.slice(1).join('|'));
+            }
+            return `https://www.google.com/maps/dir/?${parameters.toString()}`;
+        }
+
+        function configureGoogleMapsButton() {
+            const button = document.getElementById('google-maps-route-button');
+            const directionsUrl = buildGoogleMapsDirectionsUrl();
+            if (directionsUrl) {
+                button.href = directionsUrl;
+                return;
+            }
+            button.classList.add('disabled');
+            button.setAttribute('aria-disabled', 'true');
+            button.removeAttribute('href');
         }
 
         async function geocodeWaypoint(waypoint) {
@@ -354,6 +402,7 @@
 
         document.getElementById('show-route-button').addEventListener('click', recalculateRoute);
         document.addEventListener('DOMContentLoaded', () => {
+            configureGoogleMapsButton();
             initRouteMap();
             if (waypoints.length) recalculateRoute();
         });
