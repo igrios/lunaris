@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.application.usecase;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.dashboard.DailyOperationSummaryResponse;
@@ -14,25 +15,24 @@ public class GetDailyOperationSummaryUseCase {
 
     private final ReservationRepository reservationRepository;
 
+    @Transactional(readOnly = true)
     public DailyOperationSummaryResponse execute(LocalDate travelDate) {
         List<Reservation> reservations = reservationRepository.findByTravelDate(travelDate);
 
-        List<Reservation> activeReservations = reservations.stream()
+        List<Reservation> dailyReservations = reservations.stream()
                 .filter(r -> r != null)
-                .filter(r -> r.getStatus() == null || !"CANCELLED".equalsIgnoreCase(r.getStatus()))
-                .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
                 .toList();
 
-        long totalReservations = activeReservations.size();
+        long totalReservations = dailyReservations.size();
         
-        long paidReservations = activeReservations.stream()
+        long paidReservations = dailyReservations.stream()
                 .filter(r -> Boolean.TRUE.equals(r.getPaymentVerified()))
                 .count();
 
         long pendingPayments = totalReservations - paidReservations;
 
         // 👥 Sumamos todos los asientos físicos reales (Titular + Acompañantes)
-        long totalPassengers = activeReservations.stream()
+        long totalPassengers = dailyReservations.stream()
                 .mapToLong(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
                 .sum();
 

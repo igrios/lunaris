@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.dto;
 
 import java.time.LocalDate;
 import java.util.List;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -32,4 +33,5 @@ public class ReservationCreateDTO {
     // Extras
     private Boolean paymentVerified;
     private String notes;
+    private ReservationSource source;
 }

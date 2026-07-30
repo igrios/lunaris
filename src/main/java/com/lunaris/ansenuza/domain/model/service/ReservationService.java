@@ -126,6 +126,7 @@ public class ReservationService {
             returnReservation.setCompanionNames(mainReservation.getCompanionNames());
             returnReservation.setPaymentVerified(mainReservation.getPaymentVerified());
             returnReservation.setStatus(mainReservation.getStatus());
+            returnReservation.setSource(mainReservation.getSource());
             returnReservation.setRoundTrip(true);
             returnReservation.setReservationCode(codigoBase + "-VUELTA");
             returnReservation.setPaymentConfirmedAt(mainReservation.getPaymentConfirmedAt());

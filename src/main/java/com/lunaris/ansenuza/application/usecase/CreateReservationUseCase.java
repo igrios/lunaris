@@ -9,6 +9,7 @@ import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
@@ -66,6 +67,7 @@ public class CreateReservationUseCase {
                 .companionNames(request.companionNames())
                 .paymentVerified(safePaymentVerified)
                 .status(initialStatus)
+                .source(request.source() != null ? request.source() : ReservationSource.WEB)
                 .amount(computedAmount) // 🌟 Inyectamos el monto calculado automáticamente
                 .notes(request.notes())
                 .departureSchedule(departureSchedule)

@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -10,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.lunaris.ansenuza.application.usecase.ReservationDriverAssignmentService;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
+import java.time.LocalDate;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import java.util.Optional;
 import java.util.List;
@@ -100,6 +103,7 @@ class AdminReservationApiContractTest {
                 .id(reservationId)
                 .driver(driver)
                 .status("CONFIRMED")
+                .source(ReservationSource.WHATSAPP)
                 .travelStatus(Reservation.TravelStatus.PENDING)
                 .build();
         when(reservationRepository.findAll()).thenReturn(List.of(reservation));
@@ -108,8 +112,37 @@ class AdminReservationApiContractTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(reservationId.toString()))
                 .andExpect(jsonPath("$[0].status").value("CONFIRMED"))
+                .andExpect(jsonPath("$[0].source").value("WHATSAPP"))
                 .andExpect(jsonPath("$[0].travelStatus").value("PENDING"))
                 .andExpect(jsonPath("$[0].driverId").value(driverId.toString()))
                 .andExpect(jsonPath("$[0].driverName").value("Ana Chofer"));
+    }
+
+    @Test
+    void returnsEveryReservationForRequestedTravelDateWithoutStatusOrSourceFiltering()
+            throws Exception {
+        LocalDate travelDate = LocalDate.of(2026, 8, 10);
+        Reservation pendingWeb = Reservation.builder()
+                .id(UUID.randomUUID())
+                .travelDate(travelDate)
+                .status("PENDING_PAYMENT")
+                .source(ReservationSource.WEB)
+                .build();
+        Reservation confirmedManual = Reservation.builder()
+                .id(UUID.randomUUID())
+                .travelDate(travelDate)
+                .status("CONFIRMED")
+                .source(ReservationSource.MANUAL)
+                .build();
+        when(reservationRepository.findByTravelDate(travelDate))
+                .thenReturn(List.of(pendingWeb, confirmedManual));
+
+        mockMvc.perform(get("/api/admin/reservations").param("travelDate", travelDate.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].source").value("WEB"))
+                .andExpect(jsonPath("$[1].source").value("MANUAL"));
+
+        verify(reservationRepository).findByTravelDate(travelDate);
     }
 }

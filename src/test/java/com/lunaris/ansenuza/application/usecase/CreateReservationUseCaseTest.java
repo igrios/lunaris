@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.BusinessParameterRepository;
@@ -91,7 +92,8 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
                     false,                                                                                                                                
                     "nota",                                                                                                                               
                     2,                                                                                                                                    
-                    "Ana, Luis"                                                                                                                           
+                    "Ana, Luis",
+                    null
             );                                                                                                                                            
                                                                                                                                                           
             Reservation result = useCase.execute(request);                                                                                                
@@ -101,6 +103,7 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertEquals(new BigDecimal("116000.00"), persisted.getAmount());                                                                             
             assertEquals(2, persisted.getPassengerCount());                                                                                               
             assertEquals("PENDING_PAYMENT", persisted.getStatus());                                                                                       
+            assertEquals(ReservationSource.WEB, persisted.getSource());
             assertSame(passenger, persisted.getPassenger());                                                                                              
         }                                                                                                                                                 
     }

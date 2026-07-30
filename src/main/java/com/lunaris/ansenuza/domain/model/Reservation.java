@@ -108,6 +108,11 @@ public class Reservation {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
+    @Column(name = "source", nullable = false, length = 20)
+    private ReservationSource source = ReservationSource.MANUAL;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "travel_status", nullable = false, length = 20)
     private TravelStatus travelStatus = TravelStatus.PENDING;
 
@@ -157,6 +162,9 @@ public class Reservation {
         }
         if (travelStatus == null) {
             travelStatus = TravelStatus.PENDING;
+        }
+        if (source == null) {
+            source = ReservationSource.MANUAL;
         }
         if ("CANCELLED".equalsIgnoreCase(status)) {
             routeSequence = null;

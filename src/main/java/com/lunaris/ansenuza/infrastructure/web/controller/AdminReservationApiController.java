@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -29,8 +30,12 @@ public class AdminReservationApiController {
 
     @GetMapping
     @Transactional(readOnly = true)
-    public List<AdminReservationResponse> findAll() {
-        return reservationRepository.findAll().stream()
+    public List<AdminReservationResponse> findAll(
+            @RequestParam(required = false) LocalDate travelDate) {
+        List<Reservation> reservations = travelDate != null
+                ? reservationRepository.findByTravelDate(travelDate)
+                : reservationRepository.findAll();
+        return reservations.stream()
                 .map(AdminReservationResponse::from)
                 .toList();
     }
@@ -81,6 +86,7 @@ public class AdminReservationApiController {
             BigDecimal extraAmount,
             Integer passengerCount,
             String status,
+            String source,
             String travelStatus,
             Boolean paymentVerified,
             UUID passengerId,
@@ -107,6 +113,7 @@ public class AdminReservationApiController {
                     reservation.getExtraAmount(),
                     reservation.getPassengerCount(),
                     reservation.getStatus(),
+                    reservation.getSource() != null ? reservation.getSource().name() : null,
                     reservation.getTravelStatus() != null
                             ? reservation.getTravelStatus().name() : null,
                     reservation.getPaymentVerified(),

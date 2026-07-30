@@ -10,6 +10,7 @@ import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -111,6 +112,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                             appliedPromotion != null ? appliedPromotion.getDiscountPercentage() : null)
                     .notes(notes)
                     .status(freePromotion ? "CONFIRMED" : "PENDING_PAYMENT")
+                    .source(ReservationSource.WHATSAPP)
                     .passengerCount(totalAsientos)
                     .companionNames(session.getCompanionNames())
                     .build();

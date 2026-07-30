@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 import com.lunaris.ansenuza.application.usecase.CreateReservationUseCase;
 import com.lunaris.ansenuza.application.usecase.SubmitDriverApplicationUseCase;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.infrastructure.web.dto.DriverApplicationRequest;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
@@ -49,14 +50,16 @@ public class PublicApiController {
                 .toList();
     }
 
-    @PostMapping("/reservations")
+    @PostMapping({"/reservations", "/public/reservations"})
     public ResponseEntity<Map<String, Object>> createReservation(
             @RequestBody CreateReservationRequest request) {
-        Reservation reservation = createReservationUseCase.execute(request);
+        Reservation reservation = createReservationUseCase.execute(
+                request.withSource(ReservationSource.WEB));
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "id", reservation.getId(),
                 "reservationCode", reservation.getReservationCode(),
-                "status", reservation.getStatus()));
+                "status", reservation.getStatus(),
+                "source", reservation.getSource()));
     }
 
     @PostMapping("/drivers/apply")

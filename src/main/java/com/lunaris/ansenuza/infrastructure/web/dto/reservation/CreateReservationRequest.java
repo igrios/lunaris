@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.dto.reservation;
 
 import java.time.LocalDate;
 import java.util.UUID;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
 
 public record CreateReservationRequest(
     UUID passengerId,
@@ -14,5 +15,22 @@ public record CreateReservationRequest(
     Boolean paymentVerified,
     String notes,
     Integer passengerCount, // 🌟 ¡Asegurate de que este campo esté acá escrito tal cual!
-    String companionNames
-) {}
+    String companionNames,
+    ReservationSource source
+) {
+    public CreateReservationRequest withSource(ReservationSource source) {
+        return new CreateReservationRequest(
+                passengerId,
+                travelDate,
+                pickupLocality,
+                pickupAddress,
+                destination,
+                roundTrip,
+                returnDate,
+                paymentVerified,
+                notes,
+                passengerCount,
+                companionNames,
+                source);
+    }
+}
