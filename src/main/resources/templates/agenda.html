@@ -75,11 +75,6 @@
                                 th:data-bs-target="'#day-details-' + ${day.date}">
                                 Ver Detalles →
                             </button>
-                            <a th:if="${day.driverId != null}"
-                                th:href="@{/hoja-ruta(driverId=${day.driverId},date=${day.date})}"
-                                class="btn btn-info px-4 fw-semibold shadow-sm">
-                                🗺️ Ver Ruta
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -98,6 +93,46 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <div class="modal-body">
+                                <div class="row g-3 mb-4">
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100 bg-light">
+                                            <h6 class="fw-bold">🚐 Flota estimada</h6>
+                                            <p class="mb-1">
+                                                Ocupación:
+                                                <strong th:text="${day.totalPassengers}">0</strong>
+                                                /
+                                                <strong th:text="${day.plannedCapacity}">0</strong>
+                                                asientos planificados
+                                            </p>
+                                            <small class="text-muted">
+                                                <span th:text="${day.estimatedVehicles}">0</span>
+                                                unidad(es) de
+                                                <span th:text="${day.vehicleCapacity}">8</span>
+                                                asientos
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="border rounded p-3 h-100 bg-light">
+                                            <h6 class="fw-bold">💰 Resumen financiero</h6>
+                                            <p class="mb-1">
+                                                Total pasajeros:
+                                                <strong th:text="${day.totalPassengers}">0</strong>
+                                            </p>
+                                            <p class="mb-1">
+                                                Total recaudación:
+                                                <strong th:text="'$ ' + ${day.totalCollected}">$ 0</strong>
+                                            </p>
+                                            <small>
+                                                <span class="text-success"
+                                                    th:text="${day.paidReservations} + ' pagadas'">0 pagadas</span>
+                                                ·
+                                                <span class="text-danger"
+                                                    th:text="${day.pendingPayments} + ' pendientes'">0 pendientes</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table table-sm align-middle">
                                         <thead>
@@ -144,7 +179,7 @@
                                     class="btn btn-success fw-bold dispatch-route-button"
                                     th:data-modal-id="'day-details-' + ${day.date}"
                                     onclick="dispatchDriverRoute(this)">
-                                    🚐 Enviar Hoja de Ruta al Chofer
+                                    🚀 Enviar Ruta al Chofer
                                 </button>
                             </div>
                         </div>

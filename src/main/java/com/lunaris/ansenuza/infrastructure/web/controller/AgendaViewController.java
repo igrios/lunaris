@@ -46,6 +46,9 @@ public class AgendaViewController {
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
 
+    @Value("${lunaris.trips.capacity:8}")
+    private int vehicleCapacity = 8;
+
     // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
     @GetMapping("/agenda")
     public String agenda(
@@ -75,7 +78,30 @@ public class AgendaViewController {
                     int pendingPayments = (int) activeReservations.stream()
                             .filter(r -> !Boolean.TRUE.equals(r.getPaymentVerified())).count();
 
-                    int estimatedVehicles = totalPassengers == 0 ? 0 : (int) Math.ceil(totalPassengers / 4.0);
+                    int safeVehicleCapacity = Math.max(vehicleCapacity, 1);
+                    int estimatedVehicles = totalPassengers == 0
+                            ? 0
+                            : (int) Math.ceil((double) totalPassengers / safeVehicleCapacity);
+                    int paidReservations = (int) activeReservations.stream()
+                            .filter(reservation ->
+                                    Boolean.TRUE.equals(reservation.getPaymentVerified()))
+                            .count();
+                    java.math.BigDecimal totalCollected = activeReservations.stream()
+                            .filter(reservation ->
+                                    Boolean.TRUE.equals(reservation.getPaymentVerified()))
+                            .map(reservation -> {
+                                java.math.BigDecimal amount = reservation.getAmount() == null
+                                        ? java.math.BigDecimal.ZERO
+                                        : reservation.getAmount();
+                                java.math.BigDecimal extra =
+                                        reservation.getExtraAmount() == null
+                                            ? java.math.BigDecimal.ZERO
+                                            : reservation.getExtraAmount();
+                                return amount.add(extra);
+                            })
+                            .reduce(
+                                    java.math.BigDecimal.ZERO,
+                                    java.math.BigDecimal::add);
 
                     UUID assignedDriverId = activeReservations.stream()
                             .map(Reservation::getDriver)
@@ -105,6 +131,10 @@ public class AgendaViewController {
                             totalPassengers,
                             pendingPayments,
                             estimatedVehicles,
+                            safeVehicleCapacity,
+                            estimatedVehicles * safeVehicleCapacity,
+                            totalCollected,
+                            paidReservations,
                             assignedDriverId,
                             reservationRows);
                 }).toList();
