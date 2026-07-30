@@ -92,9 +92,6 @@ public class DriverViewController {
             driver.setPhone(form.getPhone());
             driver.setRanking(parseRanking(form.getRanking()));
             driver.setActive(form.isActive());
-            if (driver.getId() == null) {
-                driver.setId(UUID.randomUUID());
-            }
             driverRepository.saveAndFlush(driver);
         } catch (DataAccessException exception) {
             log.error("[Choferes] Error de persistencia al guardar el chofer: {}",

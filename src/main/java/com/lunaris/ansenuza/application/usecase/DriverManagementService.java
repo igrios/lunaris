@@ -4,7 +4,6 @@ import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +22,6 @@ public class DriverManagementService {
     @Transactional
     public Driver create(String fullName, String phone, Integer ranking, Boolean active) {
         Driver driver = new Driver();
-        driver.setId(UUID.randomUUID());
         mapFields(driver, fullName, phone, ranking, active);
         return repository.saveAndFlush(driver);
     }

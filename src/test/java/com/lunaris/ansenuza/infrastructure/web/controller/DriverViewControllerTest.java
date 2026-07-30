@@ -1,7 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -55,7 +54,7 @@ class DriverViewControllerTest {
         ArgumentCaptor<Driver> captor = ArgumentCaptor.forClass(Driver.class);
         verify(driverRepository).saveAndFlush(captor.capture());
         Driver saved = captor.getValue();
-        assertNotNull(saved.getId());
+        assertEquals(null, saved.getId());
         assertEquals("Ana Pérez", saved.getFullName());
         assertEquals("543512345678", saved.getPhone());
         assertEquals(5, saved.getRanking());
