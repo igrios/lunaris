@@ -223,6 +223,11 @@ public class OnboardPassengerUseCase {
                 next.getPassenger().getPhone(),
                 next.getPassenger().getFirstName(),
                 onboard.getDriver().getFullName());
+        whatsAppService.sendMessage(
+                next.getPassenger().getPhone(),
+                "¡Hola " + next.getPassenger().getFirstName()
+                        + "! La combi ya recogió al pasajero anterior y sos el próximo en subir. "
+                        + "Por favor estate atento/a en la puerta.");
         String locationUrl = onboard.getDriver().getCurrentLocationUrl();
         if (locationUrl != null && !locationUrl.isBlank()) {
             whatsAppService.sendMessage(

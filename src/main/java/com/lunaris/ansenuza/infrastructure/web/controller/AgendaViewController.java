@@ -26,7 +26,9 @@ import com.lunaris.ansenuza.domain.model.service.DriverRouteService;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
+import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
+import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView.ReservationRow;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.RequiredArgsConstructor;
@@ -46,13 +48,16 @@ public class AgendaViewController {
 
     // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
     @GetMapping("/agenda")
-    public String agenda(Model model) {
+    public String agenda(
+            @RequestParam(defaultValue = "7") int days,
+            Model model) {
         LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
+        int displayedDays = Math.max(7, Math.min(days, 56));
 
-        // 🌟 Modificado: Pasamos de 5 a 7 en el IntStream.range para cubrir la semana completa
         List<AgendaDayView> agenda =
-                java.util.stream.IntStream.range(0, 7).mapToObj(today::plusDays).map(date -> {
+                java.util.stream.IntStream.range(0, displayedDays)
+                        .mapToObj(today::plusDays).map(date -> {
                     List<Reservation> reservations = reservationRepository.findByTravelDate(date);
 
                     // 🌟 FILTRO: Excluimos registros con fecha centinela, CANCELLED o passengerCount <= 0
@@ -79,16 +84,34 @@ public class AgendaViewController {
                             .filter(java.util.Objects::nonNull)
                             .findFirst()
                             .orElse(null);
+                    List<ReservationRow> reservationRows = activeReservations.stream()
+                            .map(reservation -> new ReservationRow(
+                                    reservation.getId(),
+                                    reservation.getPassenger() == null
+                                            ? "Pasajero"
+                                            : (reservation.getPassenger().getFirstName() + " "
+                                                + reservation.getPassenger().getLastName()).trim(),
+                                    reservation.getPassenger() == null
+                                            ? ""
+                                            : reservation.getPassenger().getPhone(),
+                                    reservation.getPickupAddress() == null
+                                            ? reservation.getPickupLocality()
+                                            : reservation.getPickupAddress(),
+                                    reservation.getTotalSeats()))
+                            .toList();
 
                     return new AgendaDayView(
                             date,
                             totalPassengers,
                             pendingPayments,
                             estimatedVehicles,
-                            assignedDriverId);
+                            assignedDriverId,
+                            reservationRows);
                 }).toList();
 
         model.addAttribute("agenda", agenda);
+        model.addAttribute("choferes", driverRepository.findByActiveTrue());
+        model.addAttribute("displayedDays", displayedDays);
         return "agenda";
     }
 
@@ -257,11 +280,14 @@ public class AgendaViewController {
 
         // 3. Enviar plantilla al chofer para abrir su hoja de ruta.
         try {
-            whatsAppService.sendDespiertaChoferTemplate(
+            String navigationUrl =
+                    GoogleMapsParameterFormatter.buildDirectionsUrl(assignedReservations);
+            whatsAppService.sendDriverRouteDispatch(
                     normalizedPhone,
                     driver.getFullName(),
                     driver.getId(),
-                    firstReservation.getTravelDate());
+                    firstReservation.getTravelDate(),
+                    navigationUrl);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(getClass())
@@ -319,6 +345,9 @@ public class AgendaViewController {
             model.addAttribute("reservas", reservations);
             model.addAttribute("totalYendo", countSeats(reservations, false));
             model.addAttribute("totalVolviendo", countSeats(reservations, true));
+            model.addAttribute(
+                    "navigationUrl",
+                    GoogleMapsParameterFormatter.buildDirectionsUrl(reservations));
         }
         model.addAttribute("fechaSeleccionada", travelDate);
         model.addAttribute("pasajeros0800Count", 0);

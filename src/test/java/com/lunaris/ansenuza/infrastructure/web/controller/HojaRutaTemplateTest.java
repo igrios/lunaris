@@ -23,31 +23,16 @@ class HojaRutaTemplateTest {
     }
 
     @Test
-    void routeMapBindsReservationFieldsAndProvidesFallbacks() throws IOException {
+    void routeSheetStaysLightweightAndLinksToExternalNavigation() throws IOException {
         try (var input = getClass().getResourceAsStream(
                 "/templates/admin/hoja-ruta.html")) {
             String template = new String(input.readAllBytes(), StandardCharsets.UTF_8);
 
-            assertTrue(template.contains("r.pickupAddress || r.address || ''"));
-            assertTrue(template.contains("r.pickupLocality || r.locality || r.origin || ''"));
-            assertTrue(template.contains("r.destination || 'Córdoba'"));
-            assertTrue(template.contains("r.passengerPhone || (r.passenger ? r.passenger.phone : '')"));
-            assertTrue(template.contains("routeMap.invalidateSize()"));
-            assertTrue(template.contains("drawFallbackPolyline(uniqueCoordinates)"));
-            assertTrue(template.contains(
-                    "`${waypoint.address || ''}, ${waypoint.locality || 'Córdoba'}, Argentina`"));
-            assertTrue(template.contains("encodeURIComponent(fullAddress(waypoint))"));
-            assertTrue(template.contains("https://www.google.com/maps/dir/?${parameters.toString()}"));
-            assertTrue(template.contains("destination: 'Cordoba'"));
-            assertTrue(template.contains("waypoints: pickupLocations.join('|')"));
-            assertTrue(template.contains("validCoordinates(waypoint.latitude, waypoint.longitude)"));
-            assertTrue(template.contains("L.marker(directCoordinates)"));
+            assertTrue(template.contains("📍 Abrir Navegación GPS"));
+            assertTrue(template.contains("th:href=\"${navigationUrl"));
             assertTrue(template.contains("#uris.escapeQueryParam(mapQuery)"));
-            assertTrue(template.contains(
-                    "@{/hoja-ruta(driverId=${driver.id},date=${fechaSeleccionada})}"));
-            assertTrue(template.contains("try {"));
-            assertTrue(template.contains("No se pudo calcular o dibujar la ruta"));
-            assertTrue(template.contains("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"));
+            assertTrue(!template.contains("leaflet"));
+            assertTrue(!template.contains("id=\"route-map\""));
         }
     }
 }

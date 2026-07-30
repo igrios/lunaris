@@ -3,6 +3,8 @@ package com.lunaris.ansenuza.application.conversation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
+import java.util.List;
+import com.lunaris.ansenuza.domain.model.Reservation;
 
 class GoogleMapsParameterFormatterTest {
 
@@ -29,5 +31,24 @@ class GoogleMapsParameterFormatterTest {
     @Test
     void neverPassesAFullGoogleMapsUrlAsDirectionsParameter() {
         assertEquals("", GoogleMapsParameterFormatter.encode("https://maps.google.com/maps"));
+    }
+
+    @Test
+    void buildsOrderedDirectionsUrlFromCoordinatesAndAddresses() {
+        Reservation first = Reservation.builder()
+                .pickupAddress("https://maps.google.com/?q=-31.42,-64.18")
+                .pickupLocality("Córdoba")
+                .build();
+        Reservation second = Reservation.builder()
+                .pickupAddress("San Martín 100")
+                .pickupLocality("Morteros")
+                .build();
+
+        assertEquals(
+                "https://www.google.com/maps/dir/?api=1"
+                        + "&origin=-31.42,-64.18"
+                        + "&destination=Cordoba"
+                        + "&waypoints=San+Mart%C3%ADn+100,+Morteros,+C%C3%B3rdoba,+Argentina",
+                GoogleMapsParameterFormatter.buildDirectionsUrl(List.of(first, second)));
     }
 }

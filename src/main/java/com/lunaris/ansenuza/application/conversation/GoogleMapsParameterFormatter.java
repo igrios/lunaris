@@ -5,6 +5,8 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
+import com.lunaris.ansenuza.domain.model.Reservation;
 
 public final class GoogleMapsParameterFormatter {
 
@@ -15,6 +17,42 @@ public final class GoogleMapsParameterFormatter {
         String normalized = normalize(location);
         return URLEncoder.encode(normalized, StandardCharsets.UTF_8)
                 .replace("%2C", ",");
+    }
+
+    public static String buildDirectionsUrl(List<Reservation> reservations) {
+        if (reservations == null || reservations.isEmpty()) {
+            return "https://www.google.com/maps/dir/?api=1&destination=Cordoba";
+        }
+        List<String> pickups = reservations.stream()
+                .map(GoogleMapsParameterFormatter::pickupLocation)
+                .filter(location -> !location.isBlank())
+                .toList();
+        if (pickups.isEmpty()) {
+            return "https://www.google.com/maps/dir/?api=1&destination=Cordoba";
+        }
+        StringBuilder url = new StringBuilder(
+                "https://www.google.com/maps/dir/?api=1&origin=")
+                .append(encode(pickups.getFirst()))
+                .append("&destination=Cordoba");
+        if (pickups.size() > 1) {
+            url.append("&waypoints=")
+                    .append(encode(String.join("|", pickups.subList(1, pickups.size())))
+                            .replace("%7C", "|"));
+        }
+        return url.toString();
+    }
+
+    private static String pickupLocation(Reservation reservation) {
+        String address = normalize(reservation.getPickupAddress());
+        if (address.matches("-?\\d+(?:\\.\\d+)?,-?\\d+(?:\\.\\d+)?")) {
+            return address;
+        }
+        String locality = reservation.getPickupLocality() == null
+                || reservation.getPickupLocality().isBlank()
+                ? "Córdoba"
+                : reservation.getPickupLocality().trim();
+        return (address.isBlank() ? locality : address + ", " + locality)
+                + ", Córdoba, Argentina";
     }
 
     static String normalize(String location) {

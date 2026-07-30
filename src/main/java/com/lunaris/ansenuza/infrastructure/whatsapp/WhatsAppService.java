@@ -191,8 +191,12 @@ public class WhatsAppService {
     }
 
     private void executePostCall(String url, HttpHeaders headers, Map<String, Object> body, String tipoMensaje) {
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        String destination = (String) body.get("to");
+        Map<String, Object> sanitizedBody = new HashMap<>(body);
+        if (body.get("to") instanceof String destinationPhone) {
+            sanitizedBody.put("to", formatMetaPhoneNumber(destinationPhone));
+        }
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(sanitizedBody, headers);
+        String destination = (String) sanitizedBody.get("to");
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
             log.info("Éxito Meta [{}]: Envío hacia {}. Status: {}", tipoMensaje, destination, response.getStatusCode());
@@ -224,7 +228,7 @@ public void sendMediaMessage(String to, String type, String mediaUrl, String cap
         java.util.Map<String, Object> body = new java.util.HashMap<>();
         body.put("messaging_product", "whatsapp");
         body.put("recipient_type", "individual");
-        body.put("to", to);
+        body.put("to", formatMetaPhoneNumber(to));
         body.put("type", "image");
 
         java.util.Map<String, String> imageNode = new java.util.HashMap<>();
@@ -287,6 +291,21 @@ public void sendDespiertaChoferTemplate(
     } catch (Exception e) {
         log.error("Error al enviar la plantilla despierta_chofer a {}: ", to, e);
     }
+}
+
+public void sendDriverRouteDispatch(
+        String to,
+        String driverName,
+        java.util.UUID driverId,
+        java.time.LocalDate travelDate,
+        String navigationUrl) {
+    sendDespiertaChoferTemplate(to, driverName, driverId, travelDate);
+    String checklistUrl = buildDriverRouteSheetUrl(driverId, travelDate);
+    sendMessage(
+            to,
+            "🚐 Hoja de ruta Lunaris\n\n"
+                    + "📍 Navegación GPS:\n" + navigationUrl + "\n\n"
+                    + "✅ Checklist de pasajeros:\n" + checklistUrl);
 }
 
 static java.util.List<java.util.Map<String, Object>> despiertaChoferComponents(

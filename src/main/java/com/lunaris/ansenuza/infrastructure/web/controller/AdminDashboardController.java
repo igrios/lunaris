@@ -12,6 +12,7 @@ import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
+import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import lombok.AllArgsConstructor;
 
 @Controller
@@ -67,6 +68,9 @@ public class AdminDashboardController {
         model.addAttribute("totalYendo", totalYendoDesdeZona);
         model.addAttribute("totalVolviendo", totalVolviendoDesdeCba);
         model.addAttribute("sesionesChat", sesionesChat); // 👈 ¡Ahora van las reales!
+        model.addAttribute(
+                "navigationUrl",
+                GoogleMapsParameterFormatter.buildDirectionsUrl(reservas));
 
         return "admin/hoja-ruta"; 
     }
