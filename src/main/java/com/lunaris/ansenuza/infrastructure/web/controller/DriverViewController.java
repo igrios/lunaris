@@ -3,8 +3,6 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 import java.beans.PropertyEditorSupport;
 import java.util.UUID;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -25,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
+import org.springframework.dao.DataAccessException;
 
 /**
  * ABM web (Alta/Baja/Modificación) de choferes de la flota.
@@ -88,14 +87,20 @@ public class DriverViewController {
             }
         }
 
-        driver.setFullName(form.getFullName());
-        driver.setPhone(form.getPhone());
-        driver.setRanking(form.getRanking());
-        driver.setActive(form.isActive());
-        if (driver.getId() == null) {
-            driver.setId(UUID.randomUUID());
+        try {
+            driver.setFullName(form.getFullName());
+            driver.setPhone(form.getPhone());
+            driver.setRanking(parseRanking(form.getRanking()));
+            driver.setActive(form.isActive());
+            if (driver.getId() == null) {
+                driver.setId(UUID.randomUUID());
+            }
+            driverRepository.saveAndFlush(driver);
+        } catch (DataAccessException exception) {
+            log.error("[Choferes] Error de persistencia al guardar el chofer: {}",
+                    exception.getMessage(), exception);
+            return "redirect:/choferes?error=true";
         }
-        driverRepository.saveAndFlush(driver);
 
         redirectAttributes.addFlashAttribute(
                 "successMessage",
@@ -103,6 +108,15 @@ public class DriverViewController {
                         ? "Chofer creado correctamente."
                         : "Chofer actualizado correctamente.");
         return "redirect:/choferes";
+    }
+
+    private int parseRanking(String rawRanking) {
+        try {
+            int ranking = Integer.parseInt(rawRanking);
+            return ranking >= 1 && ranking <= 5 ? ranking : 5;
+        } catch (NumberFormatException | NullPointerException exception) {
+            return 5;
+        }
     }
 
     private void preparePanel(Model model) {
@@ -149,9 +163,7 @@ public class DriverViewController {
         @Size(max = 30, message = "El teléfono no puede superar los 30 caracteres.")
         private String phone;
 
-        @Min(value = 1, message = "El ranking mínimo es 1.")
-        @Max(value = 5, message = "El ranking máximo es 5.")
-        private Integer ranking;
+        private String ranking = "5";
 
         private boolean active = true;
     }
