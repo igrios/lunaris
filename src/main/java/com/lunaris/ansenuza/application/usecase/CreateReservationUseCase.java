@@ -24,7 +24,7 @@ public class CreateReservationUseCase {
     private final PassengerRepository passengerRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
 
-    @Value("${lunaris.trips.capacity:8}")
+    @Value("${lunaris.trips.capacity:4}")
     private int tripCapacity = 8;
 
     @Transactional(isolation = Isolation.SERIALIZABLE)

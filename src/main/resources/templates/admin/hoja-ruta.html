@@ -52,7 +52,7 @@
             <p class="mb-0">Hay <strong th:text="${pasajeros0800Count}">9</strong> pasajeros confirmados para el turno de las 08:00 AM. <strong>Se activa automáticamente la logística de re-viaje desde el Hub de La Puerta (+45 min de demora sugerida en pueblos).</strong></p>
         </div>
 
-        <div th:if="${reservas != null && reservas.size() >= 8 && !hubActivado}" class="alert alert-warning shadow-sm" role="alert">
+        <div th:if="${reservas != null && reservas.size() >= 4 && !hubActivado}" class="alert alert-warning shadow-sm" role="alert">
             <h4 class="alert-heading">🚨 ALERTA: CAPACIDAD COMPLETA EN BAJADA</h4>
             <p class="mb-0">Los autos bajan con capacidad completa desde los pueblos. <strong>Ojo: No hay lugar físico para traer pasajeros desde Córdoba a las 03:00 AM en la flota fija.</strong> Coordinar unidad de refuerzo manual si es necesario.</p>
         </div>

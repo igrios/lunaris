@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.domain.model.Driver;
+import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.DriverRouteService;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
@@ -20,6 +21,39 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ui.ConcurrentModel;
 
 class AgendaRouteSheetControllerTest {
+
+    @Test
+    void pickupAddressPrefersTypedTextAndKeepsSharedMapAsSecondaryLink() {
+        Passenger passenger = Passenger.builder()
+                .address("https://maps.google.com/?q=-31.42,-64.18")
+                .build();
+        Reservation reservation = Reservation.builder()
+                .passenger(passenger)
+                .pickupAddress("San Martín 450")
+                .build();
+
+        var display = AgendaViewController.resolvePickupAddress(reservation);
+
+        assertEquals("San Martín 450", display.text());
+        assertEquals(
+                "https://maps.google.com/?q=-31.42,-64.18",
+                display.mapUrl());
+    }
+
+    @Test
+    void pickupAddressFallsBackToPassengerDataBeforeMissingLabel() {
+        Reservation withPassengerAddress = Reservation.builder()
+                .passenger(Passenger.builder().address("Belgrano 120").build())
+                .build();
+        Reservation withoutAddress = Reservation.builder().build();
+
+        assertEquals(
+                "Belgrano 120",
+                AgendaViewController.resolvePickupAddress(withPassengerAddress).text());
+        assertEquals(
+                "Sin dirección registrada",
+                AgendaViewController.resolvePickupAddress(withoutAddress).text());
+    }
 
     @Test
     void rendersEvenOneActiveReservationForExactDriverAndDate() {

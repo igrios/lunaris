@@ -63,7 +63,7 @@ public class AdminDashboardController {
         // 7. Inyectamos los datos limpios al modelo de Thymeleaf (respetando las variables sin "data.")
         model.addAttribute("fechaSeleccionada", fecha);
         model.addAttribute("pasajeros0800Count", pasajeros0800);
-        model.addAttribute("hubActivado", pasajeros0800 > 8);
+        model.addAttribute("hubActivado", pasajeros0800 > 4);
         model.addAttribute("reservas", reservas);
         model.addAttribute("totalYendo", totalYendoDesdeZona);
         model.addAttribute("totalVolviendo", totalVolviendoDesdeCba);

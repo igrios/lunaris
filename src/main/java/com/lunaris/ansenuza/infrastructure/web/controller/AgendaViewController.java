@@ -45,8 +45,8 @@ public class AgendaViewController {
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
 
-    @Value("${lunaris.trips.capacity:8}")
-    private int vehicleCapacity = 8;
+    @Value("${lunaris.trips.capacity:4}")
+    private int vehicleCapacity = 4;
 
     // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
     @GetMapping("/agenda")
@@ -148,6 +148,20 @@ public class AgendaViewController {
         model.addAttribute("date", date);
         model.addAttribute("reservations", activeReservations);
         model.addAttribute("choferes", choferes);
+        model.addAttribute(
+                "pickupAddressTexts",
+                activeReservations.stream().collect(java.util.stream.Collectors.toMap(
+                        Reservation::getId,
+                        reservation -> resolvePickupAddress(reservation).text(),
+                        (first, ignored) -> first,
+                        java.util.LinkedHashMap::new)));
+        model.addAttribute(
+                "pickupMapUrls",
+                activeReservations.stream().collect(java.util.stream.Collectors.toMap(
+                        Reservation::getId,
+                        reservation -> resolvePickupAddress(reservation).mapUrl(),
+                        (first, ignored) -> first,
+                        java.util.LinkedHashMap::new)));
         int occupiedSeats = activeReservations.stream()
                 .mapToInt(Reservation::getTotalSeats)
                 .sum();
@@ -165,6 +179,15 @@ public class AgendaViewController {
         model.addAttribute("vehicleCapacity", safeVehicleCapacity);
         model.addAttribute("estimatedVehicles", estimatedVehicles);
         model.addAttribute("plannedCapacity", estimatedVehicles * safeVehicleCapacity);
+        int plannedCapacity = estimatedVehicles * safeVehicleCapacity;
+        model.addAttribute(
+                "occupancyPercentage",
+                plannedCapacity == 0
+                        ? 0
+                        : (int) Math.round(occupiedSeats * 100.0 / plannedCapacity));
+        model.addAttribute(
+                "requiresAdditionalVehicle",
+                occupiedSeats > safeVehicleCapacity);
         model.addAttribute("totalAmount", totalAmount);
         model.addAttribute("totalExtraAmount", totalExtraAmount);
         model.addAttribute("totalDiscount", totalDiscount);
@@ -173,6 +196,44 @@ public class AgendaViewController {
                 totalAmount.add(totalExtraAmount).subtract(totalDiscount));
 
         return "agenda-day";
+    }
+
+    static PickupAddressDisplay resolvePickupAddress(Reservation reservation) {
+        String reservationAddress = trimToNull(reservation.getPickupAddress());
+        String passengerAddress = reservation.getPassenger() == null
+                ? null
+                : trimToNull(reservation.getPassenger().getAddress());
+        String text = firstMatching(false, reservationAddress, passengerAddress);
+        String mapUrl = firstMatching(true, reservationAddress, passengerAddress);
+        return new PickupAddressDisplay(
+                text == null ? "Sin dirección registrada" : text,
+                mapUrl == null ? "" : mapUrl);
+    }
+
+    private static String firstMatching(
+            boolean mapLocation, String... candidates) {
+        return java.util.Arrays.stream(candidates)
+                .filter(java.util.Objects::nonNull)
+                .filter(candidate -> isMapLocation(candidate) == mapLocation)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static boolean isMapLocation(String value) {
+        String normalized = value.toLowerCase(java.util.Locale.ROOT);
+        return normalized.startsWith("https://maps.google.")
+                || normalized.startsWith("https://www.google.")
+                        && normalized.contains("/maps")
+                || normalized.startsWith("https://maps.app.")
+                || normalized.startsWith("https://waze.com/")
+                || normalized.startsWith("https://www.waze.com/");
+    }
+
+    private static String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    record PickupAddressDisplay(String text, String mapUrl) {
     }
 
     private java.math.BigDecimal sumMoney(

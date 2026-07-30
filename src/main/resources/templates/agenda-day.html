@@ -72,8 +72,13 @@
                         </p>
                         <p class="text-muted mb-0">
                             <span th:text="${estimatedVehicles}">0</span> unidad(es) estimadas ·
-                            <span th:text="${vehicleCapacity}">8</span> asientos por unidad
+                            <span th:text="${vehicleCapacity}">4</span> asientos por unidad ·
+                            Ocupación: <strong th:text="${occupancyPercentage} + '%'">0%</strong>
                         </p>
+                        <div th:if="${requiresAdditionalVehicle}"
+                            class="alert alert-warning fw-bold mt-3 mb-0">
+                            ⚠️ La ruta supera los 4 asientos de una unidad. Asignar un chofer/unidad adicional.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -175,17 +180,18 @@
 
                 <p class="mb-2">📍 <strong>Origen:</strong> <span th:text="${reservation.pickupLocality}"></span></p>
                 <p class="mb-2">🏁 <strong>Destino:</strong> <span th:text="${reservation.destination}"></span></p>
-                <p class="mb-2" th:if="${reservation.pickupAddress != null and reservation.pickupAddress != ''}">
+                <p class="mb-2">
                     🏠 <strong>Dirección exacta de retiro:</strong>
-                    <span th:text="${reservation.pickupAddress}"></span>
-                    <a th:if="${#strings.startsWith(reservation.pickupAddress, 'https://maps.google.com/?q=')}"
-                        th:href="${reservation.pickupAddress}" target="_blank" rel="noopener"
-                        class="btn btn-outline-primary btn-sm ms-2">Abrir GPS</a>
-                </p>
-                <p class="mb-2"
-                    th:if="${reservation.pickupAddress == null or reservation.pickupAddress == ''}">
-                    🏠 <strong>Dirección exacta de retiro:</strong>
-                    <span class="text-danger">Sin dirección registrada</span>
+                    <span th:text="${pickupAddressTexts.get(reservation.id)}"
+                        th:classappend="${pickupAddressTexts.get(reservation.id) == 'Sin dirección registrada'}
+                            ? 'text-danger' : ''"></span>
+                    <a th:if="${pickupMapUrls.get(reservation.id) != ''}"
+                        th:href="${pickupMapUrls.get(reservation.id)}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-outline-primary btn-sm ms-2">
+                        📍 Ver mapa
+                    </a>
                 </p>
                 <p class="mb-2">📞 <strong>Teléfono Pasajero:</strong> <span
                         th:text="${reservation.passenger.phone}"></span></p>

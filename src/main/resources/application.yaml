@@ -58,7 +58,7 @@ management:
 
 lunaris:
   trips:
-    capacity: ${LUNARIS_TRIP_CAPACITY:8}
+    capacity: ${LUNARIS_TRIP_CAPACITY:4}
   auth:
     otp-ttl: ${LUNARIS_OTP_TTL:PT5M}
     token-ttl: ${LUNARIS_TOKEN_TTL:PT12H}
