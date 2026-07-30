@@ -148,9 +148,16 @@
         <div class="card shadow-sm mb-5">
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">🗺️ Recorrido del día</h5>
-                <button id="show-route-button" type="button" class="btn btn-info fw-bold">
-                    Ver Ruta
-                </button>
+                <div class="d-flex gap-2">
+                    <a th:if="${driver != null}"
+                       th:href="@{/hoja-ruta(driverId=${driver.id},date=${fechaSeleccionada})}"
+                       class="btn btn-light fw-bold">
+                        Ver Ruta
+                    </a>
+                    <button id="show-route-button" type="button" class="btn btn-info fw-bold">
+                        Recalcular mapa
+                    </button>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="p-3 border-bottom bg-light">
@@ -381,75 +388,83 @@
         }
 
         async function recalculateRoute() {
-            initRouteMap();
-            if (!routeMap) return;
-            routeMap.invalidateSize();
-
             const status = document.getElementById('route-map-status');
-            if (!waypoints.length) {
-                status.textContent = 'No hay paradas para calcular en esta fecha.';
-                return;
-            }
-            status.textContent = 'Calculando recorrido…';
-            if (routeLayer) routeMap.removeLayer(routeLayer);
-            markerLayer.clearLayers();
-
-            const resolved = (await Promise.all(waypoints.map(async (waypoint, index) => {
-                const directCoordinates = waypointCoordinates(waypoint);
-                if (directCoordinates) {
-                    L.marker(directCoordinates)
-                        .bindPopup(`Parada ${index + 1}: ${waypoint.passengerName}`)
-                        .addTo(markerLayer);
-                    return directCoordinates;
-                }
-
-                const geocodedCoordinates = await geocodeWaypoint(waypoint);
-                if (geocodedCoordinates) {
-                    L.marker(geocodedCoordinates)
-                        .bindPopup(`Parada ${index + 1}: ${waypoint.passengerName}`)
-                        .addTo(markerLayer);
-                }
-                return geocodedCoordinates;
-            }))).filter(Boolean);
-            const finalDestination = waypoints.at(-1).destination;
-            const destinationCoordinates = localityCoordinates(finalDestination)
-                || LOCALITY_COORDINATES.cordoba;
-            if (!resolved.some(point => point[0] === destinationCoordinates[0]
-                    && point[1] === destinationCoordinates[1])) {
-                resolved.push(destinationCoordinates);
-            }
-
-            const uniqueCoordinates = resolved.filter((point, index, points) =>
-                index === 0 || point[0] !== points[index - 1][0] || point[1] !== points[index - 1][1]);
-            if (uniqueCoordinates.length < 2) {
-                status.textContent = 'No fue posible ubicar suficientes paradas.';
-                return;
-            }
-
-            L.marker(destinationCoordinates)
-                .bindPopup(`Destino: ${finalDestination}`)
-                .addTo(markerLayer);
-
             try {
-                const coordinates = uniqueCoordinates
-                    .map(([lat, lon]) => `${lon},${lat}`)
-                    .join(';');
-                const response = await fetch(
-                    `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
-                );
-                if (!response.ok) throw new Error(`OSRM respondió ${response.status}`);
-                const data = await response.json();
-                if (!data.routes?.length) throw new Error('OSRM no devolvió rutas');
-                routeLayer = L.geoJSON(data.routes[0].geometry, {
-                    style: { color: '#0d6efd', weight: 5, opacity: 0.85 }
-                }).addTo(routeMap);
-                status.textContent = 'Ruta calculada sobre calles y caminos.';
+                initRouteMap();
+                if (!routeMap) {
+                    status.textContent = 'El mapa interactivo no está disponible. Use los enlaces de Google Maps.';
+                    return;
+                }
+                routeMap.invalidateSize();
+
+                if (!waypoints.length) {
+                    status.textContent = 'No hay paradas para calcular en esta fecha.';
+                    return;
+                }
+                status.textContent = 'Calculando recorrido…';
+                if (routeLayer) routeMap.removeLayer(routeLayer);
+                markerLayer.clearLayers();
+
+                const resolved = (await Promise.all(waypoints.map(async (waypoint, index) => {
+                    const directCoordinates = waypointCoordinates(waypoint);
+                    if (directCoordinates) {
+                        L.marker(directCoordinates)
+                            .bindPopup(`Parada ${index + 1}: ${waypoint.passengerName}`)
+                            .addTo(markerLayer);
+                        return directCoordinates;
+                    }
+
+                    const geocodedCoordinates = await geocodeWaypoint(waypoint);
+                    if (geocodedCoordinates) {
+                        L.marker(geocodedCoordinates)
+                            .bindPopup(`Parada ${index + 1}: ${waypoint.passengerName}`)
+                            .addTo(markerLayer);
+                    }
+                    return geocodedCoordinates;
+                }))).filter(Boolean);
+                const finalDestination = waypoints.at(-1).destination;
+                const destinationCoordinates = localityCoordinates(finalDestination)
+                    || LOCALITY_COORDINATES.cordoba;
+                if (!resolved.some(point => point[0] === destinationCoordinates[0]
+                        && point[1] === destinationCoordinates[1])) {
+                    resolved.push(destinationCoordinates);
+                }
+
+                const uniqueCoordinates = resolved.filter((point, index, points) =>
+                    index === 0 || point[0] !== points[index - 1][0] || point[1] !== points[index - 1][1]);
+                if (uniqueCoordinates.length < 2) {
+                    status.textContent = 'No fue posible ubicar suficientes paradas.';
+                    return;
+                }
+
+                L.marker(destinationCoordinates)
+                    .bindPopup(`Destino: ${finalDestination}`)
+                    .addTo(markerLayer);
+
+                try {
+                    const coordinates = uniqueCoordinates
+                        .map(([lat, lon]) => `${lon},${lat}`)
+                        .join(';');
+                    const response = await fetch(
+                        `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+                    );
+                    if (!response.ok) throw new Error(`OSRM respondió ${response.status}`);
+                    const data = await response.json();
+                    if (!data.routes?.length) throw new Error('OSRM no devolvió rutas');
+                    routeLayer = L.geoJSON(data.routes[0].geometry, {
+                        style: { color: '#0d6efd', weight: 5, opacity: 0.85 }
+                    }).addTo(routeMap);
+                    status.textContent = 'Ruta calculada sobre calles y caminos.';
+                } catch (error) {
+                    console.warn('Se usa el trazado aproximado entre localidades', error);
+                    drawFallbackPolyline(uniqueCoordinates);
+                    status.textContent = 'Ruta aproximada entre localidades (servicio de direcciones no disponible).';
+                }
+                routeMap.fitBounds(routeLayer.getBounds(), { padding: [25, 25] });
             } catch (error) {
-                console.warn('Se usa el trazado aproximado entre localidades', error);
-                drawFallbackPolyline(uniqueCoordinates);
-                status.textContent = 'Ruta aproximada entre localidades (servicio de direcciones no disponible).';
+                console.error('No se pudo calcular o dibujar la ruta', error);
+                status.textContent = 'No se pudo mostrar el mapa. Use los enlaces de Google Maps de cada pasajero.';
             }
-            routeMap.fitBounds(routeLayer.getBounds(), { padding: [25, 25] });
         }
 
         document.getElementById('show-route-button').addEventListener('click', recalculateRoute);

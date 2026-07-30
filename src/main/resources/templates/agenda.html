@@ -72,6 +72,11 @@
                             <a th:href="@{/agenda/view-detalle(date=${day.date})}" class="btn btn-primary px-4 fw-semibold shadow-sm">
                                 Ver Detalles →
                             </a>
+                            <a th:if="${day.driverId != null}"
+                                th:href="@{/hoja-ruta(driverId=${day.driverId},date=${day.date})}"
+                                class="btn btn-info px-4 fw-semibold shadow-sm">
+                                🗺️ Ver Ruta
+                            </a>
                         </div>
                     </div>
                 </div>

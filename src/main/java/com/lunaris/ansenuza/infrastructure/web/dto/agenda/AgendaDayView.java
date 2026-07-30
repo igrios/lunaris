@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.infrastructure.web.dto.agenda;
 
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 public record AgendaDayView(
 
@@ -12,6 +13,8 @@ public record AgendaDayView(
 
         int pendingPayments,
 
-        int estimatedVehicles
+        int estimatedVehicles,
+
+        UUID driverId
 ) {
 }

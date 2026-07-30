@@ -43,6 +43,11 @@ class HojaRutaTemplateTest {
             assertTrue(template.contains("validCoordinates(waypoint.latitude, waypoint.longitude)"));
             assertTrue(template.contains("L.marker(directCoordinates)"));
             assertTrue(template.contains("#uris.escapeQueryParam(mapQuery)"));
+            assertTrue(template.contains(
+                    "@{/hoja-ruta(driverId=${driver.id},date=${fechaSeleccionada})}"));
+            assertTrue(template.contains("try {"));
+            assertTrue(template.contains("No se pudo calcular o dibujar la ruta"));
+            assertTrue(template.contains("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"));
         }
     }
 }

@@ -72,7 +72,20 @@ public class AgendaViewController {
 
                     int estimatedVehicles = totalPassengers == 0 ? 0 : (int) Math.ceil(totalPassengers / 4.0);
 
-                    return new AgendaDayView(date, totalPassengers, pendingPayments, estimatedVehicles);
+                    UUID assignedDriverId = activeReservations.stream()
+                            .map(Reservation::getDriver)
+                            .filter(java.util.Objects::nonNull)
+                            .map(Driver::getId)
+                            .filter(java.util.Objects::nonNull)
+                            .findFirst()
+                            .orElse(null);
+
+                    return new AgendaDayView(
+                            date,
+                            totalPassengers,
+                            pendingPayments,
+                            estimatedVehicles,
+                            assignedDriverId);
                 }).toList();
 
         model.addAttribute("agenda", agenda);
@@ -289,7 +302,8 @@ public class AgendaViewController {
     @GetMapping("/hoja-ruta")
     public String showHojaRuta(
             @RequestParam UUID driverId,
-            @RequestParam("date") java.time.LocalDate travelDate,
+            @RequestParam("date")
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate travelDate,
             Model model) {
         Driver driver = driverRepository.findById(driverId).orElse(null);
         if (driver == null) {

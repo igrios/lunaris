@@ -74,7 +74,10 @@
             <div class="col-md-6">
                 <select id="selectChofer" class="form-select fw-bold border-success shadow-sm" style="height: 100%;">
                     <option value="">-- Seleccionar Chofer Destinatario --</option>
-                    <option th:each="c : ${choferes}" th:value="${c.phone}" th:text="${c.fullName}"></option>
+                    <option th:each="c : ${choferes}"
+                        th:value="${c.phone}"
+                        th:data-driver-id="${c.id}"
+                        th:text="${c.fullName}"></option>
                 </select>
             </div>
             <div class="col-md-6">
@@ -82,6 +85,13 @@
                     🚖 Enviar Hoja de Ruta Directa
                 </button>
             </div>
+        </div>
+        <div class="mb-4">
+            <a id="view-route-button"
+                class="btn btn-primary w-100 fw-bold shadow-sm disabled"
+                aria-disabled="true">
+                🗺️ Ver Ruta
+            </a>
         </div>
 
         <div th:each="reservation, reservationStat : ${reservations}" th:id="'reservation-card-' + ${reservation.id}"
@@ -217,7 +227,33 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <script>
+    <script th:inline="javascript">
+        const routeTravelDate = /*[[${date}]]*/ "";
+
+        function updateViewRouteLink() {
+            const driverSelect = document.getElementById("selectChofer");
+            const routeButton = document.getElementById("view-route-button");
+            const driverId = driverSelect.selectedOptions[0]?.dataset.driverId;
+
+            if (!driverId || !routeTravelDate) {
+                routeButton.removeAttribute("href");
+                routeButton.classList.add("disabled");
+                routeButton.setAttribute("aria-disabled", "true");
+                return;
+            }
+
+            const parameters = new URLSearchParams({
+                driverId: driverId,
+                date: routeTravelDate
+            });
+            routeButton.href = `/hoja-ruta?${parameters.toString()}`;
+            routeButton.classList.remove("disabled");
+            routeButton.removeAttribute("aria-disabled");
+        }
+
+        document.getElementById("selectChofer")
+            .addEventListener("change", updateViewRouteLink);
+
         function selectAllReservations() {
             document.querySelectorAll(".reservation-checkbox").forEach(checkbox => checkbox.checked = true);
         }
