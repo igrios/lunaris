@@ -10,6 +10,7 @@ import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.DriverRouteService;
+import com.lunaris.ansenuza.domain.model.service.FleetCapacityService;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -77,7 +78,8 @@ class AgendaRouteSheetControllerTest {
                 mock(WhatsAppService.class),
                 drivers,
                 mock(ConfirmPaymentUseCase.class),
-                mock(DriverRouteService.class));
+                mock(DriverRouteService.class),
+                mock(FleetCapacityService.class));
         ConcurrentModel model = new ConcurrentModel();
 
         String view = controller.showHojaRuta(driverId, travelDate, model);

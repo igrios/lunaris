@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.DriverRouteService;
+import com.lunaris.ansenuza.domain.model.service.FleetCapacityService;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
@@ -41,6 +42,7 @@ public class AgendaViewController {
     private final DriverRepository driverRepository;
     private final ConfirmPaymentUseCase confirmPaymentUseCase;
     private final DriverRouteService driverRouteService;
+    private final FleetCapacityService fleetCapacityService;
 
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
@@ -165,6 +167,8 @@ public class AgendaViewController {
         int occupiedSeats = activeReservations.stream()
                 .mapToInt(Reservation::getTotalSeats)
                 .sum();
+        FleetCapacityService.FleetSummary fleetSummary =
+                fleetCapacityService.calculate(occupiedSeats);
         int safeVehicleCapacity = Math.max(vehicleCapacity, 1);
         int estimatedVehicles = occupiedSeats == 0
                 ? 0
@@ -188,12 +192,39 @@ public class AgendaViewController {
         model.addAttribute(
                 "requiresAdditionalVehicle",
                 occupiedSeats > safeVehicleCapacity);
+        model.addAttribute("ownFleetCapacity", FleetCapacityService.OWN_FLEET_CAPACITY);
+        model.addAttribute("internalPassengers", fleetSummary.internalPassengers());
+        model.addAttribute("externalPassengers", fleetSummary.externalPassengers());
+        model.addAttribute("externalVehicles", fleetSummary.externalVehicles());
+        model.addAttribute(
+                "requiresExternalReinforcement",
+                fleetSummary.requiresExternalReinforcement());
         model.addAttribute("totalAmount", totalAmount);
         model.addAttribute("totalExtraAmount", totalExtraAmount);
         model.addAttribute("totalDiscount", totalDiscount);
         model.addAttribute(
                 "netBalance",
                 totalAmount.add(totalExtraAmount).subtract(totalDiscount));
+        java.math.BigDecimal totalRevenue = activeReservations.stream()
+                .filter(reservation ->
+                        Boolean.TRUE.equals(reservation.getPaymentVerified()))
+                .map(reservation -> {
+                    java.math.BigDecimal amount = reservation.getAmount() == null
+                            ? java.math.BigDecimal.ZERO
+                            : reservation.getAmount();
+                    java.math.BigDecimal extra = reservation.getExtraAmount() == null
+                            ? java.math.BigDecimal.ZERO
+                            : reservation.getExtraAmount();
+                    return amount.add(extra);
+                })
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        model.addAttribute("totalRevenue", totalRevenue);
+        model.addAttribute(
+                "externalDriverExpense",
+                fleetSummary.externalDriverExpense());
+        model.addAttribute(
+                "netRevenue",
+                totalRevenue.subtract(fleetSummary.externalDriverExpense()));
 
         return "agenda-day";
     }

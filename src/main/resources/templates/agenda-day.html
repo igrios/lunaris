@@ -75,6 +75,17 @@
                             <span th:text="${vehicleCapacity}">4</span> asientos por unidad ·
                             Ocupación: <strong th:text="${occupancyPercentage} + '%'">0%</strong>
                         </p>
+                        <p class="fw-bold mt-2 mb-0" th:if="${!requiresExternalReinforcement}">
+                            <span th:text="${internalPassengers}">0</span>/<span
+                                th:text="${ownFleetCapacity}">8</span>
+                            Asientos Propios · Cubierto por la flota Lunaris
+                        </p>
+                        <p class="fw-bold text-warning-emphasis mt-2 mb-0"
+                            th:if="${requiresExternalReinforcement}">
+                            8/8 Asientos Propios +
+                            <span th:text="${externalPassengers}">1</span>
+                            Pasajero(s) en Chofer Contratado (Refuerzo)
+                        </p>
                         <div th:if="${requiresAdditionalVehicle}"
                             class="alert alert-warning fw-bold mt-3 mb-0">
                             ⚠️ La ruta supera los 4 asientos de una unidad. Asignar un chofer/unidad adicional.
@@ -91,6 +102,21 @@
                             <div class="col-6">Extras: <strong th:text="'$ ' + ${totalExtraAmount}">$ 0</strong></div>
                             <div class="col-6">Descuentos: <strong th:text="'$ ' + ${totalDiscount}">$ 0</strong></div>
                             <div class="col-6">Saldo neto: <strong th:text="'$ ' + ${netBalance}">$ 0</strong></div>
+                        </div>
+                        <hr>
+                        <div class="row g-2">
+                            <div class="col-12">
+                                Total cobrado a pasajeros:
+                                <strong th:text="'$ ' + ${totalRevenue}">$ 0</strong>
+                            </div>
+                            <div class="col-12">
+                                Costo de chofer contratado/refuerzo:
+                                <strong th:text="'$ ' + ${externalDriverExpense}">$ 0</strong>
+                            </div>
+                            <div class="col-12 fs-5">
+                                Recaudación neta final para Lunaris:
+                                <strong th:text="'$ ' + ${netRevenue}">$ 0</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
