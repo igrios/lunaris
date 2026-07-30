@@ -41,6 +41,23 @@ class WhatsAppTemplateConfigurationTest {
     }
 
     @Test
+    void formatsArgentinePhoneNumbersForMetaCloudApi() {
+        assertEquals("5493515551234",
+                WhatsAppService.formatMetaPhoneNumber("+54 9 351-555-1234"));
+        assertEquals("5493515551234",
+                WhatsAppService.formatMetaPhoneNumber("351 555-1234"));
+        assertEquals("5493515551234",
+                WhatsAppService.formatMetaPhoneNumber("+54 351-555-1234"));
+    }
+
+    @Test
+    void cleansButDoesNotRewriteOtherInternationalPhoneNumbers() {
+        assertEquals("59899123456",
+                WhatsAppService.formatMetaPhoneNumber("+598 99 123-456"));
+        assertEquals("", WhatsAppService.formatMetaPhoneNumber(null));
+    }
+
+    @Test
     void driverRouteSheetUrlContainsDatabaseUuidAndTravelDate() {
         UUID driverId = UUID.fromString("917d74d2-d5de-4ec7-a674-d0d0fb52f99c");
 

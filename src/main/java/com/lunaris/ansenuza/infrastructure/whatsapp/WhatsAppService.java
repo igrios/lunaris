@@ -24,6 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 
 public class WhatsAppService {
 
+    private static final String ARGENTINA_COUNTRY_CODE = "54";
+    private static final String ARGENTINA_MOBILE_PREFIX = "549";
+    private static final int ARGENTINA_NATIONAL_NUMBER_LENGTH = 10;
+
     private static final Map<String, String> TEMPLATE_LANGUAGES = Map.of(
             "despierta_chofer", "en",
             "proximo_en_camino", "en",
@@ -247,6 +251,7 @@ public void sendMediaMessage(String to, String type, String mediaUrl, String cap
 public void sendDespiertaChoferTemplate(
         String to, String nombreChofer, java.util.UUID driverId, java.time.LocalDate travelDate) {
     try {
+        String metaPhoneNumber = formatMetaPhoneNumber(to);
         String url = "https://graph.facebook.com/v25.0/" + this.phoneNumberId + "/messages";
         org.springframework.http.HttpHeaders headers = createHeaders();
 
@@ -273,7 +278,7 @@ public void sendDespiertaChoferTemplate(
         java.util.Map<String, Object> body = java.util.Map.of(
             "messaging_product", "whatsapp",
             "recipient_type", "individual",
-            "to", to,
+            "to", metaPhoneNumber,
             "type", "template",
             "template", templateMap
         );
@@ -332,6 +337,7 @@ static String buildDriverRouteSheetUrl(
     }
 
     private void sendTemplate(String to, String templateName, List<String> values) {
+        String metaPhoneNumber = formatMetaPhoneNumber(to);
         List<Map<String, Object>> parameters = values.stream()
                 .map(value -> Map.<String, Object>of("type", "text", "text", value))
                 .toList();
@@ -342,7 +348,7 @@ static String buildDriverRouteSheetUrl(
         Map<String, Object> body = Map.of(
                 "messaging_product", "whatsapp",
                 "recipient_type", "individual",
-                "to", to,
+                "to", metaPhoneNumber,
                 "type", "template",
                 "template", template);
         executePostCall("https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages",
@@ -351,6 +357,27 @@ static String buildDriverRouteSheetUrl(
 
     private static String safeTemplateValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    static String formatMetaPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null) {
+            return "";
+        }
+
+        String digits = phoneNumber.replaceAll("\\D", "");
+        if (digits.startsWith(ARGENTINA_MOBILE_PREFIX)) {
+            return digits;
+        }
+        if (digits.length() == ARGENTINA_NATIONAL_NUMBER_LENGTH
+                || digits.startsWith("351")) {
+            return ARGENTINA_MOBILE_PREFIX + digits;
+        }
+        if (digits.startsWith(ARGENTINA_COUNTRY_CODE)
+                && digits.length() == ARGENTINA_NATIONAL_NUMBER_LENGTH + 2) {
+            return ARGENTINA_MOBILE_PREFIX + digits.substring(
+                    ARGENTINA_COUNTRY_CODE.length());
+        }
+        return digits;
     }
 
     static String templateLanguageFor(String templateName) {
