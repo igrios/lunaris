@@ -28,6 +28,7 @@ class DriverManagementServiceTest {
         ArgumentCaptor<Driver> captor = ArgumentCaptor.forClass(Driver.class);
         verify(repository).saveAndFlush(captor.capture());
         assertNotNull(saved.getId());
+        assertEquals(true, saved.isNew());
         assertEquals("Ana Pérez", saved.getFullName());
         assertEquals("543512345678", saved.getPhone());
         assertEquals(true, saved.isActive());
