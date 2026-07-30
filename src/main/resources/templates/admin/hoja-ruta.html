@@ -6,8 +6,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
           integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
           crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIINfQ3ynhHnYbbh7iZ9A0oQ8CHg/0WZ4="
+          crossorigin="">
     <style>
         body { padding-top: 75px; }
+        #route-map { height: 480px; min-height: 320px; }
     </style>
 </head>
 <body class="bg-light">
@@ -129,6 +133,19 @@
 
         <div class="card shadow-sm mb-5">
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">🗺️ Recorrido del día</h5>
+                <button id="show-route-button" type="button" class="btn btn-info fw-bold">
+                    Ver Ruta
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div id="route-map" role="region" aria-label="Mapa de la hoja de ruta"></div>
+                <div id="route-map-status" class="small text-muted px-3 py-2" aria-live="polite"></div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-5">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">💬 Monitoreo de Clientes en el Bot</h5>
                 <span class="badge bg-info text-dark">Línea en Vivo</span>
             </div>
@@ -181,7 +198,166 @@
         </div>
     </div>
 
-    <script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script th:inline="javascript">
+        const reservations = [
+            /*[# th:each="reserva, iter : ${reservas}"]*/
+            {
+                pickupAddress: /*[[${reserva.pickupAddress}]]*/ "",
+                pickupLocality: /*[[${reserva.pickupLocality}]]*/ "",
+                destination: /*[[${reserva.destination}]]*/ "",
+                passenger: {
+                    firstName: /*[[${reserva.passenger != null ? reserva.passenger.firstName : ''}]]*/ "",
+                    lastName: /*[[${reserva.passenger != null ? reserva.passenger.lastName : ''}]]*/ "",
+                    phone: /*[[${reserva.passenger != null ? reserva.passenger.phone : ''}]]*/ ""
+                }
+            }/*[# th:if="${!iter.last}"]*/,/*[/]*/
+            /*[/]*/
+        ];
+
+        const waypoints = reservations.map(r => ({
+            address: r.pickupAddress || r.address || '',
+            locality: r.pickupLocality || r.locality || r.origin || '',
+            destination: r.destination || 'Córdoba',
+            passengerName: r.passengerName
+                || (r.passenger ? r.passenger.firstName + ' ' + r.passenger.lastName : 'Pasajero'),
+            phone: r.passengerPhone || (r.passenger ? r.passenger.phone : '')
+        }));
+
+        const LOCALITY_COORDINATES = {
+            "miramar": [-30.9182, -62.6781],
+            "balnearia": [-31.0088, -62.6673],
+            "la puerta": [-30.8939, -63.2527],
+            "morteros": [-30.7116, -61.9986],
+            "brinkmann": [-30.8659, -62.0374],
+            "porteña": [-31.0131, -62.0665],
+            "cordoba": [-31.4201, -64.1888],
+            "aeropuerto cordoba": [-31.3156, -64.2088]
+        };
+
+        let routeMap;
+        let routeLayer;
+        let markerLayer;
+
+        function normalizePlace(value) {
+            return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        }
+
+        function localityCoordinates(locality) {
+            const normalized = normalizePlace(locality);
+            const match = Object.entries(LOCALITY_COORDINATES)
+                .find(([name]) => normalized.includes(name));
+            return match ? match[1] : null;
+        }
+
+        function fullAddress(waypoint) {
+            return [waypoint.address, waypoint.locality, 'Córdoba', 'Argentina']
+                .filter(Boolean)
+                .join(', ');
+        }
+
+        async function geocodeWaypoint(waypoint) {
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ar&q=${encodeURIComponent(fullAddress(waypoint))}`,
+                    { headers: { Accept: 'application/json' } }
+                );
+                if (!response.ok) return localityCoordinates(waypoint.locality);
+                const matches = await response.json();
+                return matches.length
+                    ? [Number(matches[0].lat), Number(matches[0].lon)]
+                    : localityCoordinates(waypoint.locality);
+            } catch (error) {
+                console.warn('No se pudo geocodificar', fullAddress(waypoint), error);
+                return localityCoordinates(waypoint.locality);
+            }
+        }
+
+        function initRouteMap() {
+            if (routeMap || typeof L === 'undefined') return;
+            routeMap = L.map('route-map').setView(LOCALITY_COORDINATES.cordoba, 7);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(routeMap);
+            markerLayer = L.layerGroup().addTo(routeMap);
+        }
+
+        function drawFallbackPolyline(coordinates) {
+            routeLayer = L.polyline(coordinates, {
+                color: '#0d6efd',
+                weight: 5,
+                opacity: 0.8,
+                dashArray: '10 8'
+            }).addTo(routeMap);
+        }
+
+        async function recalculateRoute() {
+            initRouteMap();
+            if (!routeMap) return;
+            routeMap.invalidateSize();
+
+            const status = document.getElementById('route-map-status');
+            if (!waypoints.length) {
+                status.textContent = 'No hay paradas para calcular en esta fecha.';
+                return;
+            }
+            status.textContent = 'Calculando recorrido…';
+            if (routeLayer) routeMap.removeLayer(routeLayer);
+            markerLayer.clearLayers();
+
+            const resolved = (await Promise.all(waypoints.map(geocodeWaypoint)))
+                .filter(Boolean);
+            const finalDestination = waypoints.at(-1).destination;
+            const destinationCoordinates = localityCoordinates(finalDestination)
+                || LOCALITY_COORDINATES.cordoba;
+            if (!resolved.some(point => point[0] === destinationCoordinates[0]
+                    && point[1] === destinationCoordinates[1])) {
+                resolved.push(destinationCoordinates);
+            }
+
+            const uniqueCoordinates = resolved.filter((point, index, points) =>
+                index === 0 || point[0] !== points[index - 1][0] || point[1] !== points[index - 1][1]);
+            if (uniqueCoordinates.length < 2) {
+                status.textContent = 'No fue posible ubicar suficientes paradas.';
+                return;
+            }
+
+            uniqueCoordinates.forEach((point, index) =>
+                L.marker(point).bindPopup(index === uniqueCoordinates.length - 1
+                    ? `Destino: ${finalDestination}`
+                    : `Parada ${index + 1}`).addTo(markerLayer));
+
+            try {
+                const coordinates = uniqueCoordinates
+                    .map(([lat, lon]) => `${lon},${lat}`)
+                    .join(';');
+                const response = await fetch(
+                    `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`
+                );
+                if (!response.ok) throw new Error(`OSRM respondió ${response.status}`);
+                const data = await response.json();
+                if (!data.routes?.length) throw new Error('OSRM no devolvió rutas');
+                routeLayer = L.geoJSON(data.routes[0].geometry, {
+                    style: { color: '#0d6efd', weight: 5, opacity: 0.85 }
+                }).addTo(routeMap);
+                status.textContent = 'Ruta calculada sobre calles y caminos.';
+            } catch (error) {
+                console.warn('Se usa el trazado aproximado entre localidades', error);
+                drawFallbackPolyline(uniqueCoordinates);
+                status.textContent = 'Ruta aproximada entre localidades (servicio de direcciones no disponible).';
+            }
+            routeMap.fitBounds(routeLayer.getBounds(), { padding: [25, 25] });
+        }
+
+        document.getElementById('show-route-button').addEventListener('click', recalculateRoute);
+        document.addEventListener('DOMContentLoaded', () => {
+            initRouteMap();
+            if (waypoints.length) recalculateRoute();
+        });
+
         async function markOnboard(reservationId, button) {
             button.disabled = true;
             try {

@@ -21,4 +21,19 @@ class HojaRutaTemplateTest {
                     "/api/reservations/${reservationId}/travel-status"));
         }
     }
+
+    @Test
+    void routeMapBindsReservationFieldsAndProvidesFallbacks() throws IOException {
+        try (var input = getClass().getResourceAsStream(
+                "/templates/admin/hoja-ruta.html")) {
+            String template = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertTrue(template.contains("r.pickupAddress || r.address || ''"));
+            assertTrue(template.contains("r.pickupLocality || r.locality || r.origin || ''"));
+            assertTrue(template.contains("r.destination || 'Córdoba'"));
+            assertTrue(template.contains("r.passengerPhone || (r.passenger ? r.passenger.phone : '')"));
+            assertTrue(template.contains("routeMap.invalidateSize()"));
+            assertTrue(template.contains("drawFallbackPolyline(uniqueCoordinates)"));
+        }
+    }
 }
