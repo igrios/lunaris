@@ -40,19 +40,22 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/drivers/applications")
+                        .permitAll()
                         .requestMatchers(
                                 "/actuator/**",
                                 "/api/public/**",
                                 "/api/schedules/**",
                                 "/api/reservations/**",
-                                "/api/drivers/**",
                                 "/api/auth/**",
                                 "/webhook/**",
                                 "/whatsapp/**")
                         .permitAll()
+                        .requestMatchers("/api/drivers", "/api/drivers/**")
+                        .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
                         .requestMatchers(HttpMethod.GET, "/api/passengers/me", "/api/passengers/profile")
@@ -76,6 +79,9 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
         http
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        "/choferes/**",
+                        "/drivers/**"))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth

@@ -3,9 +3,10 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.Reservation.TravelStatus;
-import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
+import com.lunaris.ansenuza.application.usecase.DriverManagementService;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,22 +22,20 @@ import java.util.UUID;
 @Slf4j
 public class DriverController {
 
-    private final DriverRepository repository;
     private final ReservationRepository reservationRepository;
     private final OnboardPassengerUseCase onboardPassengerUseCase;
+    private final DriverManagementService driverManagementService;
 
-    @GetMapping("/drivers")
+    @GetMapping({"/drivers", "/api/drivers"})
     public List<Driver> findAll() {
-        return repository.findAll();
+        return driverManagementService.findAll();
     }
 
-    @PostMapping("/drivers")
+    @PostMapping({"/drivers", "/api/drivers"})
     public Driver create(
-            @RequestBody Driver driver) {
-        if (driver.getId() == null) {
-            driver.setId(UUID.randomUUID());
-        }
-        return repository.save(driver);
+            @RequestBody CreateDriverRequest request) {
+        return driverManagementService.create(
+                request.fullName(), request.phone(), request.ranking(), request.active());
     }
 
     @PostMapping("/api/driver/confirm-assistance")
@@ -103,5 +102,12 @@ public class DriverController {
     }
 
     public record UpdateTravelStatusRequest(String travelStatus) {
+    }
+
+    public record CreateDriverRequest(
+            @JsonAlias("name") String fullName,
+            String phone,
+            Integer ranking,
+            Boolean active) {
     }
 }

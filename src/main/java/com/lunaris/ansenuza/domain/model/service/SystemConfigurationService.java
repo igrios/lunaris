@@ -26,9 +26,12 @@ public class SystemConfigurationService {
 
     @Transactional(readOnly = true)
     public String getValue(String key, String defaultValue) {
-        return repository.findById(key)
+        if (key == null || key.isBlank()) {
+            return defaultValue;
+        }
+        return repository.findById(key.trim())
                 .map(SystemConfiguration::getValue)
-                .filter(value -> !value.isBlank())
+                .filter(value -> value != null && !value.isBlank())
                 .orElse(defaultValue);
     }
 
