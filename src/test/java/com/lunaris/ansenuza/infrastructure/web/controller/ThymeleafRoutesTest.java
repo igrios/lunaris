@@ -29,6 +29,7 @@ class ThymeleafRoutesTest {
                 Path.of("src/main/resources/templates/choferes.html"));
 
         assertTrue(template.contains("th:action=\"@{/choferes/guardar}\""));
+        assertTrue(template.contains("th:disabled=\"${driver.id == null}\""));
         assertTrue(template.contains("th:object=\"${driver}\""));
         assertTrue(template.contains("th:name=\"${_csrf.parameterName}\""));
         assertTrue(template.contains("th:value=\"${_csrf.token}\""));

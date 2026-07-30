@@ -42,7 +42,8 @@
         <h5 class="fw-bold mb-3" id="formTitulo"><i class="bi bi-person-plus-fill me-2 text-primary"></i>Nuevo Chofer</h5>
         <form th:action="@{/choferes/guardar}" th:object="${driver}" method="post"
           class="row g-3 align-items-end">
-          <input type="hidden" th:field="*{id}" id="chofer-id">
+          <input type="hidden" th:field="*{id}" id="chofer-id"
+            th:disabled="${driver.id == null}">
           <input th:if="${_csrf != null}" type="hidden"
             th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
 
@@ -190,7 +191,9 @@
 
     // ✏️ Carga los datos de un chofer en el formulario para editarlo
     function editarChofer(btn) {
-      document.getElementById('chofer-id').value = btn.dataset.id || '';
+      const idInput = document.getElementById('chofer-id');
+      idInput.value = btn.dataset.id || '';
+      idInput.disabled = !idInput.value;
       document.getElementById('chofer-nombre').value = btn.dataset.nombre || '';
       document.getElementById('chofer-telefono').value = btn.dataset.telefono || '';
       document.getElementById('chofer-ranking').value = (btn.dataset.ranking && btn.dataset.ranking !== 'null') ? btn.dataset.ranking : '';
@@ -203,7 +206,9 @@
     }
 
     function cancelarEdicion() {
-      document.getElementById('chofer-id').value = '';
+      const idInput = document.getElementById('chofer-id');
+      idInput.value = '';
+      idInput.disabled = true;
       document.getElementById('chofer-nombre').value = '';
       document.getElementById('chofer-telefono').value = '';
       document.getElementById('chofer-ranking').value = '';
