@@ -1,0 +1,2 @@
+ALTER TABLE reservations
+    ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'WEB';
