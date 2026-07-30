@@ -264,20 +264,10 @@ public void sendDespiertaChoferTemplate(
             "parameters", java.util.List.of(bodyParam)
         );
 
-        String routeSheetUrl = buildDriverRouteSheetUrl(driverId, travelDate);
-        java.util.Map<String, Object> urlComponent = java.util.Map.of(
-            "type", "button",
-            "sub_type", "url",
-            "index", "0",
-            "parameters", java.util.List.of(java.util.Map.of(
-                "type", "text",
-                "text", routeSheetUrl))
-        );
-
         java.util.Map<String, Object> templateMap = java.util.Map.of(
             "name", "despierta_chofer",
             "language", java.util.Map.of("code", templateLanguageFor("despierta_chofer")),
-            "components", java.util.List.of(bodyComponent, urlComponent)
+            "components", despiertaChoferComponents(bodyComponent, driverId, travelDate)
         );
 
         java.util.Map<String, Object> body = java.util.Map.of(
@@ -292,6 +282,22 @@ public void sendDespiertaChoferTemplate(
     } catch (Exception e) {
         log.error("Error al enviar la plantilla despierta_chofer a {}: ", to, e);
     }
+}
+
+static java.util.List<java.util.Map<String, Object>> despiertaChoferComponents(
+        java.util.Map<String, Object> bodyComponent,
+        java.util.UUID driverId,
+        java.time.LocalDate travelDate) {
+    String routeSheetUrl = buildDriverRouteSheetUrl(driverId, travelDate);
+    java.util.Map<String, Object> quickReplyComponent = java.util.Map.of(
+        "type", "button",
+        "sub_type", "quick_reply",
+        "index", "0",
+        "parameters", java.util.List.of(java.util.Map.of(
+            "type", "payload",
+            "payload", routeSheetUrl))
+    );
+    return java.util.List.of(bodyComponent, quickReplyComponent);
 }
 
 static String buildDriverRouteSheetUrl(

@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.List;
+import java.util.Map;
 
 class WhatsAppTemplateConfigurationTest {
 
@@ -47,5 +49,28 @@ class WhatsAppTemplateConfigurationTest {
                         + "?driverId=917d74d2-d5de-4ec7-a674-d0d0fb52f99c&date=2026-08-05",
                 WhatsAppService.buildDriverRouteSheetUrl(
                         driverId, LocalDate.of(2026, 8, 5)));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void driverTemplateUsesQuickReplyPayloadAtButtonIndexZero() {
+        UUID driverId = UUID.fromString("917d74d2-d5de-4ec7-a674-d0d0fb52f99c");
+        Map<String, Object> body = Map.of("type", "body", "parameters", List.of());
+
+        var components = WhatsAppService.despiertaChoferComponents(
+                body, driverId, LocalDate.of(2026, 8, 5));
+        Map<String, Object> button = components.get(1);
+        Map<String, Object> parameter =
+                ((List<Map<String, Object>>) button.get("parameters")).getFirst();
+
+        assertEquals("button", button.get("type"));
+        assertEquals("quick_reply", button.get("sub_type"));
+        assertEquals("0", button.get("index"));
+        assertEquals("payload", parameter.get("type"));
+        assertEquals(
+                WhatsAppService.buildDriverRouteSheetUrl(
+                        driverId, LocalDate.of(2026, 8, 5)),
+                parameter.get("payload"));
+        assertFalse(parameter.containsKey("text"));
     }
 }
