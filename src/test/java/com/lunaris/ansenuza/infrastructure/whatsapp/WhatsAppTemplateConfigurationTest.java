@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
+import java.time.LocalDate;
+import java.util.UUID;
 
 class WhatsAppTemplateConfigurationTest {
 
@@ -34,5 +36,16 @@ class WhatsAppTemplateConfigurationTest {
         assertEquals(2, parameters.size());
         assertEquals("Ana", parameters.get(0));
         assertEquals("Juan", parameters.get(1));
+    }
+
+    @Test
+    void driverRouteSheetUrlContainsDatabaseUuidAndTravelDate() {
+        UUID driverId = UUID.fromString("917d74d2-d5de-4ec7-a674-d0d0fb52f99c");
+
+        assertEquals(
+                "https://lunaris-backend-nn6s.onrender.com/hoja-ruta"
+                        + "?driverId=917d74d2-d5de-4ec7-a674-d0d0fb52f99c&date=2026-08-05",
+                WhatsAppService.buildDriverRouteSheetUrl(
+                        driverId, LocalDate.of(2026, 8, 5)));
     }
 }

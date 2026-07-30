@@ -96,6 +96,8 @@ public class SecurityConfig {
                                 "/api-docs/**",
                                 "/v3/api-docs/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/hoja-ruta")
+                        .permitAll()
                         .requestMatchers(
                                 "/admin/usuarios/**",
                                 "/admin/configuraciones/**",
@@ -110,7 +112,7 @@ public class SecurityConfig {
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/facturacion/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.FACTURACION.name())
-                        .requestMatchers(HttpMethod.GET, "/admin/hoja-ruta", "/hoja-ruta")
+                        .requestMatchers(HttpMethod.GET, "/admin/hoja-ruta")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
                         .requestMatchers(
                                 "/admin/dashboard",

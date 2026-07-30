@@ -244,7 +244,11 @@ public class AgendaViewController {
 
         // 3. Enviar plantilla al chofer para abrir su hoja de ruta.
         try {
-            whatsAppService.sendDespiertaChoferTemplate(normalizedPhone, driver.getFullName());
+            whatsAppService.sendDespiertaChoferTemplate(
+                    normalizedPhone,
+                    driver.getFullName(),
+                    driver.getId(),
+                    firstReservation.getTravelDate());
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(getClass())
@@ -283,9 +287,40 @@ public class AgendaViewController {
 
     // 📋 8. Habilita http://localhost:8080/hoja-ruta apuntando adentro de admin/
     @GetMapping("/hoja-ruta")
-    public String showHojaRuta(Model model) {
-        model.addAttribute("date", com.lunaris.ansenuza.shared.ArgentinaTime.today());
+    public String showHojaRuta(
+            @RequestParam UUID driverId,
+            @RequestParam("date") java.time.LocalDate travelDate,
+            Model model) {
+        Driver driver = driverRepository.findById(driverId).orElse(null);
+        if (driver == null) {
+            model.addAttribute("routeError", "No se encontró el chofer indicado.");
+            model.addAttribute("reservas", List.of());
+            model.addAttribute("totalYendo", 0);
+            model.addAttribute("totalVolviendo", 0);
+        } else {
+            List<Reservation> reservations =
+                    reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
+                            driverId, travelDate);
+            model.addAttribute("driver", driver);
+            model.addAttribute("reservas", reservations);
+            model.addAttribute("totalYendo", countSeats(reservations, false));
+            model.addAttribute("totalVolviendo", countSeats(reservations, true));
+        }
+        model.addAttribute("fechaSeleccionada", travelDate);
+        model.addAttribute("pasajeros0800Count", 0);
+        model.addAttribute("hubActivado", false);
         return "admin/hoja-ruta"; // 👈 Corregido: va a buscar a templates/admin/hoja-ruta.html
+    }
+
+    private int countSeats(List<Reservation> reservations, boolean fromCordoba) {
+        return reservations.stream()
+                .filter(reservation -> fromCordoba
+                        == "Córdoba".equalsIgnoreCase(reservation.getPickupLocality()))
+                .mapToInt(reservation ->
+                        reservation.getPassengerCount() == null
+                                ? 1
+                                : reservation.getPassengerCount())
+                .sum();
     }
 
     public record Chofer(String nombre, String telefono) {
