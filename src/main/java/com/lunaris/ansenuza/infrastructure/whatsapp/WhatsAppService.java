@@ -16,6 +16,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.lunaris.ansenuza.domain.model.Reservation;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -296,16 +297,102 @@ public void sendDespiertaChoferTemplate(
 public void sendDriverRouteDispatch(
         String to,
         String driverName,
-        java.util.UUID driverId,
-        java.time.LocalDate travelDate,
-        String navigationUrl) {
-    sendDespiertaChoferTemplate(to, driverName, driverId, travelDate);
-    String checklistUrl = buildDriverRouteSheetUrl(driverId, travelDate);
-    sendMessage(
-            to,
-            "🚐 Hoja de ruta Lunaris\n\n"
-                    + "📍 Navegación GPS:\n" + navigationUrl + "\n\n"
-                    + "✅ Checklist de pasajeros:\n" + checklistUrl);
+        String navigationUrl,
+        List<Reservation> reservations) {
+    List<Reservation> orderedReservations = reservations == null
+            ? List.of()
+            : reservations.stream()
+                    .filter(java.util.Objects::nonNull)
+                    .sorted(java.util.Comparator.comparing(
+                            Reservation::getRouteSequence,
+                            java.util.Comparator.nullsLast(Integer::compareTo)))
+                    .toList();
+
+    sendMessage(to, buildDriverPassengerSummary(driverName, navigationUrl, orderedReservations));
+
+    for (int start = 0; start < orderedReservations.size(); start += 10) {
+        int end = Math.min(start + 10, orderedReservations.size());
+        List<Map<String, Object>> rows = orderedReservations.subList(start, end).stream()
+                .map(WhatsAppService::onboardRow)
+                .toList();
+        Map<String, Object> section = Map.of(
+                "title", "Pasajeros " + (start + 1) + "–" + end,
+                "rows", rows);
+        sendInteractiveList(
+                to,
+                "Confirmar abordajes",
+                "Seleccioná al pasajero que acaba de subir.",
+                "A bordo",
+                List.of(section));
+    }
+}
+
+static String buildDriverPassengerSummary(
+        String driverName, String navigationUrl, List<Reservation> reservations) {
+    StringBuilder summary = new StringBuilder()
+            .append("🚐 *Hoja de ruta Lunaris*\n")
+            .append("Chofer: ").append(textOrDefault(driverName, "Chofer")).append("\n\n")
+            .append("📍 *Navegación GPS:*\n")
+            .append(textOrDefault(navigationUrl, "No disponible")).append("\n\n")
+            .append("👥 *Pasajeros:*\n");
+
+    if (reservations == null || reservations.isEmpty()) {
+        return summary.append("Sin pasajeros asignados.").toString();
+    }
+
+    int index = 1;
+    for (Reservation reservation : reservations) {
+        var passenger = reservation.getPassenger();
+        String passengerName = passenger == null
+                ? "Pasajero"
+                : (textOrDefault(passenger.getFirstName(), "") + " "
+                        + textOrDefault(passenger.getLastName(), "")).trim();
+        String phone = passenger == null ? "" : passenger.getPhone();
+        summary.append(index++).append(". *")
+                .append(textOrDefault(passengerName, "Pasajero")).append("*\n")
+                .append("   📍 ").append(resolvePickupAddress(reservation)).append("\n")
+                .append("   📞 ").append(textOrDefault(phone, "Sin teléfono")).append("\n")
+                .append("   💺 ").append(reservation.getTotalSeats()).append(" asiento(s)");
+        if (reservation.getCompanionNames() != null
+                && !reservation.getCompanionNames().isBlank()) {
+            summary.append(" — Acompañantes: ").append(reservation.getCompanionNames().trim());
+        }
+        summary.append("\n\n");
+    }
+    return summary.toString().trim();
+}
+
+private static Map<String, Object> onboardRow(Reservation reservation) {
+    var passenger = reservation.getPassenger();
+    String passengerName = passenger == null
+            ? "Pasajero"
+            : (textOrDefault(passenger.getFirstName(), "") + " "
+                    + textOrDefault(passenger.getLastName(), "")).trim();
+    return Map.of(
+            "id", "ONBOARD_" + reservation.getId(),
+            "title", truncateMetaText(
+                    "A bordo - " + textOrDefault(passengerName, "Pasajero"), 24),
+            "description", truncateMetaText(resolvePickupAddress(reservation), 72));
+}
+
+private static String resolvePickupAddress(Reservation reservation) {
+    if (reservation.getPickupAddress() != null && !reservation.getPickupAddress().isBlank()) {
+        return reservation.getPickupAddress().trim();
+    }
+    if (reservation.getPassenger() != null
+            && reservation.getPassenger().getAddress() != null
+            && !reservation.getPassenger().getAddress().isBlank()) {
+        return reservation.getPassenger().getAddress().trim();
+    }
+    return "Sin dirección registrada";
+}
+
+private static String textOrDefault(String value, String fallback) {
+    return value == null || value.isBlank() ? fallback : value.trim();
+}
+
+private static String truncateMetaText(String value, int maxLength) {
+    return value.length() <= maxLength ? value : value.substring(0, maxLength - 1) + "…";
 }
 
 static java.util.List<java.util.Map<String, Object>> despiertaChoferComponents(

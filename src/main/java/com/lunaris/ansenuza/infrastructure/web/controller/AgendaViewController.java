@@ -420,9 +420,8 @@ public class AgendaViewController {
             whatsAppService.sendDriverRouteDispatch(
                     normalizedPhone,
                     driver.getFullName(),
-                    driver.getId(),
-                    firstReservation.getTravelDate(),
-                    navigationUrl);
+                    navigationUrl,
+                    assignedReservations);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(getClass())

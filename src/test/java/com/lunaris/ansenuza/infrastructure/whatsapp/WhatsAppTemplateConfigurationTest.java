@@ -9,6 +9,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 import java.util.List;
 import java.util.Map;
+import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Reservation;
 
 class WhatsAppTemplateConfigurationTest {
 
@@ -89,5 +91,51 @@ class WhatsAppTemplateConfigurationTest {
                         driverId, LocalDate.of(2026, 8, 5)),
                 parameter.get("payload"));
         assertFalse(parameter.containsKey("text"));
+    }
+
+    @Test
+    void driverDispatchSummaryContainsAllPassengerDetailsAndOnlyNavigationLink() {
+        Reservation reservation = Reservation.builder()
+                .id(UUID.fromString("5ca1ab1e-6806-4a50-94e3-3785b4bf5b68"))
+                .passenger(Passenger.builder()
+                        .firstName("Ana")
+                        .lastName("Pérez")
+                        .phone("351 555-1234")
+                        .address("https://maps.google.com/?q=-31.1,-62.1")
+                        .build())
+                .pickupAddress("San Martín 123")
+                .passengerCount(2)
+                .companionNames("Juan Pérez")
+                .build();
+        String navigationUrl = "https://www.google.com/maps/dir/?api=1"
+                + "&origin=San%20Mart%C3%ADn%20123&destination=Cordoba";
+
+        String summary = WhatsAppService.buildDriverPassengerSummary(
+                "Carlos", navigationUrl, List.of(reservation));
+
+        assertTrue(summary.contains("Ana Pérez"));
+        assertTrue(summary.contains("San Martín 123"));
+        assertTrue(summary.contains("351 555-1234"));
+        assertTrue(summary.contains("2 asiento(s)"));
+        assertTrue(summary.contains("Acompañantes: Juan Pérez"));
+        assertTrue(summary.contains(navigationUrl));
+        assertFalse(summary.contains("/hoja-ruta"));
+        assertFalse(summary.contains("lunaris-backend"));
+    }
+
+    @Test
+    void driverDispatchFallsBackToPassengerMapLocation() {
+        Reservation reservation = Reservation.builder()
+                .passenger(Passenger.builder()
+                        .firstName("Ana")
+                        .lastName("Pérez")
+                        .address("https://maps.google.com/?q=-31.1,-62.1")
+                        .build())
+                .build();
+
+        String summary = WhatsAppService.buildDriverPassengerSummary(
+                "Carlos", "https://www.google.com/maps/dir/?api=1", List.of(reservation));
+
+        assertTrue(summary.contains("https://maps.google.com/?q=-31.1,-62.1"));
     }
 }
