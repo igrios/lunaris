@@ -59,6 +59,39 @@
             </div>
         </div>
 
+        <div class="row g-3 mb-4">
+            <div class="col-lg-5">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold">🚐 Capacidad de la operación</h5>
+                        <p class="fs-4 mb-1">
+                            <strong th:text="${occupiedSeats}">0</strong>
+                            /
+                            <strong th:text="${plannedCapacity}">0</strong>
+                            asientos ocupados
+                        </p>
+                        <p class="text-muted mb-0">
+                            <span th:text="${estimatedVehicles}">0</span> unidad(es) estimadas ·
+                            <span th:text="${vehicleCapacity}">8</span> asientos por unidad
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-7">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold">💰 Totales financieros del viaje</h5>
+                        <div class="row g-2">
+                            <div class="col-6">Importe: <strong th:text="'$ ' + ${totalAmount}">$ 0</strong></div>
+                            <div class="col-6">Extras: <strong th:text="'$ ' + ${totalExtraAmount}">$ 0</strong></div>
+                            <div class="col-6">Descuentos: <strong th:text="'$ ' + ${totalDiscount}">$ 0</strong></div>
+                            <div class="col-6">Saldo neto: <strong th:text="'$ ' + ${netBalance}">$ 0</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="mb-3 d-flex gap-2">
             <button type="button" class="btn btn-outline-primary flex-fill fw-semibold shadow-sm"
                 onclick="selectAllReservations()">
@@ -82,7 +115,7 @@
             </div>
             <div class="col-md-6">
                 <button type="button" onclick="enviarAChofer()" class="btn btn-success w-100 fw-bold shadow-sm">
-                    🚖 Enviar Hoja de Ruta Directa
+                    🚀 Enviar Ruta al Chofer
                 </button>
             </div>
         </div>
@@ -143,11 +176,16 @@
                 <p class="mb-2">📍 <strong>Origen:</strong> <span th:text="${reservation.pickupLocality}"></span></p>
                 <p class="mb-2">🏁 <strong>Destino:</strong> <span th:text="${reservation.destination}"></span></p>
                 <p class="mb-2" th:if="${reservation.pickupAddress != null and reservation.pickupAddress != ''}">
-                    🏠 <strong>Dirección de Retiro:</strong>
+                    🏠 <strong>Dirección exacta de retiro:</strong>
+                    <span th:text="${reservation.pickupAddress}"></span>
                     <a th:if="${#strings.startsWith(reservation.pickupAddress, 'https://maps.google.com/?q=')}"
-                        th:href="${reservation.pickupAddress}" target="_blank" rel="noopener">Ver ubicación GPS</a>
-                    <span th:unless="${#strings.startsWith(reservation.pickupAddress, 'https://maps.google.com/?q=')}"
-                        th:text="${reservation.pickupAddress}"></span>
+                        th:href="${reservation.pickupAddress}" target="_blank" rel="noopener"
+                        class="btn btn-outline-primary btn-sm ms-2">Abrir GPS</a>
+                </p>
+                <p class="mb-2"
+                    th:if="${reservation.pickupAddress == null or reservation.pickupAddress == ''}">
+                    🏠 <strong>Dirección exacta de retiro:</strong>
+                    <span class="text-danger">Sin dirección registrada</span>
                 </p>
                 <p class="mb-2">📞 <strong>Teléfono Pasajero:</strong> <span
                         th:text="${reservation.passenger.phone}"></span></p>
@@ -158,15 +196,36 @@
                         th:text="${reservation.passengerCount != null ? reservation.passengerCount : 1}">1</span>
                 </p>
 
-                <p class="mb-2" th:if="${reservation.companionNames != null and reservation.companionNames != ''}">
-                    👥 <strong>Acompañantes:</strong> <span class="text-muted"
-                        th:text="${reservation.companionNames}"></span>
+                <p class="mb-2">
+                    👥 <strong>Acompañantes:</strong>
+                    <span class="text-muted"
+                        th:text="${reservation.companionNames != null and reservation.companionNames != ''
+                            ? reservation.companionNames
+                            : 'Sin acompañantes'}"></span>
                 </p>
 
                 <p class="mb-2" th:if="${reservation.returnDate != null}">🔄 <strong>Fecha Regreso:</strong> <span
                         th:text="${reservation.returnDate}"></span></p>
-                <p class="mb-3" th:if="${reservation.amount != null}">💰 <strong>Importe del Tramo:</strong> <span
-                        class="fw-bold text-dark">$<span th:text="${reservation.amount}"></span></span></p>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        Importe:
+                        <strong th:text="'$ ' + ${reservation.amount != null ? reservation.amount : 0}">$ 0</strong>
+                    </div>
+                    <div class="col-md-3">
+                        Extras:
+                        <strong th:text="'$ ' + ${reservation.extraAmount != null ? reservation.extraAmount : 0}">$ 0</strong>
+                    </div>
+                    <div class="col-md-3">
+                        Descuento:
+                        <strong th:text="'$ ' + ${reservation.discountAmount != null ? reservation.discountAmount : 0}">$ 0</strong>
+                    </div>
+                    <div class="col-md-3">
+                        Saldo neto:
+                        <strong th:text="'$ ' + ${(reservation.amount != null ? reservation.amount : 0)
+                            + (reservation.extraAmount != null ? reservation.extraAmount : 0)
+                            - (reservation.discountAmount != null ? reservation.discountAmount : 0)}">$ 0</strong>
+                    </div>
+                </div>
 
                 <div class="alert alert-success py-2 mb-3"
                     th:if="${reservation.promotionId != null or (reservation.promotionCode != null and reservation.promotionCode != '')}">
@@ -179,16 +238,17 @@
                 </div>
 
                 <div class="mb-3 status-container">
-                    <span th:if="${reservation.status == 'PENDING_PAYMENT'}"
-                        class="badge bg-warning text-dark px-3 py-1 fs-6">⏳ Pago Pendiente</span>
-                    <span th:if="${reservation.status == 'PAYMENT_RECEIVED'}" class="badge bg-info px-3 py-1 fs-6">📄
-                        Comprobante Recibido</span>
-                    <span th:if="${reservation.status == 'CONFIRMED'}" class="badge bg-success px-3 py-1 fs-6">✅
-                        Confirmada</span>
-                </div>
-
-                <div class="alert alert-info py-1 fs-6 mb-2">
-                    URL de Comprobante: <strong th:text="'[' + ${reservation.paymentReceiptUrl} + ']'"></strong>
+                    <strong>Estado de pago:</strong>
+                    <span th:if="${reservation.paymentVerified == true}"
+                        class="badge bg-success px-3 py-1 fs-6">VERIFIED</span>
+                    <span th:if="${reservation.paymentVerified != true
+                            and reservation.paymentReceiptUrl != null
+                            and !#strings.isEmpty(reservation.paymentReceiptUrl)}"
+                        class="badge bg-info text-dark px-3 py-1 fs-6">RECEIPT_UPLOADED</span>
+                    <span th:if="${reservation.paymentVerified != true
+                            and (reservation.paymentReceiptUrl == null
+                            or #strings.isEmpty(reservation.paymentReceiptUrl))}"
+                        class="badge bg-warning text-dark px-3 py-1 fs-6">PENDING</span>
                 </div>
 
                 <div class="payment-action-container mb-3 d-flex gap-2">
@@ -196,7 +256,7 @@
                     <a th:if="${reservation.paymentReceiptUrl != null and !#strings.isEmpty(reservation.paymentReceiptUrl)}"
                         th:href="@{'/agenda/comprobante/' + ${reservation.id}}" target="_blank"
                         class="btn btn-primary btn-sm shadow-sm">
-                        📄 Ver Comprobante
+                        🧾 Ver comprobante de pago
                     </a>
 
                     <button th:if="${reservation.status != 'CONFIRMED'}" type="button"
@@ -280,7 +340,8 @@
                         if (!card) return;
 
                         const statusContainer = card.querySelector(".status-container");
-                        statusContainer.innerHTML = `<span class="badge bg-success px-3 py-1 fs-6">✅ Confirmada</span>`;
+                        statusContainer.innerHTML =
+                            `<strong>Estado de pago:</strong> <span class="badge bg-success px-3 py-1 fs-6">VERIFIED</span>`;
 
                         const actionContainer = card.querySelector(".payment-action-container");
                         const btnVerificar = actionContainer.querySelector("button");

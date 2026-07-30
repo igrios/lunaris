@@ -4,7 +4,6 @@ package com.lunaris.ansenuza.infrastructure.web.dto.agenda;
 
 import java.time.LocalDate;
 import java.util.UUID;
-import java.util.List;
 import java.math.BigDecimal;
 
 public record AgendaDayView(
@@ -25,15 +24,6 @@ public record AgendaDayView(
 
         int paidReservations,
 
-        UUID driverId,
-
-        List<ReservationRow> reservations
+        UUID driverId
 ) {
-    public record ReservationRow(
-            UUID id,
-            String passengerName,
-            String phone,
-            String pickupAddress,
-            int passengerCount) {
-    }
 }

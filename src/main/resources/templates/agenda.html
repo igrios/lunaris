@@ -69,119 +69,10 @@
                             <span class="badge bg-success p-2 fs-6 shadow-sm">
                                 🚐 <span th:text="${day.estimatedVehicles}">0</span> Flota Estimada
                             </span>
-                            <button type="button"
-                                class="btn btn-primary px-4 fw-semibold shadow-sm"
-                                data-bs-toggle="modal"
-                                th:data-bs-target="'#day-details-' + ${day.date}">
-                                Ver Detalles →
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal fade"
-                    th:id="'day-details-' + ${day.date}"
-                    tabindex="-1"
-                    aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title"
-                                    th:text="'Pasajeros · ' + ${#temporals.format(day.date, 'dd/MM/yyyy')}">
-                                    Pasajeros
-                                </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row g-3 mb-4">
-                                    <div class="col-md-6">
-                                        <div class="border rounded p-3 h-100 bg-light">
-                                            <h6 class="fw-bold">🚐 Flota estimada</h6>
-                                            <p class="mb-1">
-                                                Ocupación:
-                                                <strong th:text="${day.totalPassengers}">0</strong>
-                                                /
-                                                <strong th:text="${day.plannedCapacity}">0</strong>
-                                                asientos planificados
-                                            </p>
-                                            <small class="text-muted">
-                                                <span th:text="${day.estimatedVehicles}">0</span>
-                                                unidad(es) de
-                                                <span th:text="${day.vehicleCapacity}">8</span>
-                                                asientos
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="border rounded p-3 h-100 bg-light">
-                                            <h6 class="fw-bold">💰 Resumen financiero</h6>
-                                            <p class="mb-1">
-                                                Total pasajeros:
-                                                <strong th:text="${day.totalPassengers}">0</strong>
-                                            </p>
-                                            <p class="mb-1">
-                                                Total recaudación:
-                                                <strong th:text="'$ ' + ${day.totalCollected}">$ 0</strong>
-                                            </p>
-                                            <small>
-                                                <span class="text-success"
-                                                    th:text="${day.paidReservations} + ' pagadas'">0 pagadas</span>
-                                                ·
-                                                <span class="text-danger"
-                                                    th:text="${day.pendingPayments} + ' pendientes'">0 pendientes</span>
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="table-responsive">
-                                    <table class="table table-sm align-middle">
-                                        <thead>
-                                            <tr>
-                                                <th>Pasajero</th>
-                                                <th>Teléfono</th>
-                                                <th>Dirección</th>
-                                                <th class="text-center">Asientos</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr th:each="reservation : ${day.reservations}"
-                                                th:data-reservation-id="${reservation.id}">
-                                                <td th:text="${reservation.passengerName}">Pasajero</td>
-                                                <td th:text="${reservation.phone}">Teléfono</td>
-                                                <td th:text="${reservation.pickupAddress}">Dirección</td>
-                                                <td class="text-center"
-                                                    th:text="${reservation.passengerCount}">1</td>
-                                            </tr>
-                                            <tr th:if="${day.reservations.isEmpty()}">
-                                                <td colspan="4" class="text-center text-muted">
-                                                    No hay reservas activas.
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <label class="form-label fw-bold"
-                                    th:for="'driver-' + ${day.date}">Chofer</label>
-                                <select class="form-select route-driver"
-                                    th:id="'driver-' + ${day.date}">
-                                    <option value="">Seleccionar chofer</option>
-                                    <option th:each="driver : ${choferes}"
-                                        th:value="${driver.phone}"
-                                        th:text="${driver.fullName}">
-                                    </option>
-                                </select>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                    Cerrar
-                                </button>
-                                <button type="button"
-                                    class="btn btn-success fw-bold dispatch-route-button"
-                                    th:data-modal-id="'day-details-' + ${day.date}"
-                                    onclick="dispatchDriverRoute(this)">
-                                    🚀 Enviar Ruta al Chofer
-                                </button>
-                            </div>
+                            <a th:href="@{/agenda/view-detalle(date=${day.date})}"
+                                class="btn btn-primary px-4 fw-semibold shadow-sm">
+                                Ver Detalles / Resumen →
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -200,36 +91,5 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        async function dispatchDriverRoute(button) {
-            const modal = document.getElementById(button.dataset.modalId);
-            const phone = modal.querySelector(".route-driver").value;
-            const reservationIds = Array.from(
-                modal.querySelectorAll("[data-reservation-id]"),
-                row => row.dataset.reservationId
-            );
-            if (!phone || reservationIds.length === 0) {
-                alert("Seleccioná un chofer y verificá que el día tenga pasajeros.");
-                return;
-            }
-
-            button.disabled = true;
-            try {
-                const response = await fetch("/api/agenda/enviar-hoja-ruta", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ phone, reservationIds })
-                });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                alert("Hoja de ruta enviada al chofer.");
-            } catch (error) {
-                console.error("No se pudo despachar la hoja de ruta", error);
-                alert("No se pudo enviar la hoja de ruta.");
-            } finally {
-                button.disabled = false;
-            }
-        }
-    </script>
 </body>
 </html>

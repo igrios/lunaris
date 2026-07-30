@@ -28,7 +28,6 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
-import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView.ReservationRow;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.RequiredArgsConstructor;
@@ -110,22 +109,6 @@ public class AgendaViewController {
                             .filter(java.util.Objects::nonNull)
                             .findFirst()
                             .orElse(null);
-                    List<ReservationRow> reservationRows = activeReservations.stream()
-                            .map(reservation -> new ReservationRow(
-                                    reservation.getId(),
-                                    reservation.getPassenger() == null
-                                            ? "Pasajero"
-                                            : (reservation.getPassenger().getFirstName() + " "
-                                                + reservation.getPassenger().getLastName()).trim(),
-                                    reservation.getPassenger() == null
-                                            ? ""
-                                            : reservation.getPassenger().getPhone(),
-                                    reservation.getPickupAddress() == null
-                                            ? reservation.getPickupLocality()
-                                            : reservation.getPickupAddress(),
-                                    reservation.getTotalSeats()))
-                            .toList();
-
                     return new AgendaDayView(
                             date,
                             totalPassengers,
@@ -135,12 +118,10 @@ public class AgendaViewController {
                             estimatedVehicles * safeVehicleCapacity,
                             totalCollected,
                             paidReservations,
-                            assignedDriverId,
-                            reservationRows);
+                            assignedDriverId);
                 }).toList();
 
         model.addAttribute("agenda", agenda);
-        model.addAttribute("choferes", driverRepository.findByActiveTrue());
         model.addAttribute("displayedDays", displayedDays);
         return "agenda";
     }
@@ -167,8 +148,40 @@ public class AgendaViewController {
         model.addAttribute("date", date);
         model.addAttribute("reservations", activeReservations);
         model.addAttribute("choferes", choferes);
+        int occupiedSeats = activeReservations.stream()
+                .mapToInt(Reservation::getTotalSeats)
+                .sum();
+        int safeVehicleCapacity = Math.max(vehicleCapacity, 1);
+        int estimatedVehicles = occupiedSeats == 0
+                ? 0
+                : (int) Math.ceil((double) occupiedSeats / safeVehicleCapacity);
+        java.math.BigDecimal totalAmount = sumMoney(
+                activeReservations, Reservation::getAmount);
+        java.math.BigDecimal totalExtraAmount = sumMoney(
+                activeReservations, Reservation::getExtraAmount);
+        java.math.BigDecimal totalDiscount = sumMoney(
+                activeReservations, Reservation::getDiscountAmount);
+        model.addAttribute("occupiedSeats", occupiedSeats);
+        model.addAttribute("vehicleCapacity", safeVehicleCapacity);
+        model.addAttribute("estimatedVehicles", estimatedVehicles);
+        model.addAttribute("plannedCapacity", estimatedVehicles * safeVehicleCapacity);
+        model.addAttribute("totalAmount", totalAmount);
+        model.addAttribute("totalExtraAmount", totalExtraAmount);
+        model.addAttribute("totalDiscount", totalDiscount);
+        model.addAttribute(
+                "netBalance",
+                totalAmount.add(totalExtraAmount).subtract(totalDiscount));
 
         return "agenda-day";
+    }
+
+    private java.math.BigDecimal sumMoney(
+            List<Reservation> reservations,
+            java.util.function.Function<Reservation, java.math.BigDecimal> extractor) {
+        return reservations.stream()
+                .map(extractor)
+                .filter(java.util.Objects::nonNull)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
     }
 
     // 💳 3. Confirmación asíncrona de pago
