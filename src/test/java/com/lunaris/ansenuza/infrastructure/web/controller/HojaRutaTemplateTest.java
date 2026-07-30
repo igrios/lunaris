@@ -35,10 +35,13 @@ class HojaRutaTemplateTest {
             assertTrue(template.contains("routeMap.invalidateSize()"));
             assertTrue(template.contains("drawFallbackPolyline(uniqueCoordinates)"));
             assertTrue(template.contains(
-                    "`${waypoint.address || ''}, ${waypoint.locality || 'Ansenuza'}, Córdoba, Argentina`"));
+                    "`${waypoint.address || ''}, ${waypoint.locality || 'Córdoba'}, Argentina`"));
             assertTrue(template.contains("encodeURIComponent(fullAddress(waypoint))"));
             assertTrue(template.contains("https://www.google.com/maps/dir/?${parameters.toString()}"));
-            assertTrue(template.contains("pickupLocations.slice(1).join('|')"));
+            assertTrue(template.contains("destination: 'Cordoba'"));
+            assertTrue(template.contains("waypoints: pickupLocations.join('|')"));
+            assertTrue(template.contains("validCoordinates(waypoint.latitude, waypoint.longitude)"));
+            assertTrue(template.contains("L.marker(directCoordinates)"));
             assertTrue(template.contains("#uris.escapeQueryParam(mapQuery)"));
         }
     }

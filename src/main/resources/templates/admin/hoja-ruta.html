@@ -246,7 +246,10 @@
             destination: r.destination || 'Córdoba',
             passengerName: r.passengerName
                 || (r.passenger ? r.passenger.firstName + ' ' + r.passenger.lastName : 'Pasajero'),
-            phone: r.passengerPhone || (r.passenger ? r.passenger.phone : '')
+            phone: r.passengerPhone || (r.passenger ? r.passenger.phone : ''),
+            latitude: r.latitude ?? r.lat ?? coordinatesFromText(r.pickupAddress || r.address)?.[0],
+            longitude: r.longitude ?? r.lng ?? r.lon
+                ?? coordinatesFromText(r.pickupAddress || r.address)?.[1]
         }));
 
         const LOCALITY_COORDINATES = {
@@ -275,22 +278,57 @@
             return match ? match[1] : null;
         }
 
+        function numericCoordinate(value) {
+            if (value === null || value === undefined || value === '') return null;
+            const coordinate = Number(value);
+            return Number.isFinite(coordinate) ? coordinate : null;
+        }
+
+        function coordinatesFromText(value) {
+            if (!value) return null;
+            let decoded = String(value);
+            try {
+                decoded = decodeURIComponent(decoded);
+            } catch (error) {
+                console.warn('La dirección GPS no estaba codificada como URI válida', error);
+            }
+            const match = decoded.match(
+                /(?:[?&]q=|^)\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/
+            );
+            if (!match) return null;
+            return validCoordinates(match[1], match[2]);
+        }
+
+        function validCoordinates(latitude, longitude) {
+            const lat = numericCoordinate(latitude);
+            const lng = numericCoordinate(longitude);
+            return lat !== null && lng !== null
+                && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+                ? [lat, lng]
+                : null;
+        }
+
+        function waypointCoordinates(waypoint) {
+            return validCoordinates(waypoint.latitude, waypoint.longitude)
+                || coordinatesFromText(waypoint.address);
+        }
+
         function fullAddress(waypoint) {
-            return `${waypoint.address || ''}, ${waypoint.locality || 'Ansenuza'}, Córdoba, Argentina`;
+            return `${waypoint.address || ''}, ${waypoint.locality || 'Córdoba'}, Argentina`;
         }
 
         function buildGoogleMapsDirectionsUrl() {
             if (!waypoints.length) return null;
 
-            const pickupLocations = waypoints.map(fullAddress);
+            const pickupLocations = waypoints.map(waypoint => {
+                const coordinates = waypointCoordinates(waypoint);
+                return coordinates ? `${coordinates[0]},${coordinates[1]}` : fullAddress(waypoint);
+            });
             const parameters = new URLSearchParams({
                 api: '1',
-                origin: pickupLocations[0],
-                destination: waypoints.at(-1).destination || 'Córdoba'
+                destination: 'Cordoba',
+                waypoints: pickupLocations.join('|')
             });
-            if (pickupLocations.length > 1) {
-                parameters.set('waypoints', pickupLocations.slice(1).join('|'));
-            }
             return `https://www.google.com/maps/dir/?${parameters.toString()}`;
         }
 
@@ -356,8 +394,23 @@
             if (routeLayer) routeMap.removeLayer(routeLayer);
             markerLayer.clearLayers();
 
-            const resolved = (await Promise.all(waypoints.map(geocodeWaypoint)))
-                .filter(Boolean);
+            const resolved = (await Promise.all(waypoints.map(async (waypoint, index) => {
+                const directCoordinates = waypointCoordinates(waypoint);
+                if (directCoordinates) {
+                    L.marker(directCoordinates)
+                        .bindPopup(`Parada ${index + 1}: ${waypoint.passengerName}`)
+                        .addTo(markerLayer);
+                    return directCoordinates;
+                }
+
+                const geocodedCoordinates = await geocodeWaypoint(waypoint);
+                if (geocodedCoordinates) {
+                    L.marker(geocodedCoordinates)
+                        .bindPopup(`Parada ${index + 1}: ${waypoint.passengerName}`)
+                        .addTo(markerLayer);
+                }
+                return geocodedCoordinates;
+            }))).filter(Boolean);
             const finalDestination = waypoints.at(-1).destination;
             const destinationCoordinates = localityCoordinates(finalDestination)
                 || LOCALITY_COORDINATES.cordoba;
@@ -373,10 +426,9 @@
                 return;
             }
 
-            uniqueCoordinates.forEach((point, index) =>
-                L.marker(point).bindPopup(index === uniqueCoordinates.length - 1
-                    ? `Destino: ${finalDestination}`
-                    : `Parada ${index + 1}`).addTo(markerLayer));
+            L.marker(destinationCoordinates)
+                .bindPopup(`Destino: ${finalDestination}`)
+                .addTo(markerLayer);
 
             try {
                 const coordinates = uniqueCoordinates
