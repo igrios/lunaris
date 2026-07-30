@@ -160,6 +160,7 @@ public class ReservationService {
 
                 // 1. Cancelamos la reserva actual seleccionada (Ida o Vuelta Abierta)
                 reservation.setStatus("CANCELLED");
+                reservation.setTravelStatus(Reservation.TravelStatus.CANCELED);
                 
                 if (pagoRealizado && reservation.getAmount() != null && reservation.getAmount().compareTo(BigDecimal.ZERO) > 0) {
                     totalReintegro[0] = totalReintegro[0].add(reservation.getAmount());
@@ -186,6 +187,7 @@ public class ReservationService {
                             boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified()) || "CONFIRMED".equals(returnRes.getStatus());
                             
                             returnRes.setStatus("CANCELLED");
+                            returnRes.setTravelStatus(Reservation.TravelStatus.CANCELED);
                             
                             if (pagoVueltaRealizado && returnRes.getAmount() != null && returnRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
                                 totalReintegro[0] = totalReintegro[0].add(returnRes.getAmount());

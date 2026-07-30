@@ -42,6 +42,8 @@ public class ReservationCancellationService {
         }
 
         if (RETURN_NO_ID.equals(decisionId)) {
+            boolean eligibleForRefund = Boolean.TRUE.equals(returnReservation.getPaymentVerified())
+                    || "CONFIRMED".equals(returnReservation.getStatus());
             returnReservation.setTravelStatus(TravelStatus.CANCELED);
             returnReservation.setStatus("CANCELLED");
             returnReservation.setNotes(appendNote(returnReservation.getNotes(),
@@ -55,9 +57,13 @@ public class ReservationCancellationService {
                     ? returnReservation.getAmount()
                     : BigDecimal.ZERO;
 
-            passenger.setCurrentBalance(currentBalance.add(returnFare));
+            if (eligibleForRefund && returnFare.signum() > 0) {
+                passenger.setCurrentBalance(currentBalance.add(returnFare));
+            }
             reservationRepository.saveAndFlush(returnReservation);
-            passengerRepository.saveAndFlush(passenger);
+            if (eligibleForRefund && returnFare.signum() > 0) {
+                passengerRepository.saveAndFlush(passenger);
+            }
             return;
         }
 

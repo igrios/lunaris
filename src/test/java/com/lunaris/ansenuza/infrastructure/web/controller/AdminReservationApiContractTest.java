@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,7 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.lunaris.ansenuza.application.usecase.ReservationDriverAssignmentService;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,13 +23,15 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class AdminReservationApiContractTest {
 
     private ReservationDriverAssignmentService assignmentService;
+    private ReservationRepository reservationRepository;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         assignmentService = mock(ReservationDriverAssignmentService.class);
+        reservationRepository = mock(ReservationRepository.class);
         mockMvc = MockMvcBuilders.standaloneSetup(
-                        new AdminReservationApiController(assignmentService))
+                        new AdminReservationApiController(assignmentService, reservationRepository))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
     }
@@ -82,5 +87,29 @@ class AdminReservationApiContractTest {
                 .andExpect(jsonPath("$.id").value(reservationId.toString()))
                 .andExpect(jsonPath("$.driverId").doesNotExist())
                 .andExpect(jsonPath("$.travelStatus").value("PENDING"));
+    }
+
+    @Test
+    void returnsEveryStoredReservationWithStatusAndDriverDetails() throws Exception {
+        UUID reservationId = UUID.randomUUID();
+        UUID driverId = UUID.randomUUID();
+        Driver driver = new Driver();
+        driver.setId(driverId);
+        driver.setFullName("Ana Chofer");
+        Reservation reservation = Reservation.builder()
+                .id(reservationId)
+                .driver(driver)
+                .status("CONFIRMED")
+                .travelStatus(Reservation.TravelStatus.PENDING)
+                .build();
+        when(reservationRepository.findAll()).thenReturn(List.of(reservation));
+
+        mockMvc.perform(get("/api/admin/reservations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(reservationId.toString()))
+                .andExpect(jsonPath("$[0].status").value("CONFIRMED"))
+                .andExpect(jsonPath("$[0].travelStatus").value("PENDING"))
+                .andExpect(jsonPath("$[0].driverId").value(driverId.toString()))
+                .andExpect(jsonPath("$[0].driverName").value("Ana Chofer"));
     }
 }

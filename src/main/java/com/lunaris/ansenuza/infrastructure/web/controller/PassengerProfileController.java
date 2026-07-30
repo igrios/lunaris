@@ -14,7 +14,7 @@ public class PassengerProfileController {
 
     private final GetPassengerProfileUseCase getPassengerProfileUseCase;
 
-    @GetMapping("/me")
+    @GetMapping({"/me", "/profile"})
     public GetPassengerProfileUseCase.PassengerProfile me(Principal principal) {
         return getPassengerProfileUseCase.execute(principal.getName());
     }

@@ -1,11 +1,13 @@
 package com.lunaris.ansenuza.domain.model.service;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,37 @@ import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
 class ReservationServiceTest {
+
+    @Test
+    void cancellationCreditsPaidReservationAmountAndUpdatesBothStatuses() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(
+                reservations,
+                mock(ReservationEventRepository.class),
+                passengers,
+                mock(OnboardPassengerUseCase.class));
+        UUID reservationId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder()
+                .currentBalance(new BigDecimal("100.00"))
+                .build();
+        Reservation reservation = Reservation.builder()
+                .id(reservationId)
+                .passenger(passenger)
+                .amount(new BigDecimal("2500.00"))
+                .paymentVerified(true)
+                .status("CONFIRMED")
+                .reservationCode("COR-MIR-001-VUELTA")
+                .build();
+        when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
+
+        service.cancelReservation(reservationId, "PASSENGER");
+
+        assertEquals(new BigDecimal("2600.00"), passenger.getCurrentBalance());
+        assertEquals("CANCELLED", reservation.getStatus());
+        assertEquals(Reservation.TravelStatus.CANCELED, reservation.getTravelStatus());
+        verify(passengers).saveAndFlush(passenger);
+    }
 
     @Test
     void genericUpdateDelegatesOnboardTransitionToCanonicalUseCase() {
