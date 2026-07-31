@@ -12,8 +12,9 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,8 +50,8 @@ public class PassengerOtpService {
     @Transactional
     public void sendOtp(String rawPhone, String fullName) {
         String phone = PhoneUtils.normalizeArgentinePhone(rawPhone);
-        Passenger passenger = passengerRepository.findByPhone(rawPhone.trim())
-                .or(() -> passengerRepository.findByPhone(phone))
+        Passenger passenger = passengerRepository.findByPhone(phone)
+                .or(() -> findByOriginalPhone(rawPhone, phone))
                 .orElseGet(() -> createPassenger(fullName, phone));
         String storedPhone = PhoneUtils.normalizeArgentinePhone(passenger.getPhone());
         String code = String.format("%04d", secureRandom.nextInt(10_000));
@@ -66,12 +67,25 @@ public class PassengerOtpService {
         int separator = normalizedName.lastIndexOf(' ');
         String firstName = separator > 0 ? normalizedName.substring(0, separator) : normalizedName;
         String lastName = separator > 0 ? normalizedName.substring(separator + 1) : "Sin apellido";
-        return passengerRepository.save(Passenger.builder()
-                .id(UUID.randomUUID())
+        Passenger newPassenger = Passenger.builder()
                 .firstName(firstName)
                 .lastName(lastName)
                 .phone(phone)
-                .build());
+                .build();
+        try {
+            // El ID debe permanecer nulo: con @GeneratedValue Hibernate hará persist en vez de merge.
+            return passengerRepository.save(newPassenger);
+        } catch (ObjectOptimisticLockingFailureException | DataIntegrityViolationException exception) {
+            // Otra petición puede haber creado al pasajero entre el find y el save.
+            return passengerRepository.findByPhone(phone).orElseThrow(() -> exception);
+        }
+    }
+
+    private Optional<Passenger> findByOriginalPhone(String rawPhone, String normalizedPhone) {
+        String originalPhone = rawPhone.trim();
+        return originalPhone.equals(normalizedPhone)
+                ? Optional.empty()
+                : passengerRepository.findByPhone(originalPhone);
     }
 
     public TokenResult verifyOtp(String rawPhone, String code) {
