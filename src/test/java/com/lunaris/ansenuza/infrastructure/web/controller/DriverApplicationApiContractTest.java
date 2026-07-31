@@ -41,6 +41,7 @@ class DriverApplicationApiContractTest {
                 .phone("543512345678")
                 .locality("Miramar")
                 .vehicleModel("Renault Kangoo")
+                .vehicleYear(2022)
                 .licensePlate("AA123BB")
                 .wantsDirectContact(true)
                 .status(DriverApplication.Status.PENDING)
@@ -64,6 +65,7 @@ class DriverApplicationApiContractTest {
                         .param("phone", "543512345678")
                         .param("locality", "Miramar")
                         .param("vehicleModel", "Renault Kangoo")
+                        .param("vehicleYear", "2022")
                         .param("plateNumber", "AA123BB")
                         .param("wantsDirectContact", "true")
                         .contentType(MediaType.MULTIPART_FORM_DATA))
@@ -74,6 +76,7 @@ class DriverApplicationApiContractTest {
                 .andExpect(jsonPath("$.phone").value("543512345678"))
                 .andExpect(jsonPath("$.locality").value("Miramar"))
                 .andExpect(jsonPath("$.vehicleModel").value("Renault Kangoo"))
+                .andExpect(jsonPath("$.vehicleYear").value(2022))
                 .andExpect(jsonPath("$.plateNumber").value("AA123BB"))
                 .andExpect(jsonPath("$.wantsDirectContact").value(true));
     }

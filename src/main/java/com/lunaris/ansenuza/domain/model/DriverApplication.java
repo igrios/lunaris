@@ -47,6 +47,9 @@ public class DriverApplication {
     @Column(name = "vehicle_model", nullable = false)
     private String vehicleModel;
 
+    @Column(name = "vehicle_year", nullable = false)
+    private Integer vehicleYear;
+
     @Column(name = "license_plate", nullable = false)
     private String licensePlate;
 

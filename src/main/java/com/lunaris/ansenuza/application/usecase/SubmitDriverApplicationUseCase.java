@@ -5,6 +5,7 @@ import com.lunaris.ansenuza.domain.model.DriverApplication;
 import com.lunaris.ansenuza.domain.repository.DriverApplicationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.DriverApplicationRequest;
 import lombok.RequiredArgsConstructor;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,10 +20,12 @@ public class SubmitDriverApplicationUseCase {
     @Transactional
     public DriverApplication execute(DriverApplicationRequest request) {
         DriverApplication application = DriverApplication.builder()
+                .id(UUID.randomUUID())
                 .fullName(request.fullName().trim())
                 .phone(request.phone().trim())
                 .locality("Sin especificar")
                 .vehicleModel(request.vehicleModel().trim())
+                .vehicleYear(request.vehicleYear())
                 .licensePlate(request.licensePlate().trim().toUpperCase())
                 .wantsDirectContact(false)
                 .status(DriverApplication.Status.PENDING)
@@ -42,10 +45,12 @@ public class SubmitDriverApplicationUseCase {
                 documentStorage.store("criminal-record", criminalRecordFile);
 
         DriverApplication application = DriverApplication.builder()
+                .id(UUID.randomUUID())
                 .fullName(submission.fullName().trim())
                 .phone(submission.phone().trim())
                 .locality(submission.locality().trim())
                 .vehicleModel(submission.vehicleModel().trim())
+                .vehicleYear(submission.vehicleYear())
                 .licensePlate(submission.plateNumber().trim().toUpperCase())
                 .wantsDirectContact(submission.wantsDirectContact())
                 .insuranceFileUrl(insuranceFileUrl)
@@ -61,6 +66,7 @@ public class SubmitDriverApplicationUseCase {
             String phone,
             String locality,
             String vehicleModel,
+            Integer vehicleYear,
             String plateNumber,
             boolean wantsDirectContact) {
     }

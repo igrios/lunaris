@@ -43,7 +43,10 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/drivers/applications")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/drivers/apply",
+                                "/api/drivers/applications")
                         .permitAll()
                         .requestMatchers(
                                 "/actuator/**",
@@ -55,6 +58,8 @@ public class SecurityConfig {
                                 "/whatsapp/**")
                         .permitAll()
                         .requestMatchers("/api/drivers", "/api/drivers/**")
+                        .hasRole(Role.ADMIN.name())
+                        .requestMatchers("/api/admin/driver-applications/**")
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())

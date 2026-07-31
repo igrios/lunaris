@@ -6,8 +6,6 @@ import com.lunaris.ansenuza.domain.model.Reservation.TravelStatus;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.application.usecase.DriverManagementService;
-import com.lunaris.ansenuza.application.usecase.DriverApplicationManagementService;
-import com.lunaris.ansenuza.domain.model.DriverApplication;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +25,6 @@ public class DriverController {
     private final ReservationRepository reservationRepository;
     private final OnboardPassengerUseCase onboardPassengerUseCase;
     private final DriverManagementService driverManagementService;
-    private final DriverApplicationManagementService driverApplicationManagementService;
 
     @GetMapping({"/drivers", "/api/drivers"})
     public List<Driver> findAll() {
@@ -39,21 +36,6 @@ public class DriverController {
             @RequestBody CreateDriverRequest request) {
         return driverManagementService.create(
                 request.fullName(), request.phone(), request.ranking(), request.active());
-    }
-
-    @GetMapping("/api/drivers/applications")
-    public List<DriverApplication> findPendingApplications() {
-        return driverApplicationManagementService.findPending();
-    }
-
-    @PutMapping("/api/drivers/applications/{id}/approve")
-    public DriverApplication approveApplication(@PathVariable UUID id) {
-        return driverApplicationManagementService.approve(id);
-    }
-
-    @PutMapping("/api/drivers/applications/{id}/reject")
-    public DriverApplication rejectApplication(@PathVariable UUID id) {
-        return driverApplicationManagementService.reject(id);
     }
 
     @PostMapping("/api/driver/confirm-assistance")

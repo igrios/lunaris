@@ -30,6 +30,7 @@ public class DriverApplicationApiController {
             @RequestParam String phone,
             @RequestParam String locality,
             @RequestParam String vehicleModel,
+            @RequestParam Integer vehicleYear,
             @RequestParam String plateNumber,
             @RequestParam boolean wantsDirectContact,
             @RequestPart("insuranceFile") MultipartFile insuranceFile,
@@ -40,10 +41,13 @@ public class DriverApplicationApiController {
         validateRequired(locality, "locality");
         validateRequired(vehicleModel, "vehicleModel");
         validateRequired(plateNumber, "plateNumber");
+        if (vehicleYear == null || vehicleYear <= 0) {
+            throw new DomainValidationException("vehicleYear debe ser mayor a cero.");
+        }
 
         DriverApplication application = submitDriverApplicationUseCase.execute(
                 new MultipartSubmission(
-                        fullName, phone, locality, vehicleModel, plateNumber,
+                        fullName, phone, locality, vehicleModel, vehicleYear, plateNumber,
                         wantsDirectContact),
                 insuranceFile,
                 greenCardFile,
@@ -65,6 +69,7 @@ public class DriverApplicationApiController {
             String phone,
             String locality,
             String vehicleModel,
+            Integer vehicleYear,
             String plateNumber,
             boolean wantsDirectContact) {
 
@@ -76,6 +81,7 @@ public class DriverApplicationApiController {
                     application.getPhone(),
                     application.getLocality(),
                     application.getVehicleModel(),
+                    application.getVehicleYear(),
                     application.getLicensePlate(),
                     application.isWantsDirectContact());
         }

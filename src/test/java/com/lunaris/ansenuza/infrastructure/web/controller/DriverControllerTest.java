@@ -12,7 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.application.usecase.DriverManagementService;
-import com.lunaris.ansenuza.application.usecase.DriverApplicationManagementService;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
@@ -24,8 +23,7 @@ class DriverControllerTest {
         DriverController controller = new DriverController(
                 mock(ReservationRepository.class),
                 onboard,
-                mock(DriverManagementService.class),
-                mock(DriverApplicationManagementService.class));
+                mock(DriverManagementService.class));
         UUID reservationId = UUID.randomUUID();
         Reservation saved = Reservation.builder()
                 .id(reservationId)
@@ -50,8 +48,7 @@ class DriverControllerTest {
         DriverController controller = new DriverController(
                 mock(ReservationRepository.class),
                 onboard,
-                mock(DriverManagementService.class),
-                mock(DriverApplicationManagementService.class));
+                mock(DriverManagementService.class));
 
         ResponseEntity<?> response = controller.updateTravelStatus(
                 UUID.randomUUID(),

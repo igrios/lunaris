@@ -33,7 +33,7 @@ class SubmitDriverApplicationUseCaseTest {
         useCase.execute(
                 new SubmitDriverApplicationUseCase.MultipartSubmission(
                         "Ana Pérez", "543512345678", "Miramar",
-                        "Renault Kangoo", "aa123bb", true),
+                        "Renault Kangoo", 2022, "aa123bb", true),
                 insurance,
                 greenCard,
                 criminalRecord);
