@@ -62,6 +62,7 @@ class ReservationViewControllerTest {
         controller.updateFromPanel(
                 reservationId,
                 confirmedDate,
+                "08:30",
                 "Terminal",
                 driverId,
                 "CONFIRMED",
@@ -70,6 +71,8 @@ class ReservationViewControllerTest {
                 "vueltas");
 
         verify(reservations).saveAndFlush(openReturn);
+        assertEquals(confirmedDate, openReturn.getReturnDate());
+        assertEquals("08:30", openReturn.getDepartureSchedule());
         verify(whatsApp).sendMessage(
                 eq("5493511111111"),
                 contains("Tu vuelta quedó confirmada para el " + confirmedDate));

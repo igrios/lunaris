@@ -306,6 +306,7 @@ public void sendDriverRouteDispatch(
             ? List.of()
             : reservations.stream()
                     .filter(java.util.Objects::nonNull)
+                    .filter(Reservation::isScheduledConfirmedTrip)
                     .sorted(java.util.Comparator.comparing(
                             Reservation::getRouteSequence,
                             java.util.Comparator.nullsLast(Integer::compareTo)))

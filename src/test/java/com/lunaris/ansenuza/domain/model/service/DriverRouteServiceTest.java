@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.domain.model.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,10 +49,33 @@ class DriverRouteServiceTest {
         verify(repository).saveAll(org.mockito.ArgumentMatchers.any());
     }
 
+    @Test
+    void rejectsOpenReturnWithoutFixedDateAndSchedule() {
+        ReservationRepository repository = mock(ReservationRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        DriverRouteService service = new DriverRouteService(repository, drivers);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
+        Reservation openReturn = reservation(sentinelDate, null, null);
+        openReturn.setReservationCode("MOR-COR-001-VUELTA");
+        openReturn.setReturnDate(null);
+        openReturn.setDepartureSchedule(null);
+        openReturn.setTravelStatus(Reservation.TravelStatus.OPEN_RETURN);
+        List<UUID> requestedOrder = List.of(openReturn.getId());
+        when(repository.findAllById(requestedOrder)).thenReturn(List.of(openReturn));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.replaceRoute(driver, sentinelDate, requestedOrder));
+    }
+
     private Reservation reservation(LocalDate date, Driver driver, Integer sequence) {
         return Reservation.builder()
                 .id(UUID.randomUUID())
                 .travelDate(date)
+                .departureSchedule("08:00")
+                .status("CONFIRMED")
                 .driver(driver)
                 .routeSequence(sequence)
                 .build();

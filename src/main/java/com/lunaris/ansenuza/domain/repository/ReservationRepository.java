@@ -192,7 +192,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            SELECT r FROM Reservation r
            WHERE r.driver.id = :driverId
            AND r.travelDate = :travelDate
-           AND (r.status IS NULL OR r.status <> 'CANCELLED')
+           AND r.status = 'CONFIRMED'
+           AND r.departureSchedule IS NOT NULL
+           AND TRIM(r.departureSchedule) <> ''
+           AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
            ORDER BY r.routeSequence ASC NULLS LAST
            """)
     List<Reservation> findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
@@ -201,10 +204,15 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
            SELECT r FROM Reservation r
            WHERE r.driver.id = :driverId
-           AND r.status <> 'CANCELLED'
+           AND r.status = 'CONFIRMED'
+           AND r.departureSchedule IS NOT NULL
+           AND TRIM(r.departureSchedule) <> ''
+           AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
            AND (
                r.travelDate = :effectiveDate
-               OR (r.reservationCode LIKE '%-VUELTA' AND r.returnDate = :effectiveDate)
+               OR (r.reservationCode LIKE '%-VUELTA'
+                   AND r.returnDate IS NOT NULL
+                   AND r.returnDate = :effectiveDate)
            )
            ORDER BY r.routeSequence ASC NULLS LAST
            """)

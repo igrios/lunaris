@@ -24,6 +24,8 @@ public final class GoogleMapsParameterFormatter {
             return "https://www.google.com/maps/dir/?api=1&destination=Cordoba";
         }
         List<String> pickups = reservations.stream()
+                .filter(java.util.Objects::nonNull)
+                .filter(Reservation::isScheduledConfirmedTrip)
                 .map(GoogleMapsParameterFormatter::pickupLocation)
                 .filter(location -> !location.isBlank())
                 .toList();

@@ -34,6 +34,8 @@ import lombok.Setter;
 @Builder
 public class Reservation {
 
+    private static final LocalDate OPEN_RETURN_SENTINEL_DATE = LocalDate.of(2099, 12, 31);
+
     public enum TravelStatus {
         PENDING,
         REALIZED,
@@ -176,6 +178,17 @@ public class Reservation {
             return 1;
         }
         return this.passengerCount;
+    }
+
+    public boolean isScheduledConfirmedTrip() {
+        if (travelDate == null || OPEN_RETURN_SENTINEL_DATE.equals(travelDate)
+                || departureSchedule == null || departureSchedule.isBlank()
+                || !"CONFIRMED".equalsIgnoreCase(status)
+                || travelStatus == TravelStatus.OPEN_RETURN) {
+            return false;
+        }
+        boolean returnLeg = reservationCode != null && reservationCode.endsWith("-VUELTA");
+        return !returnLeg || returnDate != null && !OPEN_RETURN_SENTINEL_DATE.equals(returnDate);
     }
 
     public void setReservationCode(String reservationCode) {

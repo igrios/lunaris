@@ -35,8 +35,11 @@ public class DriverRouteService {
 
         List<Reservation> selected = reservationRepository.findAllById(orderedReservationIds);
         if (selected.size() != orderedReservationIds.size()
-                || selected.stream().anyMatch(reservation -> !travelDate.equals(reservation.getTravelDate()))) {
-            throw new IllegalArgumentException("Todas las reservas deben existir y pertenecer a la misma fecha.");
+                || selected.stream().anyMatch(reservation ->
+                        !travelDate.equals(reservation.getTravelDate())
+                                || !reservation.isScheduledConfirmedTrip())) {
+            throw new IllegalArgumentException(
+                    "Solo se pueden asignar reservas confirmadas con fecha y horario definidos.");
         }
 
         Set<UUID> affectedDriverIds = new HashSet<>();
@@ -57,6 +60,7 @@ public class DriverRouteService {
         selected = reservationRepository.findAllById(orderedReservationIds);
         if (selected.size() != orderedReservationIds.size()
                 || selected.stream().anyMatch(reservation -> !travelDate.equals(reservation.getTravelDate()))
+                || selected.stream().anyMatch(reservation -> !reservation.isScheduledConfirmedTrip())
                 || selected.stream()
                         .filter(reservation -> reservation.getDriver() != null)
                         .anyMatch(reservation ->

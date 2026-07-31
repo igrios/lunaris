@@ -176,6 +176,7 @@ public class ReservationViewController {
 public String updateFromPanel(
         @PathVariable(value = "id") UUID id,
         @RequestParam(value = "travelDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+        @RequestParam(value = "departureSchedule", required = false) String departureSchedule,
         @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
         @RequestParam(value = "driverId", required = false) UUID driverId,
         @RequestParam(value = "status", required = false) String status,
@@ -197,9 +198,10 @@ public String updateFromPanel(
         
         if (isOpenReturn) {
             Reservation scheduledReturn;
-            if (travelDate == null || assignedDriver == null) {
+            if (travelDate == null || assignedDriver == null
+                    || departureSchedule == null || departureSchedule.isBlank()) {
                 throw new IllegalArgumentException(
-                        "Para programar una vuelta abierta se requieren fecha y chofer.");
+                        "Para programar una vuelta abierta se requieren fecha, horario y chofer.");
             }
             int asientosOriginales = original.getPassengerCount() != null ? original.getPassengerCount() : 1;
             
@@ -227,7 +229,8 @@ public String updateFromPanel(
                 tramoIndependiente.setRoundTrip(false); // Desactivado para evitar bucles de combo
                 tramoIndependiente.setPaymentVerified(true);
                 tramoIndependiente.setDriver(assignedDriver);
-                tramoIndependiente.setReturnDate(null);
+                tramoIndependiente.setReturnDate(travelDate);
+                tramoIndependiente.setDepartureSchedule(departureSchedule.trim());
                 tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Bloque" : "Split Bloque");
                 
                 String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
@@ -242,7 +245,9 @@ public String updateFromPanel(
                 original.setTravelDate(travelDate);
                 if (pickupAddress != null && !pickupAddress.isBlank()) original.setPickupAddress(pickupAddress);
                 original.setRoundTrip(false); // Apagamos el flag de combo de raíz
-                original.setReturnDate(null);
+                original.setReturnDate(travelDate);
+                original.setDepartureSchedule(departureSchedule.trim());
+                original.setTravelStatus(Reservation.TravelStatus.PENDING);
                 original.setStatus("CONFIRMED");
                 original.setPaymentVerified(true);
                 original.setDriver(assignedDriver);
