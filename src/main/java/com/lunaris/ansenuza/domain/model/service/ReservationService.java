@@ -35,18 +35,16 @@ public class ReservationService {
         String originClean = mainReservation.getPickupLocality().trim();
         String destClean = mainReservation.getDestination().trim();
 
-        String originPref = originClean.substring(0, 3).toUpperCase().replace("Ó", "O");
-        String destPref = destClean.substring(0, 3).toUpperCase().replace("Ó", "O");
-
         // 2. Obtenemos la secuencia estimada para el Nexo de Grupo unificado
         long currentCount = reservationRepository.countSequenceByRouteAndDate(originClean, destClean, mainReservation.getTravelDate());
         long nextSequence = currentCount + 1;
 
         // 3. 🛡️ BUCLE DEFENSIVO ANTI-COLISIÓN (Código base de grupo compartido)
-        String codigoBase = String.format("%s-%s-%03d", originPref, destPref, nextSequence);
-        while (reservationRepository.existsByReservationCode(codigoBase + "-IDA")) {
+        String codigoBase = String.format("LUN-%04d", nextSequence);
+        while (reservationRepository.existsByReservationCode(codigoBase)
+                || reservationRepository.existsByReservationCode(codigoBase + "-IDA")) {
             nextSequence++;
-            codigoBase = String.format("%s-%s-%03d", originPref, destPref, nextSequence);
+            codigoBase = String.format("LUN-%04d", nextSequence);
         }
 
         // 💳 PASO CRÍTICO DE CUENTA CORRIENTE: Evaluar y aplicar saldo a favor del Pasajero Titular
@@ -80,7 +78,8 @@ public class ReservationService {
                 : mainReservation.getDiscountAmount();
 
         // --- PROCESAMIENTO TRAMO: IDA ---
-        mainReservation.setReservationCode(codigoBase + "-IDA");
+        mainReservation.setReservationCode(Boolean.TRUE.equals(mainReservation.getRoundTrip())
+                ? codigoBase + "-IDA" : codigoBase);
         if (mainReservation.getStatus() == null) {
             mainReservation.setStatus(Boolean.TRUE.equals(mainReservation.getPaymentVerified()) ? "CONFIRMED" : "PENDING_PAYMENT");
         }

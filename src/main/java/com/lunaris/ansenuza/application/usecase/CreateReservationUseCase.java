@@ -14,6 +14,7 @@ import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
+import com.lunaris.ansenuza.shared.PhoneUtils;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -31,9 +32,7 @@ public class CreateReservationUseCase {
     public Reservation execute(CreateReservationRequest request) {
         validate(request);
 
-        Passenger passenger =
-                passengerRepository.findById(request.passengerId())
-                        .orElseThrow(() -> new DomainValidationException("El pasajero indicado no existe."));
+        Passenger passenger = resolvePassenger(request);
 
         // 🌟 Lógica del desplegable de asientos (Captura directa)
         Integer safePassengerCount = (request.passengerCount() == null || request.passengerCount() <= 0) ? 1 : request.passengerCount();
@@ -50,18 +49,18 @@ public class CreateReservationUseCase {
 
         // Centralizamos la cotización en el servicio de pricing para no duplicar reglas.
         var computedAmount = pricingAndScheduleService.calculateReservationAmount(
-                request.pickupLocality(),
-                request.destination(),
+                effectivePickupLocality(request),
+                effectiveDestination(request),
                 request.roundTrip(),
                 safePassengerCount);
 
         Reservation reservation = Reservation.builder()
                 .passenger(passenger)
                 .travelDate(request.travelDate())
-                .pickupLocality(request.pickupLocality())
+                .pickupLocality(effectivePickupLocality(request))
                 .pickupAddress(request.pickupAddress())
-                .destination(request.destination())
-                .roundTrip(request.roundTrip())
+                .destination(effectiveDestination(request))
+                .roundTrip(Boolean.TRUE.equals(request.roundTrip()))
                 .returnDate(request.returnDate())
                 .passengerCount(safePassengerCount)
                 .companionNames(request.companionNames())
@@ -79,17 +78,48 @@ public class CreateReservationUseCase {
     }
 
     private void validate(CreateReservationRequest request) {
-        if (request == null || request.passengerId() == null || request.travelDate() == null) {
+        if (request == null || request.travelDate() == null) {
             throw new DomainValidationException("Pasajero y fecha de viaje son obligatorios.");
         }
-        if (request.pickupLocality() == null || request.pickupLocality().isBlank()
-                || request.destination() == null || request.destination().isBlank()) {
-            throw new DomainValidationException("Origen y destino son obligatorios.");
+        if (request.passengerId() == null
+                && (request.fullName() == null || request.fullName().isBlank()
+                || request.phone() == null || request.phone().isBlank())) {
+            throw new DomainValidationException("Nombre y teléfono del pasajero son obligatorios.");
         }
-        if (request.pickupLocality().trim().length() < 3
-                || request.destination().trim().length() < 3) {
+        if (effectivePickupLocality(request).length() < 3
+                || effectiveDestination(request).length() < 3) {
             throw new DomainValidationException("Origen y destino deben tener al menos tres caracteres.");
         }
+    }
+
+    private Passenger resolvePassenger(CreateReservationRequest request) {
+        if (request.passengerId() != null) {
+            return passengerRepository.findById(request.passengerId())
+                    .orElseThrow(() -> new DomainValidationException("El pasajero indicado no existe."));
+        }
+
+        String phone = PhoneUtils.normalizeArgentinePhone(request.phone());
+        return passengerRepository.findByPhone(phone).orElseGet(() -> {
+            String normalizedName = request.fullName().trim().replaceAll("\\s+", " ");
+            int separator = normalizedName.lastIndexOf(' ');
+            String firstName = separator > 0 ? normalizedName.substring(0, separator) : normalizedName;
+            String lastName = separator > 0 ? normalizedName.substring(separator + 1) : "Sin apellido";
+            return passengerRepository.save(Passenger.builder()
+                    .firstName(firstName)
+                    .lastName(lastName)
+                    .phone(phone)
+                    .build());
+        });
+    }
+
+    private String effectivePickupLocality(CreateReservationRequest request) {
+        return request.pickupLocality() == null || request.pickupLocality().isBlank()
+                ? "Sin especificar" : request.pickupLocality().trim();
+    }
+
+    private String effectiveDestination(CreateReservationRequest request) {
+        return request.destination() == null || request.destination().isBlank()
+                ? "Sin especificar" : request.destination().trim();
     }
 
     private String resolveSchedule(String notes) {
