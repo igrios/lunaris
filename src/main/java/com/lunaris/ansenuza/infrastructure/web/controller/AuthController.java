@@ -23,7 +23,7 @@ public class AuthController {
     @PostMapping("/send-otp")
     public ResponseEntity<Map<String, String>> sendOtp(
             @Valid @RequestBody SendOtpRequest request) {
-        otpService.sendOtp(request.phone());
+        otpService.sendOtp(request.phone(), request.fullName());
         return ResponseEntity.accepted().body(Map.of(
                 "message", "El código fue enviado por WhatsApp."));
     }
@@ -34,7 +34,10 @@ public class AuthController {
         return new TokenResponse(result.accessToken(), "Bearer", result.expiresAt());
     }
 
-    public record SendOtpRequest(@NotBlank String phone) {
+    public record SendOtpRequest(@NotBlank String phone, String fullName) {
+        public SendOtpRequest(String phone) {
+            this(phone, null);
+        }
     }
 
     public record VerifyOtpRequest(

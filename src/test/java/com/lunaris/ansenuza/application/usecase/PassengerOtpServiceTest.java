@@ -1,7 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
@@ -9,11 +9,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.application.port.MessagingPort;
-import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import java.time.Duration;
 import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 class PassengerOtpServiceTest {
@@ -40,18 +40,25 @@ class PassengerOtpServiceTest {
     }
 
     @Test
-    void rejectsUnknownPassengerWithoutSendingOtp() {
+    void createsUnknownPassengerAndSendsOtp() {
         PassengerRepository passengers = mock(PassengerRepository.class);
         MessagingPort messaging = mock(MessagingPort.class);
         when(passengers.findByPhone("3515555555")).thenReturn(Optional.empty());
+        when(passengers.findByPhone("543515555555")).thenReturn(Optional.empty());
+        when(passengers.save(any(Passenger.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         PassengerOtpService service = new PassengerOtpService(
                 passengers, messaging, Duration.ofMinutes(5), Duration.ofHours(12));
 
-        DomainValidationException exception = assertThrows(
-                DomainValidationException.class,
-                () -> service.sendOtp("3515555555"));
+        service.sendOtp("3515555555", "Juan Pérez");
 
-        assertEquals("No existe un pasajero registrado con ese teléfono.", exception.getMessage());
+        ArgumentCaptor<Passenger> passengerCaptor = ArgumentCaptor.forClass(Passenger.class);
+        verify(passengers).save(passengerCaptor.capture());
+        assertEquals("Juan", passengerCaptor.getValue().getFirstName());
+        assertEquals("Pérez", passengerCaptor.getValue().getLastName());
+        assertEquals("543515555555", passengerCaptor.getValue().getPhone());
+        verify(messaging).sendText(
+                eq("543515555555"),
+                matches("Tu código de acceso a Lunaris Ansenuza es: [0-9]{4}\\. Vence en 5 minutos\\."));
     }
 }

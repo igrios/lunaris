@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.application.usecase;
 
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
+import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.shared.PhoneUtils;
 import java.security.SecureRandom;
@@ -11,8 +12,10 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PassengerOtpService {
@@ -38,20 +41,37 @@ public class PassengerOtpService {
         this.tokenTtl = tokenTtl;
     }
 
+    @Transactional
     public void sendOtp(String rawPhone) {
+        sendOtp(rawPhone, null);
+    }
+
+    @Transactional
+    public void sendOtp(String rawPhone, String fullName) {
         String phone = PhoneUtils.normalizeArgentinePhone(rawPhone);
-        String storedPhone = passengerRepository.findByPhone(rawPhone.trim())
+        Passenger passenger = passengerRepository.findByPhone(rawPhone.trim())
                 .or(() -> passengerRepository.findByPhone(phone))
-                .map(passenger -> PhoneUtils.normalizeArgentinePhone(passenger.getPhone()))
-                .orElseThrow(() ->
-                        new DomainValidationException("No existe un pasajero registrado con ese teléfono."));
-        if (storedPhone == null) {
-            throw new DomainValidationException("No existe un pasajero registrado con ese teléfono.");
-        }
+                .orElseGet(() -> createPassenger(fullName, phone));
+        String storedPhone = PhoneUtils.normalizeArgentinePhone(passenger.getPhone());
         String code = String.format("%04d", secureRandom.nextInt(10_000));
         challenges.put(phone, new OtpChallenge(code, Instant.now().plus(otpTtl), 0, storedPhone));
         messagingPort.sendText(storedPhone,
                 "Tu código de acceso a Lunaris Ansenuza es: " + code + ". Vence en 5 minutos.");
+    }
+
+    private Passenger createPassenger(String fullName, String phone) {
+        String normalizedName = fullName == null || fullName.isBlank()
+                ? "Pasajero Sin apellido"
+                : fullName.trim().replaceAll("\\s+", " ");
+        int separator = normalizedName.lastIndexOf(' ');
+        String firstName = separator > 0 ? normalizedName.substring(0, separator) : normalizedName;
+        String lastName = separator > 0 ? normalizedName.substring(separator + 1) : "Sin apellido";
+        return passengerRepository.save(Passenger.builder()
+                .id(UUID.randomUUID())
+                .firstName(firstName)
+                .lastName(lastName)
+                .phone(phone)
+                .build());
     }
 
     public TokenResult verifyOtp(String rawPhone, String code) {
