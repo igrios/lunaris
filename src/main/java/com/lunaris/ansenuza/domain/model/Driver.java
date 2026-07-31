@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.PrePersist;
 import java.util.UUID;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
@@ -40,4 +41,11 @@ public class Driver {
 
     @Column(name = "location_updated_at")
     private LocalDateTime locationUpdatedAt;
+
+    @PrePersist
+    void initializeId() {
+        if (id == null) {
+            id = UUID.randomUUID();
+        }
+    }
 }

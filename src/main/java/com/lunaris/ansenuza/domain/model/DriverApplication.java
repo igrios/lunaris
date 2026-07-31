@@ -15,6 +15,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 
 @Entity
 @Table(name = "driver_applications")
@@ -79,6 +80,23 @@ public class DriverApplication {
         }
         if (createdAt == null) {
             createdAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
+        }
+    }
+
+    public void approve() {
+        requirePending();
+        status = Status.APPROVED;
+    }
+
+    public void reject() {
+        requirePending();
+        status = Status.REJECTED;
+    }
+
+    private void requirePending() {
+        if (status != Status.PENDING) {
+            throw new DomainValidationException(
+                    "La solicitud ya fue procesada con estado " + status + ".");
         }
     }
 }
