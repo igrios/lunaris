@@ -14,6 +14,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -62,7 +63,7 @@ public class PublicApiController {
                 "source", reservation.getSource()));
     }
 
-    @PostMapping("/drivers/apply")
+    @PostMapping(value = "/drivers/apply", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> apply(
             @Valid @RequestBody DriverApplicationRequest request) {
         var application = submitDriverApplicationUseCase.execute(request);

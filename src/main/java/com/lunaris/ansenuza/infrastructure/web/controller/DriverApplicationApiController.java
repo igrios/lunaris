@@ -22,32 +22,35 @@ public class DriverApplicationApiController {
     private final SubmitDriverApplicationUseCase submitDriverApplicationUseCase;
 
     @PostMapping(
-            path = "/api/drivers/applications",
+            path = {"/api/drivers/apply", "/api/drivers/applications"},
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<DriverApplicationResponse> apply(
             @RequestParam String fullName,
             @RequestParam String phone,
-            @RequestParam String locality,
+            @RequestParam(required = false) String locality,
             @RequestParam String vehicleModel,
             @RequestParam Integer vehicleYear,
-            @RequestParam String plateNumber,
-            @RequestParam boolean wantsDirectContact,
-            @RequestPart("insuranceFile") MultipartFile insuranceFile,
-            @RequestPart("greenCardFile") MultipartFile greenCardFile,
-            @RequestPart("criminalRecordFile") MultipartFile criminalRecordFile) {
+            @RequestParam(required = false) String licensePlate,
+            @RequestParam(required = false) String plateNumber,
+            @RequestParam(defaultValue = "false") boolean wantsDirectContact,
+            @RequestPart(value = "insuranceFile", required = false) MultipartFile insuranceFile,
+            @RequestPart(value = "greenCardFile", required = false) MultipartFile greenCardFile,
+            @RequestPart(value = "criminalRecordFile", required = false) MultipartFile criminalRecordFile) {
+        String effectiveLicensePlate = licensePlate != null ? licensePlate : plateNumber;
         validateRequired(fullName, "fullName");
         validateRequired(phone, "phone");
-        validateRequired(locality, "locality");
         validateRequired(vehicleModel, "vehicleModel");
-        validateRequired(plateNumber, "plateNumber");
+        validateRequired(effectiveLicensePlate, "licensePlate");
         if (vehicleYear == null || vehicleYear <= 0) {
             throw new DomainValidationException("vehicleYear debe ser mayor a cero.");
         }
 
         DriverApplication application = submitDriverApplicationUseCase.execute(
                 new MultipartSubmission(
-                        fullName, phone, locality, vehicleModel, vehicleYear, plateNumber,
+                        fullName, phone,
+                        locality == null || locality.isBlank() ? "Sin especificar" : locality,
+                        vehicleModel, vehicleYear, effectiveLicensePlate,
                         wantsDirectContact),
                 insuranceFile,
                 greenCardFile,

@@ -40,10 +40,9 @@ public class SubmitDriverApplicationUseCase {
             MultipartFile insuranceFile,
             MultipartFile greenCardFile,
             MultipartFile criminalRecordFile) {
-        String insuranceFileUrl = documentStorage.store("insurance", insuranceFile);
-        String greenCardFileUrl = documentStorage.store("green-card", greenCardFile);
-        String criminalRecordFileUrl =
-                documentStorage.store("criminal-record", criminalRecordFile);
+        String insuranceFileUrl = storeIfPresent("insurance", insuranceFile);
+        String greenCardFileUrl = storeIfPresent("green-card", greenCardFile);
+        String criminalRecordFileUrl = storeIfPresent("criminal-record", criminalRecordFile);
 
         DriverApplication application = DriverApplication.builder()
                 .id(UUID.randomUUID())
@@ -60,6 +59,10 @@ public class SubmitDriverApplicationUseCase {
                 .status(DriverApplication.Status.PENDING)
                 .build();
         return repository.save(application);
+    }
+
+    private String storeIfPresent(String documentType, MultipartFile file) {
+        return file == null || file.isEmpty() ? null : documentStorage.store(documentType, file);
     }
 
     public record MultipartSubmission(
