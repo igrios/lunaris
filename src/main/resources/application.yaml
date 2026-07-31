@@ -57,6 +57,7 @@ management:
         include: health
 
 lunaris:
+  support-phone: ${LUNARIS_SUPPORT_PHONE:}
   trips:
     capacity: ${LUNARIS_TRIP_CAPACITY:4}
   fleet:

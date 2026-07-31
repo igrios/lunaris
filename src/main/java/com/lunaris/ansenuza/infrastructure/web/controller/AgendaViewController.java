@@ -410,7 +410,10 @@ public class AgendaViewController {
                 .forEach((passengerPhone, reservation) -> {
                     String passengerName = reservation.getPassenger().getFirstName();
                     whatsAppService.sendChoferAsignadoTemplate(
-                            passengerPhone, passengerName, driver.getFullName());
+                            passengerPhone,
+                            passengerName,
+                            driver.getFullName(),
+                            driver.getPhone());
                 });
 
         // 3. Enviar plantilla al chofer para abrir su hoja de ruta.

@@ -47,6 +47,9 @@ public class WhatsAppService {
     @Value("${whatsapp.access-token}")
     private String accessToken;
 
+    @Value("${lunaris.support-phone:}")
+    private String supportPhone;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     // MENSAJE TEXTO TRADICIONAL
@@ -423,10 +426,35 @@ static String buildDriverRouteSheetUrl(
         sendTemplate(to, "contacto_pasajero", List.of(safeTemplateValue(passengerName, "Pasajero")));
     }
 
-    public void sendChoferAsignadoTemplate(String to, String passengerName, String driverName) {
+    public void sendChoferAsignadoTemplate(
+            String to, String passengerName, String driverName, String driverPhone) {
         sendTemplate(to, "chofer_asignado", List.of(
                 safeTemplateValue(passengerName, "Pasajero"),
                 safeTemplateValue(driverName, "Chofer")));
+
+        String contactPhone = driverPhone;
+        if (contactPhone == null || contactPhone.isBlank()) {
+            log.warn(
+                    "[CHOFER_ASIGNADO] El chofer {} no tiene teléfono; se informa el contacto de soporte.",
+                    safeTemplateValue(driverName, "sin identificar"));
+            contactPhone = supportPhone;
+        }
+        sendMessage(to, buildDriverAssignmentContactMessage(
+                driverName, contactPhone, supportPhone));
+    }
+
+    static String buildDriverAssignmentContactMessage(
+            String driverName, String driverPhone, String supportPhone) {
+        String resolvedPhone = driverPhone;
+        if (resolvedPhone == null || resolvedPhone.isBlank()) {
+            resolvedPhone = supportPhone;
+        }
+        String formattedContact = resolvedPhone == null || resolvedPhone.isBlank()
+                ? "WhatsApp de Lunaris (este chat)"
+                : "+" + formatMetaPhoneNumber(resolvedPhone);
+        return "🚐 *Chofer asignado*\n\n"
+                + "Chofer: " + safeTemplateValue(driverName, "A confirmar") + "\n"
+                + "Contacto: " + formattedContact;
     }
 
     public void sendProximoEnCaminoTemplate(

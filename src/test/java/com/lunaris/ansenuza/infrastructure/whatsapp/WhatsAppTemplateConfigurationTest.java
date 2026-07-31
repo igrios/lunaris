@@ -60,6 +60,27 @@ class WhatsAppTemplateConfigurationTest {
     }
 
     @Test
+    void driverAssignmentContactIncludesNameAndSanitizedArgentinePhone() {
+        String message = WhatsAppService.buildDriverAssignmentContactMessage(
+                "Carlos Gómez", "+54 351-555-1234", "+54 351-111-1111");
+
+        assertTrue(message.contains("Chofer: Carlos Gómez"));
+        assertTrue(message.contains("Contacto: +5493515551234"));
+        assertFalse(message.contains("3511111111"));
+    }
+
+    @Test
+    void driverAssignmentContactFallsBackToLunarisSupport() {
+        String configuredSupport = WhatsAppService.buildDriverAssignmentContactMessage(
+                "Carlos Gómez", null, "+54 351-111-1111");
+        String chatSupport = WhatsAppService.buildDriverAssignmentContactMessage(
+                "Carlos Gómez", " ", " ");
+
+        assertTrue(configuredSupport.contains("Contacto: +5493511111111"));
+        assertTrue(chatSupport.contains("Contacto: WhatsApp de Lunaris (este chat)"));
+    }
+
+    @Test
     void driverRouteSheetUrlContainsDatabaseUuidAndTravelDate() {
         UUID driverId = UUID.fromString("917d74d2-d5de-4ec7-a674-d0d0fb52f99c");
 
