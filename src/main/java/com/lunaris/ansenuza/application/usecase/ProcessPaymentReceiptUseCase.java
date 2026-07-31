@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.application.usecase;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
@@ -29,6 +30,7 @@ public class ProcessPaymentReceiptUseCase {
     private final MessagingPort messaging;
     private final LiveChatPort liveChat;
 
+    @Transactional
     public void execute(String phoneNumber, String mediaId) {
         // 1. Descargamos y persistimos el comprobante una única vez. Devuelve la URL
         //    pública (Cloudinary secure_url) con la que se renderiza la imagen.
@@ -59,7 +61,8 @@ public class ProcessPaymentReceiptUseCase {
             if (pendingReservation.isPresent() && receiptUrl != null) {
                 Reservation reservation = pendingReservation.get();
                 reservation.setPaymentReceiptUrl(receiptUrl);
-                // Cambiamos el estado de forma canónica para renderizar celeste en agenda
+                // El comprobante queda pendiente de revisión humana; recibirlo no verifica el pago.
+                reservation.setPaymentVerified(false);
                 reservation.setStatus("PAYMENT_RECEIVED");
                 reservationRepository.saveAndFlush(reservation);
                 log.info("[Bot Webhook] Comprobante enlazado con éxito para código: {}",
