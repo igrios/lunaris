@@ -35,7 +35,7 @@ class PassengerOtpServiceTest {
         service.sendOtp("+5493515555555");
 
         verify(messaging).sendText(
-                eq("+5493515555555"),
+                eq("543515555555"),
                 matches("Tu código de acceso a Lunaris Ansenuza es: [0-9]{4}\\. Vence en 5 minutos\\."));
     }
 

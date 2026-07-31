@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Lunaris - Postulaciones de choferes</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>body { background:#f4f6f9; padding-top:75px; } .card { border:0; border-radius:12px; }</style>
+</head>
+<body>
+  <nav th:replace="~{fragments/nav :: bar('postulaciones')}"></nav>
+  <main class="container mt-4 mb-5">
+    <h1 class="fw-bold mb-1">Postulaciones de choferes</h1>
+    <p class="text-muted mb-4">Solicitudes pendientes de revisión.</p>
+    <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark"><tr><th>Nombre</th><th>Teléfono</th><th>Vehículo</th><th>Año</th><th>Patente</th><th>Fecha</th><th>Acciones</th></tr></thead>
+            <tbody>
+              <tr th:each="application : ${applications}">
+                <td class="fw-semibold" th:text="${application.fullName}"></td>
+                <td th:text="${application.phone}"></td>
+                <td th:text="${application.vehicleModel}"></td>
+                <td th:text="${application.vehicleYear}"></td>
+                <td th:text="${application.licensePlate}"></td>
+                <td th:text="${#temporals.format(application.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
+                <td><div class="d-flex flex-wrap gap-2">
+                  <a class="btn btn-sm btn-success" target="_blank" rel="noopener"
+                     th:href="@{'https://wa.me/' + ${application.phone}}"><i class="bi bi-whatsapp"></i> Contactar por WhatsApp</a>
+                  <form th:action="@{/admin/postulaciones/{id}/aprobar(id=${application.id})}" method="post">
+                    <button class="btn btn-sm btn-primary" type="submit">Aprobar Chofer</button>
+                  </form>
+                  <form th:action="@{/admin/postulaciones/{id}/rechazar(id=${application.id})}" method="post"
+                        onsubmit="return confirm('¿Rechazar esta postulación?');">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Rechazar</button>
+                  </form>
+                </div></td>
+              </tr>
+              <tr th:if="${#lists.isEmpty(applications)}"><td colspan="7" class="text-center text-muted py-5">No hay postulaciones pendientes.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

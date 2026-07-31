@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.application.usecase;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
+import com.lunaris.ansenuza.shared.PhoneUtils;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,7 @@ public class DriverManagementService {
     private void mapFields(
             Driver driver, String fullName, String phone, Integer ranking, Boolean active) {
         driver.setFullName(requiredText(fullName, "El nombre del chofer es obligatorio."));
-        driver.setPhone(requiredText(phone, "El teléfono del chofer es obligatorio."));
+        driver.setPhone(PhoneUtils.normalizeArgentinePhone(phone));
         if (ranking != null && (ranking < 1 || ranking > 5)) {
             throw new DomainValidationException("El ranking debe estar entre 1 y 5.");
         }

@@ -4,6 +4,7 @@ import com.lunaris.ansenuza.application.port.DriverDocumentStoragePort;
 import com.lunaris.ansenuza.domain.model.DriverApplication;
 import com.lunaris.ansenuza.domain.repository.DriverApplicationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.DriverApplicationRequest;
+import com.lunaris.ansenuza.shared.PhoneUtils;
 import lombok.RequiredArgsConstructor;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ public class SubmitDriverApplicationUseCase {
         DriverApplication application = DriverApplication.builder()
                 .id(UUID.randomUUID())
                 .fullName(request.fullName().trim())
-                .phone(request.phone().trim())
+                .phone(PhoneUtils.normalizeArgentinePhone(request.phone()))
                 .locality("Sin especificar")
                 .vehicleModel(request.vehicleModel().trim())
                 .vehicleYear(request.vehicleYear())
@@ -47,7 +48,7 @@ public class SubmitDriverApplicationUseCase {
         DriverApplication application = DriverApplication.builder()
                 .id(UUID.randomUUID())
                 .fullName(submission.fullName().trim())
-                .phone(submission.phone().trim())
+                .phone(PhoneUtils.normalizeArgentinePhone(submission.phone()))
                 .locality(submission.locality().trim())
                 .vehicleModel(submission.vehicleModel().trim())
                 .vehicleYear(submission.vehicleYear())

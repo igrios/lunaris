@@ -24,6 +24,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.dao.DataAccessException;
+import com.lunaris.ansenuza.shared.PhoneUtils;
 
 /**
  * ABM web (Alta/Baja/Modificación) de choferes de la flota.
@@ -89,7 +90,7 @@ public class DriverViewController {
 
         try {
             driver.setFullName(form.getFullName());
-            driver.setPhone(form.getPhone());
+            driver.setPhone(PhoneUtils.normalizeArgentinePhone(form.getPhone()));
             driver.setRanking(parseRanking(form.getRanking()));
             driver.setActive(form.isActive());
             driverRepository.saveAndFlush(driver);

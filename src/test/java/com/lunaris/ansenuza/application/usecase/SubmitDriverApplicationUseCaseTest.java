@@ -32,7 +32,7 @@ class SubmitDriverApplicationUseCaseTest {
 
         useCase.execute(
                 new SubmitDriverApplicationUseCase.MultipartSubmission(
-                        "Ana Pérez", "543512345678", "Miramar",
+                        "Ana Pérez", "+54 9 351-234-5678", "Miramar",
                         "Renault Kangoo", 2022, "aa123bb", true),
                 insurance,
                 greenCard,
@@ -42,6 +42,7 @@ class SubmitDriverApplicationUseCaseTest {
                 ArgumentCaptor.forClass(DriverApplication.class);
         verify(repository).save(captor.capture());
         DriverApplication application = captor.getValue();
+        assertEquals("543512345678", application.getPhone());
         assertEquals("AA123BB", application.getLicensePlate());
         assertEquals("/storage/insurance.pdf", application.getInsuranceFileUrl());
         assertEquals("/storage/green-card.pdf", application.getGreenCardFileUrl());

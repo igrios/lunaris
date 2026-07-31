@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.application.usecase;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
+import com.lunaris.ansenuza.shared.PhoneUtils;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,23 +39,23 @@ public class PassengerOtpService {
     }
 
     public void sendOtp(String rawPhone) {
-        String phone = normalizePhone(rawPhone);
+        String phone = PhoneUtils.normalizeArgentinePhone(rawPhone);
         String storedPhone = passengerRepository.findByPhone(rawPhone.trim())
                 .or(() -> passengerRepository.findByPhone(phone))
-                .map(passenger -> passenger.getPhone())
+                .map(passenger -> PhoneUtils.normalizeArgentinePhone(passenger.getPhone()))
                 .orElseThrow(() ->
                         new DomainValidationException("No existe un pasajero registrado con ese teléfono."));
         if (storedPhone == null) {
             throw new DomainValidationException("No existe un pasajero registrado con ese teléfono.");
         }
-        String code = "%04d".formatted(secureRandom.nextInt(10_000));
+        String code = String.format("%04d", secureRandom.nextInt(10_000));
         challenges.put(phone, new OtpChallenge(code, Instant.now().plus(otpTtl), 0, storedPhone));
         messagingPort.sendText(storedPhone,
                 "Tu código de acceso a Lunaris Ansenuza es: " + code + ". Vence en 5 minutos.");
     }
 
     public TokenResult verifyOtp(String rawPhone, String code) {
-        String phone = normalizePhone(rawPhone);
+        String phone = PhoneUtils.normalizeArgentinePhone(rawPhone);
         OtpChallenge challenge = challenges.get(phone);
         if (challenge == null || challenge.expiresAt().isBefore(Instant.now())) {
             challenges.remove(phone);
@@ -94,17 +95,6 @@ public class PassengerOtpService {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private String normalizePhone(String phone) {
-        if (phone == null || phone.isBlank()) {
-            throw new DomainValidationException("El teléfono es obligatorio.");
-        }
-        String normalized = phone.trim().replaceAll("[^0-9+]", "");
-        if (normalized.length() < 8) {
-            throw new DomainValidationException("El teléfono no es válido.");
-        }
-        return normalized;
     }
 
     private record OtpChallenge(String code, Instant expiresAt, int attempts, String storedPhone) {
