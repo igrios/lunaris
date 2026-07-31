@@ -2,8 +2,8 @@ package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,7 +34,9 @@ class PassengerOtpServiceTest {
 
         service.sendOtp("+5493515555555");
 
-        verify(messaging).sendText(eq("+5493515555555"), contains("código de acceso"));
+        verify(messaging).sendText(
+                eq("+5493515555555"),
+                matches("Tu código de acceso a Lunaris Ansenuza es: [0-9]{4}\\. Vence en 5 minutos\\."));
     }
 
     @Test

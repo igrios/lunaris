@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +37,9 @@ public class AuthController {
     public record SendOtpRequest(@NotBlank String phone) {
     }
 
-    public record VerifyOtpRequest(@NotBlank String phone, @NotBlank String code) {
+    public record VerifyOtpRequest(
+            @NotBlank String phone,
+            @NotBlank @Pattern(regexp = "[0-9]{4}", message = "El código debe tener exactamente 4 dígitos.") String code) {
     }
 
     public record TokenResponse(String accessToken, String tokenType, Instant expiresAt) {

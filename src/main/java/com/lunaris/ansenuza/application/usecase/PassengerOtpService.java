@@ -47,11 +47,10 @@ public class PassengerOtpService {
         if (storedPhone == null) {
             throw new DomainValidationException("No existe un pasajero registrado con ese teléfono.");
         }
-        String code = "%06d".formatted(secureRandom.nextInt(1_000_000));
+        String code = "%04d".formatted(secureRandom.nextInt(10_000));
         challenges.put(phone, new OtpChallenge(code, Instant.now().plus(otpTtl), 0, storedPhone));
         messagingPort.sendText(storedPhone,
-                "Tu código de acceso a Lunaris Ansenuza es " + code
-                        + ". Vence en " + otpTtl.toMinutes() + " minutos.");
+                "Tu código de acceso a Lunaris Ansenuza es: " + code + ". Vence en 5 minutos.");
     }
 
     public TokenResult verifyOtp(String rawPhone, String code) {
