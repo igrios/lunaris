@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.domain.model.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,20 +34,23 @@ public class ReservationService {
 
         normalizePassengerName(mainReservation.getPassenger());
 
-        // 1. Limpiamos espacios en blanco y formateamos los prefijos
-        String originClean = mainReservation.getPickupLocality().trim();
-        String destClean = mainReservation.getDestination().trim();
+        // 1. Normalizamos la ruta y sus prefijos para que todos los canales
+        // (web, panel y bot) compartan el mismo formato de código.
+        String originClean = cleanLocality(mainReservation.getPickupLocality());
+        String destClean = cleanLocality(mainReservation.getDestination());
+        String routePrefix = localityPrefix(originClean) + "-" + localityPrefix(destClean);
 
         // 2. Obtenemos la secuencia estimada para el Nexo de Grupo unificado
         long currentCount = reservationRepository.countSequenceByRouteAndDate(originClean, destClean, mainReservation.getTravelDate());
         long nextSequence = currentCount + 1;
 
         // 3. 🛡️ BUCLE DEFENSIVO ANTI-COLISIÓN (Código base de grupo compartido)
-        String codigoBase = String.format("LUN-%04d", nextSequence);
+        String codigoBase = String.format("%s-%03d", routePrefix, nextSequence);
         while (reservationRepository.existsByReservationCode(codigoBase)
-                || reservationRepository.existsByReservationCode(codigoBase + "-IDA")) {
+                || reservationRepository.existsByReservationCode(codigoBase + "-IDA")
+                || reservationRepository.existsByReservationCode(codigoBase + "-VUELTA")) {
             nextSequence++;
-            codigoBase = String.format("LUN-%04d", nextSequence);
+            codigoBase = String.format("%s-%03d", routePrefix, nextSequence);
         }
 
         // 💳 PASO CRÍTICO DE CUENTA CORRIENTE: Evaluar y aplicar saldo a favor del Pasajero Titular
@@ -144,6 +148,24 @@ public class ReservationService {
         }
 
         return savedReservations;
+    }
+
+    private String cleanLocality(String locality) {
+        return locality == null ? "" : locality.trim();
+    }
+
+    private String localityPrefix(String locality) {
+        if (locality == null || locality.isBlank()) {
+            return "LUN";
+        }
+        String normalized = Normalizer.normalize(locality, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^A-Za-z]", "")
+                .toUpperCase();
+        if (normalized.isEmpty()) {
+            return "LUN";
+        }
+        return normalized.substring(0, Math.min(3, normalized.length()));
     }
 
     private void normalizePassengerName(Passenger passenger) {

@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.domain.model.service;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,6 +21,70 @@ import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
 class ReservationServiceTest {
+
+    @Test
+    void generatesRouteBasedCodeWithThreeDigitSequence() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        when(reservations.countSequenceByRouteAndDate("Balnearia", "Córdoba", LocalDate.of(2026, 8, 1)))
+                .thenReturn(0L);
+        when(reservations.existsByReservationCode(any())).thenReturn(false);
+        when(reservations.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+        Reservation reservation = reservation("Balnearia", "Córdoba");
+
+        service.saveReservationFlow(reservation);
+
+        assertEquals("BAL-COR-001", reservation.getReservationCode());
+    }
+
+    @Test
+    void incrementsSequenceAndFallsBackToLunForMissingLocality() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        when(reservations.countSequenceByRouteAndDate("", "Morteros", LocalDate.of(2026, 8, 1)))
+                .thenReturn(1L);
+        when(reservations.existsByReservationCode(any())).thenReturn(false);
+        when(reservations.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+        Reservation reservation = reservation(null, "Morteros");
+
+        service.saveReservationFlow(reservation);
+
+        assertEquals("LUN-MOR-002", reservation.getReservationCode());
+    }
+
+    @Test
+    void fallsBackToLunForBlankDestination() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        when(reservations.countSequenceByRouteAndDate("Ansenuza", "", LocalDate.of(2026, 8, 1)))
+                .thenReturn(0L);
+        when(reservations.existsByReservationCode(any())).thenReturn(false);
+        when(reservations.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+        Reservation reservation = reservation("Ansenuza", "   ");
+
+        service.saveReservationFlow(reservation);
+
+        assertEquals("ANS-LUN-001", reservation.getReservationCode());
+    }
+
+    private Reservation reservation(String origin, String destination) {
+        return Reservation.builder()
+                .passenger(Passenger.builder().currentBalance(BigDecimal.ZERO).build())
+                .pickupLocality(origin)
+                .destination(destination)
+                .travelDate(LocalDate.of(2026, 8, 1))
+                .amount(new BigDecimal("1000.00"))
+                .discountAmount(BigDecimal.ZERO)
+                .roundTrip(false)
+                .paymentVerified(false)
+                .build();
+    }
 
     @Test
     void splitsFullNameWhenPassengerHasNoLastName() {

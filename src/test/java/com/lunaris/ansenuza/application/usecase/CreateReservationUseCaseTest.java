@@ -61,6 +61,7 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertEquals("juna", result.getPassenger().getFirstName());
             assertEquals("fenogloi", result.getPassenger().getLastName());
             assertEquals("Ansenuza", result.getPickupLocality());
+            assertEquals("ANS-COR-001", result.getReservationCode());
             assertEquals(new BigDecimal("56000.00"), result.getAmount());
         }
                                                                                                                                                           
@@ -137,7 +138,8 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertSame(persisted, result);                                                                                                                
             assertEquals(new BigDecimal("116000.00"), persisted.getAmount());                                                                             
             assertEquals(2, persisted.getPassengerCount());                                                                                               
-            assertEquals("PENDING_PAYMENT", persisted.getStatus());                                                                                       
+            assertEquals("PENDING_PAYMENT", persisted.getStatus());
+            assertEquals("MOR-COR-001", persisted.getReservationCode());
             assertEquals(ReservationSource.WEB, persisted.getSource());
             assertSame(passenger, persisted.getPassenger());                                                                                              
         }                                                                                                                                                 
