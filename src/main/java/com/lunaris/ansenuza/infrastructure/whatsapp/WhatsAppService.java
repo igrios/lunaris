@@ -452,7 +452,7 @@ static String buildDriverRouteSheetUrl(
         String formattedContact = resolvedPhone == null || resolvedPhone.isBlank()
                 ? "WhatsApp de Lunaris (este chat)"
                 : "+" + formatMetaPhoneNumber(resolvedPhone);
-        return "🚐 *Chofer asignado*\n\n"
+        return "🚗 *Auto Lunaris asignado*\n\n"
                 + "Chofer: " + safeTemplateValue(driverName, "A confirmar") + "\n"
                 + "Contacto: " + formattedContact;
     }

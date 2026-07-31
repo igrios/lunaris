@@ -64,6 +64,7 @@ class WhatsAppTemplateConfigurationTest {
         String message = WhatsAppService.buildDriverAssignmentContactMessage(
                 "Carlos Gómez", "+54 351-555-1234", "+54 351-111-1111");
 
+        assertTrue(message.contains("Auto Lunaris asignado"));
         assertTrue(message.contains("Chofer: Carlos Gómez"));
         assertTrue(message.contains("Contacto: +5493515551234"));
         assertFalse(message.contains("3511111111"));

@@ -61,6 +61,10 @@ class OnboardPassengerUseCaseTest {
                 .findRouteByEffectiveDate(driver.getId(), date);
         verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName());
         verify(whatsApp).sendMessage(
+                "222",
+                "¡Hola Siguiente! El auto de Lunaris ya recogió al pasajero anterior "
+                        + "y sos el próximo en la lista. Por favor estate atento/a en la puerta.");
+        verify(whatsApp).sendMessage(
                 "222", "📍 Ubicación actual del chofer: https://maps.google.com/?q=-31.42,-64.18");
     }
 

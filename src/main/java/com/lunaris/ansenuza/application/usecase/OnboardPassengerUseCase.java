@@ -226,7 +226,7 @@ public class OnboardPassengerUseCase {
         whatsAppService.sendMessage(
                 next.getPassenger().getPhone(),
                 "¡Hola " + next.getPassenger().getFirstName()
-                        + "! La combi ya recogió al pasajero anterior y sos el próximo en subir. "
+                        + "! El auto de Lunaris ya recogió al pasajero anterior y sos el próximo en la lista. "
                         + "Por favor estate atento/a en la puerta.");
         String locationUrl = onboard.getDriver().getCurrentLocationUrl();
         if (locationUrl != null && !locationUrl.isBlank()) {

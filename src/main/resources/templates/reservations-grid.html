@@ -210,7 +210,7 @@
                   <!-- 🗑️ BOTÓN DE CANCELACIÓN INDIVIDUAL CON RETORNO A BILLETERA -->
                   <form th:if="${r.status != 'CANCELLED'}" th:action="@{/reservas-panel/cancel/{id}(id=${r.id})}"
                     method="POST" class="d-inline"
-                    onsubmit="return confirm('¿Estás seguro que querés cancelar esta reserva de la combi? Si ya pagó, el saldo se acreditará a su Cuenta Corriente.')">
+                    onsubmit="return confirm('¿Estás seguro que querés cancelar esta reserva del vehículo? Si ya pagó, el saldo se acreditará a su Cuenta Corriente.')">
                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancelar Viaje">
                       <i class="bi bi-trash3-fill"></i>
                     </button>
