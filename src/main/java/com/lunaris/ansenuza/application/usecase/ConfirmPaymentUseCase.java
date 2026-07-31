@@ -50,7 +50,9 @@ public class ConfirmPaymentUseCase {
             return selected;
         }
 
-        promotionService.consume(promotionCode, phoneNumber);
+        // La confirmación puede reintentarse desde el panel. El consumo idempotente evita que
+        // una promoción ya aplicada marque la transacción como rollback-only.
+        promotionService.consumeIfAvailable(promotionCode, phoneNumber);
 
         LocalDateTime confirmedAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
         group.forEach(reservation -> {

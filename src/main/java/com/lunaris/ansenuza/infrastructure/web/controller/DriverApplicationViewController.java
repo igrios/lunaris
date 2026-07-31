@@ -1,6 +1,8 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.DriverApplicationManagementService;
+import com.lunaris.ansenuza.domain.model.DriverApplication;
+import com.lunaris.ansenuza.domain.repository.DriverApplicationRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -17,10 +19,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class DriverApplicationViewController {
 
     private final DriverApplicationManagementService managementService;
+    private final DriverApplicationRepository applicationRepository;
 
     @GetMapping
     public String panel(Model model) {
-        model.addAttribute("applications", managementService.findPending());
+        model.addAttribute("applications", applicationRepository.findByStatusOrderByCreatedAtAsc(
+                DriverApplication.Status.PENDING));
         return "admin/postulaciones";
     }
 

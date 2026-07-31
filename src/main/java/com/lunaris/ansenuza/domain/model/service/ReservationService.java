@@ -31,6 +31,8 @@ public class ReservationService {
     public List<Reservation> saveReservationFlow(Reservation mainReservation) {
         List<Reservation> savedReservations = new ArrayList<>();
 
+        normalizePassengerName(mainReservation.getPassenger());
+
         // 1. Limpiamos espacios en blanco y formateamos los prefijos
         String originClean = mainReservation.getPickupLocality().trim();
         String destClean = mainReservation.getDestination().trim();
@@ -142,6 +144,22 @@ public class ReservationService {
         }
 
         return savedReservations;
+    }
+
+    private void normalizePassengerName(Passenger passenger) {
+        if (passenger == null || passenger.getFirstName() == null) {
+            return;
+        }
+        boolean missingLastName = passenger.getLastName() == null
+                || passenger.getLastName().isBlank()
+                || "Sin apellido".equalsIgnoreCase(passenger.getLastName().trim());
+        String fullName = passenger.getFirstName().trim().replaceAll("\\s+", " ");
+        int separator = fullName.lastIndexOf(' ');
+        if (missingLastName && separator > 0) {
+            passenger.setFirstName(fullName.substring(0, separator));
+            passenger.setLastName(fullName.substring(separator + 1));
+            passengerRepository.save(passenger);
+        }
     }
 
     // 🗑️ BAJA LÓGICA ATÓMICA CON CASCADA INTELIGENTE (PROTEGE LA IDA SI SE CANCELA LA VUELTA)

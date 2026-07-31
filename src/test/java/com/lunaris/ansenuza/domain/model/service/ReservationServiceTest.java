@@ -22,6 +22,39 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 class ReservationServiceTest {
 
     @Test
+    void splitsFullNameWhenPassengerHasNoLastName() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(
+                reservations,
+                mock(ReservationEventRepository.class),
+                passengers,
+                mock(OnboardPassengerUseCase.class));
+        Passenger passenger = Passenger.builder()
+                .firstName("Juna Fenogloi")
+                .lastName("Sin apellido")
+                .currentBalance(BigDecimal.ZERO)
+                .build();
+        Reservation reservation = Reservation.builder()
+                .passenger(passenger)
+                .pickupLocality("Miramar")
+                .destination("Cordoba")
+                .travelDate(LocalDate.of(2026, 8, 1))
+                .amount(new BigDecimal("1000.00"))
+                .discountAmount(BigDecimal.ZERO)
+                .roundTrip(false)
+                .paymentVerified(false)
+                .build();
+        when(reservations.save(reservation)).thenReturn(reservation);
+
+        service.saveReservationFlow(reservation);
+
+        assertEquals("Juna", passenger.getFirstName());
+        assertEquals("Fenogloi", passenger.getLastName());
+        verify(passengers).save(passenger);
+    }
+
+    @Test
     void cancellationCreditsPaidReservationAmountAndUpdatesBothStatuses() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         PassengerRepository passengers = mock(PassengerRepository.class);

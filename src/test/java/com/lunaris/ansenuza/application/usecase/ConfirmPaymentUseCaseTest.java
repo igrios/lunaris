@@ -30,7 +30,7 @@ class ConfirmPaymentUseCaseTest {
 
         new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);
 
-        verify(promotionService).consume("1234", null);
+        verify(promotionService).consumeIfAvailable("1234", null);
         verify(repository).saveAll(List.of(outbound, inbound));
         assertTrue(outbound.getPaymentVerified());
         assertTrue(inbound.getPaymentVerified());
