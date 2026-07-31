@@ -6,7 +6,6 @@ import com.lunaris.ansenuza.domain.repository.DriverApplicationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.DriverApplicationRequest;
 import com.lunaris.ansenuza.shared.PhoneUtils;
 import lombok.RequiredArgsConstructor;
-import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,17 +19,17 @@ public class SubmitDriverApplicationUseCase {
 
     @Transactional
     public DriverApplication execute(DriverApplicationRequest request) {
-        DriverApplication application = DriverApplication.builder()
-                .id(UUID.randomUUID())
-                .fullName(request.fullName().trim())
-                .phone(PhoneUtils.normalizeArgentinePhone(request.phone()))
-                .locality("Sin especificar")
-                .vehicleModel(request.vehicleModel().trim())
-                .vehicleYear(request.vehicleYear())
-                .licensePlate(request.licensePlate().trim().toUpperCase())
-                .wantsDirectContact(false)
-                .status(DriverApplication.Status.PENDING)
-                .build();
+        String normalizedPhone = PhoneUtils.normalizeArgentinePhone(request.phone());
+        DriverApplication application = repository.findFirstByPhone(normalizedPhone)
+                .orElseGet(DriverApplication::new);
+        application.updateSubmission(
+                request.fullName().trim(),
+                normalizedPhone,
+                "Sin especificar",
+                request.vehicleModel().trim(),
+                request.vehicleYear(),
+                request.licensePlate().trim().toUpperCase(),
+                false);
         return repository.save(application);
     }
 
@@ -44,20 +43,19 @@ public class SubmitDriverApplicationUseCase {
         String greenCardFileUrl = storeIfPresent("green-card", greenCardFile);
         String criminalRecordFileUrl = storeIfPresent("criminal-record", criminalRecordFile);
 
-        DriverApplication application = DriverApplication.builder()
-                .id(UUID.randomUUID())
-                .fullName(submission.fullName().trim())
-                .phone(PhoneUtils.normalizeArgentinePhone(submission.phone()))
-                .locality(submission.locality().trim())
-                .vehicleModel(submission.vehicleModel().trim())
-                .vehicleYear(submission.vehicleYear())
-                .licensePlate(submission.plateNumber().trim().toUpperCase())
-                .wantsDirectContact(submission.wantsDirectContact())
-                .insuranceFileUrl(insuranceFileUrl)
-                .greenCardFileUrl(greenCardFileUrl)
-                .criminalRecordFileUrl(criminalRecordFileUrl)
-                .status(DriverApplication.Status.PENDING)
-                .build();
+        String normalizedPhone = PhoneUtils.normalizeArgentinePhone(submission.phone());
+        DriverApplication application = repository.findFirstByPhone(normalizedPhone)
+                .orElseGet(DriverApplication::new);
+        application.updateSubmission(
+                submission.fullName().trim(),
+                normalizedPhone,
+                submission.locality().trim(),
+                submission.vehicleModel().trim(),
+                submission.vehicleYear(),
+                submission.plateNumber().trim().toUpperCase(),
+                submission.wantsDirectContact());
+        application.updateDocuments(
+                insuranceFileUrl, greenCardFileUrl, criminalRecordFileUrl);
         return repository.save(application);
     }
 
