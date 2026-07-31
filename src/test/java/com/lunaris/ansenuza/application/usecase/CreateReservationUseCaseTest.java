@@ -28,6 +28,41 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;                                                              
                                                                                                                                                           
     class CreateReservationUseCaseTest {                                                                                                                  
+
+        @Test
+        void createsPassengerFromFullNameAndMapsOriginAliasForFareCalculation() throws Exception {
+            PassengerRepository passengerRepository = mock(PassengerRepository.class);
+            ReservationRepository reservationRepository = mock(ReservationRepository.class);
+            FareRepository fareRepository = mock(FareRepository.class);
+            when(passengerRepository.findByPhone("5493511111111")).thenReturn(Optional.empty());
+            when(passengerRepository.save(any(Passenger.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(fareRepository.findByLocalityNameIgnoreCase("Ansenuza")).thenReturn(Optional.of(
+                    Fare.builder().localityName("Ansenuza").amount(new BigDecimal("96000")).build()));
+            when(reservationRepository.countSequenceByRouteAndDate(any(), any(), any())).thenReturn(0L);
+            when(reservationRepository.existsByReservationCode(any())).thenReturn(false);
+            when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            PricingAndScheduleService pricingService = new PricingAndScheduleService(
+                    fareRepository, mock(LocalityRepository.class),
+                    mock(BusinessParameterRepository.class), reservationRepository);
+            CreateReservationUseCase useCase = new CreateReservationUseCase(
+                    new ReservationService(reservationRepository, mock(ReservationEventRepository.class),
+                            passengerRepository, mock(com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase.class)),
+                    passengerRepository, pricingService);
+            String json = """
+                    {"fullName":"juna fenogloi","phone":"3511111111","date":"2026-08-01",
+                     "origin":"Ansenuza","destination":"Córdoba","seats":1,"roundTrip":false}
+                    """;
+            CreateReservationRequest request = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .findAndRegisterModules().readValue(json, CreateReservationRequest.class);
+
+            Reservation result = useCase.execute(request);
+
+            assertEquals("juna", result.getPassenger().getFirstName());
+            assertEquals("fenogloi", result.getPassenger().getLastName());
+            assertEquals("Ansenuza", result.getPickupLocality());
+            assertEquals(new BigDecimal("56000.00"), result.getAmount());
+        }
                                                                                                                                                           
         @Test                                                                                                                                             
         void executeDelegatesAmountCalculationToPricingService() {                                                                                        

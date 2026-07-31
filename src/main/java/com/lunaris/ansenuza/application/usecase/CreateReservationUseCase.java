@@ -99,17 +99,38 @@ public class CreateReservationUseCase {
         }
 
         String phone = PhoneUtils.normalizeArgentinePhone(request.phone());
-        return passengerRepository.findByPhone(phone).orElseGet(() -> {
-            String normalizedName = request.fullName().trim().replaceAll("\\s+", " ");
-            int separator = normalizedName.lastIndexOf(' ');
-            String firstName = separator > 0 ? normalizedName.substring(0, separator) : normalizedName;
-            String lastName = separator > 0 ? normalizedName.substring(separator + 1) : "Sin apellido";
-            return passengerRepository.save(Passenger.builder()
-                    .firstName(firstName)
-                    .lastName(lastName)
-                    .phone(phone)
-                    .build());
-        });
+        NameParts name = splitFullName(request.fullName());
+        return passengerRepository.findByPhone(phone)
+                .map(existing -> repairIncompleteName(existing, name))
+                .orElseGet(() -> passengerRepository.save(Passenger.builder()
+                        .firstName(name.firstName())
+                        .lastName(name.lastName())
+                        .phone(phone)
+                        .build()));
+    }
+
+    private Passenger repairIncompleteName(Passenger passenger, NameParts submittedName) {
+        if (isMissingLastName(passenger.getLastName()) && !"Sin apellido".equals(submittedName.lastName())) {
+            passenger.setFirstName(submittedName.firstName());
+            passenger.setLastName(submittedName.lastName());
+            return passengerRepository.save(passenger);
+        }
+        return passenger;
+    }
+
+    private boolean isMissingLastName(String lastName) {
+        return lastName == null || lastName.isBlank() || "Sin apellido".equalsIgnoreCase(lastName.trim());
+    }
+
+    private NameParts splitFullName(String fullName) {
+        String normalizedName = fullName.trim().replaceAll("\\s+", " ");
+        int separator = normalizedName.lastIndexOf(' ');
+        return separator > 0
+                ? new NameParts(normalizedName.substring(0, separator), normalizedName.substring(separator + 1))
+                : new NameParts(normalizedName, "Sin apellido");
+    }
+
+    private record NameParts(String firstName, String lastName) {
     }
 
     private String effectivePickupLocality(CreateReservationRequest request) {

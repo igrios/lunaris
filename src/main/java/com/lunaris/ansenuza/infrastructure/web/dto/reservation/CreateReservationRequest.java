@@ -11,7 +11,7 @@ public record CreateReservationRequest(
     @JsonAlias({"passengerPhone"}) String phone,
     @JsonAlias({"date"})
     LocalDate travelDate,
-    String pickupLocality,
+    @JsonAlias({"origin", "locality", "originLocality"}) String pickupLocality,
     String pickupAddress,
     String destination,
     Boolean roundTrip,
