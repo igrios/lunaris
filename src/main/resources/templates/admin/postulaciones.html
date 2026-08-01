@@ -18,7 +18,7 @@
       <div class="card-body p-4">
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark"><tr><th>Nombre</th><th>Teléfono</th><th>Vehículo</th><th>Año</th><th>Patente</th><th>Fecha</th><th>Acciones</th></tr></thead>
+            <thead class="table-dark"><tr><th>Nombre</th><th>Teléfono</th><th>Vehículo</th><th>Año</th><th>Patente</th><th>Localidad</th><th>Fecha</th><th>Acciones</th></tr></thead>
             <tbody>
               <tr th:each="app : ${postulaciones}">
                 <td class="fw-semibold" th:text="${app?.fullName ?: '-'}"></td>
@@ -26,6 +26,7 @@
                 <td th:text="${app?.vehicleModel ?: '-'}"></td>
                 <td th:text="${app?.vehicleYear ?: '-'}"></td>
                 <td th:text="${app?.licensePlate ?: '-'}"></td>
+                <td th:text="${app.locality != null ? app.locality : 'Sin especificar'}">Localidad</td>
                 <td th:text="${app?.createdAt != null ? #temporals.format(app.createdAt, 'dd/MM/yyyy HH:mm') : '-'}"></td>
                 <td><div class="d-flex flex-wrap gap-2">
                   <a class="btn btn-sm btn-success" target="_blank" rel="noopener"
@@ -39,7 +40,7 @@
                   </form>
                 </div></td>
               </tr>
-              <tr th:if="${#lists.isEmpty(postulaciones)}"><td colspan="7" class="text-center text-muted py-5">No hay postulaciones pendientes.</td></tr>
+              <tr th:if="${#lists.isEmpty(postulaciones)}"><td colspan="8" class="text-center text-muted py-5">No hay postulaciones pendientes.</td></tr>
             </tbody>
           </table>
         </div>
