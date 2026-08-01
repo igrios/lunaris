@@ -31,9 +31,9 @@ public class SelectScheduleHandler implements ConversationStepHandler {
         String body = message.body().trim().toLowerCase();
 
         if ("time_0300".equals(body)) {
-            session.setCurrentCompanionIndex(3);
+            session.setScheduleBlock("03:00 AM");
         } else if ("time_0800".equals(body)) {
-            session.setCurrentCompanionIndex(8);
+            session.setScheduleBlock("08:00 AM");
         } else {
             return;
         }
