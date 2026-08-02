@@ -15,6 +15,8 @@ public interface MessagingPort {
 
     void requestLocation(String to, String message);
 
+    void sendImage(String to, String imageUrl, String caption);
+
     /**
      * Envía un documento (PDF) ubicado en {@code absoluteFilePath} al destinatario.
      * Usado para mandar la factura por WhatsApp.

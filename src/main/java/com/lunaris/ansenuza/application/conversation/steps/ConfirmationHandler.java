@@ -24,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ConfirmationHandler implements ConversationStepHandler {
 
+    private static final String CBU_IMAGE_URL =
+            "https://lunaris-backend-nn6s.onrender.com/CBU_MARTIN.jpeg";
+
     private final ConversationSessionRepository conversationSessionRepository;
     private final PassengerRepository passengerRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
@@ -135,6 +138,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 return;
             }
 
+            messaging.sendImage(phoneNumber, CBU_IMAGE_URL, "Datos para la transferencia");
             messaging.sendText(phoneNumber, """
                     ✅ *¡Tu traslado ha sido registrado con éxito!*
 

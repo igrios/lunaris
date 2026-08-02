@@ -117,6 +117,23 @@ public class WhatsAppService {
                 createHeaders(), body, "SOLICITUD DE UBICACIÓN");
     }
 
+    public void sendImageMessage(String toPhone, String imageUrl, String caption) {
+        Map<String, Object> image = new HashMap<>();
+        image.put("link", imageUrl);
+        if (caption != null && !caption.isBlank()) {
+            image.put("caption", caption);
+        }
+        Map<String, Object> body = Map.of(
+                "messaging_product", "whatsapp",
+                "recipient_type", "individual",
+                "to", toPhone,
+                "type", "image",
+                "image", image);
+        executePostCall(
+                "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages",
+                createHeaders(), body, "IMAGEN");
+    }
+
     // MENÚ DESPLEGABLE PREMIUM MULTI-SECCIÓN
     public void sendInteractiveList(String phoneNumber, String headerText, String bodyText, String buttonLabel, List<Map<String, Object>> sections) {
         String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
