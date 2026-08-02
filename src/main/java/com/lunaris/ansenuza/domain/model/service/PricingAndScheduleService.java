@@ -10,6 +10,7 @@ import com.lunaris.ansenuza.domain.repository.BusinessParameterRepository;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.model.TripType;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,6 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor
 @Slf4j
 public class PricingAndScheduleService {
+
+    private static final String ONE_WAY_EXTRA_AMOUNT = "ONE_WAY_EXTRA_AMOUNT";
+    private static final java.math.BigDecimal DEFAULT_ONE_WAY_EXTRA = new java.math.BigDecimal("8000");
 
     private final FareRepository fareRepository;
     private final LocalityRepository localityRepository;
@@ -97,9 +101,12 @@ public class PricingAndScheduleService {
 
         // 2. Evaluamos si es "Solo Ida" (isRoundTrip == false)
         if (Boolean.FALSE.equals(isRoundTrip)) {
-            // Regla de Negocio: (Tarifa Base / 2) + 8000
+            java.math.BigDecimal extraOneWayFee = businessParameterRepository
+                    .findByParameterKey(ONE_WAY_EXTRA_AMOUNT)
+                    .map(parameter -> new java.math.BigDecimal(parameter.getParameterValue()))
+                    .orElse(DEFAULT_ONE_WAY_EXTRA);
             finalPricePerPassenger = baseFare.divide(new java.math.BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP)
-                                             .add(new java.math.BigDecimal("8000"));
+                                             .add(extraOneWayFee);
             log.info("[Tarifa Solo Ida Aplicada] Pueblo: {} | Base original: {} | Con regla aplicada: {}", 
                      localityName, baseFare, finalPricePerPassenger);
         } else {
@@ -125,6 +132,13 @@ public class PricingAndScheduleService {
             Boolean isRoundTrip, int passengerCount) {
         String zoneLocality = resolveZoneLocality(pickupLocality, destination);
         return calculateTripPrice(zoneLocality, isRoundTrip, passengerCount);
+    }
+
+    public java.math.BigDecimal calculateReservationAmount(String pickupLocality, String destination,
+            TripType tripType, int passengerCount) {
+        boolean fullRoundTripFare = tripType == TripType.ROUND_TRIP || tripType == TripType.OPEN_RETURN;
+        return calculateReservationAmount(
+                pickupLocality, destination, fullRoundTripFare, passengerCount);
     }
 
     private String resolveZoneLocality(String pickupLocality, String destination) {

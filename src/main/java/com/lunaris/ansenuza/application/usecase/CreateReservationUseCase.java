@@ -57,10 +57,7 @@ public class CreateReservationUseCase {
         boolean pairedTrip = tripType != TripType.ONE_WAY;
         var computedAmount = pricingAndScheduleService.calculateReservationAmount(
                 effectivePickupLocality(request), effectiveDestination(request),
-                pairedTrip, safePassengerCount);
-        if (request.tripType() != null && pairedTrip) {
-            computedAmount = computedAmount.multiply(java.math.BigDecimal.valueOf(2));
-        }
+                tripType, safePassengerCount);
 
         Reservation reservation = Reservation.builder()
                 .passenger(passenger)

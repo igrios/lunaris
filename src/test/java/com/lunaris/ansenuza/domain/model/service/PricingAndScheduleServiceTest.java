@@ -7,6 +7,8 @@
     import java.util.Optional;
     import org.junit.jupiter.api.Test;
     import com.lunaris.ansenuza.domain.model.Fare;
+    import com.lunaris.ansenuza.domain.model.BusinessParameter;
+    import com.lunaris.ansenuza.domain.model.TripType;
     import com.lunaris.ansenuza.domain.repository.BusinessParameterRepository;
     import com.lunaris.ansenuza.domain.repository.FareRepository;
     import com.lunaris.ansenuza.domain.repository.LocalityRepository;
@@ -30,6 +32,34 @@
             BigDecimal amount = service.calculateReservationAmount("Córdoba", "Morteros", false, 1);
   
             assertEquals(new BigDecimal("58000.00"), amount);
+        }
+
+        @Test
+        void roundTripAndOpenReturnUseFullBaseFarePerPassenger() {
+            PricingAndScheduleService service = newService();
+
+            assertEquals(new BigDecimal("200000"),
+                    service.calculateReservationAmount("Morteros", "Córdoba", TripType.ROUND_TRIP, 2));
+            assertEquals(new BigDecimal("200000"),
+                    service.calculateReservationAmount("Morteros", "Córdoba", TripType.OPEN_RETURN, 2));
+        }
+
+        @Test
+        void oneWayUsesConfiguredExtraFeePerPassenger() {
+            FareRepository fares = mock(FareRepository.class);
+            BusinessParameterRepository parameters = mock(BusinessParameterRepository.class);
+            when(fares.findByLocalityNameIgnoreCase("Morteros")).thenReturn(Optional.of(
+                    Fare.builder().localityName("Morteros").amount(new BigDecimal("100000")).build()));
+            when(parameters.findByParameterKey("ONE_WAY_EXTRA_AMOUNT")).thenReturn(Optional.of(
+                    BusinessParameter.builder()
+                            .parameterKey("ONE_WAY_EXTRA_AMOUNT")
+                            .parameterValue("10000")
+                            .build()));
+            PricingAndScheduleService service = new PricingAndScheduleService(
+                    fares, mock(LocalityRepository.class), parameters, mock(ReservationRepository.class));
+
+            assertEquals(new BigDecimal("120000.00"),
+                    service.calculateReservationAmount("Morteros", "Córdoba", TripType.ONE_WAY, 2));
         }
   
         private PricingAndScheduleService newService() {
