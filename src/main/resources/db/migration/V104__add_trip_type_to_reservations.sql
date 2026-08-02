@@ -1,0 +1,3 @@
+ALTER TABLE reservations ADD COLUMN IF NOT EXISTS trip_type VARCHAR(50);
+
+ALTER TABLE reservations ALTER COLUMN trip_type TYPE VARCHAR(50);

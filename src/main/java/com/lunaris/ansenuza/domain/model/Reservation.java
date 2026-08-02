@@ -80,7 +80,7 @@ public class Reservation {
     private Boolean roundTrip;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "trip_type", length = 20)
+    @Column(name = "trip_type", length = 50)
     private TripType tripType;
 
     @Column(name = "return_date")
@@ -171,6 +171,11 @@ public class Reservation {
         }
         if (source == null) {
             source = ReservationSource.MANUAL;
+        }
+        if (tripType == null) {
+            tripType = Boolean.TRUE.equals(roundTrip)
+                    ? (returnDate == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)
+                    : TripType.ONE_WAY;
         }
         if ("CANCELLED".equalsIgnoreCase(status)) {
             routeSequence = null;
