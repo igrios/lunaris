@@ -79,6 +79,10 @@ public class Reservation {
     @Column(name = "round_trip")
     private Boolean roundTrip;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trip_type", length = 20)
+    private TripType tripType;
+
     @Column(name = "return_date")
     private LocalDate returnDate;
 

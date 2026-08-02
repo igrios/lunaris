@@ -14,6 +14,7 @@ import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationEvent;
+import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -114,11 +115,13 @@ public class ReservationService {
             returnReservation.setPickupLocality(mainReservation.getDestination()); 
             returnReservation.setDestination(mainReservation.getPickupLocality()); 
 
-            if (mainReservation.getReturnDate() != null) {
+            if (mainReservation.getTripType() != TripType.OPEN_RETURN
+                    && mainReservation.getReturnDate() != null) {
                 returnReservation.setTravelDate(mainReservation.getReturnDate());
                 returnReservation.setNotes("Vuelta vinculada al grupo " + codigoBase);
             } else {
-                returnReservation.setTravelDate(LocalDate.of(2099, 12, 31));
+                returnReservation.setTravelDate(null);
+                returnReservation.setTravelStatus(Reservation.TravelStatus.OPEN_RETURN);
                 returnReservation.setNotes("🛑 VUELTA ABIERTA - Pendiente confirmar fecha. Grupo " + codigoBase);
             }
 
@@ -133,8 +136,10 @@ public class ReservationService {
             returnReservation.setStatus(mainReservation.getStatus());
             returnReservation.setSource(mainReservation.getSource());
             returnReservation.setRoundTrip(true);
+            returnReservation.setTripType(mainReservation.getTripType());
             returnReservation.setReservationCode(codigoBase + "-VUELTA");
             returnReservation.setPaymentConfirmedAt(mainReservation.getPaymentConfirmedAt());
+            returnReservation.setPaymentReceiptUrl(mainReservation.getPaymentReceiptUrl());
 
             Reservation savedReturn = reservationRepository.save(returnReservation);
             savedReservations.add(savedReturn);
@@ -148,6 +153,17 @@ public class ReservationService {
         }
 
         return savedReservations;
+    }
+
+    @Transactional
+    public Reservation verifyPayment(UUID id) {
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + id));
+        reservation.setPaymentVerified(true);
+        reservation.setStatus("CONFIRMED");
+        reservation.setPaymentConfirmedAt(
+                com.lunaris.ansenuza.shared.ArgentinaTime.now());
+        return reservationRepository.saveAndFlush(reservation);
     }
 
     private String cleanLocality(String locality) {

@@ -124,6 +124,12 @@ public class DashboardViewController {
         return "redirect:/reservas-panel";
     }
 
+    @PostMapping("/reservations/{id}/verify-payment")
+    public String verifyPayment(@PathVariable UUID id) {
+        reservationService.verifyPayment(id);
+        return "redirect:/reservas-panel";
+    }
+
     /**
      * ❌ 3. BAJA INTEGRADA CON CUENTA CORRIENTE (Firma nativa con UUID)
      */

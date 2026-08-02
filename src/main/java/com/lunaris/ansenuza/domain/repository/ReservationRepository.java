@@ -111,7 +111,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 💡 NUEVO MÉTODO FILTRADO: Para limpiar la grilla de vueltas abiertas en el controlador web
     @Query("""
            SELECT r FROM Reservation r
-           WHERE r.travelDate = :fechaCentinela
+           WHERE (r.travelDate = :fechaCentinela
+                  OR (r.travelDate IS NULL
+                      AND r.travelStatus = com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN))
            AND r.driver IS NULL
            AND r.status <> 'CANCELLED'
            """)

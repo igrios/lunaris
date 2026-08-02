@@ -10,6 +10,7 @@ import com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
+import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
@@ -30,6 +31,10 @@ public class CreateReservationUseCase {
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public Reservation execute(CreateReservationRequest request) {
+        return execute(request, null);
+    }
+
+    public Reservation execute(CreateReservationRequest request, String paymentReceiptUrl) {
         validate(request);
 
         Passenger passenger = resolvePassenger(request);
@@ -48,11 +53,14 @@ public class CreateReservationUseCase {
         String initialStatus = safePaymentVerified ? "CONFIRMED" : "PENDING_PAYMENT";
 
         // Centralizamos la cotización en el servicio de pricing para no duplicar reglas.
+        TripType tripType = resolveTripType(request);
+        boolean pairedTrip = tripType != TripType.ONE_WAY;
         var computedAmount = pricingAndScheduleService.calculateReservationAmount(
-                effectivePickupLocality(request),
-                effectiveDestination(request),
-                request.roundTrip(),
-                safePassengerCount);
+                effectivePickupLocality(request), effectiveDestination(request),
+                pairedTrip, safePassengerCount);
+        if (request.tripType() != null && pairedTrip) {
+            computedAmount = computedAmount.multiply(java.math.BigDecimal.valueOf(2));
+        }
 
         Reservation reservation = Reservation.builder()
                 .passenger(passenger)
@@ -60,8 +68,9 @@ public class CreateReservationUseCase {
                 .pickupLocality(effectivePickupLocality(request))
                 .pickupAddress(request.pickupAddress())
                 .destination(effectiveDestination(request))
-                .roundTrip(Boolean.TRUE.equals(request.roundTrip()))
-                .returnDate(request.returnDate())
+                .roundTrip(pairedTrip)
+                .tripType(tripType)
+                .returnDate(tripType == TripType.ROUND_TRIP ? request.returnDate() : null)
                 .passengerCount(safePassengerCount)
                 .companionNames(request.companionNames())
                 .paymentVerified(safePaymentVerified)
@@ -70,11 +79,21 @@ public class CreateReservationUseCase {
                 .amount(computedAmount) // 🌟 Inyectamos el monto calculado automáticamente
                 .notes(request.notes())
                 .departureSchedule(departureSchedule)
+                .paymentReceiptUrl(paymentReceiptUrl)
                 .build();
 
         List<Reservation> savedReservations = reservationService.saveReservationFlow(reservation);
         
         return savedReservations.get(0);
+    }
+
+    private TripType resolveTripType(CreateReservationRequest request) {
+        if (request.tripType() != null) {
+            return request.tripType();
+        }
+        return Boolean.TRUE.equals(request.roundTrip())
+                ? (request.returnDate() == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)
+                : TripType.ONE_WAY;
     }
 
     private void validate(CreateReservationRequest request) {

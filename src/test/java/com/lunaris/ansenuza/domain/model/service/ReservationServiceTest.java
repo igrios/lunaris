@@ -2,6 +2,8 @@ package com.lunaris.ansenuza.domain.model.service;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -16,6 +18,7 @@ import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -184,5 +187,53 @@ class ReservationServiceTest {
         assertSame(existing, result);
         verify(onboardPassenger).updateTravelStatus(
                 reservationId, Reservation.TravelStatus.ONBOARD);
+    }
+
+    @Test
+    void openReturnCreatesUndatedReturnAndCopiesReceipt() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        when(reservations.countSequenceByRouteAndDate(any(), any(), any())).thenReturn(0L);
+        when(reservations.existsByReservationCode(any())).thenReturn(false);
+        when(reservations.save(any(Reservation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+        Reservation outbound = reservation("Morteros", "Córdoba");
+        outbound.setRoundTrip(true);
+        outbound.setTripType(TripType.OPEN_RETURN);
+        outbound.setAmount(new BigDecimal("2000.00"));
+        outbound.setPaymentReceiptUrl("https://receipts.example/payment.jpg");
+
+        var saved = service.saveReservationFlow(outbound);
+
+        assertEquals(2, saved.size());
+        Reservation openReturn = saved.get(1);
+        assertNull(openReturn.getTravelDate());
+        assertEquals(Reservation.TravelStatus.OPEN_RETURN, openReturn.getTravelStatus());
+        assertEquals(new BigDecimal("1000.00"), openReturn.getAmount());
+        assertEquals(outbound.getPaymentReceiptUrl(), openReturn.getPaymentReceiptUrl());
+    }
+
+    @Test
+    void verifyPaymentLocksAndUpdatesManagedReservation() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        UUID id = UUID.randomUUID();
+        Reservation reservation = Reservation.builder()
+                .id(id).paymentVerified(false).status("PAYMENT_RECEIVED").build();
+        when(reservations.findByIdForUpdate(id)).thenReturn(Optional.of(reservation));
+        when(reservations.saveAndFlush(reservation)).thenReturn(reservation);
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+
+        Reservation result = service.verifyPayment(id);
+
+        assertSame(reservation, result);
+        assertEquals(true, reservation.getPaymentVerified());
+        assertEquals("CONFIRMED", reservation.getStatus());
+        assertNotNull(reservation.getPaymentConfirmedAt());
+        verify(reservations).findByIdForUpdate(id);
+        verify(reservations).saveAndFlush(reservation);
     }
 }

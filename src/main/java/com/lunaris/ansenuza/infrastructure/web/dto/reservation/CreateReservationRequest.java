@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import java.time.LocalDate;
 import java.util.UUID;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
+import com.lunaris.ansenuza.domain.model.TripType;
 
 public record CreateReservationRequest(
     UUID passengerId,
@@ -20,7 +21,8 @@ public record CreateReservationRequest(
     String notes,
     @JsonAlias({"seatCount", "seats"}) Integer passengerCount,
     String companionNames,
-    ReservationSource source
+    ReservationSource source,
+    TripType tripType
 ) {
     public CreateReservationRequest(
             UUID passengerId,
@@ -36,7 +38,8 @@ public record CreateReservationRequest(
             String companionNames,
             ReservationSource source) {
         this(passengerId, null, null, travelDate, pickupLocality, pickupAddress, destination,
-                roundTrip, returnDate, paymentVerified, notes, passengerCount, companionNames, source);
+                roundTrip, returnDate, paymentVerified, notes, passengerCount, companionNames, source,
+                null);
     }
 
     public CreateReservationRequest withSource(ReservationSource source) {
@@ -54,6 +57,7 @@ public record CreateReservationRequest(
                 notes,
                 passengerCount,
                 companionNames,
-                source);
+                source,
+                tripType);
     }
 }
