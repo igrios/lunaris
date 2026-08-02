@@ -50,6 +50,7 @@ class SubmitDriverApplicationUseCaseTest {
         DriverApplication application = captor.getValue();
         assertNull(application.getId());
         assertEquals("543512345678", application.getPhone());
+        assertEquals("Miramar", application.getLocality());
         assertEquals("AA123BB", application.getLicensePlate());
         assertEquals("/storage/insurance.pdf", application.getInsuranceFileUrl());
         assertEquals("/storage/green-card.pdf", application.getGreenCardFileUrl());
@@ -89,6 +90,7 @@ class SubmitDriverApplicationUseCaseTest {
         assertSame(existing, result);
         assertEquals(existingId, result.getId());
         assertEquals("Ana Pérez", result.getFullName());
+        assertEquals("Miramar", result.getLocality());
         assertEquals("Renault Kangoo", result.getVehicleModel());
         assertEquals("AA123BB", result.getLicensePlate());
         assertEquals(DriverApplication.Status.PENDING, result.getStatus());

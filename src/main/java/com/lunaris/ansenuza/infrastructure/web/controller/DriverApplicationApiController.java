@@ -28,7 +28,7 @@ public class DriverApplicationApiController {
     public ResponseEntity<DriverApplicationResponse> apply(
             @RequestParam String fullName,
             @RequestParam String phone,
-            @RequestParam(required = false) String locality,
+            @RequestParam(value = "locality", required = false) String locality,
             @RequestParam String vehicleModel,
             @RequestParam Integer vehicleYear,
             @RequestParam(required = false) String licensePlate,
@@ -49,7 +49,7 @@ public class DriverApplicationApiController {
         DriverApplication application = submitDriverApplicationUseCase.execute(
                 new MultipartSubmission(
                         fullName, phone,
-                        locality == null || locality.isBlank() ? "Sin especificar" : locality,
+                        locality,
                         vehicleModel, vehicleYear, effectiveLicensePlate,
                         wantsDirectContact),
                 insuranceFile,

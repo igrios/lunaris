@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -12,6 +13,7 @@ import com.lunaris.ansenuza.domain.model.DriverApplication;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -79,6 +81,16 @@ class DriverApplicationApiContractTest {
                 .andExpect(jsonPath("$.vehicleYear").value(2022))
                 .andExpect(jsonPath("$.plateNumber").value("AA123BB"))
                 .andExpect(jsonPath("$.wantsDirectContact").value(true));
+
+        ArgumentCaptor<SubmitDriverApplicationUseCase.MultipartSubmission> submissionCaptor =
+                ArgumentCaptor.forClass(SubmitDriverApplicationUseCase.MultipartSubmission.class);
+        verify(useCase).execute(
+                submissionCaptor.capture(),
+                any(MultipartFile.class),
+                any(MultipartFile.class),
+                any(MultipartFile.class));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Miramar", submissionCaptor.getValue().locality());
     }
 
     private MockMultipartFile file(String field, String name) {

@@ -49,7 +49,7 @@ public class SubmitDriverApplicationUseCase {
         application.updateSubmission(
                 submission.fullName().trim(),
                 normalizedPhone,
-                submission.locality().trim(),
+                normalizeLocality(submission.locality()),
                 submission.vehicleModel().trim(),
                 submission.vehicleYear(),
                 submission.plateNumber().trim().toUpperCase(),
@@ -61,6 +61,10 @@ public class SubmitDriverApplicationUseCase {
 
     private String storeIfPresent(String documentType, MultipartFile file) {
         return file == null || file.isEmpty() ? null : documentStorage.store(documentType, file);
+    }
+
+    private String normalizeLocality(String locality) {
+        return locality == null || locality.isBlank() ? "Sin especificar" : locality.trim();
     }
 
     public record MultipartSubmission(
