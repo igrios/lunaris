@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/actuator/**",
                                 "/api/public/**",
+                                "/api/v1/news-banners",
                                 "/api/schedules/**",
                                 "/api/reservations/**",
                                 "/api/auth/**",
