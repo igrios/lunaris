@@ -63,7 +63,7 @@ lunaris:
   fleet:
     external-driver-cost: ${LUNARIS_EXTERNAL_DRIVER_COST:0}
   auth:
-    otp-ttl: ${LUNARIS_OTP_TTL:PT5M}
+    otp-ttl: ${LUNARIS_OTP_TTL:PT10M}
     token-ttl: ${LUNARIS_TOKEN_TTL:PT12H}
 
 # ☁️ CONFIGURACIÓN DE CLOUDINARY PARA COMPROBANTES DE LOS VEHÍCULOS

@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PassengerOtpService {
 
     private static final int MAX_ATTEMPTS = 5;
+    private static final int ARGENTINA_COUNTRY_CODE_LENGTH = 2;
 
     private final PassengerRepository passengerRepository;
     private final MessagingPort messagingPort;
@@ -34,7 +35,7 @@ public class PassengerOtpService {
     public PassengerOtpService(
             PassengerRepository passengerRepository,
             MessagingPort messagingPort,
-            @Value("${lunaris.auth.otp-ttl:PT5M}") Duration otpTtl,
+            @Value("${lunaris.auth.otp-ttl:PT10M}") Duration otpTtl,
             @Value("${lunaris.auth.token-ttl:PT12H}") Duration tokenTtl) {
         this.passengerRepository = passengerRepository;
         this.messagingPort = messagingPort;
@@ -50,14 +51,16 @@ public class PassengerOtpService {
     @Transactional
     public void sendOtp(String rawPhone, String fullName) {
         String phone = PhoneUtils.normalizeArgentinePhone(rawPhone);
+        String otpKey = normalizeOtpKey(phone);
         Passenger passenger = passengerRepository.findByPhone(phone)
                 .or(() -> findByOriginalPhone(rawPhone, phone))
                 .orElseGet(() -> createPassenger(fullName, phone));
         String storedPhone = PhoneUtils.normalizeArgentinePhone(passenger.getPhone());
         String code = String.format("%04d", secureRandom.nextInt(10_000));
-        challenges.put(phone, new OtpChallenge(code, Instant.now().plus(otpTtl), 0, storedPhone));
+        challenges.put(otpKey, new OtpChallenge(code, Instant.now().plus(otpTtl), 0, storedPhone));
         messagingPort.sendText(storedPhone,
-                "Tu código de acceso a Lunaris Ansenuza es: " + code + ". Vence en 5 minutos.");
+                "Tu código de acceso a Lunaris Ansenuza es: " + code
+                        + ". Vence en " + otpTtl.toMinutes() + " minutos.");
     }
 
     private Passenger createPassenger(String fullName, String phone) {
@@ -89,28 +92,33 @@ public class PassengerOtpService {
     }
 
     public TokenResult verifyOtp(String rawPhone, String code) {
-        String phone = PhoneUtils.normalizeArgentinePhone(rawPhone);
-        OtpChallenge challenge = challenges.get(phone);
+        String otpKey = normalizeOtpKey(rawPhone);
+        OtpChallenge challenge = challenges.get(otpKey);
         if (challenge == null || challenge.expiresAt().isBefore(Instant.now())) {
-            challenges.remove(phone);
+            challenges.remove(otpKey);
             throw new DomainValidationException("El código venció o no fue solicitado.");
         }
         if (challenge.attempts() >= MAX_ATTEMPTS || !challenge.code().equals(code)) {
             int attempts = challenge.attempts() + 1;
             if (attempts >= MAX_ATTEMPTS) {
-                challenges.remove(phone);
+                challenges.remove(otpKey);
             } else {
-                challenges.put(phone, new OtpChallenge(
+                challenges.put(otpKey, new OtpChallenge(
                         challenge.code(), challenge.expiresAt(), attempts, challenge.storedPhone()));
             }
             throw new DomainValidationException("El código ingresado no es válido.");
         }
 
-        challenges.remove(phone);
+        challenges.remove(otpKey);
         Instant expiresAt = Instant.now().plus(tokenTtl);
         String token = generateToken();
         tokens.put(token, new AccessToken(challenge.storedPhone(), expiresAt));
         return new TokenResult(token, expiresAt);
+    }
+
+    private String normalizeOtpKey(String rawPhone) {
+        String internationalPhone = PhoneUtils.normalizeArgentinePhone(rawPhone);
+        return internationalPhone.substring(ARGENTINA_COUNTRY_CODE_LENGTH);
     }
 
     public Optional<String> resolvePhone(String token) {

@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.matches;
@@ -40,6 +41,32 @@ class PassengerOtpServiceTest {
         verify(messaging).sendText(
                 eq("543515555555"),
                 matches("Tu código de acceso a Lunaris Ansenuza es: [0-9]{4}\\. Vence en 5 minutos\\."));
+    }
+
+    @Test
+    void verifiesOtpUsingSameNationalKeyForDifferentPhoneFormats() {
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        Passenger passenger = Passenger.builder()
+                .firstName("Ana")
+                .lastName("Pérez")
+                .phone("543512282251")
+                .build();
+        when(passengers.findByPhone("543512282251")).thenReturn(Optional.of(passenger));
+
+        PassengerOtpService service = new PassengerOtpService(
+                passengers, messaging, Duration.ofMinutes(10), Duration.ofHours(12));
+
+        service.sendOtp("+54 9 351-2282251");
+
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(messaging).sendText(eq("543512282251"), messageCaptor.capture());
+        String code = messageCaptor.getValue().replaceFirst(".*: ([0-9]{4})\\..*", "$1");
+
+        PassengerOtpService.TokenResult result = service.verifyOtp("351 228-2251", code);
+
+        assertNotNull(result.accessToken());
+        assertEquals(Optional.of("543512282251"), service.resolvePhone(result.accessToken()));
     }
 
     @Test
