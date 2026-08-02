@@ -3,8 +3,10 @@ package com.lunaris.ansenuza.application.usecase;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyString;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +53,25 @@ class ConfirmPaymentUseCaseTest {
         new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);
 
         verify(promotionService).consumeIfAvailable("5678", null);
+    }
+
+    @Test
+    void confirmsOneWayReservationWithCodeWithoutGroupSuffix() {
+        UUID selectedId = UUID.randomUUID();
+        Reservation oneWay = reservation(selectedId, "MOR-COR-003", null, false);
+        ReservationRepository repository = mock(ReservationRepository.class);
+        PromotionService promotionService = mock(PromotionService.class);
+        when(repository.findById(selectedId)).thenReturn(Optional.of(oneWay));
+        when(repository.findByIdForUpdate(selectedId)).thenReturn(Optional.of(oneWay));
+
+        Reservation result = new ConfirmPaymentUseCase(repository, promotionService)
+                .execute(selectedId);
+
+        assertEquals(oneWay, result);
+        assertTrue(oneWay.getPaymentVerified());
+        assertEquals("CONFIRMED", oneWay.getStatus());
+        verify(repository).saveAll(List.of(oneWay));
+        verify(repository, never()).findReservationGroupForUpdate(anyString());
     }
 
     private Reservation reservation(UUID id, String reservationCode, String promotionCode, boolean paid) {

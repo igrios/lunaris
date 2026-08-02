@@ -65,7 +65,9 @@ public class ConfirmPaymentUseCase {
     }
 
     private String groupCode(String reservationCode) {
-        if (reservationCode == null || reservationCode.isBlank()) {
+        if (reservationCode == null || reservationCode.isBlank()
+                || !(reservationCode.endsWith("-IDA")
+                || reservationCode.endsWith("-VUELTA"))) {
             return null;
         }
         return reservationCode.replaceFirst("-(IDA|VUELTA)$", "");
