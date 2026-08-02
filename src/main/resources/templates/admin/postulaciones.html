@@ -23,7 +23,7 @@
               <tr th:each="app : ${postulaciones}">
                 <td class="fw-semibold" th:text="${app?.fullName ?: '-'}"></td>
                 <td th:text="${app?.phone ?: '-'}"></td>
-                <td th:text="${app?.vehicleModel ?: '-'}"></td>
+                <td th:text="${app?.vehicleModel == null || #strings.isEmpty(#strings.trim(app.vehicleModel)) || app.vehicleModel == 'Unidad de Empresa' ? 'Unidad de Empresa (Sin auto)' : app.vehicleModel}"></td>
                 <td th:text="${app?.vehicleYear ?: '-'}"></td>
                 <td th:text="${app?.licensePlate ?: '-'}"></td>
                 <td th:text="${app.locality != null ? app.locality : 'Sin especificar'}">Localidad</td>

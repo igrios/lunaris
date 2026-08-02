@@ -29,8 +29,8 @@ public class DriverApplicationApiController {
             @RequestParam String fullName,
             @RequestParam String phone,
             @RequestParam(value = "locality", required = false) String locality,
-            @RequestParam String vehicleModel,
-            @RequestParam Integer vehicleYear,
+            @RequestParam(required = false) String vehicleModel,
+            @RequestParam(required = false) Integer vehicleYear,
             @RequestParam(required = false) String licensePlate,
             @RequestParam(required = false) String plateNumber,
             @RequestParam(defaultValue = "false") boolean wantsDirectContact,
@@ -40,9 +40,7 @@ public class DriverApplicationApiController {
         String effectiveLicensePlate = licensePlate != null ? licensePlate : plateNumber;
         validateRequired(fullName, "fullName");
         validateRequired(phone, "phone");
-        validateRequired(vehicleModel, "vehicleModel");
-        validateRequired(effectiveLicensePlate, "licensePlate");
-        if (vehicleYear == null || vehicleYear <= 0) {
+        if (vehicleYear != null && vehicleYear <= 0) {
             throw new DomainValidationException("vehicleYear debe ser mayor a cero.");
         }
 

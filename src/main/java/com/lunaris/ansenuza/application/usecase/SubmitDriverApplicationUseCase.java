@@ -14,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class SubmitDriverApplicationUseCase {
 
+    private static final String COMPANY_VEHICLE = "Unidad de Empresa";
+
     private final DriverApplicationRepository repository;
     private final DriverDocumentStoragePort documentStorage;
 
@@ -25,11 +27,15 @@ public class SubmitDriverApplicationUseCase {
         application.updateSubmission(
                 request.fullName().trim(),
                 normalizedPhone,
-                request.vehicleModel().trim(),
+                normalizeVehicleModel(request.vehicleModel()),
                 request.vehicleYear(),
-                request.licensePlate().trim().toUpperCase(),
+                normalizeLicensePlate(request.licensePlate()),
                 false);
         application.setLocality(normalizeLocality(request.locality()));
+        application.updateDocuments(
+                normalizeOptional(request.insuranceFileUrl()),
+                normalizeOptional(request.greenCardFileUrl()),
+                null);
         return repository.save(application);
     }
 
@@ -49,9 +55,9 @@ public class SubmitDriverApplicationUseCase {
         application.updateSubmission(
                 submission.fullName().trim(),
                 normalizedPhone,
-                submission.vehicleModel().trim(),
+                normalizeVehicleModel(submission.vehicleModel()),
                 submission.vehicleYear(),
-                submission.plateNumber().trim().toUpperCase(),
+                normalizeLicensePlate(submission.plateNumber()),
                 submission.wantsDirectContact());
         application.setLocality(normalizeLocality(submission.locality()));
         application.updateDocuments(
@@ -65,6 +71,22 @@ public class SubmitDriverApplicationUseCase {
 
     private String normalizeLocality(String locality) {
         return locality == null || locality.isBlank() ? "Sin especificar" : locality.trim();
+    }
+
+    private String normalizeVehicleModel(String vehicleModel) {
+        return vehicleModel == null || vehicleModel.isBlank()
+                ? COMPANY_VEHICLE
+                : vehicleModel.trim();
+    }
+
+    private String normalizeLicensePlate(String licensePlate) {
+        return licensePlate == null || licensePlate.isBlank()
+                ? null
+                : licensePlate.trim().toUpperCase();
+    }
+
+    private String normalizeOptional(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public record MultipartSubmission(

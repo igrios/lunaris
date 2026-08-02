@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -91,6 +92,44 @@ class DriverApplicationApiContractTest {
                 any(MultipartFile.class));
         org.junit.jupiter.api.Assertions.assertEquals(
                 "Miramar", submissionCaptor.getValue().locality());
+    }
+
+    @Test
+    void acceptsApplicationWithoutPrivateVehicleDetails() throws Exception {
+        DriverApplication saved = DriverApplication.builder()
+                .id(UUID.randomUUID())
+                .fullName("Ana Pérez")
+                .phone("543512345678")
+                .locality("Miramar")
+                .vehicleModel("Unidad de Empresa")
+                .status(DriverApplication.Status.PENDING)
+                .build();
+        when(useCase.execute(
+                any(SubmitDriverApplicationUseCase.MultipartSubmission.class),
+                nullable(MultipartFile.class),
+                nullable(MultipartFile.class),
+                nullable(MultipartFile.class)))
+                .thenReturn(saved);
+
+        mockMvc.perform(multipart("/api/drivers/applications")
+                        .param("fullName", "Ana Pérez")
+                        .param("phone", "543512345678")
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.vehicleModel").value("Unidad de Empresa"))
+                .andExpect(jsonPath("$.vehicleYear").doesNotExist())
+                .andExpect(jsonPath("$.plateNumber").doesNotExist());
+
+        ArgumentCaptor<SubmitDriverApplicationUseCase.MultipartSubmission> captor =
+                ArgumentCaptor.forClass(SubmitDriverApplicationUseCase.MultipartSubmission.class);
+        verify(useCase).execute(
+                captor.capture(),
+                nullable(MultipartFile.class),
+                nullable(MultipartFile.class),
+                nullable(MultipartFile.class));
+        org.junit.jupiter.api.Assertions.assertNull(captor.getValue().vehicleModel());
+        org.junit.jupiter.api.Assertions.assertNull(captor.getValue().vehicleYear());
+        org.junit.jupiter.api.Assertions.assertNull(captor.getValue().plateNumber());
     }
 
     private MockMultipartFile file(String field, String name) {
