@@ -43,7 +43,7 @@ public class DriverApplicationViewController {
     public String approve(@PathVariable UUID id, RedirectAttributes redirectAttributes) {
         managementService.approve(id);
         redirectAttributes.addFlashAttribute("successMessage", "Postulación aprobada y chofer activado.");
-        return "redirect:/admin/postulaciones";
+        return "redirect:/admin/postulaciones?approved=true";
     }
 
     @PostMapping("/{id}/rechazar")

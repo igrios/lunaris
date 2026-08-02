@@ -128,6 +128,25 @@ class SubmitDriverApplicationUseCaseTest {
         verify(repository).save(existing);
     }
 
+    @Test
+    void usesFallbackWhenMultipartLocalityIsBlank() {
+        DriverApplicationRepository repository = mock(DriverApplicationRepository.class);
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        SubmitDriverApplicationUseCase useCase = new SubmitDriverApplicationUseCase(
+                repository, mock(DriverDocumentStoragePort.class));
+
+        DriverApplication result = useCase.execute(
+                new SubmitDriverApplicationUseCase.MultipartSubmission(
+                        "Ana Pérez", "3512345678", "   ",
+                        "Renault Kangoo", 2022, "AA123BB", false),
+                null,
+                null,
+                null);
+
+        assertEquals("Sin especificar", result.getLocality());
+        verify(repository).save(result);
+    }
+
     private MockMultipartFile file(String name) {
         return new MockMultipartFile(name, name + ".pdf", "application/pdf", "pdf".getBytes());
     }

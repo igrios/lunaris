@@ -25,11 +25,11 @@ public class SubmitDriverApplicationUseCase {
         application.updateSubmission(
                 request.fullName().trim(),
                 normalizedPhone,
-                normalizeLocality(request.locality()),
                 request.vehicleModel().trim(),
                 request.vehicleYear(),
                 request.licensePlate().trim().toUpperCase(),
                 false);
+        application.setLocality(normalizeLocality(request.locality()));
         return repository.save(application);
     }
 
@@ -49,11 +49,11 @@ public class SubmitDriverApplicationUseCase {
         application.updateSubmission(
                 submission.fullName().trim(),
                 normalizedPhone,
-                normalizeLocality(submission.locality()),
                 submission.vehicleModel().trim(),
                 submission.vehicleYear(),
                 submission.plateNumber().trim().toUpperCase(),
                 submission.wantsDirectContact());
+        application.setLocality(normalizeLocality(submission.locality()));
         application.updateDocuments(
                 insuranceFileUrl, greenCardFileUrl, criminalRecordFileUrl);
         return repository.save(application);

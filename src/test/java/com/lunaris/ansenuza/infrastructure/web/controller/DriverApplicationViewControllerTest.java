@@ -8,8 +8,10 @@ import com.lunaris.ansenuza.application.usecase.DriverApplicationManagementServi
 import com.lunaris.ansenuza.domain.model.DriverApplication;
 import com.lunaris.ansenuza.domain.repository.DriverApplicationRepository;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.ui.ExtendedModelMap;
+import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 class DriverApplicationViewControllerTest {
 
@@ -45,5 +47,12 @@ class DriverApplicationViewControllerTest {
         controller.panel(model);
 
         assertEquals(List.of(application), model.get("postulaciones"));
+    }
+
+    @Test
+    void approveRedirectsWithApprovedFlag() {
+        String view = controller.approve(UUID.randomUUID(), new RedirectAttributesModelMap());
+
+        assertEquals("redirect:/admin/postulaciones?approved=true", view);
     }
 }

@@ -99,19 +99,21 @@ public class DriverApplication {
     public void updateSubmission(
             String fullName,
             String phone,
-            String locality,
             String vehicleModel,
             Integer vehicleYear,
             String licensePlate,
             boolean wantsDirectContact) {
         this.fullName = fullName;
         this.phone = phone;
-        this.locality = locality;
         this.vehicleModel = vehicleModel;
         this.vehicleYear = vehicleYear;
         this.licensePlate = licensePlate;
         this.wantsDirectContact = wantsDirectContact;
         this.status = Status.PENDING;
+    }
+
+    public void setLocality(String locality) {
+        this.locality = locality;
     }
 
     public void updateDocuments(

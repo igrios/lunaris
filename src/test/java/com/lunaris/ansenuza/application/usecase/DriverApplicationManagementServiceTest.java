@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -37,7 +38,10 @@ class DriverApplicationManagementServiceTest {
         ArgumentCaptor<Driver> driverCaptor = ArgumentCaptor.forClass(Driver.class);
         verify(driverRepository).save(driverCaptor.capture());
         assertTrue(driverCaptor.getValue().isActive());
+        assertNull(driverCaptor.getValue().getId());
         assertEquals(application.getFullName(), driverCaptor.getValue().getFullName());
+        assertEquals(application.getPhone(), driverCaptor.getValue().getPhone());
+        verify(applicationRepository).save(application);
     }
 
     @Test
@@ -54,7 +58,10 @@ class DriverApplicationManagementServiceTest {
         service.approve(applicationId);
 
         assertTrue(existing.isActive());
+        assertEquals(application.getFullName(), existing.getFullName());
+        assertEquals(application.getPhone(), existing.getPhone());
         verify(driverRepository).save(existing);
+        verify(applicationRepository).save(application);
     }
 
     @Test

@@ -34,9 +34,6 @@ public class DriverApplicationManagementService {
         driver.setFullName(application.getFullName());
         driver.setPhone(application.getPhone());
         driver.setActive(true);
-        if (driver.getId() == null) {
-            driver.setId(UUID.randomUUID());
-        }
         driverRepository.save(driver);
 
         return applicationRepository.save(application);
