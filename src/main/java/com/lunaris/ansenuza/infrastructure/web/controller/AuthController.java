@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
+import com.lunaris.ansenuza.application.usecase.ProcessPaymentReceiptUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -8,10 +9,14 @@ import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -19,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final PassengerOtpService otpService;
+    private final ProcessPaymentReceiptUseCase processPaymentReceiptUseCase;
 
     @PostMapping("/send-otp")
     public ResponseEntity<Map<String, String>> sendOtp(
@@ -28,10 +34,35 @@ public class AuthController {
                 "message", "El código fue enviado por WhatsApp."));
     }
 
-    @PostMapping("/verify-otp")
+    @PostMapping(value = "/verify-otp", consumes = MediaType.APPLICATION_JSON_VALUE)
     public TokenResponse verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
+        return verify(request, null);
+    }
+
+    @PostMapping(value = "/verify-otp", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TokenResponse verifyOtpMultipart(
+            @RequestPart(value = "request", required = false) @Valid VerifyOtpRequest request,
+            @RequestParam(value = "phone", required = false) String phone,
+            @RequestParam(value = "code", required = false) String code,
+            @RequestPart(value = "receipt", required = false) MultipartFile receiptFile) {
+        VerifyOtpRequest effectiveRequest = request != null
+                ? request : new VerifyOtpRequest(phone, code);
+        return verify(effectiveRequest, receiptFile);
+    }
+
+    private TokenResponse verify(VerifyOtpRequest request, MultipartFile receiptFile) {
+        validateVerificationRequest(request);
         var result = otpService.verifyOtp(request.phone(), request.code());
+        processPaymentReceiptUseCase.attachUploadedReceipt(request.phone(), receiptFile);
         return new TokenResponse(result.accessToken(), "Bearer", result.expiresAt());
+    }
+
+    private void validateVerificationRequest(VerifyOtpRequest request) {
+        if (request == null || request.phone() == null || request.phone().isBlank()
+                || request.code() == null || !request.code().matches("[0-9]{4}")) {
+            throw new com.lunaris.ansenuza.domain.exception.DomainValidationException(
+                    "Teléfono y código OTP de cuatro dígitos son obligatorios.");
+        }
     }
 
     public record SendOtpRequest(@NotBlank String phone, String fullName) {

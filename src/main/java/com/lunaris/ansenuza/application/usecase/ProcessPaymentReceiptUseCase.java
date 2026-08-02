@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
@@ -78,5 +79,33 @@ public class ProcessPaymentReceiptUseCase {
 
         messaging.sendText(phoneNumber,
                 "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");
+    }
+
+    @Transactional
+    public void attachUploadedReceipt(String phoneNumber, MultipartFile receiptFile) {
+        if (receiptFile == null || receiptFile.isEmpty()) {
+            return;
+        }
+        String receiptUrl = receiptStoragePort.uploadFile(receiptFile);
+        if (receiptUrl == null || receiptUrl.isBlank()) {
+            log.warn("No se pudo almacenar el comprobante subido para el teléfono {}.", phoneNumber);
+            return;
+        }
+        Passenger passenger = passengerRepository.findByPhone(
+                        com.lunaris.ansenuza.shared.PhoneUtils.normalizeArgentinePhone(phoneNumber))
+                .orElseThrow(() -> new com.lunaris.ansenuza.domain.exception.DomainValidationException(
+                        "No existe un pasajero para asociar el comprobante."));
+        Reservation reservation = reservationRepository
+                .findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger)
+                .stream()
+                .filter(candidate -> "PENDING_PAYMENT".equals(candidate.getStatus())
+                        || "PAYMENT_RECEIVED".equals(candidate.getStatus()))
+                .findFirst()
+                .orElseThrow(() -> new com.lunaris.ansenuza.domain.exception.DomainValidationException(
+                        "No existe una reserva pendiente para asociar el comprobante."));
+        reservation.setPaymentReceiptUrl(receiptUrl);
+        reservation.setPaymentVerified(false);
+        reservation.setStatus("PAYMENT_RECEIVED");
+        reservationRepository.saveAndFlush(reservation);
     }
 }
