@@ -1,11 +1,15 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import com.lunaris.ansenuza.application.usecase.BookingVerificationData;
 import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
 import com.lunaris.ansenuza.application.usecase.ProcessPaymentReceiptUseCase;
+import com.lunaris.ansenuza.domain.model.TripType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -53,7 +57,17 @@ public class AuthController {
     private TokenResponse verify(VerifyOtpRequest request, MultipartFile receiptFile) {
         validateVerificationRequest(request);
         var result = otpService.verifyOtp(request.phone(), request.code());
-        processPaymentReceiptUseCase.attachUploadedReceipt(request.phone(), receiptFile);
+        processPaymentReceiptUseCase.confirmOrCreateWebBooking(
+                request.phone(),
+                receiptFile,
+                new BookingVerificationData(
+                        request.travelDate(),
+                        request.scheduleBlock(),
+                        request.pickupLocality(),
+                        request.destination(),
+                        request.passengerCount(),
+                        request.tripType(),
+                        request.totalAmount()));
         return new TokenResponse(result.accessToken(), "Bearer", result.expiresAt());
     }
 
@@ -73,7 +87,18 @@ public class AuthController {
 
     public record VerifyOtpRequest(
             @NotBlank String phone,
-            @NotBlank @Pattern(regexp = "[0-9]{4}", message = "El código debe tener exactamente 4 dígitos.") String code) {
+            @NotBlank @Pattern(regexp = "[0-9]{4}", message = "El código debe tener exactamente 4 dígitos.") String code,
+            LocalDate travelDate,
+            String scheduleBlock,
+            String pickupLocality,
+            String destination,
+            Integer passengerCount,
+            TripType tripType,
+            BigDecimal totalAmount) {
+
+        public VerifyOtpRequest(String phone, String code) {
+            this(phone, code, null, null, null, null, null, null, null);
+        }
     }
 
     public record TokenResponse(String accessToken, String tokenType, Instant expiresAt) {

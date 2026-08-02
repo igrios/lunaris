@@ -3,6 +3,8 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,7 +37,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("token"));
 
-        verify(receiptUseCase).attachUploadedReceipt("3515550000", receipt);
+        verify(receiptUseCase).confirmOrCreateWebBooking(eq("3515550000"), eq(receipt), any());
     }
 
     @Test
@@ -56,6 +58,6 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("token"));
 
-        verify(receiptUseCase).attachUploadedReceipt("3515550000", null);
+        verify(receiptUseCase).confirmOrCreateWebBooking(eq("3515550000"), eq(null), any());
     }
 }
