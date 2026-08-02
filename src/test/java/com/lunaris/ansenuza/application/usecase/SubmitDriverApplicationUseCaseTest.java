@@ -117,10 +117,12 @@ class SubmitDriverApplicationUseCaseTest {
                 repository, mock(DriverDocumentStoragePort.class));
 
         DriverApplication result = useCase.execute(new DriverApplicationRequest(
-                "Juan Pérez", "+54 9 351-111-2222", "Fiat Cronos", 2024, "ab123cd"));
+                "Juan Pérez", "+54 9 351-111-2222", "  Morteros  ",
+                "Fiat Cronos", 2024, "ab123cd"));
 
         assertSame(existing, result);
         assertEquals("Juan Pérez", result.getFullName());
+        assertEquals("Morteros", result.getLocality());
         assertEquals("Fiat Cronos", result.getVehicleModel());
         assertEquals("AB123CD", result.getLicensePlate());
         verify(repository).save(existing);

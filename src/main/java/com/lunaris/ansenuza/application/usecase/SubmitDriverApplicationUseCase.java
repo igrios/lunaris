@@ -25,7 +25,7 @@ public class SubmitDriverApplicationUseCase {
         application.updateSubmission(
                 request.fullName().trim(),
                 normalizedPhone,
-                "Sin especificar",
+                normalizeLocality(request.locality()),
                 request.vehicleModel().trim(),
                 request.vehicleYear(),
                 request.licensePlate().trim().toUpperCase(),
