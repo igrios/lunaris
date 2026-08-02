@@ -18,15 +18,30 @@
       <div class="card-body p-4">
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark"><tr><th>Nombre</th><th>Teléfono</th><th>Vehículo</th><th>Año</th><th>Patente</th><th>Localidad</th><th>Fecha</th><th>Acciones</th></tr></thead>
+            <thead class="table-dark"><tr><th>Nombre</th><th>Teléfono</th><th>Vehículo</th><th>Año</th><th>Patente</th><th>Localidad</th><th>Documentación</th><th>Fecha</th><th>Acciones</th></tr></thead>
             <tbody>
               <tr th:each="app : ${postulaciones}">
                 <td class="fw-semibold" th:text="${app?.fullName ?: '-'}"></td>
                 <td th:text="${app?.phone ?: '-'}"></td>
-                <td th:text="${app?.vehicleModel == null || #strings.isEmpty(#strings.trim(app.vehicleModel)) || app.vehicleModel == 'Unidad de Empresa' ? 'Unidad de Empresa (Sin auto)' : app.vehicleModel}"></td>
+                <td th:text="${app?.vehicleModel == null || #strings.isEmpty(#strings.trim(app.vehicleModel)) || app.vehicleModel == 'Unidad de Empresa' ? 'Unidad de Empresa' : app.vehicleModel}"></td>
                 <td th:text="${app?.vehicleYear ?: '-'}"></td>
                 <td th:text="${app?.licensePlate ?: '-'}"></td>
                 <td th:text="${app.locality != null ? app.locality : 'Sin especificar'}">Localidad</td>
+                <td>
+                  <div class="d-flex flex-wrap gap-1">
+                    <a th:if="${app.greenCardFileUrl != null && !#strings.isEmpty(#strings.trim(app.greenCardFileUrl))}"
+                       th:href="${app.greenCardFileUrl}" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-primary">Cédula</a>
+                    <a th:if="${app.insuranceFileUrl != null && !#strings.isEmpty(#strings.trim(app.insuranceFileUrl))}"
+                       th:href="${app.insuranceFileUrl}" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-info">Seguro</a>
+                    <a th:if="${app.criminalRecordFileUrl != null && !#strings.isEmpty(#strings.trim(app.criminalRecordFileUrl))}"
+                       th:href="${app.criminalRecordFileUrl}" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-outline-warning">Antecedentes</a>
+                    <span class="text-muted"
+                          th:if="${(app.greenCardFileUrl == null || #strings.isEmpty(#strings.trim(app.greenCardFileUrl))) && (app.insuranceFileUrl == null || #strings.isEmpty(#strings.trim(app.insuranceFileUrl))) && (app.criminalRecordFileUrl == null || #strings.isEmpty(#strings.trim(app.criminalRecordFileUrl)))}">Sin adjuntos</span>
+                  </div>
+                </td>
                 <td th:text="${app?.createdAt != null ? #temporals.format(app.createdAt, 'dd/MM/yyyy HH:mm') : '-'}"></td>
                 <td><div class="d-flex flex-wrap gap-2">
                   <a class="btn btn-sm btn-success" target="_blank" rel="noopener"
@@ -40,7 +55,7 @@
                   </form>
                 </div></td>
               </tr>
-              <tr th:if="${#lists.isEmpty(postulaciones)}"><td colspan="8" class="text-center text-muted py-5">No hay postulaciones pendientes.</td></tr>
+              <tr th:if="${#lists.isEmpty(postulaciones)}"><td colspan="9" class="text-center text-muted py-5">No hay postulaciones pendientes.</td></tr>
             </tbody>
           </table>
         </div>
