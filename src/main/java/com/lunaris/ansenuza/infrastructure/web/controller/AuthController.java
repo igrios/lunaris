@@ -41,12 +41,12 @@ public class AuthController {
 
     @PostMapping(value = "/verify-otp", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public TokenResponse verifyOtpMultipart(
-            @RequestPart(value = "request", required = false) @Valid VerifyOtpRequest request,
+            @RequestPart(value = "reservation", required = false) @Valid VerifyOtpRequest reservation,
             @RequestParam(value = "phone", required = false) String phone,
             @RequestParam(value = "code", required = false) String code,
             @RequestPart(value = "receipt", required = false) MultipartFile receiptFile) {
-        VerifyOtpRequest effectiveRequest = request != null
-                ? request : new VerifyOtpRequest(phone, code);
+        VerifyOtpRequest effectiveRequest = reservation != null
+                ? reservation : new VerifyOtpRequest(phone, code);
         return verify(effectiveRequest, receiptFile);
     }
 
