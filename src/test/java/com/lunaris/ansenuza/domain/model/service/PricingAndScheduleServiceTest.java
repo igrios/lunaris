@@ -4,8 +4,11 @@
     import static org.mockito.Mockito.*;                                                                                                                  
                                                                                                                                                           
     import java.math.BigDecimal;                                                                                                                          
+    import java.time.LocalDate;
     import java.util.Optional;
     import org.junit.jupiter.api.Test;
+    import org.junit.jupiter.params.ParameterizedTest;
+    import org.junit.jupiter.params.provider.CsvSource;
     import com.lunaris.ansenuza.domain.model.Fare;
     import com.lunaris.ansenuza.domain.model.BusinessParameter;
     import com.lunaris.ansenuza.domain.model.TripType;
@@ -60,6 +63,34 @@
 
             assertEquals(new BigDecimal("120000.00"),
                     service.calculateReservationAmount("Morteros", "Córdoba", TripType.ONE_WAY, 2));
+        }
+
+        @ParameterizedTest
+        @CsvSource({
+                "San Guillermo, 07:20 hs",
+                "Suardi, 07:40 hs",
+                "Morteros, 08:00 hs",
+                "Brinkmann, 08:20 hs",
+                "Porteña, 08:40 hs",
+                "Freyre, 09:00 hs",
+                "La Paquita, 08:30 hs",
+                "Altos de Chipión, 08:40 hs",
+                "Balnearia, 09:00 hs",
+                "Miramar, 09:10 hs"
+        })
+        void secondMorningScheduleUsesConfiguredDepartureTime(
+                String locality, String expectedTime) {
+            ReservationRepository reservations = mock(ReservationRepository.class);
+            PricingAndScheduleService service = new PricingAndScheduleService(
+                    mock(FareRepository.class),
+                    mock(LocalityRepository.class),
+                    mock(BusinessParameterRepository.class),
+                    reservations);
+
+            String result = service.calculateEstimatedPickupTime(
+                    locality, "08:00", false, LocalDate.of(2026, 8, 10));
+
+            assertEquals(expectedTime, result);
         }
   
         private PricingAndScheduleService newService() {

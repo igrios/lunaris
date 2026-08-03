@@ -29,6 +29,17 @@ public class PricingAndScheduleService {
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Map<String, Integer> MINUTES_VUELTA_FROM_HUB = new HashMap<>();
+    private static final Map<String, LocalTime> SECOND_MORNING_SCHEDULE = Map.ofEntries(
+            Map.entry("san guillermo", LocalTime.of(7, 20)),
+            Map.entry("suardi", LocalTime.of(7, 40)),
+            Map.entry("morteros", LocalTime.of(8, 0)),
+            Map.entry("brinkmann", LocalTime.of(8, 20)),
+            Map.entry("portena", LocalTime.of(8, 40)),
+            Map.entry("freyre", LocalTime.of(9, 0)),
+            Map.entry("la paquita", LocalTime.of(8, 30)),
+            Map.entry("altos de chipion", LocalTime.of(8, 40)),
+            Map.entry("balnearia", LocalTime.of(9, 0)),
+            Map.entry("miramar", LocalTime.of(9, 10)));
 
     static {
         MINUTES_VUELTA_FROM_HUB.put("la puerta", 0);
@@ -53,18 +64,20 @@ public class PricingAndScheduleService {
 
         // Controlamos el bloque de regresos o tramo de las 08:00 AM desde Córdoba
         if (isReturn || "08:00".equals(baseTimeStr.trim())) {
-            String key = localityName.trim().toLowerCase();
-            int minutesFromHub = MINUTES_VUELTA_FROM_HUB.getOrDefault(key, 0);
+            String key = normalizeLocality(localityName);
+            LocalTime scheduledTime = "08:00".equals(baseTimeStr.trim())
+                    ? SECOND_MORNING_SCHEDULE.getOrDefault(key, baseTime)
+                    : baseTime.plusMinutes(MINUTES_VUELTA_FROM_HUB.getOrDefault(key, 0));
 
             int pasajerosRegreso = reservationRepository.countPassengersByReturnDateAndNotesContaining(
                     travelDate != null ? travelDate : com.lunaris.ansenuza.shared.ArgentinaTime.today(), "08:00 AM");
             
             if (pasajerosRegreso <= 8) {
-                return baseTime.plusMinutes(minutesFromHub).format(TIME_FORMATTER) + " hs";
+                return scheduledTime.format(TIME_FORMATTER) + " hs";
             } else {
                 int delayPorDobleViaje = 45; 
                 log.warn("Capacidad excedida para el retorno. Retorno activado con demora.");
-                LocalTime horarioConRetorno = baseTime.plusMinutes(minutesFromHub).plusMinutes(delayPorDobleViaje);
+                LocalTime horarioConRetorno = scheduledTime.plusMinutes(delayPorDobleViaje);
                 return horarioConRetorno.format(TIME_FORMATTER) + " hs (Demorado por Alta Demanda)";
             }
         } else {
@@ -77,6 +90,12 @@ public class PricingAndScheduleService {
                     })
                     .orElse(baseTimeStr + " hs");
         }
+    }
+
+    private static String normalizeLocality(String localityName) {
+        return java.text.Normalizer.normalize(localityName.trim().toLowerCase(),
+                        java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
     }
 
     /**
