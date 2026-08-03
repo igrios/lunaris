@@ -127,6 +127,7 @@ class ConversationOrchestratorTest {
 
     @Test
     void activeDriverLocationUpdatesCurrentGoogleMapsLink() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
         Driver driver = new Driver();
@@ -136,7 +137,7 @@ class ConversationOrchestratorTest {
         when(drivers.findFirstByPhone(driver.getPhone())).thenReturn(Optional.of(driver));
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
                 List.of(),
-                mock(ConversationSessionRepository.class),
+                sessions,
                 mock(LiveChatPort.class),
                 mock(OperationControlService.class),
                 mock(ReservationCancellationService.class),
@@ -160,6 +161,48 @@ class ConversationOrchestratorTest {
         verify(drivers).saveAndFlush(driver);
         verify(whatsApp).sendMessage(
                 driver.getPhone(), "✓ Ubicación del chofer actualizada.");
+    }
+
+    @Test
+    void passengerAddressSessionTakesPriorityOverDriverLocationUpdate() {
+        String phone = "543512282251";
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        ConversationStepHandler addressHandler = mock(ConversationStepHandler.class);
+        ConversationSession session = ConversationSession.builder()
+                .phoneNumber(phone)
+                .currentStep("AWAITING_PICKUP_ADDRESS")
+                .botPaused(false)
+                .build();
+        Driver driver = new Driver();
+        driver.setPhone(phone);
+        driver.setActive(true);
+        when(sessions.findByPhoneNumber(phone)).thenReturn(Optional.of(session));
+        when(addressHandler.step()).thenReturn("ASK_ADDRESS_TEXT");
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                List.of(addressHandler),
+                sessions,
+                mock(LiveChatPort.class),
+                mock(OperationControlService.class),
+                mock(ReservationCancellationService.class),
+                drivers,
+                mock(ReservationRepository.class),
+                mock(WhatsAppService.class),
+                mock(ProcessPromotionCommandUseCase.class),
+                mock(OnboardPassengerUseCase.class));
+        IncomingMessage location = new IncomingMessage(
+                phone,
+                IncomingMessage.MessageType.LOCATION,
+                "https://maps.google.com/?q=-31.42,-64.18",
+                null,
+                -31.42,
+                -64.18);
+
+        orchestrator.process(location);
+
+        verify(addressHandler).handle(session, location);
+        verify(drivers, never()).findFirstByPhone(phone);
+        verify(drivers, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

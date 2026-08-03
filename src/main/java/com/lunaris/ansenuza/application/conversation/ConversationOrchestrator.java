@@ -40,6 +40,12 @@ public class ConversationOrchestrator {
     private static final String BOARD_PREFIX = "BOARD_";
     private static final String ONBOARD_PREFIX = "ONBOARD_";
     private static final String ONBOARD_COLON_PREFIX = "ONBOARD:";
+    private static final String ADDRESS_LOCATION_STEP = "ASK_ADDRESS_TEXT";
+    private static final List<String> ADDRESS_LOCATION_STEPS = List.of(
+            ADDRESS_LOCATION_STEP,
+            "AWAITING_PICKUP_ADDRESS",
+            "CONFIRM_ADDRESS",
+            "CONFIRM_ADDRESS_BUTTONS");
 
     private final Map<String, ConversationStepHandler> handlers;
     private final ConversationSessionRepository conversationSessionRepository;
@@ -84,23 +90,35 @@ public class ConversationOrchestrator {
         String rawTrimmed = raw.trim();
         String body = rawTrimmed.toLowerCase();
 
-        Optional<Driver> routeDriver = findDriverByPhone(phoneNumber);
-        if (routeDriver.isPresent() && isDriverRouteCommand(rawTrimmed)) {
-            handleVerRuta(phoneNumber, routeDriver.get());
-            return;
+        if (isDriverRouteCommand(rawTrimmed)) {
+            Optional<Driver> routeDriver = findDriverByPhone(phoneNumber);
+            if (routeDriver.isPresent()) {
+                handleVerRuta(phoneNumber, routeDriver.get());
+                return;
+            }
         }
 
+        Optional<ConversationSession> locationSession = Optional.empty();
         if (message.type() == IncomingMessage.MessageType.LOCATION) {
-            Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
-            if (activeDriver.isPresent()) {
-                Driver driver = activeDriver.get();
-                driver.setCurrentLocationUrl(message.pickupAddress());
-                driver.setLocationUpdatedAt(
-                        com.lunaris.ansenuza.shared.ArgentinaTime.now());
-                driverRepository.saveAndFlush(driver);
-                whatsAppService.sendMessage(
-                        phoneNumber, "✓ Ubicación del chofer actualizada.");
-                return;
+            locationSession = conversationSessionRepository.findByPhoneNumber(phoneNumber);
+            boolean passengerIsAwaitingAddress = locationSession
+                    .filter(session -> !session.isBotPaused())
+                    .map(ConversationSession::getCurrentStep)
+                    .map(ADDRESS_LOCATION_STEPS::contains)
+                    .orElse(false);
+
+            if (!passengerIsAwaitingAddress) {
+                Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
+                if (activeDriver.isPresent()) {
+                    Driver driver = activeDriver.get();
+                    driver.setCurrentLocationUrl(message.pickupAddress());
+                    driver.setLocationUpdatedAt(
+                            com.lunaris.ansenuza.shared.ArgentinaTime.now());
+                    driverRepository.saveAndFlush(driver);
+                    whatsAppService.sendMessage(
+                            phoneNumber, "✓ Ubicación del chofer actualizada.");
+                    return;
+                }
             }
         }
 
@@ -121,8 +139,9 @@ public class ConversationOrchestrator {
         }
 
         // ⚖️ LOAD BALANCER: Si la sesión es nueva, le asignamos el operador con menos carga activa
-        ConversationSession session = conversationSessionRepository
-                .findByPhoneNumber(phoneNumber).orElseGet(() -> {
+        ConversationSession session = (message.type() == IncomingMessage.MessageType.LOCATION
+                ? locationSession
+                : conversationSessionRepository.findByPhoneNumber(phoneNumber)).orElseGet(() -> {
                     // Calculamos cuál operador está más libre mediante el balanceador
                     String operadorAsignado = operationControlService.getOperatorWithLeastLoad();
                     log.info("[Load Balancer] Asignando nuevo chat de {} al operador: {}", phoneNumber, operadorAsignado);
@@ -170,6 +189,10 @@ public class ConversationOrchestrator {
         String effectiveStep =
                 (currentStep == null || "START".equals(currentStep) || isGreeting) ? "START"
                         : currentStep;
+        if (message.type() == IncomingMessage.MessageType.LOCATION
+                && ADDRESS_LOCATION_STEPS.contains(effectiveStep)) {
+            effectiveStep = ADDRESS_LOCATION_STEP;
+        }
 
         ConversationStepHandler handler = handlers.get(effectiveStep);
         if (handler == null) {
