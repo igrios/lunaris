@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,6 +29,7 @@ class WaitingListConversionServiceTest {
 
         assertEquals("CONFIRMED", fixture.entry.getStatus());
         assertEquals(3, reservation.getPassengerCount());
+        assertTrue(reservation.getRequiresInvoice());
         verify(fixture.waitingList).saveAndFlush(fixture.entry);
     }
 

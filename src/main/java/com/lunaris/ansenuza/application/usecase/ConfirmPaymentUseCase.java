@@ -21,6 +21,7 @@ public class ConfirmPaymentUseCase {
     private final PromotionService promotionService;
     private final WaitingListRepository waitingListRepository;
     private final ConversationSessionRepository conversationSessionRepository;
+    private final CreateInvoiceUseCase createInvoiceUseCase;
 
     @Transactional
     public Reservation execute(UUID reservationId) {
@@ -53,6 +54,7 @@ public class ConfirmPaymentUseCase {
             // Repara reservas confirmadas por flujos anteriores que no consumieron la promoción.
             promotionService.consumeIfAvailable(promotionCode, phoneNumber);
             completeWaitingListEntries(group, phoneNumber);
+            createInvoiceUseCase.execute(invoiceHeader(group, selected), group);
             return selected;
         }
 
@@ -68,7 +70,16 @@ public class ConfirmPaymentUseCase {
         });
         reservationRepository.saveAll(group);
         completeWaitingListEntries(group, phoneNumber);
+        createInvoiceUseCase.execute(invoiceHeader(group, selected), group);
         return selected;
+    }
+
+    private Reservation invoiceHeader(List<Reservation> group, Reservation selected) {
+        return group.stream()
+                .filter(reservation -> reservation.getReservationCode() != null
+                        && reservation.getReservationCode().endsWith("-IDA"))
+                .findFirst()
+                .orElse(selected);
     }
 
     private void completeWaitingListEntries(List<Reservation> reservations, String phoneNumber) {

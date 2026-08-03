@@ -69,6 +69,7 @@ public class WaitingListConversionService {
                 .tripType(TripType.ONE_WAY)
                 .passengerCount(requestedSeats)
                 .paymentVerified(false)
+                .requiresInvoice(true)
                 .status(status)
                 .source(ReservationSource.MANUAL)
                 .amount(amount)

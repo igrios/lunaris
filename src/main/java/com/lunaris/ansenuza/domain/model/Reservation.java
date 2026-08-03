@@ -160,8 +160,9 @@ public class Reservation {
     @Column(name = "route_sequence")
     private Integer routeSequence;
 
-    @Column(name = "requires_invoice")
-    private Boolean requiresInvoice; // 🧾 Flag unificado para facturación
+    @Builder.Default
+    @Column(name = "requires_invoice", nullable = false)
+    private Boolean requiresInvoice = true; // 🧾 Toda reserva confirmada debe facturarse
 
     @PrePersist
     @PreUpdate
@@ -175,6 +176,7 @@ public class Reservation {
         if (source == null) {
             source = ReservationSource.MANUAL;
         }
+        requiresInvoice = true;
         if (tripType == null) {
             tripType = Boolean.TRUE.equals(roundTrip)
                     ? (returnDate == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)

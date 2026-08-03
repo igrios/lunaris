@@ -32,6 +32,7 @@ public class ProcessPaymentReceiptUseCase {
     private final ReceiptStoragePort receiptStoragePort;
     private final MessagingPort messaging;
     private final LiveChatPort liveChat;
+    private final CreateInvoiceUseCase createInvoiceUseCase;
 
     @Transactional
     public void execute(String phoneNumber, String mediaId) {
@@ -114,6 +115,10 @@ public class ProcessPaymentReceiptUseCase {
             reservation.setStatus("CONFIRMED");
         }
         reservationRepository.saveAndFlush(reservation);
+        if (Boolean.TRUE.equals(reservation.getPaymentVerified())
+                && "CONFIRMED".equals(reservation.getStatus())) {
+            createInvoiceUseCase.execute(reservation);
+        }
         return reservation;
     }
 
@@ -142,6 +147,7 @@ public class ProcessPaymentReceiptUseCase {
                 .roundTrip(data.tripType() != com.lunaris.ansenuza.domain.model.TripType.ONE_WAY)
                 .amount(data.totalAmount())
                 .paymentVerified(false)
+                .requiresInvoice(true)
                 .status("PENDING_VERIFICATION")
                 .source(ReservationSource.WEB)
                 .build();
