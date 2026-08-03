@@ -288,6 +288,11 @@ public void sendMediaMessage(String to, String type, String mediaUrl, String cap
 
 public void sendDespiertaChoferTemplate(
         String to, String nombreChofer, java.util.UUID driverId, java.time.LocalDate travelDate) {
+    trySendDriverRouteTemplate(to, nombreChofer, driverId, travelDate);
+}
+
+boolean trySendDriverRouteTemplate(
+        String to, String nombreChofer, java.util.UUID driverId, java.time.LocalDate travelDate) {
     try {
         String metaPhoneNumber = formatMetaPhoneNumber(to);
         String url = "https://graph.facebook.com/v25.0/" + this.phoneNumberId + "/messages";
@@ -321,9 +326,10 @@ public void sendDespiertaChoferTemplate(
             "template", templateMap
         );
 
-        executePostCall(url, headers, body, "TEMPLATE DESPIERTA CHOFER");
+        return executePostCall(url, headers, body, "TEMPLATE DESPIERTA CHOFER");
     } catch (Exception e) {
         log.error("Error al enviar la plantilla despierta_chofer a {}: ", to, e);
+        return false;
     }
 }
 
@@ -345,8 +351,17 @@ public DriverRouteDispatchResult sendDriverRouteDispatch(
     String normalizedDriverPhone = formatMetaPhoneNumber(to);
     String routeSummary = buildDriverPassengerSummary(
             driverName, navigationUrl, orderedReservations);
-    boolean textSent = trySendMessage(normalizedDriverPhone, routeSummary);
+    Reservation routeReference = orderedReservations.stream().findFirst().orElse(null);
+    boolean templateSent = routeReference != null
+            && routeReference.getDriver() != null
+            && routeReference.getDriver().getId() != null
+            && trySendDriverRouteTemplate(
+                    normalizedDriverPhone,
+                    driverName,
+                    routeReference.getDriver().getId(),
+                    routeReference.getTravelDate());
     boolean interactiveSentForAllBatches = true;
+    boolean fallbackTextSent = false;
 
     for (int start = 0; start < orderedReservations.size(); start += 10) {
         int end = Math.min(start + 10, orderedReservations.size());
@@ -366,13 +381,18 @@ public DriverRouteDispatchResult sendDriverRouteDispatch(
             interactiveSentForAllBatches = false;
             log.warn("Meta rechazó la lista interactiva de ruta para {}. Se envía fallback de texto.",
                     normalizedDriverPhone);
-            trySendMessage(normalizedDriverPhone,
+            fallbackTextSent = trySendMessage(normalizedDriverPhone,
                     "⚠️ No pudimos habilitar los botones de abordaje. "
-                            + "Usá esta hoja de ruta en texto:\n\n" + routeSummary);
+                            + "Usá esta hoja de ruta en texto:\n\n" + routeSummary)
+                    || fallbackTextSent;
         }
     }
-    if (textSent && interactiveSentForAllBatches) {
+    if (templateSent && interactiveSentForAllBatches) {
         return new DriverRouteDispatchResult(true, "Hoja de ruta enviada por WhatsApp.");
+    }
+    if (!interactiveSentForAllBatches && fallbackTextSent) {
+        return new DriverRouteDispatchResult(false,
+                "Meta no habilitó la lista interactiva; la hoja de ruta se envió en texto.");
     }
     return new DriverRouteDispatchResult(false,
             "La asignación quedó guardada, pero Meta no confirmó todos los mensajes; "

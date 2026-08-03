@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
 
 class WhatsAppTemplateConfigurationTest {
@@ -179,8 +180,8 @@ class WhatsAppTemplateConfigurationTest {
                 "https://maps.example/route", List.of(reservation));
 
         assertEquals("5493515551234", service.interactivePhone);
-        assertEquals(2, service.textMessages.size());
-        assertTrue(service.textMessages.get(1).contains("No pudimos habilitar los botones"));
+        assertEquals(1, service.textMessages.size());
+        assertTrue(service.textMessages.getFirst().contains("No pudimos habilitar los botones"));
     }
 
     @Test
@@ -202,6 +203,28 @@ class WhatsAppTemplateConfigurationTest {
         assertTrue(service.textMessages.getFirst().contains("1 asiento(s)"));
     }
 
+    @Test
+    void driverDispatchSendsApprovedTemplateBeforeInteractiveList() {
+        RecordingRouteWhatsAppService service = new RecordingRouteWhatsAppService();
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        Reservation reservation = Reservation.builder()
+                .id(UUID.randomUUID())
+                .driver(driver)
+                .passenger(Passenger.builder().firstName("Ana").lastName("Pérez").build())
+                .travelDate(LocalDate.of(2026, 8, 5))
+                .status("CONFIRMED")
+                .reservationCode("SAN-COR-003")
+                .build();
+
+        var result = service.sendDriverRouteDispatch("+54 351 555-1234", "Carlos",
+                "https://maps.example/route", List.of(reservation));
+
+        assertEquals(List.of("template:5493515551234", "interactive:5493515551234"),
+                service.events);
+        assertTrue(result.success());
+    }
+
     private static final class FailingInteractiveWhatsAppService extends WhatsAppService {
         private final List<String> textMessages = new ArrayList<>();
         private String interactivePhone;
@@ -218,6 +241,30 @@ class WhatsAppTemplateConfigurationTest {
                 String buttonLabel, List<Map<String, Object>> sections) {
             interactivePhone = phoneNumber;
             return false;
+        }
+    }
+
+    private static final class RecordingRouteWhatsAppService extends WhatsAppService {
+        private final List<String> events = new ArrayList<>();
+
+        @Override
+        boolean trySendDriverRouteTemplate(String phoneNumber, String driverName,
+                UUID driverId, LocalDate travelDate) {
+            events.add("template:" + phoneNumber);
+            return true;
+        }
+
+        @Override
+        boolean trySendInteractiveList(String phoneNumber, String headerText, String bodyText,
+                String buttonLabel, List<Map<String, Object>> sections) {
+            events.add("interactive:" + phoneNumber);
+            return true;
+        }
+
+        @Override
+        boolean trySendMessage(String phoneNumber, String message) {
+            events.add("text:" + phoneNumber);
+            return true;
         }
     }
 }
