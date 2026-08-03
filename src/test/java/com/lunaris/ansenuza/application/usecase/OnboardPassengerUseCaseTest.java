@@ -22,6 +22,7 @@ import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
+import com.lunaris.ansenuza.application.port.Button;
 
 class OnboardPassengerUseCaseTest {
 
@@ -60,17 +61,20 @@ class OnboardPassengerUseCaseTest {
         persistenceBeforeLookup.verify(reservations).saveAndFlush(current);
         persistenceBeforeLookup.verify(reservations)
                 .findRouteByEffectiveDate(driver.getId(), date);
-        verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName());
-        verify(whatsApp).sendMessage(
+        verify(whatsApp).sendTemplate(
+                "222", "proximo_en_camino", List.of("Siguiente", driver.getFullName()));
+        verify(whatsApp).sendText(
                 "222",
                 "¡Hola Siguiente! El auto de Lunaris ya recogió al pasajero anterior "
                         + "y sos el próximo en la lista. Por favor estate atento/a en la puerta.");
-        verify(whatsApp).sendMessage(
+        verify(whatsApp).sendText(
                 "222", "📍 Ubicación actual del chofer: https://maps.google.com/?q=-31.42,-64.18");
-        verify(whatsApp).sendDriverBoardingConfirmation(
+        verify(whatsApp).sendButtons(
                 driver.getPhone(),
+                "Abordaje confirmado",
                 "✅ Actual Pasajero fue confirmado a bordo. "
-                        + "Ya avisamos a Siguiente que es el próximo pasajero.");
+                        + "Ya avisamos a Siguiente que es el próximo pasajero.",
+                List.of(new Button("VIEW_ROUTE", "🗺️ Ver Ruta")));
     }
 
     @Test
@@ -113,7 +117,8 @@ class OnboardPassengerUseCaseTest {
         assertEquals(Reservation.TravelStatus.COMPLETED, current.getTravelStatus());
         assertEquals("COMPLETED", current.getStatus());
         assertEquals(current.getTotalSeats(), current.getReturnedPassengerCount());
-        verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName());
+        verify(whatsApp).sendTemplate(
+                "222", "proximo_en_camino", List.of("Siguiente", driver.getFullName()));
     }
 
     @Test
@@ -139,10 +144,10 @@ class OnboardPassengerUseCaseTest {
         useCase.execute(alreadyOnboard.getId());
 
         verify(reservations, never()).saveAndFlush(alreadyOnboard);
-        verify(whatsApp, never()).sendProximoEnCaminoTemplate(
+        verify(whatsApp, never()).sendTemplate(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.anyString());
+                org.mockito.ArgumentMatchers.anyList());
     }
 
     @Test
@@ -186,8 +191,8 @@ class OnboardPassengerUseCaseTest {
 
         useCase.execute(current.getId());
 
-        verify(whatsApp).sendProximoEnCaminoTemplate(
-                "333", "Tercero", driver.getFullName());
+        verify(whatsApp).sendTemplate(
+                "333", "proximo_en_camino", List.of("Tercero", "Chofer"));
     }
 
     @Test

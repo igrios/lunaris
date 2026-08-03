@@ -12,7 +12,8 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
+import com.lunaris.ansenuza.application.port.Button;
+import com.lunaris.ansenuza.application.port.MessagingPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,7 +25,7 @@ public class OnboardPassengerUseCase {
     private final ReservationRepository reservationRepository;
     private final DriverRepository driverRepository;
     private final LocalityRepository localityRepository;
-    private final WhatsAppService whatsAppService;
+    private final MessagingPort messaging;
 
     @Transactional
     public Reservation execute(UUID reservationId) {
@@ -165,9 +166,11 @@ public class OnboardPassengerUseCase {
                 .map(next -> " Ya avisamos a " + next.getPassenger().getFirstName()
                         + " que es el próximo pasajero.")
                 .orElse(" No quedan pasajeros pendientes en esta ruta.");
-        whatsAppService.sendDriverBoardingConfirmation(
+        messaging.sendButtons(
                 onboard.getDriver().getPhone(),
-                "✅ " + passengerName + " fue confirmado a bordo." + nextNotice);
+                "Abordaje confirmado",
+                "✅ " + passengerName + " fue confirmado a bordo." + nextNotice,
+                List.of(new Button("VIEW_ROUTE", "🗺️ Ver Ruta")));
     }
 
     private DriverActor resolveActiveDriver(String phone) {
@@ -183,11 +186,7 @@ public class OnboardPassengerUseCase {
     }
 
     private String normalizePhone(String phone) {
-        if (phone == null) {
-            return "";
-        }
-        String clean = phone.replaceAll("[^0-9]", "");
-        return clean.startsWith("549") ? "54" + clean.substring(3) : clean;
+        return com.lunaris.ansenuza.shared.PhoneUtils.normalizeArgentinePhone(phone);
     }
 
     private boolean isBoardable(Reservation reservation) {
@@ -277,18 +276,20 @@ public class OnboardPassengerUseCase {
                 || next.getPassenger().getPhone().isBlank()) {
             return;
         }
-        whatsAppService.sendProximoEnCaminoTemplate(
+        messaging.sendTemplate(
                 next.getPassenger().getPhone(),
-                next.getPassenger().getFirstName(),
-                onboard.getDriver().getFullName());
-        whatsAppService.sendMessage(
+                "proximo_en_camino",
+                List.of(
+                        textOrDefault(next.getPassenger().getFirstName(), "Pasajero"),
+                        textOrDefault(onboard.getDriver().getFullName(), "Chofer")));
+        messaging.sendText(
                 next.getPassenger().getPhone(),
                 "¡Hola " + next.getPassenger().getFirstName()
                         + "! El auto de Lunaris ya recogió al pasajero anterior y sos el próximo en la lista. "
                         + "Por favor estate atento/a en la puerta.");
         String locationUrl = onboard.getDriver().getCurrentLocationUrl();
         if (locationUrl != null && !locationUrl.isBlank()) {
-            whatsAppService.sendMessage(
+            messaging.sendText(
                     next.getPassenger().getPhone(),
                     "📍 Ubicación actual del chofer: " + locationUrl);
         }
@@ -302,6 +303,10 @@ public class OnboardPassengerUseCase {
                 .map(Locality::getMinutesFromOrigin)
                 .orElse(0);
         return Math.abs(nextMinutes - currentMinutes);
+    }
+
+    private String textOrDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private record DriverActor(UUID driverId) {

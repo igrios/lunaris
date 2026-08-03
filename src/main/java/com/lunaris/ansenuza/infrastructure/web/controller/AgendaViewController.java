@@ -58,11 +58,16 @@ public class AgendaViewController {
         LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
         int displayedDays = Math.max(7, Math.min(days, 56));
+        java.util.Map<LocalDate, List<Reservation>> reservationsByDate =
+                reservationRepository.findAgendaBetween(
+                                today, today.plusDays(displayedDays - 1L)).stream()
+                        .collect(java.util.stream.Collectors.groupingBy(
+                                Reservation::getTravelDate));
 
         List<AgendaDayView> agenda =
                 java.util.stream.IntStream.range(0, displayedDays)
                         .mapToObj(today::plusDays).map(date -> {
-                    List<Reservation> reservations = reservationRepository.findByTravelDate(date);
+                    List<Reservation> reservations = reservationsByDate.getOrDefault(date, List.of());
 
                     // 🌟 FILTRO: Excluimos registros con fecha centinela, CANCELLED o passengerCount <= 0
                     List<Reservation> activeReservations = reservations.stream()

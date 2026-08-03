@@ -112,6 +112,7 @@ public class Reservation {
     @Column(name = "payment_verified", nullable = false)
     private Boolean paymentVerified;
 
+    @Convert(converter = com.lunaris.ansenuza.domain.model.converter.ReservationStatusConverter.class)
     @Column(name = "status") // Flujo canónico: PENDING_PAYMENT, PAYMENT_RECEIVED, CONFIRMED, CANCELLED
     private String status; 
 

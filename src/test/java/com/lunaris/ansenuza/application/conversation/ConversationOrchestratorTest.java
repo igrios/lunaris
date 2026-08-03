@@ -37,7 +37,7 @@ class ConversationOrchestratorTest {
         Driver driver = new Driver();
         driver.setPhone("351 555-0101");
         driver.setActive(true);
-        when(drivers.findFirstByPhone("3515550101")).thenReturn(Optional.of(driver));
+        when(drivers.findFirstByPhone("543515550101")).thenReturn(Optional.of(driver));
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
                 List.of(),
                 sessions,
@@ -206,7 +206,7 @@ class ConversationOrchestratorTest {
     }
 
     @Test
-    void passengerAddressSessionTakesPriorityOverDriverLocationUpdate() {
+    void activeDriverTakesPriorityEvenWhenPassengerAddressSessionExists() {
         String phone = "543512282251";
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);
@@ -219,7 +219,7 @@ class ConversationOrchestratorTest {
         Driver driver = new Driver();
         driver.setPhone(phone);
         driver.setActive(true);
-        when(sessions.findByPhoneNumber(phone)).thenReturn(Optional.of(session));
+        when(drivers.findFirstByPhone(phone)).thenReturn(Optional.of(driver));
         when(addressHandler.step()).thenReturn("ASK_ADDRESS_TEXT");
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
                 List.of(addressHandler),
@@ -242,9 +242,9 @@ class ConversationOrchestratorTest {
 
         orchestrator.process(location);
 
-        verify(addressHandler).handle(session, location);
-        verify(drivers, never()).findFirstByPhone(phone);
-        verify(drivers, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+        verify(addressHandler, never()).handle(session, location);
+        verify(sessions, never()).findByPhoneNumber(phone);
+        verify(drivers).saveAndFlush(driver);
     }
 
     @Test

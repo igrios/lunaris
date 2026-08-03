@@ -17,13 +17,15 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.application.port.Button;
+import com.lunaris.ansenuza.application.port.MessagingPort;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
 
 
-public class WhatsAppService {
+public class WhatsAppService implements MessagingPort {
 
     private static final String ARGENTINA_COUNTRY_CODE = "54";
     private static final String ARGENTINA_MOBILE_PREFIX = "549";
@@ -55,6 +57,28 @@ public class WhatsAppService {
     // MENSAJE TEXTO TRADICIONAL
     public void sendMessage(String phoneNumber, String message) {
         trySendMessage(phoneNumber, message);
+    }
+
+    @Override
+    public void sendText(String to, String message) {
+        sendMessage(to, message);
+    }
+
+    @Override
+    public void sendButtons(String to, String header, String body, List<Button> buttons) {
+        sendInteractiveButtons(to, header, body, buttons.stream()
+                .map(button -> Map.of("id", button.id(), "title", button.title()))
+                .toList());
+    }
+
+    @Override
+    public void requestLocation(String to, String message) {
+        sendLocationRequest(to, message);
+    }
+
+    @Override
+    public void sendImage(String to, String imageUrl, String caption) {
+        sendImageMessage(to, imageUrl, caption);
     }
 
     boolean trySendMessage(String phoneNumber, String message) {
@@ -152,7 +176,13 @@ public class WhatsAppService {
 
     // MENÚ DESPLEGABLE PREMIUM MULTI-SECCIÓN
     public boolean sendInteractiveList(String phoneNumber, String headerText, String bodyText, String buttonLabel, List<Map<String, Object>> sections) {
-        return trySendInteractiveList(phoneNumber, headerText, bodyText, buttonLabel, sections);
+        List<Map<String, Object>> safeSections = constrainInteractiveSections(sections);
+        boolean sent = trySendInteractiveList(
+                phoneNumber, headerText, bodyText, buttonLabel, safeSections);
+        if (!sent) {
+            trySendMessage(phoneNumber, buildInteractiveListFallback(bodyText, safeSections));
+        }
+        return sent;
     }
 
     boolean trySendInteractiveList(String phoneNumber, String headerText, String bodyText,
@@ -184,7 +214,59 @@ public class WhatsAppService {
         }
     }
 
+    private static List<Map<String, Object>> constrainInteractiveSections(
+            List<Map<String, Object>> sections) {
+        if (sections == null) {
+            return List.of();
+        }
+        return sections.stream().map(section -> {
+            Object rawRows = section.get("rows");
+            List<?> rows = rawRows instanceof List<?> list ? list : List.of();
+            List<Map<String, Object>> safeRows = rows.stream()
+                    .filter(rawRow -> rawRow instanceof Map<?, ?>)
+                    .map(rawRow -> {
+                        Map<?, ?> row = (Map<?, ?>) rawRow;
+                        Object id = row.get("id");
+                        Object title = row.get("title");
+                        Object description = row.get("description");
+                        return Map.<String, Object>of(
+                                "id", id == null ? "" : id.toString(),
+                                "title", truncateMetaText(
+                                        title == null ? "Opción" : title.toString(), 24),
+                                "description", truncateMetaText(
+                                        description == null ? "" : description.toString(), 72));
+                    })
+                    .toList();
+            return Map.<String, Object>of(
+                    "title", truncateMetaText(
+                            String.valueOf(section.getOrDefault("title", "Opciones")), 24),
+                    "rows", safeRows);
+        }).toList();
+    }
+
+    private static String buildInteractiveListFallback(
+            String bodyText, List<Map<String, Object>> sections) {
+        StringBuilder fallback = new StringBuilder(textOrDefault(bodyText, "Opciones disponibles"));
+        for (Map<String, Object> section : sections) {
+            fallback.append("\n\n*").append(section.get("title")).append("*");
+            Object rawRows = section.get("rows");
+            if (rawRows instanceof List<?> rows) {
+                for (Object rawRow : rows) {
+                    if (rawRow instanceof Map<?, ?> row) {
+                        fallback.append("\n• ").append(row.get("title"));
+                        Object description = row.get("description");
+                        if (description != null && !description.toString().isBlank()) {
+                            fallback.append(" — ").append(description);
+                        }
+                    }
+                }
+            }
+        }
+        return fallback.toString();
+    }
+
     // 🧾 ENVÍO DE DOCUMENTO (PDF) — sube el archivo local a Meta y luego lo manda por su media id
+    @Override
     public void sendDocument(String phoneNumber, String absoluteFilePath, String fileName, String caption) {
         try {
             // Paso 1: Subir el PDF a la Media API (multipart) para obtener un media id
@@ -571,7 +653,8 @@ static String buildDriverRouteSheetUrl(
                 safeTemplateValue(driverName, "Chofer"));
     }
 
-    private void sendTemplate(String to, String templateName, List<String> values) {
+    @Override
+    public void sendTemplate(String to, String templateName, List<String> values) {
         String metaPhoneNumber = formatMetaPhoneNumber(to);
         List<Map<String, Object>> parameters = values.stream()
                 .map(value -> Map.<String, Object>of("type", "text", "text", value))
@@ -600,6 +683,14 @@ static String buildDriverRouteSheetUrl(
         }
 
         String digits = phoneNumber.replaceAll("\\D", "");
+        try {
+            String canonical = com.lunaris.ansenuza.shared.PhoneUtils
+                    .normalizeArgentinePhone(phoneNumber);
+            return ARGENTINA_MOBILE_PREFIX
+                    + canonical.substring(ARGENTINA_COUNTRY_CODE.length());
+        } catch (com.lunaris.ansenuza.domain.exception.DomainValidationException exception) {
+            // Un número internacional no argentino se conserva sólo con dígitos.
+        }
         if (digits.startsWith(ARGENTINA_MOBILE_PREFIX)) {
             return digits;
         }

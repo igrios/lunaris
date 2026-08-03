@@ -79,6 +79,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 🔄 Métodos preexistentes del repositorio
     List<Reservation> findByTravelDate(LocalDate travelDate);
 
+    @Query("""
+           SELECT DISTINCT r FROM Reservation r
+           LEFT JOIN FETCH r.passenger
+           LEFT JOIN FETCH r.driver
+           WHERE r.travelDate BETWEEN :startDate AND :endDate
+           ORDER BY r.travelDate ASC, r.departureSchedule ASC
+           """)
+    List<Reservation> findAgendaBetween(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
     List<Reservation> findByTravelDateAndStatusNot(LocalDate travelDate, String status);
 
     List<Reservation> findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(

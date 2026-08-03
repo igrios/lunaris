@@ -2,7 +2,6 @@ package com.lunaris.ansenuza.infrastructure.whatsapp;
 
 import java.util.List;
 import java.util.Map;
-import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +11,6 @@ import lombok.RequiredArgsConstructor;
  * Traduce el modelo agnóstico de la aplicación (textos y {@link Button}) al formato que
  * espera {@link WhatsAppService}.
  */
-@Component
 @RequiredArgsConstructor
 public class WhatsAppMessagingAdapter implements MessagingPort {
 
@@ -39,6 +37,11 @@ public class WhatsAppMessagingAdapter implements MessagingPort {
     @Override
     public void sendImage(String to, String imageUrl, String caption) {
         whatsAppService.sendImageMessage(to, imageUrl, caption);
+    }
+
+    @Override
+    public void sendTemplate(String to, String templateName, List<String> parameters) {
+        whatsAppService.sendTemplate(to, templateName, parameters);
     }
 
     @Override

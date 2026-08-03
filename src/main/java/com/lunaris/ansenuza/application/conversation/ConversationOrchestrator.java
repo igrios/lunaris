@@ -90,26 +90,17 @@ public class ConversationOrchestrator {
         String rawTrimmed = raw.trim();
         String body = rawTrimmed.toLowerCase();
 
-        Optional<ConversationSession> locationSession = Optional.empty();
-        boolean passengerIsAwaitingAddress = false;
-        if (message.type() == IncomingMessage.MessageType.LOCATION) {
-            locationSession = conversationSessionRepository.findByPhoneNumber(phoneNumber);
-            passengerIsAwaitingAddress = locationSession
-                    .filter(session -> !session.isBotPaused())
-                    .map(ConversationSession::getCurrentStep)
-                    .map(ADDRESS_LOCATION_STEPS::contains)
-                    .orElse(false);
+        // La identidad operativa tiene prioridad absoluta: un chofer activo nunca
+        // debe consultar ni reutilizar una ConversationSession de pasajero.
+        Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
+        if (activeDriver.isPresent()) {
+            handleDriverFlow(phoneNumber, activeDriver.get(), message, rawTrimmed);
+            return;
         }
 
-        // Los choferes activos nunca deben ingresar al balanceador ni generar una
-        // ConversationSession de pasajero. La única excepción es una sesión ya activa
-        // que esté esperando expresamente la ubicación del pasajero.
-        if (!passengerIsAwaitingAddress) {
-            Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
-            if (activeDriver.isPresent()) {
-                handleDriverFlow(phoneNumber, activeDriver.get(), message, rawTrimmed);
-                return;
-            }
+        Optional<ConversationSession> locationSession = Optional.empty();
+        if (message.type() == IncomingMessage.MessageType.LOCATION) {
+            locationSession = conversationSessionRepository.findByPhoneNumber(phoneNumber);
         }
 
         // Se conserva la consulta de agenda para choferes registrados temporalmente
@@ -205,15 +196,11 @@ public class ConversationOrchestrator {
     }
 
     private String normalizeWhatsAppNumber(String phone) {
-        if (phone == null) return "";
-        String clean = phone.replaceAll("[^0-9]", "");
-        if (clean.startsWith("549") && clean.length() == 13) {
-            return clean.substring(3);
+        try {
+            return com.lunaris.ansenuza.shared.PhoneUtils.normalizeArgentinePhone(phone);
+        } catch (com.lunaris.ansenuza.domain.exception.DomainValidationException exception) {
+            return phone == null ? "" : phone.replaceAll("[^0-9]", "");
         }
-        if (clean.startsWith("54") && clean.length() == 12) {
-            return clean.substring(2);
-        }
-        return clean;
     }
 
     private String truncateSafe(String text, int maxLength) {

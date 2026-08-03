@@ -17,6 +17,28 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 class WhatsAppTemplateConfigurationTest {
 
     @Test
+    void genericInteractiveListConstrainsMetaFieldsAndFallsBackToPlainText() {
+        FailingInteractiveWhatsAppService service = new FailingInteractiveWhatsAppService();
+        Map<String, Object> row = Map.of(
+                "id", "OPTION_1",
+                "title", "Título deliberadamente mayor a veinticuatro caracteres",
+                "description", "Descripción deliberadamente extensa para superar los setenta y dos caracteres permitidos estrictamente por Meta Cloud API");
+
+        boolean sent = service.sendInteractiveList(
+                "5493515551234",
+                "Ruta",
+                "Seleccioná una opción",
+                "Ver",
+                List.of(Map.of(
+                        "title", "Sección con título excesivamente largo",
+                        "rows", List.of(row))));
+
+        assertFalse(sent);
+        assertEquals(1, service.textMessages.size());
+        assertTrue(service.textMessages.getFirst().contains("Seleccioná una opción"));
+    }
+
+    @Test
     void boardingConfirmationAlwaysIncludesViewRouteQuickReply() {
         RecordingBoardingConfirmationService service =
                 new RecordingBoardingConfirmationService();
@@ -260,6 +282,7 @@ class WhatsAppTemplateConfigurationTest {
         boolean trySendInteractiveList(String phoneNumber, String headerText, String bodyText,
                 String buttonLabel, List<Map<String, Object>> sections) {
             interactivePhone = phoneNumber;
+            assertTrue(sections.getFirst().get("title").toString().length() <= 24);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> rows = (List<Map<String, Object>>) sections.getFirst().get("rows");
             assertTrue(rows.stream().allMatch(row -> row.get("title").toString().length() <= 24));
