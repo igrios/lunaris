@@ -90,35 +90,35 @@ public class ConversationOrchestrator {
         String rawTrimmed = raw.trim();
         String body = rawTrimmed.toLowerCase();
 
+        Optional<ConversationSession> locationSession = Optional.empty();
+        boolean passengerIsAwaitingAddress = false;
+        if (message.type() == IncomingMessage.MessageType.LOCATION) {
+            locationSession = conversationSessionRepository.findByPhoneNumber(phoneNumber);
+            passengerIsAwaitingAddress = locationSession
+                    .filter(session -> !session.isBotPaused())
+                    .map(ConversationSession::getCurrentStep)
+                    .map(ADDRESS_LOCATION_STEPS::contains)
+                    .orElse(false);
+        }
+
+        // Los choferes activos nunca deben ingresar al balanceador ni generar una
+        // ConversationSession de pasajero. La única excepción es una sesión ya activa
+        // que esté esperando expresamente la ubicación del pasajero.
+        if (!passengerIsAwaitingAddress) {
+            Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
+            if (activeDriver.isPresent()) {
+                handleDriverFlow(phoneNumber, activeDriver.get(), message, rawTrimmed);
+                return;
+            }
+        }
+
+        // Se conserva la consulta de agenda para choferes registrados temporalmente
+        // inactivos, sin permitir que otros mensajes salteen el flujo de pasajeros.
         if (isDriverRouteCommand(rawTrimmed)) {
             Optional<Driver> routeDriver = findDriverByPhone(phoneNumber);
             if (routeDriver.isPresent()) {
                 handleVerRuta(phoneNumber, routeDriver.get());
                 return;
-            }
-        }
-
-        Optional<ConversationSession> locationSession = Optional.empty();
-        if (message.type() == IncomingMessage.MessageType.LOCATION) {
-            locationSession = conversationSessionRepository.findByPhoneNumber(phoneNumber);
-            boolean passengerIsAwaitingAddress = locationSession
-                    .filter(session -> !session.isBotPaused())
-                    .map(ConversationSession::getCurrentStep)
-                    .map(ADDRESS_LOCATION_STEPS::contains)
-                    .orElse(false);
-
-            if (!passengerIsAwaitingAddress) {
-                Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
-                if (activeDriver.isPresent()) {
-                    Driver driver = activeDriver.get();
-                    driver.setCurrentLocationUrl(message.pickupAddress());
-                    driver.setLocationUpdatedAt(
-                            com.lunaris.ansenuza.shared.ArgentinaTime.now());
-                    driverRepository.saveAndFlush(driver);
-                    whatsAppService.sendMessage(
-                            phoneNumber, "✓ Ubicación del chofer actualizada.");
-                    return;
-                }
             }
         }
 
@@ -207,7 +207,13 @@ public class ConversationOrchestrator {
     private String normalizeWhatsAppNumber(String phone) {
         if (phone == null) return "";
         String clean = phone.replaceAll("[^0-9]", "");
-        return clean.startsWith("549") ? "54" + clean.substring(3) : clean;
+        if (clean.startsWith("549") && clean.length() == 13) {
+            return clean.substring(3);
+        }
+        if (clean.startsWith("54") && clean.length() == 12) {
+            return clean.substring(2);
+        }
+        return clean;
     }
 
     private String truncateSafe(String text, int maxLength) {
@@ -233,12 +239,45 @@ public class ConversationOrchestrator {
     }
 
     private Optional<Driver> findDriverByPhone(String phone) {
+        String digitsOnlyPhone = phone == null ? "" : phone.replaceAll("[^0-9]", "");
         String normalizedPhone = normalizeWhatsAppNumber(phone);
-        return driverRepository.findFirstByPhone(normalizedPhone)
+        return driverRepository.findFirstByPhone(digitsOnlyPhone)
+                .or(() -> digitsOnlyPhone.equals(normalizedPhone)
+                        ? Optional.empty()
+                        : driverRepository.findFirstByPhone(normalizedPhone))
                 .or(() -> driverRepository.findAll().stream()
                         .filter(driver -> normalizeWhatsAppNumber(driver.getPhone())
                                 .equals(normalizedPhone))
                         .findFirst());
+    }
+
+    private void handleDriverFlow(
+            String phone, Driver driver, IncomingMessage message, String rawPayload) {
+        if (message.type() == IncomingMessage.MessageType.LOCATION) {
+            driver.setCurrentLocationUrl(message.pickupAddress());
+            driver.setLocationUpdatedAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
+            driverRepository.saveAndFlush(driver);
+            whatsAppService.sendMessage(phone, "✓ Ubicación del chofer actualizada.");
+            return;
+        }
+
+        Optional<UUID> boardingReservationId = extractBoardingReservationId(message, rawPayload);
+        if (boardingReservationId.isPresent()) {
+            log.info(
+                    "[Driver Flow] Boarding action received. phone={}, reservationId={}, type={}",
+                    phone, boardingReservationId.get(), message.type());
+            handleBoardPassenger(phone, boardingReservationId.get());
+            return;
+        }
+
+        if (isDriverRouteCommand(rawPayload)) {
+            handleVerRuta(phone, driver);
+            return;
+        }
+
+        whatsAppService.sendMessage(
+                phone,
+                "🚐 Menú de chofer\n\nEscribí *VER RUTA* para consultar tus viajes asignados.");
     }
 
     private void handleVerRuta(String phone, Driver driver) {
@@ -382,8 +421,12 @@ public class ConversationOrchestrator {
     }
 
     private Optional<Driver> findActiveDriverByPhone(String phone) {
+        String digitsOnlyPhone = phone == null ? "" : phone.replaceAll("[^0-9]", "");
         String normalizedPhone = normalizeWhatsAppNumber(phone);
-        Optional<Driver> exactMatch = driverRepository.findFirstByPhone(normalizedPhone);
+        Optional<Driver> exactMatch = driverRepository.findFirstByPhone(digitsOnlyPhone)
+                .or(() -> digitsOnlyPhone.equals(normalizedPhone)
+                        ? Optional.empty()
+                        : driverRepository.findFirstByPhone(normalizedPhone));
         if (exactMatch.filter(Driver::isActive).isPresent()) {
             return exactMatch;
         }

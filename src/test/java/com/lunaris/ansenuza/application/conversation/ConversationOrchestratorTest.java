@@ -28,6 +28,48 @@ import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 class ConversationOrchestratorTest {
 
     @Test
+    void activeDriverIsRoutedBeforeOperatorLoadBalancerAndPassengerSessionCreation() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        OperationControlService operationControl = mock(OperationControlService.class);
+        LiveChatPort liveChat = mock(LiveChatPort.class);
+        WhatsAppService whatsApp = mock(WhatsAppService.class);
+        Driver driver = new Driver();
+        driver.setPhone("351 555-0101");
+        driver.setActive(true);
+        when(drivers.findFirstByPhone("3515550101")).thenReturn(Optional.of(driver));
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                List.of(),
+                sessions,
+                liveChat,
+                operationControl,
+                mock(ReservationCancellationService.class),
+                drivers,
+                mock(ReservationRepository.class),
+                whatsApp,
+                mock(ProcessPromotionCommandUseCase.class),
+                mock(OnboardPassengerUseCase.class));
+
+        orchestrator.process(new IncomingMessage(
+                "+54 9 351 555-0101",
+                IncomingMessage.MessageType.TEXT,
+                "hola",
+                null));
+
+        verify(whatsApp).sendMessage(
+                "+54 9 351 555-0101",
+                "🚐 Menú de chofer\n\nEscribí *VER RUTA* para consultar tus viajes asignados.");
+        verify(sessions, never()).findByPhoneNumber(
+                org.mockito.ArgumentMatchers.anyString());
+        verify(sessions, never()).saveAndFlush(
+                org.mockito.ArgumentMatchers.any());
+        verify(operationControl, never()).getOperatorWithLeastLoad();
+        verify(liveChat, never()).recordIncomingMessage(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
     void completedReservationReturnsFriendlyMessageWithoutBoardingAgain() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
