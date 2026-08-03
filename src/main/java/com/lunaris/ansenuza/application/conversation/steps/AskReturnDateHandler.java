@@ -33,7 +33,8 @@ public class AskReturnDateHandler implements ConversationStepHandler {
 
         if (fechaParseada.isEmpty()) {
             messaging.sendText(phoneNumber,
-                    "❌ *Formato erróneo.* Acordate de usar números separados por barras, por ejemplo: *5/7/26* o *25/06/2026*");
+                    "❌ *Formato erróneo.* Por favor, indicá la fecha de tu regreso "
+                            + "(por ejemplo: 12/08/2026):");
             return;
         }
 

@@ -52,12 +52,15 @@ public class AskTripTypeHandler implements ConversationStepHandler {
         DateTimeFormatter payloadFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         List<Button> options = new ArrayList<>();
         if (!sameDayBookingPolicy.isTodayClosed()) {
-            options.add(new Button(today.format(payloadFormat), "Hoy"));
+            options.add(new Button(today.format(payloadFormat),
+                    "Hoy (" + today.format(payloadFormat) + ")"));
         }
-        options.add(new Button(today.plusDays(1).format(payloadFormat), "Mañana"));
+        options.add(new Button(today.plusDays(1).format(payloadFormat),
+                "Mañana (" + today.plusDays(1).format(payloadFormat) + ")"));
         options.add(new Button(today.plusDays(2).format(payloadFormat),
-                today.plusDays(2).format(DateTimeFormatter.ofPattern("dd/MM"))));
+                today.plusDays(2).format(payloadFormat)));
         messaging.sendButtons(phoneNumber, "Fecha del viaje",
-                prompt + "\n\nTambién podés escribir otra fecha en formato DD/MM/AAAA.", options);
+                prompt + "\n\nPor favor, indicá la fecha de tu viaje "
+                        + "(por ejemplo: 12/08/2026):", options);
     }
 }

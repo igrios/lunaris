@@ -40,7 +40,8 @@ public class AskDateHandler implements ConversationStepHandler {
 
         if (fechaParseada.isEmpty()) {
             messaging.sendText(phoneNumber,
-                    "❌ *Formato erróneo.* Acordate de usar números separados por barras, por ejemplo: *1/6/26* o *18/06/2026*");
+                    "❌ *Formato erróneo.* Por favor, indicá la fecha de tu viaje "
+                            + "(por ejemplo: 12/08/2026):");
             return;
         }
 

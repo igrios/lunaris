@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -62,8 +63,12 @@ class SameDayBookingConversationTest {
                 IncomingMessage.MessageType.INTERACTIVE, "trip_ida", null));
 
         verify(messaging).sendButtons(eq(session.getPhoneNumber()), eq("Fecha del viaje"),
-                contains("¿Qué día"), buttons.capture());
-        assertFalse(buttons.getValue().stream().anyMatch(button -> "Hoy".equals(button.title())));
-        assertTrue(buttons.getValue().stream().anyMatch(button -> "Mañana".equals(button.title())));
+                argThat(body -> body.contains("¿Qué día")
+                        && body.contains("por ejemplo: 12/08/2026")), buttons.capture());
+        assertFalse(buttons.getValue().stream().anyMatch(button -> button.title().startsWith("Hoy (")));
+        assertTrue(buttons.getValue().stream().anyMatch(button ->
+                button.title().matches("Mañana \\(\\d{2}/\\d{2}/\\d{4}\\)")));
+        assertTrue(buttons.getValue().stream().allMatch(button ->
+                button.id().matches("\\d{2}/\\d{2}/\\d{4}")));
     }
 }
