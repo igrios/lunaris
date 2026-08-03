@@ -216,8 +216,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            WHERE r.driver.id = :driverId
            AND r.travelDate = :travelDate
            AND r.status = 'CONFIRMED'
-           AND r.departureSchedule IS NOT NULL
-           AND TRIM(r.departureSchedule) <> ''
            AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
            ORDER BY r.routeSequence ASC NULLS LAST
            """)
@@ -228,8 +226,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            SELECT r FROM Reservation r
            WHERE r.driver.id = :driverId
            AND r.status = 'CONFIRMED'
-           AND r.departureSchedule IS NOT NULL
-           AND TRIM(r.departureSchedule) <> ''
            AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
            AND (
                r.travelDate = :effectiveDate

@@ -205,7 +205,6 @@ public class Reservation {
 
     public boolean isScheduledConfirmedTrip() {
         if (travelDate == null || OPEN_RETURN_SENTINEL_DATE.equals(travelDate)
-                || departureSchedule == null || departureSchedule.isBlank()
                 || !"CONFIRMED".equalsIgnoreCase(status)
                 || travelStatus == TravelStatus.OPEN_RETURN) {
             return false;

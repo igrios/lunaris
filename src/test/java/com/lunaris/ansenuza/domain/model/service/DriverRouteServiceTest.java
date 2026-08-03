@@ -70,6 +70,31 @@ class DriverRouteServiceTest {
                 () -> service.replaceRoute(driver, sentinelDate, requestedOrder));
     }
 
+    @Test
+    void assignsConfirmedReservationWithoutDepartureSchedule() {
+        ReservationRepository repository = mock(ReservationRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        DriverRouteService service = new DriverRouteService(repository, drivers);
+        LocalDate date = LocalDate.of(2026, 8, 4);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        Reservation reservation = reservation(date, null, null);
+        reservation.setDepartureSchedule(null);
+        List<UUID> requestedOrder = List.of(reservation.getId());
+        when(repository.findAllById(requestedOrder)).thenReturn(List.of(reservation));
+        when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
+                .thenReturn(List.of(driver));
+        when(repository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(driver.getId(), date))
+                .thenReturn(List.of());
+        when(repository.saveAllAndFlush(org.mockito.ArgumentMatchers.anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        List<Reservation> assigned = service.replaceRoute(driver, date, requestedOrder);
+
+        assertEquals(driver, assigned.getFirst().getDriver());
+        assertEquals(1, assigned.getFirst().getRouteSequence());
+    }
+
     private Reservation reservation(LocalDate date, Driver driver, Integer sequence) {
         return Reservation.builder()
                 .id(UUID.randomUUID())

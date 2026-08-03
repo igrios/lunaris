@@ -183,6 +183,25 @@ class WhatsAppTemplateConfigurationTest {
         assertTrue(service.textMessages.get(1).contains("No pudimos habilitar los botones"));
     }
 
+    @Test
+    void driverDispatchIncludesConfirmedReservationWithoutDepartureSchedule() {
+        FailingInteractiveWhatsAppService service = new FailingInteractiveWhatsAppService();
+        Reservation reservation = Reservation.builder()
+                .id(UUID.randomUUID())
+                .passenger(Passenger.builder().firstName("Ana").lastName("Pérez").build())
+                .travelDate(LocalDate.of(2026, 8, 5))
+                .departureSchedule(null)
+                .status("CONFIRMED")
+                .reservationCode("SAN-COR-002")
+                .build();
+
+        service.sendDriverRouteDispatch("3515551234", "Carlos",
+                "https://maps.example/route", List.of(reservation));
+
+        assertTrue(service.textMessages.getFirst().contains("Ana Pérez"));
+        assertTrue(service.textMessages.getFirst().contains("1 asiento(s)"));
+    }
+
     private static final class FailingInteractiveWhatsAppService extends WhatsAppService {
         private final List<String> textMessages = new ArrayList<>();
         private String interactivePhone;
