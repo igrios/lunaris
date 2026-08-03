@@ -168,9 +168,13 @@ class WhatsAppTemplateConfigurationTest {
         FailingInteractiveWhatsAppService service = new FailingInteractiveWhatsAppService();
         Reservation reservation = Reservation.builder()
                 .id(UUID.randomUUID())
-                .passenger(Passenger.builder().firstName("Ana").lastName("Pérez").build())
+                .passenger(Passenger.builder()
+                        .firstName("Ana María de los Ángeles")
+                        .lastName("Pérez Fernández")
+                        .build())
                 .travelDate(LocalDate.of(2026, 8, 5))
                 .departureSchedule("08:00")
+                .pickupAddress("Avenida con un domicilio deliberadamente extenso para validar el límite estricto de Meta Cloud API número 1234")
                 .status("CONFIRMED")
                 .passengerCount(1)
                 .reservationCode("SAN-COR-001")
@@ -182,6 +186,8 @@ class WhatsAppTemplateConfigurationTest {
         assertEquals("5493515551234", service.interactivePhone);
         assertEquals(1, service.textMessages.size());
         assertTrue(service.textMessages.getFirst().contains("No pudimos habilitar los botones"));
+        assertEquals(1, service.replyButtons.size());
+        assertTrue(service.replyButtons.getFirst().get("title").length() <= 20);
     }
 
     @Test
@@ -227,6 +233,7 @@ class WhatsAppTemplateConfigurationTest {
 
     private static final class FailingInteractiveWhatsAppService extends WhatsAppService {
         private final List<String> textMessages = new ArrayList<>();
+        private final List<Map<String, String>> replyButtons = new ArrayList<>();
         private String interactivePhone;
 
         @Override
@@ -240,7 +247,18 @@ class WhatsAppTemplateConfigurationTest {
         boolean trySendInteractiveList(String phoneNumber, String headerText, String bodyText,
                 String buttonLabel, List<Map<String, Object>> sections) {
             interactivePhone = phoneNumber;
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> rows = (List<Map<String, Object>>) sections.getFirst().get("rows");
+            assertTrue(rows.stream().allMatch(row -> row.get("title").toString().length() <= 24));
+            assertTrue(rows.stream().allMatch(row -> row.get("description").toString().length() <= 72));
             return false;
+        }
+
+        @Override
+        public boolean sendInteractiveButtons(String phoneNumber, String headerText,
+                String bodyText, List<Map<String, String>> buttons) {
+            replyButtons.addAll(buttons);
+            return true;
         }
     }
 

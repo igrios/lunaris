@@ -134,6 +134,7 @@ public class OnboardPassengerUseCase {
 
         Optional<Reservation> nextPassenger =
                 findNextPassengerInRoute(onboard, lockedEffectiveDate);
+        notifyDriver(onboard, nextPassenger);
         nextPassenger.ifPresentOrElse(
                 next -> {
                     String phone = next.getPassenger() != null
@@ -148,6 +149,25 @@ public class OnboardPassengerUseCase {
                         "[ONBOARD] No N+1 passenger found with sequence {}",
                         expectedNextSequence(onboard)));
         return onboard;
+    }
+
+    private void notifyDriver(Reservation onboard, Optional<Reservation> nextPassenger) {
+        if (onboard.getDriver() == null || onboard.getDriver().getPhone() == null
+                || onboard.getDriver().getPhone().isBlank()) {
+            return;
+        }
+        String passengerName = onboard.getPassenger() == null
+                ? "El pasajero"
+                : (onboard.getPassenger().getFirstName() + " "
+                        + onboard.getPassenger().getLastName()).trim();
+        String nextNotice = nextPassenger
+                .filter(next -> next.getPassenger() != null)
+                .map(next -> " Ya avisamos a " + next.getPassenger().getFirstName()
+                        + " que es el próximo pasajero.")
+                .orElse(" No quedan pasajeros pendientes en esta ruta.");
+        whatsAppService.sendMessage(
+                onboard.getDriver().getPhone(),
+                "✅ " + passengerName + " fue confirmado a bordo." + nextNotice);
     }
 
     private DriverActor resolveActiveDriver(String phone) {

@@ -70,12 +70,12 @@ public class WhatsAppService {
     }
 
     // SOBRECARGA 1: BOTONES INTERACTIVOS COMUNES (3 ARGUMENTOS)
-    public void sendInteractiveButtons(String phoneNumber, String bodyText, List<Map<String, String>> buttons) {
-        sendInteractiveButtons(phoneNumber, "Lunaris Ansenuza", bodyText, buttons);
+    public boolean sendInteractiveButtons(String phoneNumber, String bodyText, List<Map<String, String>> buttons) {
+        return sendInteractiveButtons(phoneNumber, "Lunaris Ansenuza", bodyText, buttons);
     }
 
     // SOBRECARGA 2: BOTONES INTERACTIVOS PREMIUM CON TÍTULO DESTACADO (4 ARGUMENTOS)
-    public void sendInteractiveButtons(String phoneNumber, String headerText, String bodyText, List<Map<String, String>> buttons) {
+    public boolean sendInteractiveButtons(String phoneNumber, String headerText, String bodyText, List<Map<String, String>> buttons) {
         String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
         HttpHeaders headers = createHeaders();
 
@@ -101,9 +101,10 @@ public class WhatsAppService {
                 )
             );
 
-            executePostCall(url, headers, body, "BOTONES INTERACTIVOS");
+            return executePostCall(url, headers, body, "BOTONES INTERACTIVOS");
         } catch (Exception e) {
             log.error("Error en botones interactivos: ", e);
+            return false;
         }
     }
 
@@ -139,8 +140,8 @@ public class WhatsAppService {
     }
 
     // MENÚ DESPLEGABLE PREMIUM MULTI-SECCIÓN
-    public void sendInteractiveList(String phoneNumber, String headerText, String bodyText, String buttonLabel, List<Map<String, Object>> sections) {
-        trySendInteractiveList(phoneNumber, headerText, bodyText, buttonLabel, sections);
+    public boolean sendInteractiveList(String phoneNumber, String headerText, String bodyText, String buttonLabel, List<Map<String, Object>> sections) {
+        return trySendInteractiveList(phoneNumber, headerText, bodyText, buttonLabel, sections);
     }
 
     boolean trySendInteractiveList(String phoneNumber, String headerText, String bodyText,
@@ -385,6 +386,13 @@ public DriverRouteDispatchResult sendDriverRouteDispatch(
                     "⚠️ No pudimos habilitar los botones de abordaje. "
                             + "Usá esta hoja de ruta en texto:\n\n" + routeSummary)
                     || fallbackTextSent;
+            sendInteractiveButtons(
+                    normalizedDriverPhone,
+                    "Confirmar abordaje",
+                    "Seleccioná uno de los próximos pasajeros:",
+                    orderedReservations.subList(start, Math.min(start + 3, end)).stream()
+                            .map(WhatsAppService::onboardReplyButton)
+                            .toList());
         }
     }
     if (templateSent && interactiveSentForAllBatches) {
@@ -448,6 +456,16 @@ private static Map<String, Object> onboardRow(Reservation reservation) {
             "title", truncateMetaText(
                     "A bordo - " + textOrDefault(passengerName, "Pasajero"), 24),
             "description", truncateMetaText(resolvePickupAddress(reservation), 72));
+}
+
+private static Map<String, String> onboardReplyButton(Reservation reservation) {
+    var passenger = reservation.getPassenger();
+    String firstName = passenger == null
+            ? "Pasajero"
+            : textOrDefault(passenger.getFirstName(), "Pasajero");
+    return Map.of(
+            "id", "ONBOARD_" + reservation.getId(),
+            "title", truncateMetaText("A bordo " + firstName, 20));
 }
 
 private static String resolvePickupAddress(Reservation reservation) {

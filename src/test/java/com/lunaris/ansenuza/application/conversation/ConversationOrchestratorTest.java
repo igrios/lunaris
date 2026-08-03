@@ -282,8 +282,6 @@ class ConversationOrchestratorTest {
                 null));
 
         verify(onboard).execute(reservationId, driverPhone);
-        verify(whatsApp).sendMessage(
-                driverPhone, "✓ Pasajero [Ana Pérez] marcado a bordo.");
         verify(sessions, never()).findByPhoneNumber(driverPhone);
         verify(liveChat, never()).recordIncomingMessage(
                 org.mockito.ArgumentMatchers.anyString(),

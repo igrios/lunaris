@@ -36,6 +36,7 @@ class OnboardPassengerUseCaseTest {
         Driver driver = new Driver();
         driver.setId(UUID.randomUUID());
         driver.setFullName("Juan Chofer");
+        driver.setPhone("5493515550101");
         driver.setCurrentLocationUrl("https://maps.google.com/?q=-31.42,-64.18");
         LocalDate date = LocalDate.of(2026, 7, 23);
         Reservation current = reservation(driver, date, 1, "Morteros", "111", "Actual");
@@ -66,6 +67,10 @@ class OnboardPassengerUseCaseTest {
                         + "y sos el próximo en la lista. Por favor estate atento/a en la puerta.");
         verify(whatsApp).sendMessage(
                 "222", "📍 Ubicación actual del chofer: https://maps.google.com/?q=-31.42,-64.18");
+        verify(whatsApp).sendMessage(
+                driver.getPhone(),
+                "✅ Actual Pasajero fue confirmado a bordo. "
+                        + "Ya avisamos a Siguiente que es el próximo pasajero.");
     }
 
     @Test

@@ -451,10 +451,7 @@ public class ConversationOrchestrator {
                         phone, "Esta reserva ya se encuentra abordada o finalizada.");
                 return;
             }
-            Reservation reservation = onboardPassengerUseCase.execute(reservationId, phone);
-
-            String passengerName = reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName();
-            whatsAppService.sendMessage(phone, "✓ Pasajero [" + passengerName + "] marcado a bordo.");
+            onboardPassengerUseCase.execute(reservationId, phone);
         } catch (IllegalArgumentException exception) {
             log.warn(
                     "[Driver Flow] Boarding reservation not found. phone={}, reservationId={}",
