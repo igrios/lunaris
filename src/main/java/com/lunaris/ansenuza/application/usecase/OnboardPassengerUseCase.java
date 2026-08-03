@@ -165,7 +165,7 @@ public class OnboardPassengerUseCase {
                 .map(next -> " Ya avisamos a " + next.getPassenger().getFirstName()
                         + " que es el próximo pasajero.")
                 .orElse(" No quedan pasajeros pendientes en esta ruta.");
-        whatsAppService.sendMessage(
+        whatsAppService.sendDriverBoardingConfirmation(
                 onboard.getDriver().getPhone(),
                 "✅ " + passengerName + " fue confirmado a bordo." + nextNotice);
     }

@@ -108,7 +108,7 @@ class ConversationOrchestratorTest {
     }
 
     @Test
-    void anyRegisteredDriverCanQueryTripsOnFutureDatesWithoutConversationSession() {
+    void viewRouteQuickReplyDispatchesActiveDriverRouteWithoutConversationSession() {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);
         ReservationRepository reservations = mock(ReservationRepository.class);
@@ -118,7 +118,7 @@ class ConversationOrchestratorTest {
         driver.setId(UUID.randomUUID());
         driver.setPhone("351 555-0101");
         driver.setFullName("Chofer Asignado");
-        driver.setActive(false);
+        driver.setActive(true);
         Reservation futureTrip = Reservation.builder()
                 .id(UUID.randomUUID())
                 .driver(driver)
@@ -153,7 +153,7 @@ class ConversationOrchestratorTest {
         orchestrator.process(new IncomingMessage(
                 "3515550101",
                 IncomingMessage.MessageType.INTERACTIVE,
-                "MIS_VIAJES",
+                "VIEW_ROUTE",
                 null));
 
         verify(reservations).findAllAssignedByDriverId(driver.getId());

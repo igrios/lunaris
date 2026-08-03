@@ -17,6 +17,19 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 class WhatsAppTemplateConfigurationTest {
 
     @Test
+    void boardingConfirmationAlwaysIncludesViewRouteQuickReply() {
+        RecordingBoardingConfirmationService service =
+                new RecordingBoardingConfirmationService();
+
+        service.sendDriverBoardingConfirmation("5493515551234", "Abordaje confirmado");
+
+        assertEquals("5493515551234", service.phone);
+        assertEquals("Abordaje confirmado", service.body);
+        assertEquals(Map.of("id", "VIEW_ROUTE", "title", "🗺️ Ver Ruta"),
+                service.buttons.getFirst());
+    }
+
+    @Test
     void resolvesLanguagePerApprovedTemplate() {
         assertEquals("en", WhatsAppService.templateLanguageFor("despierta_chofer"));
         assertEquals("en", WhatsAppService.templateLanguageFor("proximo_en_camino"));
@@ -258,6 +271,21 @@ class WhatsAppTemplateConfigurationTest {
         public boolean sendInteractiveButtons(String phoneNumber, String headerText,
                 String bodyText, List<Map<String, String>> buttons) {
             replyButtons.addAll(buttons);
+            return true;
+        }
+    }
+
+    private static final class RecordingBoardingConfirmationService extends WhatsAppService {
+        private String phone;
+        private String body;
+        private List<Map<String, String>> buttons;
+
+        @Override
+        public boolean sendInteractiveButtons(String phoneNumber, String headerText,
+                String bodyText, List<Map<String, String>> replyButtons) {
+            phone = phoneNumber;
+            body = bodyText;
+            buttons = replyButtons;
             return true;
         }
     }

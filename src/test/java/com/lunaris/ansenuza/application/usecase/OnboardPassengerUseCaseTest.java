@@ -67,7 +67,7 @@ class OnboardPassengerUseCaseTest {
                         + "y sos el próximo en la lista. Por favor estate atento/a en la puerta.");
         verify(whatsApp).sendMessage(
                 "222", "📍 Ubicación actual del chofer: https://maps.google.com/?q=-31.42,-64.18");
-        verify(whatsApp).sendMessage(
+        verify(whatsApp).sendDriverBoardingConfirmation(
                 driver.getPhone(),
                 "✅ Actual Pasajero fue confirmado a bordo. "
                         + "Ya avisamos a Siguiente que es el próximo pasajero.");

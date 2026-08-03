@@ -108,6 +108,17 @@ public class WhatsAppService {
         }
     }
 
+    public void sendDriverBoardingConfirmation(String phoneNumber, String successMessage) {
+        boolean interactiveSent = sendInteractiveButtons(
+                phoneNumber,
+                "Abordaje confirmado",
+                successMessage,
+                List.of(Map.of("id", "VIEW_ROUTE", "title", "🗺️ Ver Ruta")));
+        if (!interactiveSent) {
+            sendMessage(phoneNumber, successMessage + "\n\nEscribí *VER RUTA* para continuar.");
+        }
+    }
+
     public void sendLocationRequest(String phoneNumber, String message) {
         Map<String, Object> body = Map.of(
                 "messaging_product", "whatsapp",

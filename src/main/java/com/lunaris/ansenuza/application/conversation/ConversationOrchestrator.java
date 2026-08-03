@@ -232,6 +232,7 @@ public class ConversationOrchestrator {
                 .replaceAll("\\s+", " ")
                 .toLowerCase(Locale.ROOT);
         return "ver ruta".equals(normalized)
+                || "view route".equals(normalized)
                 || "mis viajes".equals(normalized)
                 || "agenda".equals(normalized)
                 || "mi agenda".equals(normalized)

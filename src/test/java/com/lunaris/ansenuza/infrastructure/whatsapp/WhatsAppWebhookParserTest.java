@@ -9,6 +9,21 @@ import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 
 class WhatsAppWebhookParserTest {
 
+    @Test
+    void parsesViewRouteQuickReplyPayload() {
+        IncomingMessage message = parser.parse(payload(Map.of(
+                "from", "5493512282251",
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "button_reply",
+                        "button_reply", Map.of(
+                                "id", "VIEW_ROUTE",
+                                "title", "🗺️ Ver Ruta")))));
+
+        assertEquals(IncomingMessage.MessageType.INTERACTIVE, message.type());
+        assertEquals("VIEW_ROUTE", message.body());
+    }
+
     private final WhatsAppWebhookParser parser = new WhatsAppWebhookParser();
 
     @Test
