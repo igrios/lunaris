@@ -108,6 +108,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 🧾 Listado para el panel de Facturación (reservas con pago confirmado)
     List<Reservation> findByStatus(String status);
 
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.paymentVerified = true
+           AND r.requiresInvoice = true
+           AND r.id NOT IN (SELECT i.reservation.id FROM Invoice i)
+           """)
+    List<Reservation> findPendingInvoiceReservations();
+
     // 💰 INGRESO DE DINERO: suma de todos los tramos confirmados; en ida y vuelta
     // cada tramo lleva la mitad del importe neto, por lo que la suma es el total cobrado.
     @Query("SELECT COALESCE(SUM(r.amount), 0) FROM Reservation r " +

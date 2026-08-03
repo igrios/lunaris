@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 
@@ -159,5 +160,44 @@ class WhatsAppTemplateConfigurationTest {
                 "Carlos", "https://www.google.com/maps/dir/?api=1", List.of(reservation));
 
         assertTrue(summary.contains("https://maps.google.com/?q=-31.1,-62.1"));
+    }
+
+    @Test
+    void driverDispatchNormalizesPhoneAndFallsBackToTextWhenMetaRejectsInteractiveList() {
+        FailingInteractiveWhatsAppService service = new FailingInteractiveWhatsAppService();
+        Reservation reservation = Reservation.builder()
+                .id(UUID.randomUUID())
+                .passenger(Passenger.builder().firstName("Ana").lastName("Pérez").build())
+                .travelDate(LocalDate.of(2026, 8, 5))
+                .departureSchedule("08:00")
+                .status("CONFIRMED")
+                .passengerCount(1)
+                .reservationCode("SAN-COR-001")
+                .build();
+
+        service.sendDriverRouteDispatch("+54 351 555-1234", "Carlos",
+                "https://maps.example/route", List.of(reservation));
+
+        assertEquals("5493515551234", service.interactivePhone);
+        assertEquals(2, service.textMessages.size());
+        assertTrue(service.textMessages.get(1).contains("No pudimos habilitar los botones"));
+    }
+
+    private static final class FailingInteractiveWhatsAppService extends WhatsAppService {
+        private final List<String> textMessages = new ArrayList<>();
+        private String interactivePhone;
+
+        @Override
+        public void sendMessage(String phoneNumber, String message) {
+            assertEquals("5493515551234", phoneNumber);
+            textMessages.add(message);
+        }
+
+        @Override
+        boolean trySendInteractiveList(String phoneNumber, String headerText, String bodyText,
+                String buttonLabel, List<Map<String, Object>> sections) {
+            interactivePhone = phoneNumber;
+            return false;
+        }
     }
 }

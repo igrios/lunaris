@@ -68,16 +68,14 @@ class ConfirmPaymentUseCaseTest {
         when(repository.findById(selectedId)).thenReturn(Optional.of(oneWay));
         when(repository.findByIdForUpdate(selectedId)).thenReturn(Optional.of(oneWay));
 
-        CreateInvoiceUseCase createInvoice = mock(CreateInvoiceUseCase.class);
         Reservation result = new ConfirmPaymentUseCase(repository, promotionService,
-                mock(WaitingListRepository.class), mock(ConversationSessionRepository.class),
-                createInvoice).execute(selectedId);
+                mock(WaitingListRepository.class), mock(ConversationSessionRepository.class))
+                .execute(selectedId);
 
         assertEquals(oneWay, result);
         assertTrue(oneWay.getPaymentVerified());
         assertEquals("CONFIRMED", oneWay.getStatus());
         verify(repository).saveAll(List.of(oneWay));
-        verify(createInvoice).execute(oneWay, List.of(oneWay));
         verify(repository, never()).findReservationGroupForUpdate(anyString());
     }
 
@@ -97,8 +95,7 @@ class ConfirmPaymentUseCaseTest {
         when(waitingList.findByIdForUpdate(7L)).thenReturn(Optional.of(entry));
 
         new ConfirmPaymentUseCase(
-                reservations, mock(PromotionService.class), waitingList, sessions,
-                mock(CreateInvoiceUseCase.class))
+                reservations, mock(PromotionService.class), waitingList, sessions)
                 .execute(reservationId);
 
         assertEquals(WaitingListEntry.CONVERTED, entry.getStatus());
@@ -110,8 +107,7 @@ class ConfirmPaymentUseCaseTest {
         return new ConfirmPaymentUseCase(
                 repository, promotionService,
                 mock(WaitingListRepository.class),
-                mock(ConversationSessionRepository.class),
-                mock(CreateInvoiceUseCase.class));
+                mock(ConversationSessionRepository.class));
     }
 
     private Reservation reservation(UUID id, String reservationCode, String promotionCode, boolean paid) {

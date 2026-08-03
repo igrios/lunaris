@@ -35,10 +35,9 @@ public class GetBillingPanelUseCase {
 
         // Pendientes de factura: se toma exclusivamente la ida como cabecera del grupo
         // para facturar el importe neto realmente cobrado por todo el viaje.
-        List<PendingInvoiceRow> pendientes = reservationRepository.findByStatus("CONFIRMED").stream()
+        List<PendingInvoiceRow> pendientes = reservationRepository.findPendingInvoiceReservations().stream()
                 .filter(r -> r.getReservationCode() == null || r.getReservationCode().endsWith("-IDA"))
                 .filter(r -> groupTotalAmount(r).signum() > 0)
-                .filter(r -> !invoiceRepository.existsByReservationId(r.getId()))
                 .map(this::toRow)
                 .toList();
 

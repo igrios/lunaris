@@ -136,6 +136,11 @@ public class WhatsAppService {
 
     // MENÚ DESPLEGABLE PREMIUM MULTI-SECCIÓN
     public void sendInteractiveList(String phoneNumber, String headerText, String bodyText, String buttonLabel, List<Map<String, Object>> sections) {
+        trySendInteractiveList(phoneNumber, headerText, bodyText, buttonLabel, sections);
+    }
+
+    boolean trySendInteractiveList(String phoneNumber, String headerText, String bodyText,
+            String buttonLabel, List<Map<String, Object>> sections) {
         String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
         HttpHeaders headers = createHeaders();
 
@@ -156,9 +161,10 @@ public class WhatsAppService {
                 )
             );
 
-            executePostCall(url, headers, body, "LISTA GEOGRÁFICA");
+            return executePostCall(url, headers, body, "LISTA GEOGRÁFICA");
         } catch (Exception e) {
             log.error("Error en lista desplegable: ", e);
+            return false;
         }
     }
 
@@ -211,7 +217,7 @@ public class WhatsAppService {
         return headers;
     }
 
-    private void executePostCall(String url, HttpHeaders headers, Map<String, Object> body, String tipoMensaje) {
+    private boolean executePostCall(String url, HttpHeaders headers, Map<String, Object> body, String tipoMensaje) {
         Map<String, Object> sanitizedBody = new HashMap<>(body);
         if (body.get("to") instanceof String destinationPhone) {
             sanitizedBody.put("to", formatMetaPhoneNumber(destinationPhone));
@@ -221,6 +227,7 @@ public class WhatsAppService {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
             log.info("Éxito Meta [{}]: Envío hacia {}. Status: {}", tipoMensaje, destination, response.getStatusCode());
+            return response.getStatusCode().is2xxSuccessful();
         } catch (HttpClientErrorException e) {
             if (isTemplateUnavailable(
                     tipoMensaje, e.getStatusCode().value(), e.getResponseBodyAsString())) {
@@ -228,11 +235,13 @@ public class WhatsAppService {
                         "Plantilla de Meta no disponible o en revisión [{}] para {}. "
                                 + "La operación principal continúa. Respuesta: {}",
                         tipoMensaje, destination, e.getResponseBodyAsString());
-                return;
+                return false;
             }
             log.error("Error de Meta HTTP [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return false;
         } catch (Exception e) {
             log.error("Falla de red en HTTP call Meta: ", e);
+            return false;
         }
     }
 // 📦 Agregá este método al final de tu archivo WhatsAppService.java
@@ -329,7 +338,10 @@ public void sendDriverRouteDispatch(
                             java.util.Comparator.nullsLast(Integer::compareTo)))
                     .toList();
 
-    sendMessage(to, buildDriverPassengerSummary(driverName, navigationUrl, orderedReservations));
+    String normalizedDriverPhone = formatMetaPhoneNumber(to);
+    String routeSummary = buildDriverPassengerSummary(
+            driverName, navigationUrl, orderedReservations);
+    sendMessage(normalizedDriverPhone, routeSummary);
 
     for (int start = 0; start < orderedReservations.size(); start += 10) {
         int end = Math.min(start + 10, orderedReservations.size());
@@ -339,12 +351,19 @@ public void sendDriverRouteDispatch(
         Map<String, Object> section = Map.of(
                 "title", "Pasajeros " + (start + 1) + "–" + end,
                 "rows", rows);
-        sendInteractiveList(
-                to,
+        boolean interactiveSent = trySendInteractiveList(
+                normalizedDriverPhone,
                 "Confirmar abordajes",
                 "Seleccioná al pasajero que acaba de subir.",
                 "A bordo",
                 List.of(section));
+        if (!interactiveSent) {
+            log.warn("Meta rechazó la lista interactiva de ruta para {}. Se envía fallback de texto.",
+                    normalizedDriverPhone);
+            sendMessage(normalizedDriverPhone,
+                    "⚠️ No pudimos habilitar los botones de abordaje. "
+                            + "Usá esta hoja de ruta en texto:\n\n" + routeSummary);
+        }
     }
 }
 

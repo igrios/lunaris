@@ -46,8 +46,7 @@ class ProcessPaymentReceiptUseCaseTest {
         when(reservations.findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger))
                 .thenReturn(List.of(reservation));
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
-                passengers, reservations, storage, messaging, liveChat,
-                mock(CreateInvoiceUseCase.class));
+                passengers, reservations, storage, messaging, liveChat);
 
         useCase.execute("543511111111", "media-123");
 
@@ -75,10 +74,9 @@ class ProcessPaymentReceiptUseCaseTest {
         when(reservations.findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger))
                 .thenReturn(List.of(reservation));
         when(storage.uploadFile(receipt)).thenReturn("https://cdn.example.com/receipt.jpg");
-        CreateInvoiceUseCase createInvoice = mock(CreateInvoiceUseCase.class);
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
-                mock(LiveChatPort.class), createInvoice);
+                mock(LiveChatPort.class));
 
         useCase.confirmOrCreateWebBooking("3511111111", receipt, null);
 
@@ -86,7 +84,6 @@ class ProcessPaymentReceiptUseCaseTest {
         assertTrue(reservation.getPaymentVerified());
         assertEquals("https://cdn.example.com/receipt.jpg", reservation.getPaymentReceiptUrl());
         verify(reservations).saveAndFlush(reservation);
-        verify(createInvoice).execute(reservation);
     }
 
     @Test
@@ -100,7 +97,7 @@ class ProcessPaymentReceiptUseCaseTest {
                 .thenReturn(List.of());
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
-                mock(LiveChatPort.class), mock(CreateInvoiceUseCase.class));
+                mock(LiveChatPort.class));
         BookingVerificationData payload = new BookingVerificationData(
                 LocalDate.of(2026, 8, 10), "08:00 AM", "La Puerta", "Córdoba",
                 2, TripType.ONE_WAY, new BigDecimal("56000.00"));
