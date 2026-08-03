@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import com.lunaris.ansenuza.application.usecase.WaitingListConversionService;
+import com.lunaris.ansenuza.application.usecase.WaitingListService;
 import org.springframework.web.server.ResponseStatusException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Driver;
@@ -41,6 +44,8 @@ public class ReservationViewController {
     private final PricingAndScheduleService pricingAndScheduleService;
     private final DriverRepository driverRepository;
     private final WhatsAppService whatsAppService;
+    private final WaitingListService waitingListService;
+    private final WaitingListConversionService waitingListConversionService;
 
     @GetMapping("/new")
     public String newReservation(Model model) {
@@ -116,10 +121,53 @@ public class ReservationViewController {
  */
     // 👥 VISTA WEB: Renderiza el panel HTML de pasajeros con link directo a WhatsApp
     @GetMapping("/passengers-panel")
-    public String listPassengersPanel(Model model) {
+    public String listPassengersPanel(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            Model model) {
         List<Passenger> todosLosPasajeros = passengerRepository.findAll();
         model.addAttribute("pasajeros", todosLosPasajeros);
+        model.addAttribute("waitingListEntries", waitingListService.findWaiting(travelDate));
+        model.addAttribute("selectedTravelDate", travelDate);
         return "passengers";
+    }
+
+    @PostMapping("/waiting-list/{id}/convert")
+    public String convertWaitingListEntry(
+            @PathVariable Long id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            RedirectAttributes redirectAttributes) {
+        try {
+            waitingListConversionService.convert(id);
+            redirectAttributes.addFlashAttribute(
+                    "successMessage", "La entrada fue promovida a reserva confirmada.");
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
+        }
+        return passengersPanelRedirect(travelDate);
+    }
+
+    @PostMapping("/waiting-list/{id}/cancel")
+    public String cancelWaitingListEntry(
+            @PathVariable Long id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            RedirectAttributes redirectAttributes) {
+        try {
+            waitingListConversionService.cancel(id);
+            redirectAttributes.addFlashAttribute(
+                    "successMessage", "La entrada fue cancelada.");
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
+        }
+        return passengersPanelRedirect(travelDate);
+    }
+
+    private String passengersPanelRedirect(LocalDate travelDate) {
+        return travelDate == null
+                ? "redirect:/reservations/passengers-panel"
+                : "redirect:/reservations/passengers-panel?travelDate=" + travelDate;
     }
 
     // 🗑️ BAJA DESDE EL PANEL DE ADMINISTRACIÓN (Maneja redirección dinámica por origen)

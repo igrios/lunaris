@@ -22,6 +22,8 @@ import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
+import com.lunaris.ansenuza.application.usecase.WaitingListConversionService;
+import com.lunaris.ansenuza.application.usecase.WaitingListService;
 
 class ReservationViewControllerTest {
 
@@ -38,7 +40,9 @@ class ReservationViewControllerTest {
                 reservations,
                 mock(PricingAndScheduleService.class),
                 drivers,
-                whatsApp);
+                whatsApp,
+                mock(WaitingListService.class),
+                mock(WaitingListConversionService.class));
         UUID reservationId = UUID.randomUUID();
         UUID driverId = UUID.randomUUID();
         LocalDate confirmedDate = LocalDate.of(2026, 8, 5);

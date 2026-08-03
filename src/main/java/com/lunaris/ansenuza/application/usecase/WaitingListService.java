@@ -30,6 +30,14 @@ public class WaitingListService {
         return repository.findAllByOrderByCreatedAtDesc();
     }
 
+    @Transactional(readOnly = true)
+    public List<WaitingListEntry> findWaiting(LocalDate travelDate) {
+        return travelDate == null
+                ? repository.findByStatusOrderByCreatedAtAsc(WaitingListEntry.WAITING)
+                : repository.findByTravelDateAndStatusOrderByCreatedAtAsc(
+                        travelDate, WaitingListEntry.WAITING);
+    }
+
     @Transactional
     public WaitingListEntry join(ConversationSession session) {
         if (session.getTravelDate() == null) {
