@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -120,7 +121,7 @@ public class Reservation {
     private ReservationSource source = ReservationSource.MANUAL;
 
     @Builder.Default
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.lunaris.ansenuza.domain.model.converter.TravelStatusConverter.class)
     @Column(name = "travel_status", nullable = false, length = 20)
     private TravelStatus travelStatus = TravelStatus.PENDING;
 
