@@ -11,6 +11,7 @@ import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
+import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +63,12 @@ public class CancelReservationHandler implements ConversationStepHandler {
             boolean esPagoPendiente = "PENDING_PAYMENT".equalsIgnoreCase(res.getStatus());
             boolean esViajeCompleto = res.getRoundTrip() != null && res.getRoundTrip();
 
-            reservationService.cancelReservation(res.getId(), "BOT_WHATSAPP");
+            try {
+                reservationService.cancelReservation(res.getId(), "BOT_WHATSAPP");
+            } catch (DomainValidationException exception) {
+                messaging.sendText(phoneNumber, "⚠️ " + exception.getMessage());
+                return;
+            }
 
             if (esViajeCompleto) {
                 if (esPagoPendiente) {
@@ -90,6 +96,8 @@ public class CancelReservationHandler implements ConversationStepHandler {
         List<Reservation> todasLasReservas = reservationRepository.findByPassengerPhone(phoneNumber);
         List<Reservation> reservasActivas = todasLasReservas.stream()
                 .filter(r -> !"CANCELLED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> !"COMPLETED".equalsIgnoreCase(r.getStatus()))
+                .filter(r -> r.getTravelStatus() != Reservation.TravelStatus.COMPLETED)
                 .toList();
 
         if (reservasActivas.isEmpty()) {

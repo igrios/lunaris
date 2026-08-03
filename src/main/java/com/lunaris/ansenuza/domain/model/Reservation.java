@@ -40,6 +40,8 @@ public class Reservation {
         PENDING,
         REALIZED,
         OPEN_RETURN,
+        PARTIALLY_COMPLETED,
+        COMPLETED,
         CANCELED,
         NO_SHOW,
         ONBOARD,
@@ -141,6 +143,10 @@ public class Reservation {
     @Column(name = "passenger_count")
     private Integer passengerCount;
 
+    @Builder.Default
+    @Column(name = "returned_passenger_count", nullable = false)
+    private Integer returnedPassengerCount = 0;
+
     @Column(name = "reservation_code", unique = true, length = 20)
     private String reservationCode;
 
@@ -177,6 +183,9 @@ public class Reservation {
             source = ReservationSource.MANUAL;
         }
         requiresInvoice = true;
+        if (returnedPassengerCount == null || returnedPassengerCount < 0) {
+            returnedPassengerCount = 0;
+        }
         if (tripType == null) {
             tripType = Boolean.TRUE.equals(roundTrip)
                     ? (returnDate == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)

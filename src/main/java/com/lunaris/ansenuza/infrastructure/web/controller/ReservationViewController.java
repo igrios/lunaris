@@ -21,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
@@ -199,32 +200,12 @@ public class ReservationViewController {
         
         if (original != null) {
             LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
-            boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
+            boolean isOpenReturn = original.getTravelStatus() == Reservation.TravelStatus.OPEN_RETURN
+                    || original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
 
             // Caso Crítico: Cancelación parcial de una butaca dentro de un grupo en Vueltas Abiertas
             if (isOpenReturn && original.getPassengerCount() != null && original.getPassengerCount() > 1 && "vueltas".equals(source)) {
-                int asientosAntes = original.getPassengerCount();
-                
-                // 💰 1. Calculamos estrictamente el valor de UNA Sola Butaca (Monto Total / Cantidad Asientos)
-                java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
-                java.math.BigDecimal valorUnaButaca = montoTotal.divide(
-                        java.math.BigDecimal.valueOf(asientosAntes), 2, java.math.RoundingMode.HALF_UP);
-                
-                // 📉 2. Restamos 1 asiento y descontamos su valor proporcional de la reserva base
-                original.setPassengerCount(asientosAntes - 1);
-                original.setAmount(montoTotal.subtract(valorUnaButaca));
-                reservationRepository.saveAndFlush(original);
-                
-                // 💳 3. Le acreditamos ÚNICAMENTE el valor de esa butaca en la Cuenta Corriente del Titular
-                var pasajero = original.getPassenger();
-                if (pasajero != null) {
-                    java.math.BigDecimal saldoActual = pasajero.getCurrentBalance() != null ? pasajero.getCurrentBalance() : java.math.BigDecimal.ZERO;
-                    pasajero.setCurrentBalance(saldoActual.add(valorUnaButaca));
-                    passengerRepository.save(pasajero);
-                }
-                
-                log.info("[Baja Parcial] Se canceló 1 asiento de {}. Reintegro a billetera: ${}. Quedan {} asientos.", 
-                        asientosAntes, valorUnaButaca, original.getPassengerCount());
+                reservationService.cancelOneUnusedReturnSeat(id, "ADMIN_PANEL");
             } else {
                 // Caso Ordinario: Si le queda un solo asiento o viene de la agenda general, se da de baja completa
                 reservationService.cancelReservation(id, "ADMIN_PANEL");
@@ -257,10 +238,15 @@ public String updateFromPanel(
     Reservation original = reservationRepository.findById(id).orElse(null);
     
     if (original != null) {
+        if ("COMPLETED".equalsIgnoreCase(original.getStatus())
+                || original.getTravelStatus() == Reservation.TravelStatus.COMPLETED) {
+            throw new ReservationAlreadyCompletedException();
+        }
         Driver assignedDriver = driverId == null ? null : driverRepository.findById(driverId)
                 .orElseThrow(() -> new IllegalArgumentException("Chofer no encontrado: " + driverId));
         LocalDate sentinelDate = LocalDate.of(2099, 12, 31);
-        boolean isOpenReturn = original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
+        boolean isOpenReturn = original.getTravelStatus() == Reservation.TravelStatus.OPEN_RETURN
+                || original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
         
         if (isOpenReturn) {
             Reservation scheduledReturn;

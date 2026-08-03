@@ -15,6 +15,8 @@ import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationEvent;
 import com.lunaris.ansenuza.domain.model.TripType;
+import com.lunaris.ansenuza.domain.exception.DomainValidationException;
+import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -203,8 +205,19 @@ public class ReservationService {
     // 🗑️ BAJA LÓGICA ATÓMICA CON CASCADA INTELIGENTE (PROTEGE LA IDA SI SE CANCELA LA VUELTA)
     @Transactional
     public void cancelReservation(UUID id, String triggeredBy) {
-        reservationRepository.findById(id).ifPresent(reservation -> {
+        reservationRepository.findByIdForUpdate(id).ifPresent(reservation -> {
             if (!"CANCELLED".equals(reservation.getStatus())) {
+                assertNotCompleted(reservation);
+
+                if (isOutboundLeg(reservation) && isUsed(reservation)) {
+                    Reservation returnReservation = reservationRepository
+                            .findByReservationCode(reservation.getReservationCode()
+                                    .replace("-IDA", "-VUELTA"))
+                            .orElseThrow(() -> new DomainValidationException(
+                                    "La ida ya fue utilizada y no posee una vuelta disponible para cancelar."));
+                    cancelReturnOnly(returnReservation, reservation.getPassenger(), triggeredBy);
+                    return;
+                }
                 
                 Passenger passenger = reservation.getPassenger();
                 BigDecimal saldoActual = passenger.getCurrentBalance() != null ? passenger.getCurrentBalance() : BigDecimal.ZERO;
@@ -219,7 +232,7 @@ public class ReservationService {
                 reservation.setTravelStatus(Reservation.TravelStatus.CANCELED);
                 
                 if (pagoRealizado && reservation.getAmount() != null && reservation.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                    totalReintegro[0] = totalReintegro[0].add(reservation.getAmount());
+                    totalReintegro[0] = totalReintegro[0].add(refundableAmount(reservation));
                 }
                 reservationRepository.saveAndFlush(reservation);
 
@@ -245,8 +258,9 @@ public class ReservationService {
                             returnRes.setStatus("CANCELLED");
                             returnRes.setTravelStatus(Reservation.TravelStatus.CANCELED);
                             
+                            assertNotCompleted(returnRes);
                             if (pagoVueltaRealizado && returnRes.getAmount() != null && returnRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                                totalReintegro[0] = totalReintegro[0].add(returnRes.getAmount());
+                                totalReintegro[0] = totalReintegro[0].add(refundableAmount(returnRes));
                             }
                             reservationRepository.saveAndFlush(returnRes);
 
@@ -271,8 +285,124 @@ public class ReservationService {
     }
 
     @Transactional
+    public void cancelOneUnusedReturnSeat(UUID id, String triggeredBy) {
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + id));
+        assertNotCompleted(reservation);
+        if (!isReturnLeg(reservation)) {
+            throw new DomainValidationException("La baja parcial solo se permite sobre una vuelta.");
+        }
+        int totalSeats = reservation.getTotalSeats();
+        int returnedSeats = returnedSeats(reservation);
+        if (totalSeats - returnedSeats <= 0) {
+            throw new ReservationAlreadyCompletedException();
+        }
+        BigDecimal totalAmount = amount(reservation);
+        BigDecimal seatAmount = totalAmount.divide(
+                BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP);
+        reservation.setPassengerCount(totalSeats - 1);
+        reservation.setAmount(totalAmount.subtract(seatAmount));
+        if (returnedSeats > 0) {
+            reservation.setTravelStatus(Reservation.TravelStatus.PARTIALLY_COMPLETED);
+        }
+        reservationRepository.saveAndFlush(reservation);
+        credit(reservation.getPassenger(), isPaid(reservation) ? seatAmount : BigDecimal.ZERO);
+        reservationEventRepository.save(ReservationEvent.builder()
+                .reservationId(id)
+                .eventType("RETURN_SEAT_CANCELLED")
+                .description("Cancelación de una plaza de vuelta no utilizada.")
+                .triggeredBy(triggeredBy)
+                .build());
+    }
+
+    private void cancelReturnOnly(Reservation returnReservation, Passenger passenger, String triggeredBy) {
+        assertNotCompleted(returnReservation);
+        BigDecimal refund = isPaid(returnReservation)
+                ? refundableAmount(returnReservation)
+                : BigDecimal.ZERO;
+        returnReservation.setStatus("CANCELLED");
+        returnReservation.setTravelStatus(Reservation.TravelStatus.CANCELED);
+        reservationRepository.saveAndFlush(returnReservation);
+        credit(passenger, refund);
+        reservationEventRepository.save(ReservationEvent.builder()
+                .reservationId(returnReservation.getId())
+                .eventType("RETURN_CANCELLED_AFTER_OUTBOUND")
+                .description("Solo se canceló y acreditó la porción no utilizada de la vuelta.")
+                .triggeredBy(triggeredBy)
+                .build());
+    }
+
+    private BigDecimal refundableAmount(Reservation reservation) {
+        if (!isReturnLeg(reservation)) {
+            return isUsed(reservation) ? BigDecimal.ZERO : amount(reservation);
+        }
+        int totalSeats = reservation.getTotalSeats();
+        int unusedSeats = Math.max(0, totalSeats - returnedSeats(reservation));
+        return amount(reservation)
+                .multiply(BigDecimal.valueOf(unusedSeats))
+                .divide(BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP);
+    }
+
+    private void credit(Passenger passenger, BigDecimal amount) {
+        if (passenger == null || amount.signum() <= 0) {
+            return;
+        }
+        BigDecimal balance = passenger.getCurrentBalance() == null
+                ? BigDecimal.ZERO
+                : passenger.getCurrentBalance();
+        passenger.setCurrentBalance(balance.add(amount));
+        passengerRepository.saveAndFlush(passenger);
+    }
+
+    private BigDecimal amount(Reservation reservation) {
+        return reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
+    }
+
+    private int returnedSeats(Reservation reservation) {
+        return reservation.getReturnedPassengerCount() == null
+                ? 0
+                : Math.max(0, reservation.getReturnedPassengerCount());
+    }
+
+    private boolean isPaid(Reservation reservation) {
+        return Boolean.TRUE.equals(reservation.getPaymentVerified())
+                || "CONFIRMED".equalsIgnoreCase(reservation.getStatus());
+    }
+
+    private boolean isUsed(Reservation reservation) {
+        return reservation.getTravelStatus() == Reservation.TravelStatus.ONBOARD
+                || reservation.getTravelStatus() == Reservation.TravelStatus.BOARDED
+                || reservation.getTravelStatus() == Reservation.TravelStatus.ONBOARDED
+                || reservation.getTravelStatus() == Reservation.TravelStatus.REALIZED
+                || reservation.getTravelStatus() == Reservation.TravelStatus.COMPLETED
+                || reservation.getTravelDate() != null
+                && reservation.getTravelDate().isBefore(
+                        com.lunaris.ansenuza.shared.ArgentinaTime.today());
+    }
+
+    private boolean isOutboundLeg(Reservation reservation) {
+        return reservation.getReservationCode() != null
+                && reservation.getReservationCode().endsWith("-IDA");
+    }
+
+    private boolean isReturnLeg(Reservation reservation) {
+        return reservation.getReservationCode() != null
+                && reservation.getReservationCode().endsWith("-VUELTA");
+    }
+
+    private void assertNotCompleted(Reservation reservation) {
+        if ("COMPLETED".equalsIgnoreCase(reservation.getStatus())
+                || reservation.getTravelStatus() == Reservation.TravelStatus.COMPLETED
+                || isReturnLeg(reservation)
+                && returnedSeats(reservation) >= reservation.getTotalSeats()) {
+            throw new ReservationAlreadyCompletedException();
+        }
+    }
+
+    @Transactional
     public Reservation updateReservation(UUID id, Reservation updatedData, String triggeredBy) {
         return reservationRepository.findById(id).map(reservation -> {
+            assertNotCompleted(reservation);
             Reservation.TravelStatus requestedTravelStatus = updatedData.getTravelStatus();
             StringBuilder auditoriaDesc = new StringBuilder("Campos modificados: ");
             LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);

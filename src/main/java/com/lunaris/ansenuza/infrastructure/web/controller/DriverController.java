@@ -51,8 +51,8 @@ public class DriverController {
 
         return reservationRepository.findByReservationCode(code)
                 .map(reservation -> {
-                    reservation.setTravelStatus(TravelStatus.REALIZED);
-                    Reservation saved = reservationRepository.saveAndFlush(reservation);
+                    Reservation saved = onboardPassengerUseCase.updateTravelStatus(
+                            reservation.getId(), TravelStatus.REALIZED);
                     return ResponseEntity.ok(Map.of(
                             "reservationId", saved.getId(),
                             "code", saved.getReservationCode(),

@@ -42,6 +42,10 @@ public class OnboardPassengerUseCase {
             UUID reservationId, Reservation.TravelStatus newStatus) {
         Reservation initial = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
+        if ("COMPLETED".equalsIgnoreCase(initial.getStatus())
+                || initial.getTravelStatus() == Reservation.TravelStatus.COMPLETED) {
+            throw new com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException();
+        }
         if (newStatus != Reservation.TravelStatus.ONBOARD
                 && newStatus != Reservation.TravelStatus.BOARDED
                 && newStatus != Reservation.TravelStatus.ONBOARDED) {
@@ -49,6 +53,33 @@ public class OnboardPassengerUseCase {
             return reservationRepository.saveAndFlush(initial);
         }
         return boardPassenger(reservationId, null);
+    }
+
+    @Transactional
+    public Reservation recordReturnedPassengers(UUID reservationId, int returnedPassengerCount) {
+        Reservation reservation = reservationRepository.findByIdForUpdate(reservationId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Reserva no encontrada: " + reservationId));
+        if ("COMPLETED".equalsIgnoreCase(reservation.getStatus())
+                || reservation.getTravelStatus() == Reservation.TravelStatus.COMPLETED) {
+            throw new com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException();
+        }
+        if (!isReturnLeg(reservation)) {
+            throw new IllegalArgumentException("El conteo de regreso solo aplica al tramo de vuelta.");
+        }
+        int total = reservation.getTotalSeats();
+        if (returnedPassengerCount < 0 || returnedPassengerCount > total) {
+            throw new IllegalArgumentException("La cantidad de pasajeros regresados no es válida.");
+        }
+        reservation.setReturnedPassengerCount(returnedPassengerCount);
+        if (returnedPassengerCount == total) {
+            reservation.setTravelStatus(Reservation.TravelStatus.COMPLETED);
+            reservation.setStatus("COMPLETED");
+        } else if (returnedPassengerCount > 0) {
+            reservation.setTravelStatus(Reservation.TravelStatus.PARTIALLY_COMPLETED);
+            reservation.setStatus("PARTIALLY_COMPLETED");
+        }
+        return reservationRepository.saveAndFlush(reservation);
     }
 
     private Reservation boardPassenger(UUID reservationId, UUID actorDriverId) {
@@ -91,7 +122,14 @@ public class OnboardPassengerUseCase {
                     "Esta reserva ya se encuentra abordada, finalizada o en un estado inválido.");
         }
 
-        onboard.setTravelStatus(Reservation.TravelStatus.ONBOARDED);
+        if (isReturnLeg(onboard)) {
+            int passengerCount = onboard.getTotalSeats();
+            onboard.setReturnedPassengerCount(passengerCount);
+            onboard.setTravelStatus(Reservation.TravelStatus.COMPLETED);
+            onboard.setStatus("COMPLETED");
+        } else {
+            onboard.setTravelStatus(Reservation.TravelStatus.ONBOARDED);
+        }
         reservationRepository.saveAndFlush(onboard);
 
         Optional<Reservation> nextPassenger =

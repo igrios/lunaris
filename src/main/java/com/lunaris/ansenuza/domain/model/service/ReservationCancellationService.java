@@ -1,11 +1,9 @@
 package com.lunaris.ansenuza.domain.model.service;
 
-import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.Reservation.TravelStatus;
-import com.lunaris.ansenuza.domain.repository.PassengerRepository;
+import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +20,7 @@ public class ReservationCancellationService {
     private static final LocalDate OPEN_RETURN_SENTINEL_DATE = LocalDate.of(2099, 12, 31);
 
     private final ReservationRepository reservationRepository;
-    private final PassengerRepository passengerRepository;
+    private final ReservationService reservationService;
 
     @Transactional
     public void processReturnDecision(String passengerPhone, String decisionId) {
@@ -31,6 +29,10 @@ public class ReservationCancellationService {
         }
 
         Reservation returnReservation = findTodayReturnReservation(passengerPhone);
+        if ("COMPLETED".equalsIgnoreCase(returnReservation.getStatus())
+                || returnReservation.getTravelStatus() == TravelStatus.COMPLETED) {
+            throw new ReservationAlreadyCompletedException();
+        }
 
         if (RETURN_LATER_ID.equals(decisionId)) {
             returnReservation.setTravelStatus(TravelStatus.OPEN_RETURN);
@@ -42,28 +44,8 @@ public class ReservationCancellationService {
         }
 
         if (RETURN_NO_ID.equals(decisionId)) {
-            boolean eligibleForRefund = Boolean.TRUE.equals(returnReservation.getPaymentVerified())
-                    || "CONFIRMED".equals(returnReservation.getStatus());
-            returnReservation.setTravelStatus(TravelStatus.CANCELED);
-            returnReservation.setStatus("CANCELLED");
-            returnReservation.setNotes(appendNote(returnReservation.getNotes(),
-                    "Vuelta cancelada por decisión del pasajero; reintegro acreditado en cuenta corriente."));
-
-            Passenger passenger = returnReservation.getPassenger();
-            BigDecimal currentBalance = passenger.getCurrentBalance() != null
-                    ? passenger.getCurrentBalance()
-                    : BigDecimal.ZERO;
-            BigDecimal returnFare = returnReservation.getAmount() != null
-                    ? returnReservation.getAmount()
-                    : BigDecimal.ZERO;
-
-            if (eligibleForRefund && returnFare.signum() > 0) {
-                passenger.setCurrentBalance(currentBalance.add(returnFare));
-            }
-            reservationRepository.saveAndFlush(returnReservation);
-            if (eligibleForRefund && returnFare.signum() > 0) {
-                passengerRepository.saveAndFlush(passenger);
-            }
+            reservationService.cancelReservation(
+                    returnReservation.getId(), "PASSENGER_RETURN_DECISION");
             return;
         }
 

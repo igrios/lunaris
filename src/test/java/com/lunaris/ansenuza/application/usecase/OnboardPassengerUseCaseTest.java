@@ -105,7 +105,9 @@ class OnboardPassengerUseCaseTest {
 
         useCase.execute(current.getId());
 
-        assertEquals(Reservation.TravelStatus.ONBOARDED, current.getTravelStatus());
+        assertEquals(Reservation.TravelStatus.COMPLETED, current.getTravelStatus());
+        assertEquals("COMPLETED", current.getStatus());
+        assertEquals(current.getTotalSeats(), current.getReturnedPassengerCount());
         verify(whatsApp).sendProximoEnCaminoTemplate("222", "Siguiente", driver.getFullName());
     }
 
@@ -227,6 +229,30 @@ class OnboardPassengerUseCaseTest {
 
         assertEquals(Reservation.TravelStatus.REALIZED, updated.getTravelStatus());
         verify(reservations).saveAndFlush(reservation);
+    }
+
+    @Test
+    void tracksPartialAndCompleteGroupReturns() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        OnboardPassengerUseCase useCase = new OnboardPassengerUseCase(reservations,
+                mock(DriverRepository.class), mock(LocalityRepository.class),
+                mock(WhatsAppService.class));
+        Reservation returnLeg = Reservation.builder().id(UUID.randomUUID())
+                .reservationCode("SAN-COR-017-VUELTA")
+                .passengerCount(3).returnedPassengerCount(0)
+                .status("CONFIRMED").build();
+        when(reservations.findByIdForUpdate(returnLeg.getId()))
+                .thenReturn(Optional.of(returnLeg));
+        when(reservations.saveAndFlush(returnLeg)).thenReturn(returnLeg);
+
+        useCase.recordReturnedPassengers(returnLeg.getId(), 1);
+        assertEquals(Reservation.TravelStatus.PARTIALLY_COMPLETED,
+                returnLeg.getTravelStatus());
+        assertEquals("PARTIALLY_COMPLETED", returnLeg.getStatus());
+
+        useCase.recordReturnedPassengers(returnLeg.getId(), 3);
+        assertEquals(Reservation.TravelStatus.COMPLETED, returnLeg.getTravelStatus());
+        assertEquals("COMPLETED", returnLeg.getStatus());
     }
 
     private Reservation reservation(

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -19,6 +20,7 @@ import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.TripType;
+import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -143,7 +145,7 @@ class ReservationServiceTest {
                 .status("CONFIRMED")
                 .reservationCode("COR-MIR-001-VUELTA")
                 .build();
-        when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
 
         service.cancelReservation(reservationId, "PASSENGER");
 
@@ -151,6 +153,75 @@ class ReservationServiceTest {
         assertEquals("CANCELLED", reservation.getStatus());
         assertEquals(Reservation.TravelStatus.CANCELED, reservation.getTravelStatus());
         verify(passengers).saveAndFlush(passenger);
+    }
+
+    @Test
+    void pastOutboundCancellationKeepsOutboundAndCreditsOnlyUnusedReturn() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(reservations,
+                mock(ReservationEventRepository.class), passengers,
+                mock(OnboardPassengerUseCase.class));
+        UUID outboundId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder().currentBalance(BigDecimal.ZERO).build();
+        Reservation outbound = Reservation.builder()
+                .id(outboundId).passenger(passenger).amount(new BigDecimal("5000.00"))
+                .paymentVerified(true).status("CONFIRMED")
+                .travelDate(LocalDate.now().minusDays(1))
+                .reservationCode("SAN-COR-014-IDA").build();
+        Reservation returnLeg = Reservation.builder()
+                .id(UUID.randomUUID()).passenger(passenger).amount(new BigDecimal("5000.00"))
+                .passengerCount(2).returnedPassengerCount(0)
+                .paymentVerified(true).status("CONFIRMED")
+                .reservationCode("SAN-COR-014-VUELTA").build();
+        when(reservations.findByIdForUpdate(outboundId)).thenReturn(Optional.of(outbound));
+        when(reservations.findByReservationCode("SAN-COR-014-VUELTA"))
+                .thenReturn(Optional.of(returnLeg));
+
+        service.cancelReservation(outboundId, "PASSENGER");
+
+        assertEquals("CONFIRMED", outbound.getStatus());
+        assertEquals("CANCELLED", returnLeg.getStatus());
+        assertEquals(new BigDecimal("5000.00"), passenger.getCurrentBalance());
+    }
+
+    @Test
+    void partialReturnCancellationCreditsOnlyRemainingUnusedSeats() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(reservations,
+                mock(ReservationEventRepository.class), passengers,
+                mock(OnboardPassengerUseCase.class));
+        UUID id = UUID.randomUUID();
+        Passenger passenger = Passenger.builder().currentBalance(BigDecimal.ZERO).build();
+        Reservation returnLeg = Reservation.builder()
+                .id(id).passenger(passenger).amount(new BigDecimal("3000.00"))
+                .passengerCount(3).returnedPassengerCount(1)
+                .paymentVerified(true).status("PARTIALLY_COMPLETED")
+                .travelStatus(Reservation.TravelStatus.PARTIALLY_COMPLETED)
+                .reservationCode("SAN-COR-015-VUELTA").build();
+        when(reservations.findByIdForUpdate(id)).thenReturn(Optional.of(returnLeg));
+
+        service.cancelReservation(id, "PASSENGER");
+
+        assertEquals(new BigDecimal("2000.00"), passenger.getCurrentBalance());
+        assertEquals("CANCELLED", returnLeg.getStatus());
+    }
+
+    @Test
+    void completedReservationCannotBeCancelled() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        ReservationService service = new ReservationService(reservations,
+                mock(ReservationEventRepository.class), mock(PassengerRepository.class),
+                mock(OnboardPassengerUseCase.class));
+        UUID id = UUID.randomUUID();
+        Reservation completed = Reservation.builder().id(id).status("COMPLETED")
+                .travelStatus(Reservation.TravelStatus.COMPLETED)
+                .reservationCode("SAN-COR-016-VUELTA").build();
+        when(reservations.findByIdForUpdate(id)).thenReturn(Optional.of(completed));
+
+        assertThrows(ReservationAlreadyCompletedException.class,
+                () -> service.cancelReservation(id, "ADMIN_PANEL"));
     }
 
     @Test
