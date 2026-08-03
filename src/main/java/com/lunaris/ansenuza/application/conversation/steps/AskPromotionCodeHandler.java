@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationPresenter;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
+import com.lunaris.ansenuza.application.conversation.WaitingListCapacityGuard;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Promotion;
@@ -19,6 +20,7 @@ public class AskPromotionCodeHandler implements ConversationStepHandler {
     private final PromotionService promotionService;
     private final ConversationPresenter presenter;
     private final MessagingPort messaging;
+    private final WaitingListCapacityGuard capacityGuard;
 
     @Override
     public String step() {
@@ -48,6 +50,9 @@ public class AskPromotionCodeHandler implements ConversationStepHandler {
 
         session.setCurrentStep("ASK_CONFIRMATION");
         conversationSessionRepository.saveAndFlush(session);
+        if (capacityGuard.offerWaitingListWhenFull(session)) {
+            return;
+        }
         presenter.sendReservationSummaryWithButtons(session.getPhoneNumber(), session);
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
+import com.lunaris.ansenuza.application.conversation.WaitingListCapacityGuard;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Promotion;
@@ -33,6 +34,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
     private final PromotionService promotionService;
     private final ReservationService reservationService;
     private final MessagingPort messaging;
+    private final WaitingListCapacityGuard capacityGuard;
 
     @Override
     public String step() {
@@ -46,6 +48,12 @@ public class ConfirmationHandler implements ConversationStepHandler {
         String body = message.body().trim().toLowerCase();
 
         if ("confirm_ok".equals(body)) {
+            if (capacityGuard.offerWaitingListWhenFull(session)) {
+                return;
+            }
+
+            int totalAsientos = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
+
             Passenger passenger = passengerRepository.findByPhone(phoneNumber).orElseGet(() -> {
                 String[] names = session.getPassengerName().trim().split("\\s+", 2);
                 return passengerRepository.saveAndFlush(Passenger.builder()
@@ -64,8 +72,6 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 passenger.setLocality(session.getPickupLocality());
                 passengerRepository.saveAndFlush(passenger);
             }
-
-            int totalAsientos = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
 
             BigDecimal price = pricingAndScheduleService.calculateTripPrice(
                     session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
@@ -114,6 +120,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     .promotionDiscountPercentage(
                             appliedPromotion != null ? appliedPromotion.getDiscountPercentage() : null)
                     .notes(notes)
+                    .departureSchedule(baseHour)
                     .status(freePromotion ? "CONFIRMED" : "PENDING_PAYMENT")
                     .source(ReservationSource.WHATSAPP)
                     .passengerCount(totalAsientos)

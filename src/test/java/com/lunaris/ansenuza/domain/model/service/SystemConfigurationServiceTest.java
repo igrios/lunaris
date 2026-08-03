@@ -29,5 +29,26 @@ class SystemConfigurationServiceTest {
         assertEquals("default", service.getValue(" ", "default"));
         assertEquals("default", service.getValue("missing", "default"));
         assertEquals("default", service.getValue("driver.setting", "default"));
+        assertEquals(12, service.getScheduleMaxCapacity());
+    }
+
+    @Test
+    void readsPositiveScheduleCapacityAndFallsBackForInvalidValue() {
+        SystemConfigurationRepository repository = mock(SystemConfigurationRepository.class);
+        SystemConfigurationService service = new SystemConfigurationService(repository);
+        when(repository.findById("schedule.max.capacity")).thenReturn(Optional.of(
+                SystemConfiguration.builder()
+                        .key("schedule.max.capacity")
+                        .value("20")
+                        .build()));
+
+        assertEquals(20, service.getScheduleMaxCapacity());
+
+        when(repository.findById("schedule.max.capacity")).thenReturn(Optional.of(
+                SystemConfiguration.builder()
+                        .key("schedule.max.capacity")
+                        .value("invalid")
+                        .build()));
+        assertEquals(12, service.getScheduleMaxCapacity());
     }
 }

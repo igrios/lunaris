@@ -63,6 +63,19 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Param("date") LocalDate date
     );
 
+    @Query("""
+           SELECT COALESCE(SUM(r.passengerCount), 0)
+           FROM Reservation r
+           WHERE r.pickupLocality = :pickupLocality
+           AND r.destination = :destination
+           AND r.travelDate = :travelDate
+           AND r.status = 'CONFIRMED'
+           """)
+    Integer countConfirmedPassengersByRouteAndDate(
+            @Param("pickupLocality") String pickupLocality,
+            @Param("destination") String destination,
+            @Param("travelDate") LocalDate travelDate);
+
     // 🔄 Métodos preexistentes del repositorio
     List<Reservation> findByTravelDate(LocalDate travelDate);
 

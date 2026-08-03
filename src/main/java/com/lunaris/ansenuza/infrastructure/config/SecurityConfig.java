@@ -64,6 +64,8 @@ public class SecurityConfig {
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
+                        .requestMatchers("/api/v1/waiting-list/**")
+                        .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
                         .requestMatchers(HttpMethod.GET, "/api/passengers/me", "/api/passengers/profile")
                         .hasRole("PASSENGER")
                         .requestMatchers("/api/configurations/**")
@@ -159,7 +161,7 @@ public class SecurityConfig {
                 "https://*.vercel.app",
                 "http://localhost:5173",
                 "http://localhost:3000"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Location"));
         configuration.setAllowCredentials(true);
