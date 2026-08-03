@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.WaitingListService;
+import com.lunaris.ansenuza.application.usecase.WaitingListReengagementService;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class WaitingListController {
 
     private final WaitingListService service;
+    private final WaitingListReengagementService reengagementService;
 
     @GetMapping
     public List<WaitingListResponse> find(
@@ -34,6 +36,11 @@ public class WaitingListController {
     public WaitingListResponse updateStatus(
             @PathVariable Long id, @RequestBody UpdateStatusRequest request) {
         return WaitingListResponse.from(service.updateStatus(id, request.status()));
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/{id}/promote")
+    public WaitingListResponse promote(@PathVariable Long id) {
+        return WaitingListResponse.from(reengagementService.promote(id));
     }
 
     public record UpdateStatusRequest(String status) {

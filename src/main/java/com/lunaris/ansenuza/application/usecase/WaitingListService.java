@@ -17,7 +17,9 @@ public class WaitingListService {
 
     private static final Set<String> VALID_STATUSES = Set.of(
             WaitingListEntry.WAITING, WaitingListEntry.CONTACTED,
-            WaitingListEntry.CONFIRMED, WaitingListEntry.CANCELLED);
+            WaitingListEntry.CONFIRMED, WaitingListEntry.CANCELLED,
+            WaitingListEntry.NOTIFIED, WaitingListEntry.AWAITING_PAYMENT,
+            WaitingListEntry.CONVERTED);
 
     private final WaitingListRepository repository;
 

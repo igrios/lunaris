@@ -79,4 +79,7 @@ public class ConversationSession {
     @Column(name = "assigned_operator")
     private String assignedOperator;
 
+    @Column(name = "waiting_list_entry_id")
+    private Long waitingListEntryId;
+
 }

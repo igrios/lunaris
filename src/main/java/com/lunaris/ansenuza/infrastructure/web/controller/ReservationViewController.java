@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.lunaris.ansenuza.application.usecase.WaitingListConversionService;
 import com.lunaris.ansenuza.application.usecase.WaitingListService;
+import com.lunaris.ansenuza.application.usecase.WaitingListReengagementService;
 import org.springframework.web.server.ResponseStatusException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Driver;
@@ -46,6 +47,7 @@ public class ReservationViewController {
     private final WhatsAppService whatsAppService;
     private final WaitingListService waitingListService;
     private final WaitingListConversionService waitingListConversionService;
+    private final WaitingListReengagementService waitingListReengagementService;
 
     @GetMapping("/new")
     public String newReservation(Model model) {
@@ -142,6 +144,22 @@ public class ReservationViewController {
             waitingListConversionService.convert(id);
             redirectAttributes.addFlashAttribute(
                     "successMessage", "La entrada fue promovida a reserva confirmada.");
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
+        }
+        return passengersPanelRedirect(travelDate);
+    }
+
+    @PostMapping("/waiting-list/{id}/promote")
+    public String promoteWaitingListEntryToBot(
+            @PathVariable Long id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            RedirectAttributes redirectAttributes) {
+        try {
+            waitingListReengagementService.promote(id);
+            redirectAttributes.addFlashAttribute(
+                    "successMessage", "Se notificó al pasajero por WhatsApp.");
         } catch (RuntimeException exception) {
             redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
         }

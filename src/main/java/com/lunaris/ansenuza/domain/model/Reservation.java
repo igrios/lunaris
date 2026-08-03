@@ -128,6 +128,9 @@ public class Reservation {
     @Column(name = "payment_receipt_url")
     private String paymentReceiptUrl;
 
+    @Column(name = "waiting_list_entry_id")
+    private Long waitingListEntryId;
+
     // 💰 Momento exacto en que se confirmó el pago (para el registro de ingresos diario/mensual)
     @Column(name = "payment_confirmed_at")
     private LocalDateTime paymentConfirmedAt;

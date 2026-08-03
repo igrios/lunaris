@@ -35,6 +35,28 @@ public class WaitingListConversionService {
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public Reservation convert(Long id) {
         WaitingListEntry entry = requireWaitingEntry(id);
+        Reservation reservation = createReservation(entry, "CONFIRMED");
+        entry.setStatus(WaitingListEntry.CONFIRMED);
+        waitingListRepository.saveAndFlush(entry);
+        return reservation;
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public Reservation beginPayment(Long id) {
+        WaitingListEntry entry = waitingListRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainValidationException(
+                        "La entrada de lista de espera indicada no existe."));
+        if (!WaitingListEntry.NOTIFIED.equals(entry.getStatus())) {
+            throw new DomainValidationException(
+                    "La entrada ya no está disponible para confirmar.");
+        }
+        Reservation reservation = createReservation(entry, "PENDING_PAYMENT");
+        entry.setStatus(WaitingListEntry.AWAITING_PAYMENT);
+        waitingListRepository.saveAndFlush(entry);
+        return reservation;
+    }
+
+    private Reservation createReservation(WaitingListEntry entry, String status) {
         int requestedSeats = Math.max(1, entry.getPassengerCount());
         int occupiedSeats = safeOccupiedSeats(entry);
         int maxCapacity = systemConfigurationService.getScheduleMaxCapacity();
@@ -57,20 +79,26 @@ public class WaitingListConversionService {
                 .tripType(TripType.ONE_WAY)
                 .passengerCount(requestedSeats)
                 .paymentVerified(false)
-                .status("CONFIRMED")
+                .status(status)
                 .source(ReservationSource.MANUAL)
                 .amount(amount)
+                .waitingListEntryId(entry.getId())
                 .notes("Promovida desde lista de espera")
                 .build();
         List<Reservation> saved = reservationService.saveReservationFlow(reservation);
-        entry.setStatus(WaitingListEntry.CONFIRMED);
-        waitingListRepository.saveAndFlush(entry);
         return saved.getFirst();
     }
 
     @Transactional
     public WaitingListEntry cancel(Long id) {
-        WaitingListEntry entry = requireWaitingEntry(id);
+        WaitingListEntry entry = waitingListRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainValidationException(
+                        "La entrada de lista de espera indicada no existe."));
+        if (!WaitingListEntry.WAITING.equals(entry.getStatus())
+                && !WaitingListEntry.NOTIFIED.equals(entry.getStatus())) {
+            throw new DomainValidationException(
+                    "La entrada ya no se puede cancelar desde este flujo.");
+        }
         entry.setStatus(WaitingListEntry.CANCELLED);
         return waitingListRepository.saveAndFlush(entry);
     }

@@ -133,6 +133,15 @@
                   <td class="text-center" th:text="${entry.passengerCount}">1</td>
                   <td class="text-center">
                     <div class="d-flex gap-1 justify-content-center flex-wrap">
+                      <form th:action="@{/reservations/waiting-list/{id}/promote(id=${entry.id})}"
+                        method="post">
+                        <input th:if="${selectedTravelDate != null}" type="hidden" name="travelDate"
+                          th:value="${selectedTravelDate}">
+                        <button type="submit" class="btn btn-warning btn-sm"
+                          onclick="return confirm('¿Asignar el lugar y enviar la confirmación por WhatsApp?')">
+                          📲 Asignar / Mandar al Bot
+                        </button>
+                      </form>
                       <form th:action="@{/reservations/waiting-list/{id}/convert(id=${entry.id})}"
                         method="post">
                         <input th:if="${selectedTravelDate != null}" type="hidden" name="travelDate"

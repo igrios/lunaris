@@ -28,6 +28,9 @@ public class WaitingListEntry {
     public static final String CONTACTED = "CONTACTED";
     public static final String CONFIRMED = "CONFIRMED";
     public static final String CANCELLED = "CANCELLED";
+    public static final String NOTIFIED = "NOTIFIED";
+    public static final String AWAITING_PAYMENT = "AWAITING_PAYMENT";
+    public static final String CONVERTED = "CONVERTED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

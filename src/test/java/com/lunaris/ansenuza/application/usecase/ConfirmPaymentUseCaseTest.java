@@ -16,6 +16,10 @@ import org.junit.jupiter.api.Test;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
+import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
+import com.lunaris.ansenuza.domain.model.WaitingListEntry;
+import com.lunaris.ansenuza.domain.model.Passenger;
 
 class ConfirmPaymentUseCaseTest {
 
@@ -30,7 +34,7 @@ class ConfirmPaymentUseCaseTest {
         when(repository.findReservationGroupForUpdate("MOR-COR-001"))
                 .thenReturn(List.of(outbound, inbound));
 
-        new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);
+        newUseCase(repository, promotionService).execute(selectedId);
 
         verify(promotionService).consumeIfAvailable("1234", null);
         verify(repository).saveAll(List.of(outbound, inbound));
@@ -50,7 +54,7 @@ class ConfirmPaymentUseCaseTest {
         when(repository.findReservationGroupForUpdate("MOR-COR-002"))
                 .thenReturn(List.of(reservation));
 
-        new ConfirmPaymentUseCase(repository, promotionService).execute(selectedId);
+        newUseCase(repository, promotionService).execute(selectedId);
 
         verify(promotionService).consumeIfAvailable("5678", null);
     }
@@ -64,7 +68,7 @@ class ConfirmPaymentUseCaseTest {
         when(repository.findById(selectedId)).thenReturn(Optional.of(oneWay));
         when(repository.findByIdForUpdate(selectedId)).thenReturn(Optional.of(oneWay));
 
-        Reservation result = new ConfirmPaymentUseCase(repository, promotionService)
+        Reservation result = newUseCase(repository, promotionService)
                 .execute(selectedId);
 
         assertEquals(oneWay, result);
@@ -72,6 +76,37 @@ class ConfirmPaymentUseCaseTest {
         assertEquals("CONFIRMED", oneWay.getStatus());
         verify(repository).saveAll(List.of(oneWay));
         verify(repository, never()).findReservationGroupForUpdate(anyString());
+    }
+
+    @Test
+    void confirmedPaymentMarksLinkedWaitingEntryConverted() {
+        UUID reservationId = UUID.randomUUID();
+        Reservation reservation = reservation(reservationId, "MOR-COR-004", null, false);
+        reservation.setWaitingListEntryId(7L);
+        reservation.setPassenger(Passenger.builder().phone("543511112222").build());
+        WaitingListEntry entry = WaitingListEntry.builder()
+                .id(7L).status(WaitingListEntry.AWAITING_PAYMENT).build();
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        WaitingListRepository waitingList = mock(WaitingListRepository.class);
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
+        when(waitingList.findByIdForUpdate(7L)).thenReturn(Optional.of(entry));
+
+        new ConfirmPaymentUseCase(
+                reservations, mock(PromotionService.class), waitingList, sessions)
+                .execute(reservationId);
+
+        assertEquals(WaitingListEntry.CONVERTED, entry.getStatus());
+        verify(waitingList).saveAndFlush(entry);
+    }
+
+    private ConfirmPaymentUseCase newUseCase(
+            ReservationRepository repository, PromotionService promotionService) {
+        return new ConfirmPaymentUseCase(
+                repository, promotionService,
+                mock(WaitingListRepository.class),
+                mock(ConversationSessionRepository.class));
     }
 
     private Reservation reservation(UUID id, String reservationCode, String promotionCode, boolean paid) {
