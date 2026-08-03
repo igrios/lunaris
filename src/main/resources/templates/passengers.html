@@ -138,17 +138,8 @@
                         <input th:if="${selectedTravelDate != null}" type="hidden" name="travelDate"
                           th:value="${selectedTravelDate}">
                         <button type="submit" class="btn btn-warning btn-sm"
-                          onclick="return confirm('¿Asignar el lugar y enviar la confirmación por WhatsApp?')">
-                          📲 Asignar / Mandar al Bot
-                        </button>
-                      </form>
-                      <form th:action="@{/reservations/waiting-list/{id}/convert(id=${entry.id})}"
-                        method="post">
-                        <input th:if="${selectedTravelDate != null}" type="hidden" name="travelDate"
-                          th:value="${selectedTravelDate}">
-                        <button type="submit" class="btn btn-primary btn-sm"
-                          onclick="return confirm('¿Promover esta entrada a reserva confirmada?')">
-                          Promover a Reserva
+                          onclick="return confirm('¿Enviar al pasajero la confirmación y el flujo de pago por WhatsApp?')">
+                          📲 Promover a Reserva
                         </button>
                       </form>
                       <a class="btn btn-success btn-sm" target="_blank" rel="noopener noreferrer"

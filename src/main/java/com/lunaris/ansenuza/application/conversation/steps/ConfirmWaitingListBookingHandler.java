@@ -27,7 +27,7 @@ public class ConfirmWaitingListBookingHandler implements ConversationStepHandler
     @Transactional
     public void handle(ConversationSession session, IncomingMessage message) {
         String response = message.body().trim().toLowerCase();
-        if ("waiting_booking_confirm".equals(response)) {
+        if ("confirm_waiting_list".equals(response)) {
             conversionService.beginPayment(session.getWaitingListEntryId());
             session.setCurrentStep("AWAITING_PAYMENT");
             conversationSessionRepository.saveAndFlush(session);
@@ -42,7 +42,7 @@ public class ConfirmWaitingListBookingHandler implements ConversationStepHandler
                     """);
             return;
         }
-        if ("waiting_booking_cancel".equals(response)) {
+        if ("reject_waiting_list".equals(response)) {
             conversionService.cancel(session.getWaitingListEntryId());
             conversationSessionRepository.delete(session);
             messaging.sendText(session.getPhoneNumber(),

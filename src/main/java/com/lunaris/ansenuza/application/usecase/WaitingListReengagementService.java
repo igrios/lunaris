@@ -50,13 +50,14 @@ public class WaitingListReengagementService {
         entry.setStatus(WaitingListEntry.NOTIFIED);
         waitingListRepository.saveAndFlush(entry);
         messaging.sendButtons(entry.getPhoneNumber(), "Lugar disponible",
-                "¡Hola! Se liberó un lugar para tu viaje del "
+                "¡Hola " + entry.getPassengerName()
+                        + "! Se liberó un lugar para tu viaje del "
                         + entry.getTravelDate().format(DATE_FORMAT) + " ("
                         + entry.getPickupLocality() + " -> " + entry.getDestination()
                         + "). ¿Deseás confirmar tu reserva ahora?",
                 List.of(
-                        new Button("waiting_booking_confirm", "Confirmar Reserva ✅"),
-                        new Button("waiting_booking_cancel", "Cancelar ❌")));
+                        new Button("confirm_waiting_list", "Confirmar y Pagar ✅"),
+                        new Button("reject_waiting_list", "Rechazar ❌")));
         return entry;
     }
 }

@@ -47,7 +47,7 @@ class WaitingListReengagementServiceTest {
         verify(messaging).sendButtons(
                 org.mockito.ArgumentMatchers.eq(entry.getPhoneNumber()),
                 org.mockito.ArgumentMatchers.eq("Lugar disponible"),
-                org.mockito.ArgumentMatchers.contains("20/08/2026"),
+                org.mockito.ArgumentMatchers.contains("¡Hola Ana Pérez!"),
                 org.mockito.ArgumentMatchers.anyList());
     }
 }

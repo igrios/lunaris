@@ -141,9 +141,9 @@ public class ReservationViewController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             RedirectAttributes redirectAttributes) {
         try {
-            waitingListConversionService.convert(id);
+            waitingListReengagementService.promote(id);
             redirectAttributes.addFlashAttribute(
-                    "successMessage", "La entrada fue promovida a reserva confirmada.");
+                    "successMessage", "Se notificó al pasajero para confirmar y pagar por WhatsApp.");
         } catch (RuntimeException exception) {
             redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
         }
