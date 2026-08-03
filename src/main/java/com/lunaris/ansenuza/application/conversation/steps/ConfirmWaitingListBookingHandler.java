@@ -5,6 +5,7 @@ import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.application.usecase.WaitingListConversionService;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
+import com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -28,7 +29,14 @@ public class ConfirmWaitingListBookingHandler implements ConversationStepHandler
     public void handle(ConversationSession session, IncomingMessage message) {
         String response = message.body().trim().toLowerCase();
         if ("confirm_waiting_list".equals(response)) {
-            conversionService.beginPayment(session.getWaitingListEntryId());
+            try {
+                conversionService.beginPayment(session.getWaitingListEntryId());
+            } catch (SeatCapacityExceededException exception) {
+                messaging.sendText(session.getPhoneNumber(),
+                        "Disculpá, en este momento el cupo sigue completo. "
+                                + "Te avisaremos apenas se confirme un nuevo coche de refuerzo.");
+                return;
+            }
             session.setCurrentStep("AWAITING_PAYMENT");
             conversationSessionRepository.saveAndFlush(session);
             messaging.sendText(session.getPhoneNumber(), """

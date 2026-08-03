@@ -1,7 +1,6 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
-import com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
@@ -9,9 +8,7 @@ import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
-import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
-import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
 import com.lunaris.ansenuza.shared.PhoneUtils;
 import java.math.BigDecimal;
@@ -27,10 +24,8 @@ public class WaitingListConversionService {
 
     private final WaitingListRepository waitingListRepository;
     private final PassengerRepository passengerRepository;
-    private final ReservationRepository reservationRepository;
     private final ReservationService reservationService;
     private final PricingAndScheduleService pricingAndScheduleService;
-    private final SystemConfigurationService systemConfigurationService;
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public Reservation convert(Long id) {
@@ -58,14 +53,9 @@ public class WaitingListConversionService {
 
     private Reservation createReservation(WaitingListEntry entry, String status) {
         int requestedSeats = Math.max(1, entry.getPassengerCount());
-        int occupiedSeats = safeOccupiedSeats(entry);
-        int maxCapacity = systemConfigurationService.getScheduleMaxCapacity();
-        if (occupiedSeats + requestedSeats > maxCapacity) {
-            throw new SeatCapacityExceededException(
-                    "No hay cupo para promover esta entrada. Disponibles: "
-                            + Math.max(0, maxCapacity - occupiedSeats) + ".");
-        }
 
+        // La promoción fue autorizada explícitamente por Operaciones, normalmente luego de
+        // asignar un coche de refuerzo. Por eso este flujo no reaplica el cupo nominal global.
         Passenger passenger = resolvePassenger(entry);
         BigDecimal amount = pricingAndScheduleService.calculateReservationAmount(
                 entry.getPickupLocality(), entry.getDestination(),
@@ -112,12 +102,6 @@ public class WaitingListConversionService {
                     "La entrada ya no se encuentra en estado WAITING.");
         }
         return entry;
-    }
-
-    private int safeOccupiedSeats(WaitingListEntry entry) {
-        Integer occupied = reservationRepository.countConfirmedPassengersByRouteAndDate(
-                entry.getPickupLocality(), entry.getDestination(), entry.getTravelDate());
-        return occupied == null ? 0 : occupied;
     }
 
     private Passenger resolvePassenger(WaitingListEntry entry) {
