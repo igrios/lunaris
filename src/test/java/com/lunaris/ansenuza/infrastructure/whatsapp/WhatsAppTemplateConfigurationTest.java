@@ -188,9 +188,10 @@ class WhatsAppTemplateConfigurationTest {
         private String interactivePhone;
 
         @Override
-        public void sendMessage(String phoneNumber, String message) {
+        boolean trySendMessage(String phoneNumber, String message) {
             assertEquals("5493515551234", phoneNumber);
             textMessages.add(message);
+            return true;
         }
 
         @Override

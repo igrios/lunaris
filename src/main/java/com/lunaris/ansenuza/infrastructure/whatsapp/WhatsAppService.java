@@ -54,6 +54,10 @@ public class WhatsAppService {
 
     // MENSAJE TEXTO TRADICIONAL
     public void sendMessage(String phoneNumber, String message) {
+        trySendMessage(phoneNumber, message);
+    }
+
+    boolean trySendMessage(String phoneNumber, String message) {
         String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
         HttpHeaders headers = createHeaders();
         Map<String, Object> body = Map.of(
@@ -62,7 +66,7 @@ public class WhatsAppService {
                 "type", "text",
                 "text", Map.of("body", message)
         );
-        executePostCall(url, headers, body, "TEXTO");
+        return executePostCall(url, headers, body, "TEXTO");
     }
 
     // SOBRECARGA 1: BOTONES INTERACTIVOS COMUNES (3 ARGUMENTOS)
@@ -323,7 +327,7 @@ public void sendDespiertaChoferTemplate(
     }
 }
 
-public void sendDriverRouteDispatch(
+public DriverRouteDispatchResult sendDriverRouteDispatch(
         String to,
         String driverName,
         String navigationUrl,
@@ -341,7 +345,8 @@ public void sendDriverRouteDispatch(
     String normalizedDriverPhone = formatMetaPhoneNumber(to);
     String routeSummary = buildDriverPassengerSummary(
             driverName, navigationUrl, orderedReservations);
-    sendMessage(normalizedDriverPhone, routeSummary);
+    boolean textSent = trySendMessage(normalizedDriverPhone, routeSummary);
+    boolean interactiveSentForAllBatches = true;
 
     for (int start = 0; start < orderedReservations.size(); start += 10) {
         int end = Math.min(start + 10, orderedReservations.size());
@@ -358,13 +363,23 @@ public void sendDriverRouteDispatch(
                 "A bordo",
                 List.of(section));
         if (!interactiveSent) {
+            interactiveSentForAllBatches = false;
             log.warn("Meta rechazó la lista interactiva de ruta para {}. Se envía fallback de texto.",
                     normalizedDriverPhone);
-            sendMessage(normalizedDriverPhone,
+            trySendMessage(normalizedDriverPhone,
                     "⚠️ No pudimos habilitar los botones de abordaje. "
                             + "Usá esta hoja de ruta en texto:\n\n" + routeSummary);
         }
     }
+    if (textSent && interactiveSentForAllBatches) {
+        return new DriverRouteDispatchResult(true, "Hoja de ruta enviada por WhatsApp.");
+    }
+    return new DriverRouteDispatchResult(false,
+            "La asignación quedó guardada, pero Meta no confirmó todos los mensajes; "
+                    + "se intentó el envío alternativo en texto.");
+}
+
+public record DriverRouteDispatchResult(boolean success, String message) {
 }
 
 static String buildDriverPassengerSummary(

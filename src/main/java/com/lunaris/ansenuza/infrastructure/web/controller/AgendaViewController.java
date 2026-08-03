@@ -362,74 +362,103 @@ public class AgendaViewController {
 
     // 🚖 5. Envío de Hoja de Ruta AL CHOFER CORREGIDO CON PLANTILLA Y ASIGNACIÓN
     @PostMapping("/api/agenda/enviar-hoja-ruta")
-    public ResponseEntity<Void> enviarHojaRuta(@RequestBody EnviarHojaRutaRequest request) {
+    public ResponseEntity<?> enviarHojaRuta(@RequestBody EnviarHojaRutaRequest request) {
         String choferPhone = request.phone();
         List<UUID> reservationIds = request.reservationIds();
 
-        if (reservationIds == null || reservationIds.isEmpty() || choferPhone == null || choferPhone.isBlank()) {
-            return ResponseEntity.badRequest().build();
+        if (reservationIds == null || reservationIds.isEmpty()
+                || request.driverId() == null && (choferPhone == null || choferPhone.isBlank())) {
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", "Seleccioná un chofer y al menos una reserva."));
         }
 
-        // 1. Buscar chofer por teléfono normalizado
+        // El UUID del dropdown es la identidad canónica; el teléfono queda como compatibilidad.
         String normalizedPhone = normalizeWhatsAppNumber(choferPhone);
-        java.util.Optional<Driver> driverOpt = driverRepository.findFirstByPhone(normalizedPhone);
+        String lookupPhone = normalizedPhone;
+        java.util.Optional<Driver> driverOpt = request.driverId() == null
+                ? java.util.Optional.empty()
+                : driverRepository.findById(request.driverId());
+        if (driverOpt.isEmpty() && !normalizedPhone.isBlank()) {
+            driverOpt = driverRepository.findFirstByPhone(normalizedPhone);
+        }
         if (driverOpt.isEmpty()) {
             List<Driver> allDrivers = driverRepository.findAll();
             driverOpt = allDrivers.stream()
-                    .filter(d -> normalizeWhatsAppNumber(d.getPhone()).equals(normalizedPhone))
+                    .filter(d -> normalizeWhatsAppNumber(d.getPhone()).equals(lookupPhone))
                     .findFirst();
         }
 
         if (driverOpt.isEmpty()) {
             org.slf4j.LoggerFactory.getLogger(getClass())
                     .warn("No se encontró chofer con el teléfono: {}", choferPhone);
-            return ResponseEntity.status(404).build();
+            return ResponseEntity.status(404).body(java.util.Map.of(
+                    "message", "No se encontró el chofer seleccionado."));
         }
 
         Driver driver = driverOpt.get();
+        normalizedPhone = normalizeWhatsAppNumber(driver.getPhone());
 
         Reservation firstReservation = reservationRepository.findById(reservationIds.get(0)).orElse(null);
         if (firstReservation == null || firstReservation.getTravelDate() == null) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", "Las reservas seleccionadas no tienen una fecha válida."));
         }
         List<Reservation> assignedReservations;
         try {
             assignedReservations = driverRouteService.replaceRoute(
                     driver, firstReservation.getTravelDate(), reservationIds);
         } catch (IllegalArgumentException exception) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(java.util.Map.of(
+                    "message", exception.getMessage()));
         }
 
-        assignedReservations.stream()
-                .filter(reservation -> reservation.getPassenger() != null)
-                .collect(java.util.stream.Collectors.toMap(
-                        reservation -> normalizeWhatsAppNumber(reservation.getPassenger().getPhone()),
-                        reservation -> reservation,
-                        (first, ignored) -> first,
-                        java.util.LinkedHashMap::new))
-                .forEach((passengerPhone, reservation) -> {
-                    String passengerName = reservation.getPassenger().getFirstName();
-                    whatsAppService.sendChoferAsignadoTemplate(
-                            passengerPhone,
-                            passengerName,
-                            driver.getFullName(),
-                            driver.getPhone());
-                });
+        try {
+            assignedReservations.stream()
+                    .filter(reservation -> reservation.getPassenger() != null)
+                    .collect(java.util.stream.Collectors.toMap(
+                            reservation -> normalizeWhatsAppNumber(
+                                    reservation.getPassenger().getPhone()),
+                            reservation -> reservation,
+                            (first, ignored) -> first,
+                            java.util.LinkedHashMap::new))
+                    .forEach((passengerPhone, reservation) -> {
+                        String passengerName = reservation.getPassenger().getFirstName();
+                        whatsAppService.sendChoferAsignadoTemplate(
+                                passengerPhone,
+                                passengerName,
+                                driver.getFullName(),
+                                driver.getPhone());
+                    });
+        } catch (Exception exception) {
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn(
+                    "El chofer fue asignado, pero falló un aviso a pasajeros.", exception);
+        }
 
         // 3. Enviar plantilla al chofer para abrir su hoja de ruta.
         try {
             String navigationUrl =
                     GoogleMapsParameterFormatter.buildDirectionsUrl(assignedReservations);
-            whatsAppService.sendDriverRouteDispatch(
+            var dispatchResult = whatsAppService.sendDriverRouteDispatch(
                     normalizedPhone,
                     driver.getFullName(),
                     navigationUrl,
                     assignedReservations);
-            return ResponseEntity.ok().build();
+            String notice = dispatchResult.success()
+                    ? "Success: " + dispatchResult.message()
+                    : "Warning: " + dispatchResult.message();
+            return ResponseEntity.ok(java.util.Map.of(
+                    "assigned", true,
+                    "whatsAppStatus", dispatchResult.success() ? "Success" : "Warning",
+                    "message", "Chofer asignado correctamente en sistema. (Aviso de WhatsApp: "
+                            + notice + ")"));
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(getClass())
                     .error("Error al enviar la plantilla despierta_chofer al chofer", e);
-            return ResponseEntity.status(500).build();
+            return ResponseEntity.ok(java.util.Map.of(
+                    "assigned", true,
+                    "whatsAppStatus", "Warning",
+                    "message", "Chofer asignado correctamente en sistema. "
+                            + "(Aviso de WhatsApp: Warning: no se pudo enviar la hoja de ruta.)"));
         }
     }
 

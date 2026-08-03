@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
@@ -21,7 +22,7 @@ public class DriverRouteService {
     private final ReservationRepository reservationRepository;
     private final DriverRepository driverRepository;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<Reservation> replaceRoute(
             Driver driver, LocalDate travelDate, List<UUID> orderedReservationIds) {
         if (driver == null || driver.getId() == null || travelDate == null
