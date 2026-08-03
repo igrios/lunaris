@@ -14,6 +14,7 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +33,7 @@ public class ProcessPaymentReceiptUseCase {
     private final ReceiptStoragePort receiptStoragePort;
     private final MessagingPort messaging;
     private final LiveChatPort liveChat;
+    private final SameDayBookingPolicy sameDayBookingPolicy;
 
     @Transactional
     public void execute(String phoneNumber, String mediaId) {
@@ -102,6 +104,7 @@ public class ProcessPaymentReceiptUseCase {
 
         if (pendingReservation.isEmpty()) {
             validateBookingData(bookingData);
+            sameDayBookingPolicy.validate(bookingData.travelDate());
         }
 
         String receiptUrl = uploadReceipt(receiptFile, normalizedPhone);

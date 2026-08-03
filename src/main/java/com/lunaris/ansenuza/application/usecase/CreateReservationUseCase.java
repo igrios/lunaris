@@ -13,6 +13,7 @@ import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
+import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
 import com.lunaris.ansenuza.shared.PhoneUtils;
@@ -25,6 +26,7 @@ public class CreateReservationUseCase {
     private final ReservationService reservationService;
     private final PassengerRepository passengerRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
+    private final SameDayBookingPolicy sameDayBookingPolicy;
 
     @Value("${lunaris.trips.capacity:4}")
     private int tripCapacity = 8;
@@ -36,6 +38,7 @@ public class CreateReservationUseCase {
 
     public Reservation execute(CreateReservationRequest request, String paymentReceiptUrl) {
         validate(request);
+        sameDayBookingPolicy.validate(request.travelDate());
 
         Passenger passenger = resolvePassenger(request);
 

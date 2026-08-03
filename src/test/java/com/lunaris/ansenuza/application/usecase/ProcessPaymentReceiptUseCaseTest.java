@@ -21,6 +21,7 @@ import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.TripType;
+import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
@@ -46,7 +47,8 @@ class ProcessPaymentReceiptUseCaseTest {
         when(reservations.findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger))
                 .thenReturn(List.of(reservation));
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
-                passengers, reservations, storage, messaging, liveChat);
+                passengers, reservations, storage, messaging, liveChat,
+                mock(SameDayBookingPolicy.class));
 
         useCase.execute("543511111111", "media-123");
 
@@ -76,7 +78,7 @@ class ProcessPaymentReceiptUseCaseTest {
         when(storage.uploadFile(receipt)).thenReturn("https://cdn.example.com/receipt.jpg");
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
-                mock(LiveChatPort.class));
+                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class));
 
         useCase.confirmOrCreateWebBooking("3511111111", receipt, null);
 
@@ -97,7 +99,7 @@ class ProcessPaymentReceiptUseCaseTest {
                 .thenReturn(List.of());
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
-                mock(LiveChatPort.class));
+                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class));
         BookingVerificationData payload = new BookingVerificationData(
                 LocalDate.of(2026, 8, 10), "08:00 AM", "La Puerta", "Córdoba",
                 2, TripType.ONE_WAY, new BigDecimal("56000.00"));

@@ -11,6 +11,8 @@ import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.service.OperationControlService; // 👈 NUEVO IMPORT
+import com.lunaris.ansenuza.domain.exception.SameDayBookingClosedException;
+import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +24,7 @@ public class AskDateHandler implements ConversationStepHandler {
     private final ConversationSessionRepository conversationSessionRepository;
     private final MessagingPort messaging;
     private final OperationControlService operationControlService; // 👈 CONTROL DE JORNADA INYECTADO
+    private final SameDayBookingPolicy sameDayBookingPolicy;
 
     @Override
     public String step() {
@@ -48,6 +51,13 @@ public class AskDateHandler implements ConversationStepHandler {
         if (travelDate.isBefore(hoy)) {
             messaging.sendText(phoneNumber,
                     "❌ La fecha no puede ser anterior a hoy. Reingresá:");
+            return;
+        }
+
+        try {
+            sameDayBookingPolicy.validate(travelDate);
+        } catch (SameDayBookingClosedException exception) {
+            messaging.sendText(phoneNumber, exception.getMessage());
             return;
         }
 

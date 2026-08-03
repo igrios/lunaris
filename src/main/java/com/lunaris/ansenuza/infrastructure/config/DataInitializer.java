@@ -46,6 +46,7 @@ public class DataInitializer implements CommandLineRunner {
             "return.button.yes.title", "SÍ, VOLVER ✅",
             "return.button.later.title", "OTRO DÍA 📅",
             "return.button.no.title", "NO, CANCELAR ❌",
+            "SAME_DAY_CUTOFF_TIME", "08:00",
             "session.inactivity.timeout.minutes", "30");
 
     private final LocalityRepository localityRepository;

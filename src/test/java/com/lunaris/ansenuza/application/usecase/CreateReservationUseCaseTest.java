@@ -19,6 +19,7 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
+import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.repository.BusinessParameterRepository;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
@@ -48,7 +49,7 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             CreateReservationUseCase useCase = new CreateReservationUseCase(
                     new ReservationService(reservationRepository, mock(ReservationEventRepository.class),
                             passengerRepository, mock(com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase.class)),
-                    passengerRepository, pricingService);
+                    passengerRepository, pricingService, mock(SameDayBookingPolicy.class));
             String json = """
                     {"fullName":"juna fenogloi","phone":"3511111111","date":"2026-08-01",
                      "origin":"Ansenuza","destination":"Córdoba","seats":1,"roundTrip":false}
@@ -114,7 +115,8 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             CreateReservationUseCase useCase = new CreateReservationUseCase(                                                                              
                     reservationService,                                                                                                                   
                     passengerRepository,                                                                                                                  
-                    pricingService                                                                                                                        
+                    pricingService,
+                    mock(SameDayBookingPolicy.class)
             );                                                                                                                                            
                                                                                                                                                           
             CreateReservationRequest request = new CreateReservationRequest(                                                                              
