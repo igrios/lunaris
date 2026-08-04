@@ -47,7 +47,7 @@ class ReservationServiceTest {
                 .returnDate(LocalDate.of(2026, 8, 12))
                 .roundTrip(true)
                 .tripType(TripType.ROUND_TRIP)
-                .amount(new BigDecimal("20000.00"))
+                .amount(new BigDecimal("105000.00"))
                 .discountAmount(BigDecimal.ZERO)
                 .paymentVerified(true)
                 .requiresInvoice(true)
@@ -57,8 +57,10 @@ class ReservationServiceTest {
         List<Reservation> saved = service.saveReservationFlow(reservation);
 
         assertEquals(2, saved.size());
-        assertEquals(new BigDecimal("10000.00"), saved.get(0).getAmount());
-        assertEquals(new BigDecimal("10000.00"), saved.get(1).getAmount());
+        assertEquals(new BigDecimal("52500.00"), saved.get(0).getAmount());
+        assertEquals(new BigDecimal("52500.00"), saved.get(1).getAmount());
+        assertEquals(new BigDecimal("105000.00"),
+                saved.get(0).getAmount().add(saved.get(1).getAmount()));
         saved.forEach(leg -> {
             assertSame(reservation.getPassenger(), leg.getPassenger());
             assertEquals(true, leg.getRequiresInvoice());

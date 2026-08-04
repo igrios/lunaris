@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.UUID;
-import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
@@ -40,7 +39,7 @@ public class IssueInvoiceUseCase {
         if (!Boolean.TRUE.equals(reservation.getPaymentVerified()) || !"CONFIRMED".equals(reservation.getStatus())) {
             throw new IllegalStateException("La factura solo puede emitirse después de confirmar el pago.");
         }
-        if (totalGroupAmount(reservation).signum() <= 0) {
+        if (totalReservationAmount(reservation).signum() <= 0) {
             throw new IllegalStateException("No se emiten facturas fiscales para reservas bonificadas al 100%.");
         }
 
@@ -55,7 +54,7 @@ public class IssueInvoiceUseCase {
         invoice.setReservationId(reservationId);
         invoice.setPassengerName(reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName());
         invoice.setPassengerCuil(CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()));
-        invoice.setAmount(totalGroupAmount(reservation));
+        invoice.setAmount(totalReservationAmount(reservation));
         invoice.setPdfUrl(stored.webUrl());
 
         boolean sent = sendByWhatsApp(reservation, invoice, stored.absolutePath());
@@ -113,16 +112,4 @@ public class IssueInvoiceUseCase {
         return amount.add(extraAmount);
     }
 
-    private BigDecimal totalGroupAmount(Reservation reservation) {
-        if (reservation.getReservationCode() == null) {
-            return totalReservationAmount(reservation);
-        }
-        String groupCode = reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
-        List<Reservation> group = reservationRepository.findReservationGroup(groupCode);
-        if (group.stream().anyMatch(item -> !Boolean.TRUE.equals(item.getPaymentVerified())
-                || !"CONFIRMED".equals(item.getStatus()))) {
-            throw new IllegalStateException("El pago del viaje completo todavía no fue confirmado.");
-        }
-        return group.stream().map(this::totalReservationAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
 }

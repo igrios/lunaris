@@ -52,7 +52,7 @@ class IssueInvoiceUseCaseTest {
                 .issue(returnId, new byte[] {1});
 
         assertEquals(returnId, issued.getReservationId());
-        assertEquals(new BigDecimal("20000.00"), issued.getAmount());
+        assertEquals(new BigDecimal("10000.00"), issued.getAmount());
         verify(invoices).findByReservationId(returnId);
     }
 

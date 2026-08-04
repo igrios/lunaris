@@ -37,7 +37,7 @@ public class GetBillingPanelUseCase {
         // Cada tramo pagado que requiere factura permanece visible hasta que tenga
         // su propia factura, incluidas las vueltas programadas y abiertas.
         List<PendingInvoiceRow> pendientes = reservationRepository.findPendingInvoiceReservations().stream()
-                .filter(r -> groupTotalAmount(r).signum() > 0)
+                .filter(r -> totalReservationAmount(r).signum() > 0)
                 .map(this::toRow)
                 .toList();
 
@@ -65,7 +65,7 @@ public class GetBillingPanelUseCase {
                 passenger == null ? null : passenger.getPhone(),
                 rawDoc,
                 CuilCalculator.suggestCuil(rawDoc),
-                groupTotalAmount(r),
+                totalReservationAmount(r),
                 r.getTravelDate(),
                 route
         );
@@ -84,13 +84,4 @@ public class GetBillingPanelUseCase {
         return amount.add(extraAmount);
     }
 
-    private BigDecimal groupTotalAmount(Reservation reservation) {
-        if (reservation.getReservationCode() == null) {
-            return totalReservationAmount(reservation);
-        }
-        String groupCode = reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
-        return reservationRepository.findReservationGroup(groupCode).stream()
-                .map(this::totalReservationAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
 }

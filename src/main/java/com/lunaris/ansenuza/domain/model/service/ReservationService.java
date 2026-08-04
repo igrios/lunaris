@@ -81,12 +81,18 @@ public class ReservationService {
         }
 
         // Dividimos el costo equitativamente por tramo usando el enum RoundingMode
-        BigDecimal montoPorTramo = Boolean.TRUE.equals(mainReservation.getRoundTrip()) 
+        BigDecimal montoIda = Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 ? mainReservation.getAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
                 : mainReservation.getAmount();
-        BigDecimal descuentoPorTramo = Boolean.TRUE.equals(mainReservation.getRoundTrip())
+        BigDecimal montoVuelta = Boolean.TRUE.equals(mainReservation.getRoundTrip())
+                ? mainReservation.getAmount().subtract(montoIda)
+                : BigDecimal.ZERO;
+        BigDecimal descuentoIda = Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 ? mainReservation.getDiscountAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
                 : mainReservation.getDiscountAmount();
+        BigDecimal descuentoVuelta = Boolean.TRUE.equals(mainReservation.getRoundTrip())
+                ? mainReservation.getDiscountAmount().subtract(descuentoIda)
+                : BigDecimal.ZERO;
 
         // --- PROCESAMIENTO TRAMO: IDA ---
         mainReservation.setReservationCode(Boolean.TRUE.equals(mainReservation.getRoundTrip())
@@ -99,8 +105,8 @@ public class ReservationService {
                     com.lunaris.ansenuza.shared.ArgentinaTime.now());
         }
         
-        mainReservation.setAmount(montoPorTramo);
-        mainReservation.setDiscountAmount(descuentoPorTramo);
+        mainReservation.setAmount(montoIda);
+        mainReservation.setDiscountAmount(descuentoIda);
 
         Reservation savedMain = reservationRepository.save(mainReservation);
         savedReservations.add(savedMain);
@@ -129,8 +135,8 @@ public class ReservationService {
                 returnReservation.setNotes("🛑 VUELTA ABIERTA - Pendiente confirmar fecha. Grupo " + codigoBase);
             }
 
-            returnReservation.setAmount(montoPorTramo);
-            returnReservation.setDiscountAmount(descuentoPorTramo);
+            returnReservation.setAmount(montoVuelta);
+            returnReservation.setDiscountAmount(descuentoVuelta);
             returnReservation.setPromotionCode(mainReservation.getPromotionCode());
             returnReservation.setPromotionId(mainReservation.getPromotionId());
             returnReservation.setPromotionDiscountPercentage(mainReservation.getPromotionDiscountPercentage());

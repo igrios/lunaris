@@ -223,22 +223,10 @@ public class BotMonitorController {
             }
             passengerRepository.save(passenger);
 
-            java.math.BigDecimal montoComboCompleto =
-                    tarifaService.calculateReservationAmount(pickupLocality, destination, true, passengerCount);
-
-            java.math.BigDecimal montoIda;
-            java.math.BigDecimal montoVuelta;
-
-            if (roundTrip) {
-                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
-                montoIda = mitadCombo;
-                montoVuelta = mitadCombo;
-            } else {
-                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
-                java.math.BigDecimal recargoFijo = java.math.BigDecimal.valueOf(8000);
-                montoIda = mitadCombo.add(recargoFijo);
-                montoVuelta = java.math.BigDecimal.ZERO;
-            }
+            LegAmounts legAmounts = calculateLegAmounts(
+                    pickupLocality, destination, roundTrip, passengerCount);
+            java.math.BigDecimal montoIda = legAmounts.outbound();
+            java.math.BigDecimal montoVuelta = legAmounts.inbound();
 
             String urlComprobanteCruda = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
                     .filter(m -> m != null && !m.isFromOperator()) 
@@ -362,22 +350,10 @@ public class BotMonitorController {
             }
             passengerRepository.save(passenger);
 
-            java.math.BigDecimal montoComboCompleto =
-                    tarifaService.calculateReservationAmount(pickupLocality, destination, true, passengerCount);
-
-            java.math.BigDecimal montoIda;
-            java.math.BigDecimal montoVuelta;
-
-            if (roundTrip) {
-                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
-                montoIda = mitadCombo;
-                montoVuelta = mitadCombo;
-            } else {
-                java.math.BigDecimal mitadCombo = montoComboCompleto.divide(java.math.BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
-                java.math.BigDecimal recargoFijo = java.math.BigDecimal.valueOf(8000);
-                montoIda = mitadCombo.add(recargoFijo);
-                montoVuelta = java.math.BigDecimal.ZERO;
-            }
+            LegAmounts legAmounts = calculateLegAmounts(
+                    pickupLocality, destination, roundTrip, passengerCount);
+            java.math.BigDecimal montoIda = legAmounts.outbound();
+            java.math.BigDecimal montoVuelta = legAmounts.inbound();
 
             String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
             String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
@@ -431,6 +407,22 @@ public class BotMonitorController {
         }
 
         return "redirect:/agenda?success=true";
+    }
+
+    private LegAmounts calculateLegAmounts(
+            String pickupLocality, String destination, boolean roundTrip, int passengerCount) {
+        java.math.BigDecimal total = tarifaService.calculateReservationAmount(
+                pickupLocality, destination, roundTrip, passengerCount);
+        if (!roundTrip) {
+            return new LegAmounts(total, java.math.BigDecimal.ZERO);
+        }
+        java.math.BigDecimal outbound = total.divide(
+                java.math.BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
+        return new LegAmounts(outbound, total.subtract(outbound));
+    }
+
+    private record LegAmounts(
+            java.math.BigDecimal outbound, java.math.BigDecimal inbound) {
     }
 
     private String persistirComprobanteEnCloudinary(String urlOrigen, String phone) {

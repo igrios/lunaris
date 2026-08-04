@@ -65,6 +65,27 @@
                     service.calculateReservationAmount("Morteros", "Córdoba", TripType.ONE_WAY, 2));
         }
 
+        @Test
+        void oneWayExampleAppliesHalfBasePlusBusinessExtra() {
+            FareRepository fares = mock(FareRepository.class);
+            BusinessParameterRepository parameters = mock(BusinessParameterRepository.class);
+            when(fares.findByLocalityNameIgnoreCase("Morteros")).thenReturn(Optional.of(
+                    Fare.builder().localityName("Morteros")
+                            .amount(new BigDecimal("90000")).build()));
+            when(parameters.findByParameterKey("ONE_WAY_EXTRA_AMOUNT")).thenReturn(Optional.of(
+                    BusinessParameter.builder()
+                            .parameterKey("ONE_WAY_EXTRA_AMOUNT")
+                            .parameterValue("7500")
+                            .build()));
+            PricingAndScheduleService service = new PricingAndScheduleService(
+                    fares, mock(LocalityRepository.class), parameters,
+                    mock(ReservationRepository.class));
+
+            assertEquals(new BigDecimal("52500.00"),
+                    service.calculateReservationAmount(
+                            "Morteros", "Córdoba", TripType.ONE_WAY, 1));
+        }
+
         @ParameterizedTest
         @CsvSource({
                 "San Guillermo, 07:20 hs",

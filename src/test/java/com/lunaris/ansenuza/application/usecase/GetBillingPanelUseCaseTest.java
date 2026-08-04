@@ -52,7 +52,7 @@ class GetBillingPanelUseCaseTest {
                 .pickupLocality("San Guillermo")
                 .destination("Córdoba")
                 .travelDate(LocalDate.of(2026, 8, 10))
-                .amount(new BigDecimal("12500"))
+                .amount(new BigDecimal("52500"))
                 .paymentVerified(true)
                 .requiresInvoice(true)
                 .build();
@@ -62,7 +62,7 @@ class GetBillingPanelUseCaseTest {
                 .pickupLocality("Córdoba")
                 .destination("San Guillermo")
                 .travelDate(LocalDate.of(2026, 8, 12))
-                .amount(new BigDecimal("12500"))
+                .amount(new BigDecimal("52500"))
                 .paymentVerified(true)
                 .requiresInvoice(true)
                 .build();
@@ -79,6 +79,8 @@ class GetBillingPanelUseCaseTest {
                 panel.pendientes().stream().map(row -> row.reservationCode()).toList());
         assertEquals(List.of(LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 12)),
                 panel.pendientes().stream().map(row -> row.travelDate()).toList());
+        assertEquals(List.of(new BigDecimal("52500"), new BigDecimal("52500")),
+                panel.pendientes().stream().map(row -> row.amount()).toList());
     }
 
     @Test
