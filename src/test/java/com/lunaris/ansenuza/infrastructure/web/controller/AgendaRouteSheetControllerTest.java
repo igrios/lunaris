@@ -79,7 +79,9 @@ class AgendaRouteSheetControllerTest {
                 drivers,
                 mock(ConfirmPaymentUseCase.class),
                 mock(DriverRouteService.class),
-                mock(FleetCapacityService.class));
+                mock(FleetCapacityService.class),
+                mock(com.lunaris.ansenuza.domain.repository.WaitingListRepository.class),
+                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class));
         ConcurrentModel model = new ConcurrentModel();
 
         String view = controller.showHojaRuta(driverId, travelDate, model);

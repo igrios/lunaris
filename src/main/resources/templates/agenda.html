@@ -62,8 +62,13 @@
                             <h4 class="mb-1 text-capitalize fw-bold" th:text="${#temporals.format(day.date, 'EEEE dd/MM')}"></h4>
                             <p class="mb-0 text-secondary fs-6">
                                 👤 Pasajeros: <strong class="text-primary" th:text="${day.totalPassengers}">0</strong> | 
-                                ⏳ Pendientes de Pago: <strong class="text-danger" th:text="${day.pendingPayments}">0</strong>
+                                ✅ Confirmados: <strong class="text-success" th:text="${day.confirmedPassengers}">0</strong> |
+                                ⏳ Lista de Espera: <strong class="text-warning" th:text="${day.waitingListPassengers}">0</strong> |
+                                Pendientes de Pago: <strong class="text-danger" th:text="${day.pendingPayments}">0</strong>
                             </p>
+                            <span class="badge bg-danger mt-2" th:if="${day.capacityExceeded}">
+                                ⚠️ ALERTA: CAPACIDAD EXCEDIDA
+                            </span>
                         </div>
                         <div class="text-end d-flex align-items-center gap-3">
                             <span class="badge bg-success p-2 fs-6 shadow-sm">

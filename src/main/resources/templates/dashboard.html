@@ -39,6 +39,14 @@
             <p class="text-muted">Bienvenido al sistema core de asignación y tracking operativo.</p>
         </div>
 
+        <div class="alert alert-danger fw-bold" th:if="${capacityExceeded}">
+            ⚠️ ALERTA: CAPACIDAD EXCEDIDA
+        </div>
+        <div class="alert alert-warning">
+            ⏳ Lista de Espera: <strong th:text="${waitingListPassengers}">0</strong>
+            <span class="ms-3">✅ Confirmados: <strong th:text="${confirmedPassengers}">0</strong></span>
+        </div>
+
         <!-- 🚀 TARJETAS DE ACCESOS DIRECTOS (Distribución responsive: hasta 5 columnas) -->
         <div class="row g-4 mb-4 row-cols-1 row-cols-sm-2 row-cols-lg-5">
             <!-- Nueva Reserva Manual -->

@@ -33,7 +33,9 @@ class AgendaDriverDispatchControllerTest {
         WhatsAppService whatsApp = mock(WhatsAppService.class);
         AgendaViewController controller = new AgendaViewController(
                 reservations, whatsApp, drivers, mock(ConfirmPaymentUseCase.class), routes,
-                mock(FleetCapacityService.class));
+                mock(FleetCapacityService.class),
+                mock(com.lunaris.ansenuza.domain.repository.WaitingListRepository.class),
+                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class));
         UUID driverId = UUID.randomUUID();
         UUID reservationId = UUID.randomUUID();
         Driver driver = new Driver();

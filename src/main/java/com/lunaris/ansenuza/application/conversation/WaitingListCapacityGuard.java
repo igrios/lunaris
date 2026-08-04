@@ -1,12 +1,11 @@
 package com.lunaris.ansenuza.application.conversation;
 
-import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.application.port.MessagingPort;
+import com.lunaris.ansenuza.application.usecase.WaitingListService;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,29 +18,30 @@ public class WaitingListCapacityGuard {
     private final SystemConfigurationService systemConfigurationService;
     private final ConversationSessionRepository conversationSessionRepository;
     private final MessagingPort messaging;
+    private final WaitingListService waitingListService;
 
     @Transactional
     public boolean offerWaitingListWhenFull(ConversationSession session) {
         int requestedSeats = session.getPassengerCount() == null
                 ? 1 : Math.max(1, session.getPassengerCount());
-        Integer occupiedResult = reservationRepository.countConfirmedPassengersByRouteAndDate(
-                session.getPickupLocality(), session.getDestination(), session.getTravelDate());
-        int occupiedSeats = occupiedResult == null ? 0 : occupiedResult;
+        String schedule = session.getScheduleBlock() == null
+                || session.getScheduleBlock().isBlank()
+                ? "03:00 AM" : session.getScheduleBlock().trim();
+        int occupiedSeats = Math.toIntExact(reservationRepository.countReservedSeats(
+                session.getTravelDate(), schedule));
         int maxCapacity = systemConfigurationService.getScheduleMaxCapacity();
 
         if (occupiedSeats + requestedSeats <= maxCapacity) {
             return false;
         }
 
-        session.setCurrentStep("WAITING_LIST_CONFIRMATION");
+        waitingListService.join(session);
+        session.setCurrentStep("MAIN_MENU");
         conversationSessionRepository.saveAndFlush(session);
-        messaging.sendButtons(session.getPhoneNumber(), "LISTA DE ESPERA",
-                "El cupo de " + maxCapacity
-                        + " pasajes para esa fecha está completo. "
-                        + "¿Deseás anotarte en la Lista de Espera?",
-                List.of(
-                        new Button("waiting_list_yes", "Sumarme ✅"),
-                        new Button("waiting_list_no", "No, gracias ❌")));
+        messaging.sendText(session.getPhoneNumber(),
+                "⏳ El cupo de " + maxCapacity + " pasajeros para el " + schedule
+                        + " está completo. Te agregamos a la Lista de Espera y te avisaremos "
+                        + "por WhatsApp cuando se libere un lugar.");
         return true;
     }
 }

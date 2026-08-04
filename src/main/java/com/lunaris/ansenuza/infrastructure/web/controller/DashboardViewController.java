@@ -18,6 +18,9 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
+import com.lunaris.ansenuza.domain.model.WaitingListEntry;
+import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.infrastructure.web.dto.dashboard.DailyOperationSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +35,8 @@ public class DashboardViewController {
     private final FareRepository fareRepository;
     private final ReservationService reservationService;
     private final ConfirmPaymentUseCase confirmPaymentUseCase;
+    private final WaitingListRepository waitingListRepository;
+    private final SystemConfigurationService systemConfigurationService;
 
     /**
      * 📊 Vista del Dashboard Principal
@@ -46,6 +51,17 @@ public class DashboardViewController {
                 today.atStartOfDay(), today.plusDays(1).atStartOfDay()));
         model.addAttribute("ingresoMes", reservationRepository.sumConfirmedIncomeBetween(
                 today.withDayOfMonth(1).atStartOfDay(), today.withDayOfMonth(1).plusMonths(1).atStartOfDay()));
+        int confirmedPassengers = reservationRepository.findByTravelDate(today).stream()
+                .filter(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified())
+                        && "CONFIRMED".equals(reservation.getStatus()))
+                .mapToInt(Reservation::getTotalSeats)
+                .sum();
+        long waitingListPassengers = waitingListRepository
+                .sumPassengerCountByTravelDateAndStatus(today, WaitingListEntry.WAITING);
+        model.addAttribute("confirmedPassengers", confirmedPassengers);
+        model.addAttribute("waitingListPassengers", waitingListPassengers);
+        model.addAttribute("capacityExceeded",
+                confirmedPassengers > systemConfigurationService.getScheduleMaxCapacity());
 
         return "dashboard";
     }

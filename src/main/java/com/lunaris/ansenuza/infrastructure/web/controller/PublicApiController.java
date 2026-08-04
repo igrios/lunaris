@@ -34,8 +34,8 @@ public class PublicApiController {
     private final SubmitDriverApplicationUseCase submitDriverApplicationUseCase;
     private final PricingAndScheduleService scheduleService;
 
-    @Value("${lunaris.trips.capacity:4}")
-    private int tripCapacity = 8;
+    @Value("${lunaris.trips.capacity:12}")
+    private int tripCapacity = 12;
 
     @GetMapping("/schedules")
     public List<ScheduleResponse> schedules(@RequestParam(required = false) LocalDate date) {

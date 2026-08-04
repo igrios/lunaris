@@ -12,6 +12,15 @@ import java.util.Optional;
 
 public interface WaitingListRepository extends JpaRepository<WaitingListEntry, Long> {
 
+    @Query("""
+           SELECT COALESCE(SUM(entry.passengerCount), 0)
+           FROM WaitingListEntry entry
+           WHERE entry.travelDate = :travelDate
+           AND entry.status = :status
+           """)
+    long sumPassengerCountByTravelDateAndStatus(
+            @Param("travelDate") LocalDate travelDate, @Param("status") String status);
+
     List<WaitingListEntry> findByTravelDateAndStatusOrderByCreatedAtAsc(
             LocalDate travelDate, String status);
 

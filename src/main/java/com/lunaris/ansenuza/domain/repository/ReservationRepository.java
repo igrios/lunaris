@@ -103,7 +103,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            FROM Reservation r
            WHERE r.travelDate = :date
            AND COALESCE(r.departureSchedule, '03:00 AM') = :schedule
-           AND r.status <> 'CANCELLED'
+           AND r.paymentVerified = true
+           AND r.status = 'CONFIRMED'
            """)
     long countReservedSeats(
             @Param("date") LocalDate date,

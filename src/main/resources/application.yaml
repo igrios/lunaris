@@ -59,7 +59,7 @@ management:
 lunaris:
   support-phone: ${LUNARIS_SUPPORT_PHONE:}
   trips:
-    capacity: ${LUNARIS_TRIP_CAPACITY:4}
+    capacity: ${LUNARIS_TRIP_CAPACITY:12}
   fleet:
     external-driver-cost: ${LUNARIS_EXTERNAL_DRIVER_COST:0}
   auth:

@@ -12,6 +12,12 @@ public record AgendaDayView(
 
         int totalPassengers,
 
+        int confirmedPassengers,
+
+        int waitingListPassengers,
+
+        boolean capacityExceeded,
+
         int pendingPayments,
 
         int estimatedVehicles,

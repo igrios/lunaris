@@ -26,6 +26,9 @@ import com.lunaris.ansenuza.domain.model.service.DriverRouteService;
 import com.lunaris.ansenuza.domain.model.service.FleetCapacityService;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
+import com.lunaris.ansenuza.domain.model.WaitingListEntry;
+import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
@@ -43,11 +46,13 @@ public class AgendaViewController {
     private final ConfirmPaymentUseCase confirmPaymentUseCase;
     private final DriverRouteService driverRouteService;
     private final FleetCapacityService fleetCapacityService;
+    private final WaitingListRepository waitingListRepository;
+    private final SystemConfigurationService systemConfigurationService;
 
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
 
-    @Value("${lunaris.trips.capacity:4}")
+    @Value("${lunaris.trips.capacity:12}")
     private int vehicleCapacity = 4;
 
     // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
@@ -80,6 +85,15 @@ public class AgendaViewController {
                     int totalPassengers = activeReservations.stream()
                             .mapToInt(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
                             .sum();
+                    int confirmedPassengers = activeReservations.stream()
+                            .filter(r -> Boolean.TRUE.equals(r.getPaymentVerified())
+                                    && "CONFIRMED".equals(r.getStatus()))
+                            .mapToInt(Reservation::getTotalSeats)
+                            .sum();
+                    int waitingListPassengers = Math.toIntExact(
+                            waitingListRepository.sumPassengerCountByTravelDateAndStatus(
+                                    date, WaitingListEntry.WAITING));
+                    int maxCapacity = systemConfigurationService.getScheduleMaxCapacity();
 
                     int pendingPayments = (int) activeReservations.stream()
                             .filter(r -> !Boolean.TRUE.equals(r.getPaymentVerified())).count();
@@ -119,6 +133,9 @@ public class AgendaViewController {
                     return new AgendaDayView(
                             date,
                             totalPassengers,
+                            confirmedPassengers,
+                            waitingListPassengers,
+                            confirmedPassengers > maxCapacity,
                             pendingPayments,
                             estimatedVehicles,
                             safeVehicleCapacity,

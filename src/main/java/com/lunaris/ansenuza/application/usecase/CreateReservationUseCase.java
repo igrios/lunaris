@@ -28,8 +28,8 @@ public class CreateReservationUseCase {
     private final PricingAndScheduleService pricingAndScheduleService;
     private final SameDayBookingPolicy sameDayBookingPolicy;
 
-    @Value("${lunaris.trips.capacity:4}")
-    private int tripCapacity = 8;
+    @Value("${lunaris.trips.capacity:12}")
+    private int tripCapacity = 12;
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public Reservation execute(CreateReservationRequest request) {
