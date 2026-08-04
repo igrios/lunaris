@@ -585,14 +585,15 @@ static java.util.List<java.util.Map<String, Object>> despiertaChoferComponents(
         java.util.Map<String, Object> bodyComponent,
         java.util.UUID driverId,
         java.time.LocalDate travelDate) {
-    String routeSheetUrl = buildDriverRouteSheetUrl(driverId, travelDate);
+    java.util.Objects.requireNonNull(driverId, "El ID del chofer es obligatorio.");
+    java.util.Objects.requireNonNull(travelDate, "La fecha de viaje es obligatoria.");
     java.util.Map<String, Object> quickReplyComponent = java.util.Map.of(
         "type", "button",
         "sub_type", "quick_reply",
         "index", "0",
         "parameters", java.util.List.of(java.util.Map.of(
             "type", "payload",
-            "payload", routeSheetUrl))
+            "payload", "VIEW_ROUTE"))
     );
     return java.util.List.of(bodyComponent, quickReplyComponent);
 }

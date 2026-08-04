@@ -145,10 +145,7 @@ class WhatsAppTemplateConfigurationTest {
         assertEquals("quick_reply", button.get("sub_type"));
         assertEquals("0", button.get("index"));
         assertEquals("payload", parameter.get("type"));
-        assertEquals(
-                WhatsAppService.buildDriverRouteSheetUrl(
-                        driverId, LocalDate.of(2026, 8, 5)),
-                parameter.get("payload"));
+        assertEquals("VIEW_ROUTE", parameter.get("payload"));
         assertFalse(parameter.containsKey("text"));
     }
 

@@ -33,10 +33,9 @@ public class GetBillingPanelUseCase {
         BigDecimal ingresoMes = reservationRepository.sumConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
         long countMes = reservationRepository.countConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
 
-        // Pendientes de factura: se toma exclusivamente la ida como cabecera del grupo
-        // para facturar el importe neto realmente cobrado por todo el viaje.
+        // Cada tramo pagado que requiere factura permanece visible hasta que tenga
+        // su propia factura, incluidas las vueltas programadas y abiertas.
         List<PendingInvoiceRow> pendientes = reservationRepository.findPendingInvoiceReservations().stream()
-                .filter(r -> r.getReservationCode() == null || r.getReservationCode().endsWith("-IDA"))
                 .filter(r -> groupTotalAmount(r).signum() > 0)
                 .map(this::toRow)
                 .toList();
