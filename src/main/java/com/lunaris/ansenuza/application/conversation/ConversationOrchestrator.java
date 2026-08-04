@@ -189,10 +189,40 @@ public class ConversationOrchestrator {
         if (handler == null) {
             log.warn("[Bot] No hay handler registrado para el paso '{}' (teléfono {}).",
                     effectiveStep, phoneNumber);
-            return;
+            resetToStart(session);
+            handler = handlers.get("START");
+            if (handler == null) {
+                log.error("[Bot] No hay handler START para recuperar la sesión de {}.",
+                        phoneNumber);
+                return;
+            }
         }
 
         handler.handle(session, message);
+    }
+
+    private void resetToStart(ConversationSession session) {
+        session.setCurrentStep("START");
+        session.setPickupLocality(null);
+        session.setPassengerName(null);
+        session.setPickupAddress(null);
+        session.setDestination(null);
+        session.setRoundTrip(null);
+        session.setTravelDate(null);
+        session.setReturnDate(null);
+        session.setRequiresInvoice(null);
+        session.setCuil(null);
+        session.setPromotionCode(null);
+        session.setPromotionDiscountPercentage(null);
+        session.setPassengerCount(null);
+        session.setCompanionNames(null);
+        session.setCurrentCompanionIndex(null);
+        session.setTotalCompanions(null);
+        session.setScheduleBlock(null);
+        session.setReservationCode(null);
+        session.setWaitingListEntryId(null);
+        session.setBotPaused(false);
+        conversationSessionRepository.saveAndFlush(session);
     }
 
     private String normalizeWhatsAppNumber(String phone) {

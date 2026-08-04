@@ -36,12 +36,12 @@ public class WaitingListCapacityGuard {
         }
 
         waitingListService.join(session);
-        session.setCurrentStep("MAIN_MENU");
-        conversationSessionRepository.saveAndFlush(session);
         messaging.sendText(session.getPhoneNumber(),
                 "⏳ El cupo de " + maxCapacity + " pasajeros para el " + schedule
                         + " está completo. Te agregamos a la Lista de Espera y te avisaremos "
                         + "por WhatsApp cuando se libere un lugar.");
+        conversationSessionRepository.delete(session);
+        conversationSessionRepository.flush();
         return true;
     }
 }

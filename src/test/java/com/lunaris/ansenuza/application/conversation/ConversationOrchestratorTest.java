@@ -367,4 +367,42 @@ class ConversationOrchestratorTest {
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.anyString());
     }
+
+    @Test
+    void unknownStepResetsBookingStateAndPresentsMainMenu() {
+        String phone = "543511112222";
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        DriverRepository drivers = mock(DriverRepository.class);
+        ConversationStepHandler startHandler = mock(ConversationStepHandler.class);
+        ConversationSession session = ConversationSession.builder()
+                .phoneNumber(phone)
+                .currentStep("WAITING_LIST_COMPLETED")
+                .pickupLocality("Morteros")
+                .travelDate(LocalDate.of(2026, 8, 20))
+                .passengerCount(2)
+                .waitingListEntryId(10L)
+                .botPaused(false)
+                .build();
+        when(startHandler.step()).thenReturn("START");
+        when(sessions.findByPhoneNumber(phone)).thenReturn(Optional.of(session));
+        when(drivers.findFirstByPhone(phone)).thenReturn(Optional.empty());
+        when(drivers.findByActiveTrue()).thenReturn(List.of());
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                List.of(startHandler), sessions, mock(LiveChatPort.class),
+                mock(OperationControlService.class),
+                mock(ReservationCancellationService.class), drivers,
+                mock(ReservationRepository.class), mock(WhatsAppService.class),
+                mock(ProcessPromotionCommandUseCase.class),
+                mock(OnboardPassengerUseCase.class));
+        IncomingMessage message = new IncomingMessage(
+                phone, IncomingMessage.MessageType.TEXT, "continuar", null);
+
+        orchestrator.process(message);
+
+        assertEquals("START", session.getCurrentStep());
+        assertEquals(null, session.getTravelDate());
+        assertEquals(null, session.getWaitingListEntryId());
+        verify(sessions, org.mockito.Mockito.times(2)).saveAndFlush(session);
+        verify(startHandler).handle(session, message);
+    }
 }

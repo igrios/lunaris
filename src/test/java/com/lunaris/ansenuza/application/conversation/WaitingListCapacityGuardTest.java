@@ -34,11 +34,12 @@ class WaitingListCapacityGuardTest {
 
         assertTrue(guard.offerWaitingListWhenFull(session));
 
-        verify(sessions).saveAndFlush(session);
         verify(waitingList).join(session);
         verify(messaging).sendText(
                 org.mockito.ArgumentMatchers.eq(session.getPhoneNumber()),
                 org.mockito.ArgumentMatchers.contains("cupo de 12 pasajeros"));
+        verify(sessions).delete(session);
+        verify(sessions).flush();
     }
 
     @Test
@@ -57,7 +58,7 @@ class WaitingListCapacityGuardTest {
 
         assertFalse(guard.offerWaitingListWhenFull(session));
 
-        verify(sessions, never()).saveAndFlush(session);
+        verify(sessions, never()).delete(session);
     }
 
     private ConversationSession sessionWithPassengers(int passengerCount) {
