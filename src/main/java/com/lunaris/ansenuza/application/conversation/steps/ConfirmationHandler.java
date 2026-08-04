@@ -113,6 +113,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     .destination(session.getDestination())
                     .roundTrip(session.getRoundTrip())
                     .paymentVerified(freePromotion)
+                    .requiresInvoice(!freePromotion)
                     .amount(price)
                     .discountAmount(discountAmount)
                     .promotionCode(session.getPromotionCode())

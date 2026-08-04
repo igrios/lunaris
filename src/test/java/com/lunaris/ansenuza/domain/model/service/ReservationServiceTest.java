@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
@@ -26,6 +27,43 @@ import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
 class ReservationServiceTest {
+
+    @Test
+    void roundTripLegsInheritInvoiceAndVerifiedPaymentFlags() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        when(reservations.countSequenceByRouteAndDate(
+                "Morteros", "Córdoba", LocalDate.of(2026, 8, 10))).thenReturn(0L);
+        when(reservations.existsByReservationCode(any())).thenReturn(false);
+        when(reservations.save(any(Reservation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+        Reservation reservation = Reservation.builder()
+                .passenger(Passenger.builder().currentBalance(BigDecimal.ZERO).build())
+                .pickupLocality("Morteros")
+                .destination("Córdoba")
+                .travelDate(LocalDate.of(2026, 8, 10))
+                .returnDate(LocalDate.of(2026, 8, 12))
+                .roundTrip(true)
+                .tripType(TripType.ROUND_TRIP)
+                .amount(new BigDecimal("20000.00"))
+                .discountAmount(BigDecimal.ZERO)
+                .paymentVerified(true)
+                .requiresInvoice(true)
+                .status("CONFIRMED")
+                .build();
+
+        List<Reservation> saved = service.saveReservationFlow(reservation);
+
+        assertEquals(2, saved.size());
+        assertEquals(new BigDecimal("10000.00"), saved.get(0).getAmount());
+        assertEquals(new BigDecimal("10000.00"), saved.get(1).getAmount());
+        saved.forEach(leg -> {
+            assertEquals(true, leg.getRequiresInvoice());
+            assertEquals(true, leg.getPaymentVerified());
+        });
+    }
 
     @Test
     void generatesRouteBasedCodeWithThreeDigitSequence() {

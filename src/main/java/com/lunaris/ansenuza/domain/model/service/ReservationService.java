@@ -36,6 +36,8 @@ public class ReservationService {
         List<Reservation> savedReservations = new ArrayList<>();
 
         normalizePassengerName(mainReservation.getPassenger());
+        boolean requiresInvoice = Boolean.TRUE.equals(mainReservation.getRequiresInvoice());
+        mainReservation.setRequiresInvoice(requiresInvoice);
 
         // 1. Normalizamos la ruta y sus prefijos para que todos los canales
         // (web, panel y bot) compartan el mismo formato de código.
@@ -135,6 +137,7 @@ public class ReservationService {
             returnReservation.setPassengerCount(mainReservation.getPassengerCount());
             returnReservation.setCompanionNames(mainReservation.getCompanionNames());
             returnReservation.setPaymentVerified(mainReservation.getPaymentVerified());
+            returnReservation.setRequiresInvoice(requiresInvoice);
             returnReservation.setStatus(mainReservation.getStatus());
             returnReservation.setSource(mainReservation.getSource());
             returnReservation.setRoundTrip(true);

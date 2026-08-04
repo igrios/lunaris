@@ -74,6 +74,7 @@ public class CreateReservationUseCase {
                 .passengerCount(safePassengerCount)
                 .companionNames(request.companionNames())
                 .paymentVerified(safePaymentVerified)
+                .requiresInvoice(true)
                 .status(initialStatus)
                 .source(request.source() != null ? request.source() : ReservationSource.WEB)
                 .amount(computedAmount) // 🌟 Inyectamos el monto calculado automáticamente
