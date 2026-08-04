@@ -125,15 +125,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            WHERE r.paymentVerified = true
            AND r.requiresInvoice = true
            AND r.id NOT IN (SELECT i.reservation.id FROM Invoice i)
-           AND NOT EXISTS (
-               SELECT groupedInvoice.id FROM Invoice groupedInvoice
-               WHERE (r.reservationCode LIKE '%-IDA'
-                      AND groupedInvoice.reservation.reservationCode = CONCAT(
-                          SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 4), '-VUELTA'))
-                  OR (r.reservationCode LIKE '%-VUELTA'
-                      AND groupedInvoice.reservation.reservationCode = CONCAT(
-                          SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 7), '-IDA'))
-           )
            """)
     List<Reservation> findPendingInvoiceReservations();
 

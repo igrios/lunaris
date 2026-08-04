@@ -24,7 +24,7 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 class IssueInvoiceUseCaseTest {
 
     @Test
-    void issuingFromReturnLegAnchorsFullTripInvoiceToOutboundLeg() {
+    void issuingFromReturnLegLinksInvoiceToSelectedReservation() {
         UUID outboundId = UUID.randomUUID();
         UUID returnId = UUID.randomUUID();
         Passenger passenger = Passenger.builder()
@@ -42,7 +42,7 @@ class IssueInvoiceUseCaseTest {
         when(reservations.findById(returnId)).thenReturn(Optional.of(returnLeg));
         when(reservations.findReservationGroup("MOR-COR-001"))
                 .thenReturn(List.of(outbound, returnLeg));
-        when(invoices.findByReservationId(outboundId)).thenReturn(Optional.empty());
+        when(invoices.findByReservationId(returnId)).thenReturn(Optional.empty());
         when(invoices.count()).thenReturn(0L);
         when(storage.store(any(byte[].class), anyString()))
                 .thenReturn(new StoredInvoice("/invoices/factura.pdf", "/tmp/factura.pdf"));
@@ -51,9 +51,9 @@ class IssueInvoiceUseCaseTest {
         Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging)
                 .issue(returnId, new byte[] {1});
 
-        assertEquals(outboundId, issued.getReservationId());
+        assertEquals(returnId, issued.getReservationId());
         assertEquals(new BigDecimal("20000.00"), issued.getAmount());
-        verify(invoices).findByReservationId(outboundId);
+        verify(invoices).findByReservationId(returnId);
     }
 
     private Reservation paidLeg(UUID id, String code, Passenger passenger) {

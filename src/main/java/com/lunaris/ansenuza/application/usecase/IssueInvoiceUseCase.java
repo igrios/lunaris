@@ -44,8 +44,7 @@ public class IssueInvoiceUseCase {
             throw new IllegalStateException("No se emiten facturas fiscales para reservas bonificadas al 100%.");
         }
 
-        Reservation invoiceAnchor = invoiceAnchor(reservation);
-        Invoice invoice = invoiceRepository.findByReservationId(invoiceAnchor.getId()).orElseGet(Invoice::new);
+        Invoice invoice = invoiceRepository.findByReservationId(reservationId).orElseGet(Invoice::new);
         if (invoice.getInvoiceNumber() == null) {
             invoice.setInvoiceNumber(nextInvoiceNumber());
         }
@@ -53,7 +52,7 @@ public class IssueInvoiceUseCase {
         String fileName = "factura_" + invoice.getInvoiceNumber().replace("-", "_") + ".pdf";
         StoredInvoice stored = invoiceStorage.store(pdfBytes, fileName);
 
-        invoice.setReservationId(invoiceAnchor.getId());
+        invoice.setReservationId(reservationId);
         invoice.setPassengerName(reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName());
         invoice.setPassengerCuil(CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()));
         invoice.setAmount(totalGroupAmount(reservation));
@@ -125,17 +124,5 @@ public class IssueInvoiceUseCase {
             throw new IllegalStateException("El pago del viaje completo todavía no fue confirmado.");
         }
         return group.stream().map(this::totalReservationAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private Reservation invoiceAnchor(Reservation reservation) {
-        if (reservation.getReservationCode() == null) {
-            return reservation;
-        }
-        String groupCode = reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
-        return reservationRepository.findReservationGroup(groupCode).stream()
-                .filter(item -> item.getReservationCode() != null
-                        && item.getReservationCode().endsWith("-IDA"))
-                .findFirst()
-                .orElse(reservation);
     }
 }
