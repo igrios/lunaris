@@ -22,6 +22,7 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
+import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
@@ -48,7 +49,7 @@ class ProcessPaymentReceiptUseCaseTest {
                 .thenReturn(List.of(reservation));
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, messaging, liveChat,
-                mock(SameDayBookingPolicy.class));
+                mock(SameDayBookingPolicy.class), mock(ReservationService.class));
 
         useCase.execute("543511111111", "media-123");
 
@@ -78,7 +79,8 @@ class ProcessPaymentReceiptUseCaseTest {
         when(storage.uploadFile(receipt)).thenReturn("https://cdn.example.com/receipt.jpg");
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
-                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class));
+                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class),
+                mock(ReservationService.class));
 
         useCase.confirmOrCreateWebBooking("3511111111", receipt, null);
 
@@ -97,9 +99,15 @@ class ProcessPaymentReceiptUseCaseTest {
         when(passengers.findByPhone("543511111111")).thenReturn(Optional.of(passenger));
         when(reservations.findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger))
                 .thenReturn(List.of());
+        ReservationService reservationService = mock(ReservationService.class);
+        when(reservationService.saveReservationFlow(any(Reservation.class)))
+                .thenAnswer(invocation -> {
+                    Reservation newReservation = invocation.getArgument(0);
+                    return List.of(newReservation);
+                });
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
-                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class));
+                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class), reservationService);
         BookingVerificationData payload = new BookingVerificationData(
                 LocalDate.of(2026, 8, 10), "08:00 AM", "La Puerta", "Córdoba",
                 2, TripType.ONE_WAY, new BigDecimal("56000.00"));
@@ -114,6 +122,6 @@ class ProcessPaymentReceiptUseCaseTest {
         assertEquals(ReservationSource.WEB, created.getSource());
         assertEquals(payload.totalAmount(), created.getAmount());
         assertEquals(payload.scheduleBlock(), created.getDepartureSchedule());
-        verify(reservations).saveAndFlush(any(Reservation.class));
+        verify(reservationService).saveReservationFlow(created);
     }
 }

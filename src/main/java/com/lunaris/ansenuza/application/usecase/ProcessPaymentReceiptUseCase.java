@@ -15,6 +15,7 @@ import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
+import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,6 +35,7 @@ public class ProcessPaymentReceiptUseCase {
     private final MessagingPort messaging;
     private final LiveChatPort liveChat;
     private final SameDayBookingPolicy sameDayBookingPolicy;
+    private final ReservationService reservationService;
 
     @Transactional
     public void execute(String phoneNumber, String mediaId) {
@@ -116,8 +118,10 @@ public class ProcessPaymentReceiptUseCase {
             reservation.setPaymentVerified(true);
             reservation.setStatus("CONFIRMED");
         }
-        reservationRepository.saveAndFlush(reservation);
-        return reservation;
+        if (pendingReservation.isPresent()) {
+            return reservationRepository.saveAndFlush(reservation);
+        }
+        return reservationService.saveReservationFlow(reservation).getFirst();
     }
 
     private String uploadReceipt(MultipartFile receiptFile, String phoneNumber) {
