@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.UUID;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
@@ -36,14 +37,20 @@ public class IssueInvoiceUseCase {
     public Invoice issue(UUID reservationId, byte[] pdfBytes) {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
-        if (!Boolean.TRUE.equals(reservation.getPaymentVerified()) || !"CONFIRMED".equals(reservation.getStatus())) {
+        List<Reservation> group = invoiceGroup(reservation);
+        if (group.stream().anyMatch(item -> !Boolean.TRUE.equals(item.getPaymentVerified())
+                || !"CONFIRMED".equals(item.getStatus()))) {
             throw new IllegalStateException("La factura solo puede emitirse después de confirmar el pago.");
         }
-        if (totalReservationAmount(reservation).signum() <= 0) {
+        BigDecimal invoiceAmount = group.stream()
+                .map(this::totalReservationAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (invoiceAmount.signum() <= 0) {
             throw new IllegalStateException("No se emiten facturas fiscales para reservas bonificadas al 100%.");
         }
 
-        Invoice invoice = invoiceRepository.findByReservationId(reservationId).orElseGet(Invoice::new);
+        Reservation primary = primaryReservation(group, reservation);
+        Invoice invoice = invoiceRepository.findByReservationId(primary.getId()).orElseGet(Invoice::new);
         if (invoice.getInvoiceNumber() == null) {
             invoice.setInvoiceNumber(nextInvoiceNumber());
         }
@@ -51,10 +58,10 @@ public class IssueInvoiceUseCase {
         String fileName = "factura_" + invoice.getInvoiceNumber().replace("-", "_") + ".pdf";
         StoredInvoice stored = invoiceStorage.store(pdfBytes, fileName);
 
-        invoice.setReservationId(reservationId);
+        invoice.setReservationId(primary.getId());
         invoice.setPassengerName(reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName());
         invoice.setPassengerCuil(CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()));
-        invoice.setAmount(totalReservationAmount(reservation));
+        invoice.setAmount(invoiceAmount);
         invoice.setPdfUrl(stored.webUrl());
 
         boolean sent = sendByWhatsApp(reservation, invoice, stored.absolutePath());
@@ -110,6 +117,24 @@ public class IssueInvoiceUseCase {
         BigDecimal amount = reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
         BigDecimal extraAmount = reservation.getExtraAmount() == null ? BigDecimal.ZERO : reservation.getExtraAmount();
         return amount.add(extraAmount);
+    }
+
+    private List<Reservation> invoiceGroup(Reservation reservation) {
+        String code = reservation.getReservationCode();
+        if (code == null || !(code.endsWith("-IDA") || code.endsWith("-VUELTA"))) {
+            return List.of(reservation);
+        }
+        String groupCode = code.replaceFirst("-(IDA|VUELTA)$", "");
+        List<Reservation> group = reservationRepository.findReservationGroup(groupCode);
+        return group.isEmpty() ? List.of(reservation) : group;
+    }
+
+    private Reservation primaryReservation(List<Reservation> group, Reservation fallback) {
+        return group.stream()
+                .filter(item -> item.getReservationCode() != null
+                        && item.getReservationCode().endsWith("-IDA"))
+                .findFirst()
+                .orElse(fallback);
     }
 
 }

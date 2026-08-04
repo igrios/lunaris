@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.LinkedHashMap;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.Passenger;
@@ -34,12 +35,8 @@ public class GetBillingPanelUseCase {
         BigDecimal ingresoMes = reservationRepository.sumConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
         long countMes = reservationRepository.countConfirmedIncomeBetween(startOfMonth, startOfNextMonth);
 
-        // Cada tramo pagado que requiere factura permanece visible hasta que tenga
-        // su propia factura, incluidas las vueltas programadas y abiertas.
-        List<PendingInvoiceRow> pendientes = reservationRepository.findPendingInvoiceReservations().stream()
-                .filter(r -> totalReservationAmount(r).signum() > 0)
-                .map(this::toRow)
-                .toList();
+        List<PendingInvoiceRow> pendientes = consolidatePendingInvoices(
+                reservationRepository.findPendingInvoiceReservations());
 
         return new BillingPanelView(
                 ingresoHoy != null ? ingresoHoy : BigDecimal.ZERO,
@@ -51,24 +48,67 @@ public class GetBillingPanelUseCase {
         );
     }
 
-    private PendingInvoiceRow toRow(Reservation r) {
-        Passenger passenger = r.getPassenger();
+    private List<PendingInvoiceRow> consolidatePendingInvoices(List<Reservation> reservations) {
+        var groups = new LinkedHashMap<String, List<Reservation>>();
+        for (Reservation reservation : reservations) {
+            groups.compute(baseCode(reservation), (code, existing) -> {
+                var legs = existing == null
+                        ? new java.util.ArrayList<Reservation>()
+                        : new java.util.ArrayList<>(existing);
+                legs.add(reservation);
+                return legs;
+            });
+        }
+        return groups.values().stream()
+                .filter(legs -> combinedAmount(legs).signum() > 0)
+                .map(this::toRow)
+                .toList();
+    }
+
+    private PendingInvoiceRow toRow(List<Reservation> legs) {
+        Reservation primary = legs.stream()
+                .filter(item -> item.getReservationCode() != null
+                        && item.getReservationCode().endsWith("-IDA"))
+                .findFirst()
+                .orElse(legs.getFirst());
+        Passenger passenger = legs.stream()
+                .map(Reservation::getPassenger)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
         String nombre = passenger == null
                 ? "Pasajero sin vincular"
                 : fullName(passenger);
         String rawDoc = passenger == null ? null : passenger.getCuil();
-        String route = r.getPickupLocality() + " → " + r.getDestination();
+        String code = baseCode(primary);
+        String route = primary.getPickupLocality() + " → " + primary.getDestination();
+        if (legs.size() > 1) {
+            route += " (Ida y Vuelta)";
+        }
         return new PendingInvoiceRow(
-                r.getId(),
-                r.getReservationCode(),
+                primary.getId(),
+                code,
                 nombre,
                 passenger == null ? null : passenger.getPhone(),
                 rawDoc,
                 CuilCalculator.suggestCuil(rawDoc),
-                totalReservationAmount(r),
-                r.getTravelDate(),
+                combinedAmount(legs),
+                primary.getTravelDate(),
                 route
         );
+    }
+
+    private String baseCode(Reservation reservation) {
+        if (reservation.getReservationCode() == null) {
+            return "UUID:" + reservation.getId();
+        }
+        return reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
+    }
+
+    private BigDecimal combinedAmount(List<Reservation> reservations) {
+        return reservations.stream()
+                .map(this::totalReservationAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private String fullName(Passenger passenger) {

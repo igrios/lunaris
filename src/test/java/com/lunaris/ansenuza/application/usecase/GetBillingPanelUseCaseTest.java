@@ -23,10 +23,11 @@ class GetBillingPanelUseCaseTest {
         Reservation pending = Reservation.builder()
                 .passenger(Passenger.builder().firstName("Ana").lastName("Pérez")
                         .phone("543511111111").build())
+                .reservationCode("BRI-COR-001")
                 .pickupLocality("San Guillermo")
                 .destination("Córdoba")
                 .travelDate(LocalDate.of(2026, 8, 10))
-                .amount(new BigDecimal("25000"))
+                .amount(new BigDecimal("50500"))
                 .paymentVerified(true)
                 .requiresInvoice(true)
                 .build();
@@ -36,12 +37,13 @@ class GetBillingPanelUseCaseTest {
         var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
 
         assertEquals(1, panel.pendientes().size());
-        assertEquals(new BigDecimal("25000"), panel.pendientes().getFirst().amount());
+        assertEquals("BRI-COR-001", panel.pendientes().getFirst().reservationCode());
+        assertEquals(new BigDecimal("50500"), panel.pendientes().getFirst().amount());
         verify(reservations).findPendingInvoiceReservations();
     }
 
     @Test
-    void pendingInvoicesIncludeBothOutboundAndReturnLegs() {
+    void pendingInvoicesConsolidateOutboundAndReturnLegs() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         Passenger passenger = Passenger.builder().firstName("Ana").lastName("Pérez")
@@ -74,13 +76,12 @@ class GetBillingPanelUseCaseTest {
 
         var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
 
-        assertEquals(2, panel.pendientes().size());
-        assertEquals(List.of("LUN-001-IDA", "LUN-001-VUELTA"),
-                panel.pendientes().stream().map(row -> row.reservationCode()).toList());
-        assertEquals(List.of(LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 12)),
-                panel.pendientes().stream().map(row -> row.travelDate()).toList());
-        assertEquals(List.of(new BigDecimal("52500"), new BigDecimal("52500")),
-                panel.pendientes().stream().map(row -> row.amount()).toList());
+        assertEquals(1, panel.pendientes().size());
+        var row = panel.pendientes().getFirst();
+        assertEquals("LUN-001", row.reservationCode());
+        assertEquals(LocalDate.of(2026, 8, 10), row.travelDate());
+        assertEquals(new BigDecimal("105000"), row.amount());
+        assertEquals(true, row.route().contains("Ida y Vuelta"));
     }
 
     @Test
@@ -103,7 +104,7 @@ class GetBillingPanelUseCaseTest {
         var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
 
         assertEquals(1, panel.pendientes().size());
-        assertEquals("LUN-002-IDA", panel.pendientes().getFirst().reservationCode());
+        assertEquals("LUN-002", panel.pendientes().getFirst().reservationCode());
         assertEquals("Pasajero sin vincular", panel.pendientes().getFirst().passengerName());
     }
 }
