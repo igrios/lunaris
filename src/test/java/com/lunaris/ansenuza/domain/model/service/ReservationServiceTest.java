@@ -60,6 +60,7 @@ class ReservationServiceTest {
         assertEquals(new BigDecimal("10000.00"), saved.get(0).getAmount());
         assertEquals(new BigDecimal("10000.00"), saved.get(1).getAmount());
         saved.forEach(leg -> {
+            assertSame(reservation.getPassenger(), leg.getPassenger());
             assertEquals(true, leg.getRequiresInvoice());
             assertEquals(true, leg.getPaymentVerified());
         });

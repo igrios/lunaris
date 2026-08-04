@@ -80,4 +80,28 @@ class GetBillingPanelUseCaseTest {
         assertEquals(List.of(LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 12)),
                 panel.pendientes().stream().map(row -> row.travelDate()).toList());
     }
+
+    @Test
+    void pendingOutboundWithoutPassengerLinkRemainsVisible() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        InvoiceRepository invoices = mock(InvoiceRepository.class);
+        Reservation outbound = Reservation.builder()
+                .reservationCode("LUN-002-IDA")
+                .pickupLocality("Morteros")
+                .destination("Córdoba")
+                .travelDate(LocalDate.of(2026, 8, 15))
+                .amount(new BigDecimal("10000"))
+                .paymentVerified(true)
+                .requiresInvoice(true)
+                .build();
+        when(reservations.findPendingInvoiceReservations()).thenReturn(List.of(outbound));
+        when(reservations.findReservationGroup("LUN-002")).thenReturn(List.of(outbound));
+        when(invoices.findAllByOrderByCreatedAtDesc()).thenReturn(List.of());
+
+        var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
+
+        assertEquals(1, panel.pendientes().size());
+        assertEquals("LUN-002-IDA", panel.pendientes().getFirst().reservationCode());
+        assertEquals("Pasajero sin vincular", panel.pendientes().getFirst().passengerName());
+    }
 }

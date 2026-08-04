@@ -121,6 +121,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     @Query("""
            SELECT r FROM Reservation r
+           LEFT JOIN FETCH r.passenger
            WHERE r.paymentVerified = true
            AND r.requiresInvoice = true
            AND r.id NOT IN (SELECT i.reservation.id FROM Invoice i)

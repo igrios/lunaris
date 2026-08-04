@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.service.CuilCalculator;
 import com.lunaris.ansenuza.domain.repository.InvoiceRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
@@ -51,20 +52,30 @@ public class GetBillingPanelUseCase {
     }
 
     private PendingInvoiceRow toRow(Reservation r) {
-        String nombre = r.getPassenger().getFirstName() + " " + r.getPassenger().getLastName();
-        String rawDoc = r.getPassenger().getCuil();
+        Passenger passenger = r.getPassenger();
+        String nombre = passenger == null
+                ? "Pasajero sin vincular"
+                : fullName(passenger);
+        String rawDoc = passenger == null ? null : passenger.getCuil();
         String route = r.getPickupLocality() + " → " + r.getDestination();
         return new PendingInvoiceRow(
                 r.getId(),
                 r.getReservationCode(),
                 nombre,
-                r.getPassenger().getPhone(),
+                passenger == null ? null : passenger.getPhone(),
                 rawDoc,
                 CuilCalculator.suggestCuil(rawDoc),
                 groupTotalAmount(r),
                 r.getTravelDate(),
                 route
         );
+    }
+
+    private String fullName(Passenger passenger) {
+        String firstName = passenger.getFirstName() == null ? "" : passenger.getFirstName().trim();
+        String lastName = passenger.getLastName() == null ? "" : passenger.getLastName().trim();
+        String name = (firstName + " " + lastName).trim();
+        return name.isBlank() ? "Pasajero sin nombre" : name;
     }
 
     private BigDecimal totalReservationAmount(Reservation reservation) {
