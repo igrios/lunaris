@@ -4,6 +4,7 @@ import com.lunaris.ansenuza.application.payment.ProcessBankEmailUseCase;
 import com.lunaris.ansenuza.infrastructure.adapter.parser.MercadoPagoEmailParser;
 import jakarta.mail.Address;
 import jakarta.mail.BodyPart;
+import jakarta.mail.FolderClosedException;
 import jakarta.mail.Message;
 import jakarta.mail.Multipart;
 import jakarta.mail.Part;
@@ -48,6 +49,9 @@ public class MercadoPagoImapAdapterConfig {
         ImapMailReceiver receiver = new ImapMailReceiver(imapUrl(properties));
         receiver.setShouldDeleteMessages(false);
         receiver.setShouldMarkMessagesAsRead(true);
+        // Spring Integration 6.x names this setting autoCloseFolder. Keeping the
+        // folder open is required because MimeMessage body parts are loaded lazily.
+        receiver.setAutoCloseFolder(false);
         Properties mailProperties = new Properties();
         mailProperties.setProperty("mail.imaps.ssl.enable", "true");
         mailProperties.setProperty("mail.imaps.connectiontimeout", "10000");
@@ -126,25 +130,31 @@ public class MercadoPagoImapAdapterConfig {
         return from[0].toString();
     }
 
-    private String content(Part part) throws Exception {
-        if (part.isMimeType("text/plain")) {
-            return String.valueOf(part.getContent());
-        }
-        if (part.isMimeType("text/html")) {
-            return String.valueOf(part.getContent()).replaceAll("<[^>]+>", " ");
-        }
-        Object rawContent = part.getContent();
-        if (rawContent instanceof Multipart multipart) {
-            StringBuilder text = new StringBuilder();
-            for (int index = 0; index < multipart.getCount(); index++) {
-                BodyPart bodyPart = multipart.getBodyPart(index);
-                if (!Part.ATTACHMENT.equalsIgnoreCase(bodyPart.getDisposition())) {
-                    text.append(content(bodyPart)).append('\n');
-                }
+    String content(Part part) throws Exception {
+        try {
+            if (part.isMimeType("text/plain")) {
+                return String.valueOf(part.getContent());
             }
-            return text.toString();
+            if (part.isMimeType("text/html")) {
+                return String.valueOf(part.getContent()).replaceAll("<[^>]+>", " ");
+            }
+            Object rawContent = part.getContent();
+            if (rawContent instanceof Multipart multipart) {
+                StringBuilder text = new StringBuilder();
+                for (int index = 0; index < multipart.getCount(); index++) {
+                    BodyPart bodyPart = multipart.getBodyPart(index);
+                    if (!Part.ATTACHMENT.equalsIgnoreCase(bodyPart.getDisposition())) {
+                        text.append(content(bodyPart)).append('\n');
+                    }
+                }
+                return text.toString();
+            }
+            return "";
+        } catch (FolderClosedException exception) {
+            log.warn("IMAP folder closed while eagerly reading message content; "
+                    + "the unavailable body is treated as empty");
+            return "";
         }
-        return "";
     }
 
     private String imapUrl(MercadoPagoImapProperties properties) {
