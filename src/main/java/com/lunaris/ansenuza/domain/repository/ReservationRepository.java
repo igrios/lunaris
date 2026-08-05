@@ -23,6 +23,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 🤖 2. BUSCADOR POR CÓDIGO: Necesario para que el Bot valide y procese la BAJA (Opción 5)
     Optional<Reservation> findByReservationCode(String reservationCode);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Reservation r WHERE r.reservationCode = :reservationCode")
+    Optional<Reservation> findByReservationCodeForUpdate(
+            @Param("reservationCode") String reservationCode);
+
     @Query("""
            SELECT r FROM Reservation r
            WHERE r.reservationCode = CONCAT(:groupCode, '-IDA')
