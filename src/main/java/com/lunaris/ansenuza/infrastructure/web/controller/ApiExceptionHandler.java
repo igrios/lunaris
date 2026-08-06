@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException;
 import com.lunaris.ansenuza.domain.exception.DriverApplicationNotFoundException;
+import com.lunaris.ansenuza.domain.exception.SpecialTripNotFoundException;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(SpecialTripNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> specialTripNotFound(SpecialTripNotFoundException exception) {
+        return response(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
 
     @ExceptionHandler(DriverApplicationNotFoundException.class)
     public ResponseEntity<Map<String, Object>> driverApplicationNotFound(

@@ -11,6 +11,8 @@ import com.lunaris.ansenuza.domain.model.Fare;
 @Repository
 public interface FareRepository extends JpaRepository<Fare, UUID> {
 
+    List<Fare> findAllByOrderByLocalityNameAsc();
+
     // 🌟 1. Trae solo los nombres de los pueblos comerciales activos para los menús
     @Query("SELECT f.localityName FROM Fare f WHERE f.amount > 0 ORDER BY f.amount DESC")
     List<String> findCommercialLocalities();

@@ -102,7 +102,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/api-docs/**",
-                                "/v3/api-docs/**")
+                                "/v3/api-docs/**",
+                                "/api/special-trips/**")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/hoja-ruta")
                         .permitAll()
@@ -112,6 +113,8 @@ public class SecurityConfig {
                                 "/choferes/**",
                                 "/drivers/**",
                                 "/vehicles/**")
+                        .hasRole(Role.ADMIN.name())
+                        .requestMatchers("/api/admin/fares/**", "/api/admin/special-trips/**")
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers(
                                 "/admin/bot/toggle-bot",
