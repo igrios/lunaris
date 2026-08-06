@@ -4,8 +4,10 @@
   <title>Lunaris - Novedades</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta th:if="${_csrf != null}" name="_csrf" th:content="${_csrf.token}">
+  <meta th:if="${_csrf != null}" name="_csrf_header" th:content="${_csrf.headerName}">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>body { background:#f4f6f9; padding-top:75px; } .card { border:0; border-radius:12px; } .flyer { width:90px; height:90px; object-fit:cover; border-radius:8px; }</style>
+  <style>body { background:#f4f6f9; padding-top:75px; } .card { border:0; border-radius:12px; } .flyer { width:90px; height:90px; object-fit:cover; border-radius:8px; } .trip-flyer { width:100%; height:190px; object-fit:cover; } .preview { width:100%; max-height:220px; object-fit:contain; background:#f1f5f9; border-radius:8px; }</style>
 </head>
 <body>
   <nav th:replace="~{fragments/nav :: bar('novedades')}"></nav>
@@ -13,8 +15,69 @@
     <h1 class="fw-bold">Novedades y promociones</h1>
     <p class="text-muted">Administrá los flyers visibles en la aplicación.</p>
     <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+
+    <section class="mb-5">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div><h2 class="h3 fw-bold mb-1">Viajes especiales</h2><p class="text-muted mb-0">Publicaciones de excursiones y eventos especiales.</p></div>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createTripModal">+ Nuevo viaje especial</button>
+      </div>
+      <div class="row g-4">
+        <div class="col-md-6 col-xl-4" th:each="trip : ${specialTrips}"><article class="card shadow-sm h-100 overflow-hidden">
+          <img th:if="${trip.imageUrl != null}" class="trip-flyer" th:src="${trip.imageUrl}" th:alt="${trip.title}">
+          <div th:unless="${trip.imageUrl != null}" class="trip-flyer d-flex align-items-center justify-content-center bg-light text-muted">Sin flyer</div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between gap-2"><h3 class="h5 fw-bold" th:text="${trip.title}">Viaje</h3><span class="badge align-self-start" th:classappend="${trip.active} ? 'text-bg-success' : 'text-bg-secondary'" th:text="${trip.active ? 'Activo' : 'Inactivo'}">Activo</span></div>
+            <p class="mb-1"><strong th:text="${trip.origin != null ? trip.origin : 'Origen a confirmar'}">Origen</strong> → <strong th:text="${trip.destination != null ? trip.destination : 'Destino a confirmar'}">Destino</strong></p>
+            <p class="text-muted small mb-2"><span th:text="${#temporals.format(trip.startDate, 'dd/MM/yyyy')}"></span> al <span th:text="${#temporals.format(trip.endDate, 'dd/MM/yyyy')}"></span></p>
+            <p class="fs-5 fw-semibold mb-3" th:text="'$ ' + ${#numbers.formatDecimal(trip.price, 1, 2, 'POINT')}">$ 0</p>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="form-check form-switch"><input class="form-check-input trip-status" type="checkbox" role="switch" th:id="'tripStatus-' + ${trip.id}" th:data-trip-id="${trip.id}" th:checked="${trip.active}"><label class="form-check-label" th:for="'tripStatus-' + ${trip.id}">Visible</label></div>
+              <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" th:data-bs-target="'#{editTripModal-' + ${trip.id} + '}'">Editar</button>
+            </div>
+          </div>
+        </article></div>
+        <div class="col-12" th:if="${#lists.isEmpty(specialTrips)}"><div class="card shadow-sm"><div class="card-body text-center text-muted py-5">No hay viajes especiales cargados.</div></div></div>
+      </div>
+    </section>
+
+    <div class="modal fade" id="createTripModal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+      <form th:action="@{/admin/novedades/viajes}" method="post">
+        <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <div class="modal-header"><h5 class="modal-title">Nuevo viaje especial</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body"><div class="row g-3">
+          <div class="col-12"><label class="form-label">Título</label><input name="title" class="form-control" maxlength="255" placeholder="Visita del Papa León XIV a Córdoba" required></div>
+          <div class="col-md-6"><label class="form-label">Origen</label><input name="origin" class="form-control" maxlength="100"></div><div class="col-md-6"><label class="form-label">Destino</label><input name="destination" class="form-control" maxlength="100"></div>
+          <div class="col-md-6"><label class="form-label">Fecha de inicio</label><input name="startDate" type="date" class="form-control" required></div><div class="col-md-6"><label class="form-label">Fecha de fin</label><input name="endDate" type="date" class="form-control" required></div>
+          <div class="col-md-6"><label class="form-label">Precio</label><input name="price" type="number" min="0" step="0.01" class="form-control" required></div><div class="col-md-6"><label class="form-label">Cupo máximo</label><input name="maxPassengers" type="number" min="1" class="form-control" required></div>
+          <div class="col-12"><label class="form-label">Cloudinary Image ID o URL</label><input name="imageUrl" class="form-control cloudinary-input" data-preview="#createTripPreview" maxlength="500" placeholder="Papa_en_cba_idmbxv"></div>
+          <div class="col-12"><img id="createTripPreview" class="preview d-none" alt="Vista previa del flyer"></div>
+          <div class="col-12"><label class="form-label">Descripción</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+          <div class="col-12 form-check form-switch ms-2"><input id="createTripActive" name="active" value="true" type="checkbox" class="form-check-input" checked><label for="createTripActive" class="form-check-label">Activo y visible</label></div>
+        </div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-success">Crear viaje</button></div>
+      </form>
+    </div></div></div>
+
+    <th:block th:each="trip : ${specialTrips}"><div class="modal fade" th:id="'editTripModal-' + ${trip.id}" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+      <form th:action="@{/admin/novedades/viajes/{id}/editar(id=${trip.id})}" method="post">
+        <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <div class="modal-header"><h5 class="modal-title">Editar viaje especial</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body"><div class="row g-3">
+          <div class="col-12"><label class="form-label">Título</label><input name="title" class="form-control" maxlength="255" th:value="${trip.title}" required></div>
+          <div class="col-md-6"><label class="form-label">Origen</label><input name="origin" class="form-control" maxlength="100" th:value="${trip.origin}"></div><div class="col-md-6"><label class="form-label">Destino</label><input name="destination" class="form-control" maxlength="100" th:value="${trip.destination}"></div>
+          <div class="col-md-6"><label class="form-label">Fecha de inicio</label><input name="startDate" type="date" class="form-control" th:value="${trip.startDate}" required></div><div class="col-md-6"><label class="form-label">Fecha de fin</label><input name="endDate" type="date" class="form-control" th:value="${trip.endDate}" required></div>
+          <div class="col-md-6"><label class="form-label">Precio</label><input name="price" type="number" min="0" step="0.01" class="form-control" th:value="${trip.price}" required></div><div class="col-md-6"><label class="form-label">Cupo máximo</label><input name="maxPassengers" type="number" min="1" class="form-control" th:value="${trip.maxPassengers}" required></div>
+          <div class="col-12"><label class="form-label">Cloudinary Image ID o URL</label><input name="imageUrl" class="form-control cloudinary-input" th:data-preview="'#editTripPreview-' + ${trip.id}" maxlength="500" th:value="${trip.imageUrl}"></div>
+          <div class="col-12"><img th:id="'editTripPreview-' + ${trip.id}" class="preview" th:classappend="${trip.imageUrl == null} ? 'd-none'" th:src="${trip.imageUrl}" alt="Vista previa del flyer"></div>
+          <div class="col-12"><label class="form-label">Descripción</label><textarea name="description" class="form-control" rows="2" th:text="${trip.description}"></textarea></div>
+          <div class="col-12 form-check form-switch ms-2"><input th:id="'editTripActive-' + ${trip.id}" name="active" value="true" type="checkbox" class="form-check-input" th:checked="${trip.active}"><label th:for="'editTripActive-' + ${trip.id}" class="form-check-label">Activo y visible</label></div>
+        </div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary">Guardar cambios</button></div>
+      </form>
+    </div></div></div></th:block>
+
+    <h2 class="h3 fw-bold">Flyers y promociones</h2>
     <div class="card shadow-sm mb-4"><div class="card-body">
       <form th:action="@{/admin/novedades}" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
+        <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <div class="col-md-4"><label class="form-label" for="title">Título</label><input class="form-control" id="title" name="title" maxlength="150" required></div>
         <div class="col-md-3"><label class="form-label" for="image">Flyer</label><input class="form-control" id="image" name="image" type="file" accept="image/*" required></div>
         <div class="col-md-2"><label class="form-label" for="validUntil">Válido hasta</label><input class="form-control" id="validUntil" name="validUntil" type="date"></div>
@@ -31,11 +94,30 @@
           <td><span class="badge" th:classappend="${banner.active} ? 'text-bg-success' : 'text-bg-secondary'" th:text="${banner.active ? 'Activo' : 'Inactivo'}"></span></td>
           <td th:text="${banner.validUntil != null ? #temporals.format(banner.validUntil, 'dd/MM/yyyy') : 'Sin vencimiento'}"></td>
           <td th:text="${#temporals.format(banner.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
-          <td><form th:action="@{/admin/novedades/{id}/eliminar(id=${banner.id})}" method="post" onsubmit="return confirm('¿Eliminar esta novedad?');"><button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button></form></td>
+          <td><form th:action="@{/admin/novedades/{id}/eliminar(id=${banner.id})}" method="post" onsubmit="return confirm('¿Eliminar esta novedad?');"><input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button></form></td>
         </tr>
         <tr th:if="${#lists.isEmpty(banners)}"><td colspan="6" class="text-center text-muted py-5">No hay novedades cargadas.</td></tr>
       </tbody>
     </table></div></div>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script th:inline="javascript">
+    const cloudName = /*[[${cloudinaryCloudName}]]*/ 'dgrwrcb5p';
+    const cloudinaryUrl = value => !value ? '' : (/^https?:\/\//i.test(value) ? value : `https://res.cloudinary.com/${cloudName}/image/upload/${value.trim()}`);
+    document.querySelectorAll('.cloudinary-input').forEach(input => input.addEventListener('input', () => {
+      const preview = document.querySelector(input.dataset.preview); const url = cloudinaryUrl(input.value);
+      preview.src = url; preview.classList.toggle('d-none', !url);
+    }));
+    document.querySelectorAll('.trip-status').forEach(toggle => toggle.addEventListener('change', async () => {
+      const csrf = document.querySelector('meta[name="_csrf"]'); const header = document.querySelector('meta[name="_csrf_header"]');
+      const headers = {'Content-Type':'application/x-www-form-urlencoded'}; if (csrf && header) headers[header.content] = csrf.content;
+      const previous = !toggle.checked;
+      try {
+        const response = await fetch(`/admin/novedades/viajes/${toggle.dataset.tripId}/estado`, {method:'POST', headers, body:`active=${toggle.checked}`});
+        if (!response.ok) throw new Error('No se pudo actualizar el estado');
+        window.location.reload();
+      } catch (error) { toggle.checked = previous; window.alert(error.message); }
+    }));
+  </script>
 </body>
 </html>
