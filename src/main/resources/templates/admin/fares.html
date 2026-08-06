@@ -17,6 +17,8 @@
   <nav th:replace="~{fragments/nav :: bar('tarifas')}"></nav>
   <main class="container mt-4 mb-5">
     <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
     <div class="card shadow-sm mt-4"><div class="card-body p-4">
       <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div><h2 class="mb-1">💵 Cuadro Tarifario Comercial</h2><p class="text-muted mb-0">Administrá localidades, tiempos de viaje y tarifas vigentes.</p></div>

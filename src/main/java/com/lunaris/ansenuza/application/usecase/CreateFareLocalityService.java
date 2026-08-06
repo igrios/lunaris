@@ -12,6 +12,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 @Service
 @RequiredArgsConstructor
@@ -20,13 +21,15 @@ public class CreateFareLocalityService implements CreateFareLocalityUseCase {
     private final FareRepository fareRepository;
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public FareLocalityView create(String localityName, Integer kmsToCordoba,
             Integer minutesFromOrigin, BigDecimal amount) {
         String normalizedName = FareLocalityValidation.localityName(localityName);
         FareLocalityValidation.amount(amount);
         FareLocalityValidation.nonNegative(kmsToCordoba, "Los kilómetros");
         FareLocalityValidation.nonNegative(minutesFromOrigin, "Los minutos de viaje");
+        int effectiveKmsToCordoba = kmsToCordoba == null ? 0 : kmsToCordoba;
+        int effectiveMinutesFromOrigin = minutesFromOrigin == null ? 0 : minutesFromOrigin;
         if (localityRepository.findFirstByNameIgnoreCase(normalizedName).isPresent()) {
             throw new DomainValidationException("Ya existe una localidad con ese nombre.");
         }
@@ -35,10 +38,10 @@ public class CreateFareLocalityService implements CreateFareLocalityUseCase {
         }
 
         Locality locality = Locality.builder().id(UUID.randomUUID()).name(normalizedName)
-                .kmsToCordoba(kmsToCordoba).minutesFromOrigin(minutesFromOrigin).build();
+                .kmsToCordoba(effectiveKmsToCordoba).minutesFromOrigin(effectiveMinutesFromOrigin).build();
         Fare fare = Fare.builder().id(UUID.randomUUID()).localityName(normalizedName).amount(amount).build();
-        locality = localityRepository.save(locality);
-        fare = fareRepository.save(fare);
+        locality = localityRepository.saveAndFlush(locality);
+        fare = fareRepository.saveAndFlush(fare);
         return new FareLocalityView(fare.getId(), locality.getId(), locality.getName(), fare.getAmount(),
                 locality.getKmsToCordoba(), locality.getMinutesFromOrigin());
     }

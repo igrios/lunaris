@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.model.Fare;
@@ -34,16 +35,16 @@ class CreateFareLocalityServiceTest {
     void createsLocalityAndFareTogether() {
         when(localityRepository.findFirstByNameIgnoreCase("Miramar")).thenReturn(Optional.empty());
         when(fareRepository.findFirstByLocalityNameIgnoreCase("Miramar")).thenReturn(Optional.empty());
-        when(localityRepository.save(any(Locality.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(fareRepository.save(any(Fare.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(localityRepository.saveAndFlush(any(Locality.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fareRepository.saveAndFlush(any(Fare.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var result = service.create(" Miramar ", 197, 185, new BigDecimal("62000.00"));
 
         assertThat(result.localityName()).isEqualTo("Miramar");
         assertThat(result.fareId()).isNotNull();
         assertThat(result.localityId()).isNotNull();
-        verify(localityRepository).save(any(Locality.class));
-        verify(fareRepository).save(any(Fare.class));
+        verify(localityRepository).saveAndFlush(any(Locality.class));
+        verify(fareRepository).saveAndFlush(any(Fare.class));
     }
 
     @Test
@@ -54,7 +55,22 @@ class CreateFareLocalityServiceTest {
         assertThatThrownBy(() -> service.create("Miramar", 197, 185, BigDecimal.TEN))
                 .isInstanceOf(DomainValidationException.class)
                 .hasMessageContaining("Ya existe una localidad");
-        verify(localityRepository, never()).save(any());
-        verify(fareRepository, never()).save(any());
+        verify(localityRepository, never()).saveAndFlush(any());
+        verify(fareRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void replacesMissingTravelMetricsWithZeroBeforeSaving() {
+        when(localityRepository.findFirstByNameIgnoreCase("La Para")).thenReturn(Optional.empty());
+        when(fareRepository.findFirstByLocalityNameIgnoreCase("La Para")).thenReturn(Optional.empty());
+        when(localityRepository.saveAndFlush(any(Locality.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(fareRepository.saveAndFlush(any(Fare.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        ArgumentCaptor<Locality> localityCaptor = ArgumentCaptor.forClass(Locality.class);
+
+        service.create("La Para", null, null, new BigDecimal("50000"));
+
+        verify(localityRepository).saveAndFlush(localityCaptor.capture());
+        assertThat(localityCaptor.getValue().getKmsToCordoba()).isZero();
+        assertThat(localityCaptor.getValue().getMinutesFromOrigin()).isZero();
     }
 }
