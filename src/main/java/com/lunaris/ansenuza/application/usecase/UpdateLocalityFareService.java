@@ -22,10 +22,10 @@ public class UpdateLocalityFareService implements UpdateLocalityFareUseCase {
     @Transactional
     public FareLocalityView updateLocalityAndFare(UUID localityId, String name, Integer kmsToCordoba,
             Integer minutesFromOrigin, BigDecimal amount) {
-        String normalizedName = validateName(name);
-        UpdateFareService.validateAmount(amount);
-        validateNonNegative(kmsToCordoba, "Los kilómetros");
-        validateNonNegative(minutesFromOrigin, "Los minutos de viaje");
+        String normalizedName = FareLocalityValidation.localityName(name);
+        FareLocalityValidation.amount(amount);
+        FareLocalityValidation.nonNegative(kmsToCordoba, "Los kilómetros");
+        FareLocalityValidation.nonNegative(minutesFromOrigin, "Los minutos de viaje");
 
         var locality = localityRepository.findById(localityId)
                 .orElseThrow(() -> new DomainValidationException("La localidad indicada no existe."));
@@ -51,20 +51,4 @@ public class UpdateLocalityFareService implements UpdateLocalityFareUseCase {
                 locality.getKmsToCordoba(), locality.getMinutesFromOrigin());
     }
 
-    private String validateName(String name) {
-        if (name == null || name.isBlank()) {
-            throw new DomainValidationException("El nombre de la localidad es obligatorio.");
-        }
-        String normalized = name.trim();
-        if (normalized.length() > 100) {
-            throw new DomainValidationException("El nombre de la localidad no puede superar los 100 caracteres.");
-        }
-        return normalized;
-    }
-
-    private void validateNonNegative(Integer value, String field) {
-        if (value != null && value < 0) {
-            throw new DomainValidationException(field + " no pueden ser negativos.");
-        }
-    }
 }

@@ -17,6 +17,16 @@ import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
+    @Query("""
+           SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
+           FROM Reservation r
+           WHERE (LOWER(r.pickupLocality) = LOWER(:localityName)
+                  OR LOWER(r.destination) = LOWER(:localityName))
+           AND (r.status IS NULL OR UPPER(r.status) NOT IN ('CANCELLED', 'COMPLETED'))
+           AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.COMPLETED
+           """)
+    boolean existsActiveByLocality(@Param("localityName") String localityName);
+
     // 🌟 1. LA FIRMA CRUCIAL: Soluciona los errores de compilación de Maven en el Service
     boolean existsByReservationCode(String reservationCode);
 

@@ -4,6 +4,7 @@ import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException;
 import com.lunaris.ansenuza.domain.exception.DriverApplicationNotFoundException;
 import com.lunaris.ansenuza.domain.exception.SpecialTripNotFoundException;
+import com.lunaris.ansenuza.domain.exception.FareLocalityInUseException;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(FareLocalityInUseException.class)
+    public ResponseEntity<Map<String, Object>> fareLocalityInUse(FareLocalityInUseException exception) {
+        return response(HttpStatus.CONFLICT, exception.getMessage());
+    }
 
     @ExceptionHandler(SpecialTripNotFoundException.class)
     public ResponseEntity<Map<String, Object>> specialTripNotFound(SpecialTripNotFoundException exception) {
