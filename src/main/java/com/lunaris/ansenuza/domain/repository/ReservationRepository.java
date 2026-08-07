@@ -365,4 +365,23 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     List<Reservation> findRouteByEffectiveDate(
             @Param("driverId") UUID driverId,
             @Param("effectiveDate") LocalDate effectiveDate);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.driver.id = :driverId
+             AND r.routeSequence = :sequence
+             AND r.routeDirection = :direction
+             AND (r.travelDate = :effectiveDate
+                  OR (r.returnDate = :effectiveDate AND r.reservationCode LIKE '%-VUELTA'))
+             AND r.status = 'CONFIRMED'
+             AND r.travelStatus NOT IN (
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.COMPLETED,
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW)
+           """)
+    List<Reservation> findNextRoutePassenger(
+            @Param("driverId") UUID driverId,
+            @Param("effectiveDate") LocalDate effectiveDate,
+            @Param("direction") String direction,
+            @Param("sequence") int sequence);
 }

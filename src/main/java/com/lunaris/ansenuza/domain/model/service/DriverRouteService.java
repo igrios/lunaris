@@ -138,6 +138,14 @@ public class DriverRouteService {
         reservationRepository.saveAllAndFlush(locked);
     }
 
+    @Transactional
+    public void persistDispatchSequence(List<Reservation> orderedReservations) {
+        if (orderedReservations == null || orderedReservations.isEmpty()) return;
+        java.util.stream.IntStream.range(0, orderedReservations.size()).forEach(index ->
+                orderedReservations.get(index).setRouteSequence(index + 1));
+        reservationRepository.saveAllAndFlush(orderedReservations);
+    }
+
     private boolean sameManifest(List<Reservation> reservations) {
         if (reservations.isEmpty()) return true;
         Reservation first = reservations.getFirst();

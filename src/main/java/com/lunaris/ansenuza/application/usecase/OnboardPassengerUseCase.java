@@ -200,6 +200,20 @@ public class OnboardPassengerUseCase {
 
     private Optional<Reservation> findNextPassengerInRoute(
             Reservation onboard, LocalDate effectiveDate) {
+        if (onboard.getRouteSequence() != null && onboard.getRouteDirection() != null) {
+            Optional<Reservation> persistedNext = reservationRepository.findNextRoutePassenger(
+                            onboard.getDriver().getId(), effectiveDate,
+                            onboard.getRouteDirection(), onboard.getRouteSequence() + 1)
+                    .stream()
+                    .filter(candidate -> belongsToSameLegAndDate(onboard, candidate, effectiveDate))
+                    .filter(this::isPendingCandidate)
+                    .findFirst();
+            if (persistedNext.isPresent()) {
+                log.info("[ONBOARD] N+1 encontrado por secuencia persistida: {}",
+                        persistedNext.get().getRouteSequence());
+                return persistedNext;
+            }
+        }
         List<Reservation> route = reservationRepository.findRouteByEffectiveDate(
                 onboard.getDriver().getId(), effectiveDate);
         log.info(

@@ -20,6 +20,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CancelReservationHandler implements ConversationStepHandler {
 
+    private static final String DISPATCHED_MESSAGE =
+            "⚠️ Tu viaje ya fue asignado al chofer y la ruta está en curso. "
+                    + "Para cancelar o modificar tu reserva, por favor comunicate con un operador.";
+
     private final ConversationSessionRepository conversationSessionRepository;
     private final ReservationRepository reservationRepository;
     private final ReservationService reservationService;
@@ -60,6 +64,12 @@ public class CancelReservationHandler implements ConversationStepHandler {
                 return;
             }
 
+            if (res.getDriver() != null
+                    || res.getTravelStatus() == Reservation.TravelStatus.ROUTE_SENT) {
+                messaging.sendText(phoneNumber, DISPATCHED_MESSAGE);
+                return;
+            }
+
             boolean esPagoPendiente = "PENDING_PAYMENT".equalsIgnoreCase(res.getStatus());
             boolean esViajeCompleto = res.getRoundTrip() != null && res.getRoundTrip();
 
@@ -72,7 +82,9 @@ public class CancelReservationHandler implements ConversationStepHandler {
                                 + "Comunícate con un operador.");
                 return;
             } catch (DomainValidationException exception) {
-                messaging.sendText(phoneNumber, "⚠️ " + exception.getMessage());
+                String detail = exception.getMessage();
+                messaging.sendText(phoneNumber,
+                        detail != null && detail.startsWith("⚠️") ? detail : "⚠️ " + detail);
                 return;
             }
 

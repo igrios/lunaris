@@ -35,6 +35,7 @@ import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
+import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -359,7 +360,7 @@ public class AgendaViewController {
 
             return ResponseEntity.ok(new PaymentVerificationResponse(
                     synchronizedReservationIds, true, "CONFIRMED"));
-        } catch (IllegalArgumentException exception) {
+        } catch (IllegalArgumentException | DomainValidationException exception) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException exception) {
             return ResponseEntity.status(409).build();
@@ -468,6 +469,7 @@ public class AgendaViewController {
                 firstReservation.getTravelDate(), assignedSchedule);
         List<Reservation> routeReservations = assignedReservations.stream()
                 .sorted(AdminDashboardController.dynamicRouteComparator(dispatchOrigin)).toList();
+        driverRouteService.persistDispatchSequence(routeReservations);
         org.slf4j.LoggerFactory.getLogger(getClass()).info(dispatchOrigin.summary());
 
         try {
