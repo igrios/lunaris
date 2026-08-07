@@ -12,8 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Adaptador local que guarda los PDF de facturas en disco y los expone bajo /facturas/**.
  */
-@Service
 @Slf4j
+@org.springframework.stereotype.Service("localInvoiceStorageService")
 public class LocalInvoiceStorageService implements InvoiceStoragePort {
 
     @Value("${storage.invoices-dir}")

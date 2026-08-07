@@ -24,4 +24,9 @@ public interface MessagingPort {
      * Usado para mandar la factura por WhatsApp.
      */
     void sendDocument(String to, String absoluteFilePath, String fileName, String caption);
+
+    /** Envía un documento directamente desde una URL HTTPS (Cloudinary, por ejemplo). */
+    default void sendDocumentUrl(String to, String documentUrl, String fileName, String caption) {
+        sendDocument(to, documentUrl, fileName, caption);
+    }
 }

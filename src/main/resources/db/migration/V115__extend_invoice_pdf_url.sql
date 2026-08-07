@@ -1,0 +1,2 @@
+ALTER TABLE invoices
+    ALTER COLUMN pdf_url TYPE VARCHAR(1000);

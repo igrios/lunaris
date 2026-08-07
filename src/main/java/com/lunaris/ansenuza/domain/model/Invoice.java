@@ -56,7 +56,7 @@ public class Invoice {
     @Column(name = "amount", precision = 12, scale = 2)
     private BigDecimal amount;
 
-    @Column(name = "pdf_url", length = 300)
+    @Column(name = "pdf_url", length = 1000)
     private String pdfUrl;
 
     @Column(name = "sent_via_whatsapp", nullable = false)

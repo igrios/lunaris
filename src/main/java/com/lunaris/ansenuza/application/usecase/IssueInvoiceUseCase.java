@@ -64,7 +64,7 @@ public class IssueInvoiceUseCase {
         invoice.setAmount(invoiceAmount);
         invoice.setPdfUrl(stored.webUrl());
 
-        boolean sent = sendByWhatsApp(reservation, invoice, stored.absolutePath());
+        boolean sent = sendByWhatsApp(reservation, invoice, stored);
         invoice.setSentViaWhatsapp(sent);
         if (sent) {
             invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
@@ -79,8 +79,9 @@ public class IssueInvoiceUseCase {
         Reservation reservation = reservationRepository.findById(invoice.getReservationId())
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada para la factura " + invoiceId));
 
-        String absolutePath = invoiceStorage.resolveAbsolutePath(invoice.getPdfUrl());
-        boolean sent = sendByWhatsApp(reservation, invoice, absolutePath);
+        String documentLocation = invoiceStorage.resolveAbsolutePath(invoice.getPdfUrl());
+        boolean sent = sendByWhatsApp(reservation, invoice,
+                new StoredInvoice(invoice.getPdfUrl(), documentLocation));
         invoice.setSentViaWhatsapp(sent || Boolean.TRUE.equals(invoice.getSentViaWhatsapp()));
         if (sent) {
             invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
@@ -88,7 +89,7 @@ public class IssueInvoiceUseCase {
         return invoiceRepository.save(invoice);
     }
 
-    private boolean sendByWhatsApp(Reservation reservation, Invoice invoice, String absolutePath) {
+    private boolean sendByWhatsApp(Reservation reservation, Invoice invoice, StoredInvoice stored) {
         try {
             String phone = reservation.getPassenger().getPhone();
             String caption = """
@@ -99,7 +100,12 @@ public class IssueInvoiceUseCase {
                     .formatted(invoice.getInvoiceNumber(),
                             reservation.getPassenger().getFirstName(),
                             reservation.getReservationCode());
-            messaging.sendDocument(phone, absolutePath, "Factura-" + invoice.getInvoiceNumber() + ".pdf", caption);
+            String fileName = "Factura-" + invoice.getInvoiceNumber() + ".pdf";
+            if (stored.webUrl() != null && stored.webUrl().startsWith("https://")) {
+                messaging.sendDocumentUrl(phone, stored.webUrl(), fileName, caption);
+            } else {
+                messaging.sendDocument(phone, stored.absolutePath(), fileName, caption);
+            }
             return true;
         } catch (Exception e) {
             log.error("No se pudo enviar la factura {} por WhatsApp. Queda guardada para reenviar.",

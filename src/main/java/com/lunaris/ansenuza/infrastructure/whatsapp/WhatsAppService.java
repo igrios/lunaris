@@ -308,6 +308,27 @@ public class WhatsAppService implements MessagingPort {
         }
     }
 
+    @Override
+    public void sendDocumentUrl(String phoneNumber, String documentUrl, String fileName, String caption) {
+        try {
+            String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
+            Map<String, Object> documentNode = new HashMap<>();
+            documentNode.put("link", documentUrl);
+            documentNode.put("filename", fileName);
+            if (caption != null && !caption.isBlank()) {
+                documentNode.put("caption", caption);
+            }
+            Map<String, Object> body = Map.of(
+                    "messaging_product", "whatsapp",
+                    "to", phoneNumber,
+                    "type", "document",
+                    "document", documentNode);
+            executePostCall(url, createHeaders(), body, "DOCUMENTO_URL");
+        } catch (Exception exception) {
+            throw new IllegalStateException("No se pudo enviar el documento por URL.", exception);
+        }
+    }
+
     private HttpHeaders createHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
