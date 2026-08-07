@@ -87,30 +87,26 @@ public class AgendaViewController {
                             .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
                             .toList();
 
-                    int totalPassengers = activeReservations.stream()
-                            .mapToInt(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
-                            .sum();
-                    int confirmedPassengers = activeReservations.stream()
+                    int totalPassengers = countDistinctBookingSeats(activeReservations);
+                    int confirmedPassengers = countDistinctBookingSeats(activeReservations.stream()
                             .filter(r -> Boolean.TRUE.equals(r.getPaymentVerified())
                                     && "CONFIRMED".equals(r.getStatus()))
-                            .mapToInt(Reservation::getTotalSeats)
-                            .sum();
+                            .toList());
                     int waitingListPassengers = Math.toIntExact(
                             waitingListRepository.sumPassengerCountByTravelDateAndStatus(
                                     date, WaitingListEntry.WAITING));
                     int maxCapacity = systemConfigurationService.getScheduleMaxCapacity();
 
-                    int pendingPayments = (int) activeReservations.stream()
-                            .filter(r -> !Boolean.TRUE.equals(r.getPaymentVerified())).count();
+                    int pendingPayments = countDistinctBookings(activeReservations.stream()
+                            .filter(r -> !Boolean.TRUE.equals(r.getPaymentVerified())).toList());
 
                     int safeVehicleCapacity = Math.max(vehicleCapacity, 1);
                     int estimatedVehicles = totalPassengers == 0
                             ? 0
                             : (int) Math.ceil((double) totalPassengers / safeVehicleCapacity);
-                    int paidReservations = (int) activeReservations.stream()
-                            .filter(reservation ->
-                                    Boolean.TRUE.equals(reservation.getPaymentVerified()))
-                            .count();
+                    int paidReservations = countDistinctBookings(activeReservations.stream()
+                            .filter(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()))
+                            .toList());
                     java.math.BigDecimal totalCollected = activeReservations.stream()
                             .filter(reservation ->
                                     Boolean.TRUE.equals(reservation.getPaymentVerified()))
@@ -153,6 +149,30 @@ public class AgendaViewController {
         model.addAttribute("agenda", agenda);
         model.addAttribute("displayedDays", displayedDays);
         return "agenda";
+    }
+
+    static int countDistinctBookingSeats(List<Reservation> reservations) {
+        return reservations.stream().collect(java.util.stream.Collectors.toMap(
+                        AgendaViewController::bookingGroupKey,
+                        Reservation::getTotalSeats,
+                        Math::max))
+                .values().stream().mapToInt(Integer::intValue).sum();
+    }
+
+    static int countDistinctBookings(List<Reservation> reservations) {
+        return (int) reservations.stream().map(AgendaViewController::bookingGroupKey).distinct().count();
+    }
+
+    private static String bookingGroupKey(Reservation reservation) {
+        String code = reservation.getReservationCode();
+        if (code != null && !code.isBlank()) {
+            return code.replaceFirst("-(IDA|VUELTA)$", "");
+        }
+        if (Boolean.TRUE.equals(reservation.getRoundTrip()) && reservation.getPassenger() != null
+                && reservation.getPassenger().getId() != null) {
+            return "ROUND_TRIP_PASSENGER:" + reservation.getPassenger().getId();
+        }
+        return "RESERVATION:" + reservation.getId();
     }
 
     
