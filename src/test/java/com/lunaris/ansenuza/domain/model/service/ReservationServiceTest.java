@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -195,6 +196,45 @@ class ReservationServiceTest {
         assertEquals("CANCELLED", reservation.getStatus());
         assertEquals(Reservation.TravelStatus.CANCELED, reservation.getTravelStatus());
         verify(passengers).saveAndFlush(passenger);
+    }
+
+    @Test
+    void rejectsCancellationWhenRouteWasSent() {
+        assertCancellationLockedFor(Reservation.TravelStatus.ROUTE_SENT);
+    }
+
+    @Test
+    void rejectsCancellationWhenPassengerIsOnboard() {
+        assertCancellationLockedFor(Reservation.TravelStatus.ONBOARD);
+    }
+
+    private void assertCancellationLockedFor(Reservation.TravelStatus travelStatus) {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(
+                reservations,
+                mock(ReservationEventRepository.class),
+                passengers,
+                mock(OnboardPassengerUseCase.class));
+        UUID reservationId = UUID.randomUUID();
+        Reservation reservation = Reservation.builder()
+                .id(reservationId)
+                .passenger(Passenger.builder().currentBalance(BigDecimal.ZERO).build())
+                .status("CONFIRMED")
+                .travelStatus(travelStatus)
+                .amount(new BigDecimal("2500.00"))
+                .build();
+        when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> service.cancelReservation(reservationId, "PASSENGER"));
+
+        assertEquals(
+                "No se puede cancelar la reserva porque la ruta ya fue enviada al chofer o el viaje está en curso.",
+                exception.getMessage());
+        verify(reservations, never()).saveAndFlush(reservation);
+        verify(passengers, never()).saveAndFlush(any());
     }
 
     @Test

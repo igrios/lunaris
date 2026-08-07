@@ -233,6 +233,7 @@ public class ReservationService {
         reservationRepository.findByIdForUpdate(id).ifPresent(reservation -> {
             if (!"CANCELLED".equals(reservation.getStatus())) {
                 assertNotCompleted(reservation);
+                assertCancellationAllowed(reservation);
 
                 if (isOutboundLeg(reservation) && isUsed(reservation)) {
                     Reservation returnReservation = reservationRepository
@@ -277,6 +278,7 @@ public class ReservationService {
 
                     reservationRepository.findByReservationCode(codigoVueltaBuscado).ifPresent(returnRes -> {
                         if (!"CANCELLED".equals(returnRes.getStatus())) {
+                            assertCancellationAllowed(returnRes);
                             
                             boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified()) || "CONFIRMED".equals(returnRes.getStatus());
                             
@@ -314,6 +316,7 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + id));
         assertNotCompleted(reservation);
+        assertCancellationAllowed(reservation);
         if (!isReturnLeg(reservation)) {
             throw new DomainValidationException("La baja parcial solo se permite sobre una vuelta.");
         }
@@ -342,6 +345,7 @@ public class ReservationService {
 
     private void cancelReturnOnly(Reservation returnReservation, Passenger passenger, String triggeredBy) {
         assertNotCompleted(returnReservation);
+        assertCancellationAllowed(returnReservation);
         BigDecimal refund = isPaid(returnReservation)
                 ? refundableAmount(returnReservation)
                 : BigDecimal.ZERO;
@@ -421,6 +425,16 @@ public class ReservationService {
                 || isReturnLeg(reservation)
                 && returnedSeats(reservation) >= reservation.getTotalSeats()) {
             throw new ReservationAlreadyCompletedException();
+        }
+    }
+
+    private void assertCancellationAllowed(Reservation reservation) {
+        Reservation.TravelStatus travelStatus = reservation.getTravelStatus();
+        if (travelStatus == Reservation.TravelStatus.ROUTE_SENT
+                || travelStatus == Reservation.TravelStatus.ONBOARD
+                || travelStatus == Reservation.TravelStatus.IN_PROGRESS) {
+            throw new IllegalStateException(
+                    "No se puede cancelar la reserva porque la ruta ya fue enviada al chofer o el viaje está en curso.");
         }
     }
 

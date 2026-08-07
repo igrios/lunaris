@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.lunaris.ansenuza.application.usecase.GetDailyOperationSummaryUseCase;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.domain.model.Fare;
@@ -150,14 +151,20 @@ public class DashboardViewController {
      * ❌ 3. BAJA INTEGRADA CON CUENTA CORRIENTE (Firma nativa con UUID)
      */
     @PostMapping("/reservas-panel/cancel/{id}")
-    public String cancelFromGridPlano(@PathVariable(value = "id") UUID id) {
+    public String cancelFromGridPlano(
+            @PathVariable(value = "id") UUID id,
+            RedirectAttributes redirectAttributes) {
         try {
             log.info("[Baja Controlada] Procesando cancelación para UUID: {}", id);
             
             reservationService.cancelReservation(id, "ADMIN_PANEL");
             log.info("[Baja Controlada] Éxito. Saldo impactado en la cuenta del pasajero.");
+        } catch (IllegalStateException exception) {
+            log.warn("[Baja Controlada] Cancelación bloqueada para UUID {}: {}", id, exception.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
         } catch (Exception e) {
             log.error("[Baja Controlada] Error crítico en el flujo de cancelación: ", e);
+            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo cancelar la reserva.");
         }
         return "redirect:/reservas-panel";
     }

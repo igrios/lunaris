@@ -65,6 +65,12 @@ public class CancelReservationHandler implements ConversationStepHandler {
 
             try {
                 reservationService.cancelReservation(res.getId(), "BOT_WHATSAPP");
+            } catch (IllegalStateException exception) {
+                messaging.sendText(phoneNumber,
+                        "⚠️ Tu viaje ya se encuentra en proceso o la ruta fue asignada al chofer, "
+                                + "por lo que no es posible realizar la cancelación por este medio. "
+                                + "Comunícate con un operador.");
+                return;
             } catch (DomainValidationException exception) {
                 messaging.sendText(phoneNumber, "⚠️ " + exception.getMessage());
                 return;
