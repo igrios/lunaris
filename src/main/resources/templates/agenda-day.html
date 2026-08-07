@@ -56,6 +56,18 @@
                 <h4 class="mb-0 fw-bold">
                     📅 Día de Operación: <span class="text-primary" th:text="${date}"></span>
                 </h4>
+                <form th:action="@{/agenda/view-detalle}" method="get" class="row g-2 mt-2">
+                    <input type="hidden" name="date" th:value="${date}">
+                    <div class="col-md-3"><select name="schedule" class="form-select">
+                        <option value="03:00" th:selected="${selectedSchedule == '03:00'}">03:00</option>
+                        <option value="08:00" th:selected="${selectedSchedule == '08:00'}">08:00</option>
+                    </select></div>
+                    <div class="col-md-5"><select name="direction" class="form-select">
+                        <option value="OUTBOUND" th:selected="${selectedDirection == null || selectedDirection.name() == 'OUTBOUND'}">Pueblos → Córdoba (IDA)</option>
+                        <option value="RETURN" th:selected="${selectedDirection != null && selectedDirection.name() == 'RETURN'}">Córdoba → Pueblos (VUELTA)</option>
+                    </select></div>
+                    <div class="col-md-2"><button class="btn btn-dark w-100">Filtrar</button></div>
+                </form>
             </div>
         </div>
 

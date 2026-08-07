@@ -9,6 +9,7 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.hojaruta.HojaRutaViewModel;
 import lombok.RequiredArgsConstructor;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +19,13 @@ public class GetHojaDeRutaUseCase {
     private final ConversationSessionRepository sessionRepository;
 
     public HojaRutaViewModel execute(LocalDate travelDate) {
-        List<Reservation> reservations = reservationRepository.findByTravelDate(travelDate);
+        return execute(travelDate, "03:00", RouteDirection.OUTBOUND);
+    }
+
+    public HojaRutaViewModel execute(
+            LocalDate travelDate, String schedule, RouteDirection direction) {
+        List<Reservation> reservations = reservationRepository.findActiveManifest(
+                travelDate, schedule, direction == RouteDirection.RETURN);
         List<ConversationSession> sesiones = sessionRepository.findAll();
 
         // 🏙️ Si el origen es "Córdoba", asumimos que es "VUELTA" hacia los pueblos.

@@ -35,7 +35,8 @@ class ResolveEffectiveTripOriginServiceTest {
     }
 
     private Reservation reservation(String locality, String schedule, int passengers) {
-        return Reservation.builder().pickupLocality(locality).departureSchedule(schedule)
+        return Reservation.builder().pickupLocality(locality).destination("Córdoba")
+                .departureSchedule(schedule)
                 .passengerCount(passengers).build();
     }
 

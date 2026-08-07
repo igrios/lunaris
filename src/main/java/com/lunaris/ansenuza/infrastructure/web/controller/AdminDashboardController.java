@@ -15,6 +15,7 @@ import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
 import lombok.AllArgsConstructor;
 
 @Controller
@@ -29,7 +30,9 @@ public class AdminDashboardController {
 
     @GetMapping("/hoja-ruta")
     public String getHojaRuta(@RequestParam(value = "fecha", required = false) String fechaStr,
-            @RequestParam(value = "schedule", defaultValue = "03:00") String scheduleBlock, Model model) {
+            @RequestParam(value = "schedule", defaultValue = "03:00") String scheduleBlock,
+            @RequestParam(value = "direction", defaultValue = "OUTBOUND") RouteDirection direction,
+            Model model) {
         // 1. Parseamos la fecha elegida o usamos la de hoy por defecto
         LocalDate fecha = (fechaStr == null || fechaStr.isEmpty())
                 ? com.lunaris.ansenuza.shared.ArgentinaTime.today()
@@ -37,7 +40,8 @@ public class AdminDashboardController {
         
         // 2. Traemos solo las reservas activas, IGNORANDO por completo las canceladas
         RouteOriginResolution originResolution = resolveEffectiveTripOriginUseCase.resolve(fecha, scheduleBlock);
-        List<Reservation> reservas = reservationRepository.findByTravelDateAndStatusNot(fecha, "CANCELLED")
+        List<Reservation> reservas = reservationRepository.findActiveManifest(
+                        fecha, scheduleBlock, direction == RouteDirection.RETURN)
                 .stream()
                 .sorted(dynamicRouteComparator(originResolution))
                 .toList();
@@ -72,6 +76,7 @@ public class AdminDashboardController {
         model.addAttribute("totalVolviendo", totalVolviendoDesdeCba);
         model.addAttribute("sesionesChat", sesionesChat); // 👈 ¡Ahora van las reales!
         addOriginAttributes(model, originResolution);
+        model.addAttribute("selectedDirection", direction);
         model.addAttribute(
                 "navigationUrl",
                 GoogleMapsParameterFormatter.buildDirectionsUrl(reservas));

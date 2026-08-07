@@ -3,6 +3,7 @@ package com.lunaris.ansenuza.application.usecase;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.BookingDemand;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
 import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
@@ -35,10 +36,8 @@ public class ResolveEffectiveTripOriginService implements ResolveEffectiveTripOr
         }
         String normalizedSchedule = normalizeSchedule(scheduleBlock);
         List<Reservation> reservations = reservationRepository.findConfirmedActiveByTravelDate(travelDate).stream()
-                .filter(reservation -> normalizedSchedule.equals(normalizeSchedule(reservation.getDepartureSchedule())))
-                .filter(reservation -> reservation.getPickupLocality() != null)
-                .filter(reservation -> !"Córdoba".equalsIgnoreCase(reservation.getPickupLocality())
-                        && !"Córdoba Capital".equalsIgnoreCase(reservation.getPickupLocality()))
+                .filter(reservation -> calculator.matchesManifest(
+                        reservation, RouteDirection.OUTBOUND, normalizedSchedule))
                 .filter(reservation -> reservation.getTotalSeats() > 0)
                 .toList();
         var calculation = calculator.calculate(reservations.stream()

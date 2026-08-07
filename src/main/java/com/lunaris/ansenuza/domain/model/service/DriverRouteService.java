@@ -21,6 +21,7 @@ public class DriverRouteService {
 
     private final ReservationRepository reservationRepository;
     private final DriverRepository driverRepository;
+    private final TripRouteCalculatorService routeCalculator = new TripRouteCalculatorService();
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<Reservation> replaceRoute(
@@ -38,9 +39,10 @@ public class DriverRouteService {
         if (selected.size() != orderedReservationIds.size()
                 || selected.stream().anyMatch(reservation ->
                         !travelDate.equals(reservation.getTravelDate())
-                                || !reservation.isScheduledConfirmedTrip())) {
+                                || !reservation.isScheduledConfirmedTrip())
+                || !sameManifest(selected)) {
             throw new IllegalArgumentException(
-                    "Solo se pueden asignar reservas confirmadas con fecha y horario definidos.");
+                    "Solo se pueden asignar reservas confirmadas del mismo sentido, fecha y turno.");
         }
 
         Set<UUID> affectedDriverIds = new HashSet<>();
@@ -62,6 +64,7 @@ public class DriverRouteService {
         if (selected.size() != orderedReservationIds.size()
                 || selected.stream().anyMatch(reservation -> !travelDate.equals(reservation.getTravelDate()))
                 || selected.stream().anyMatch(reservation -> !reservation.isScheduledConfirmedTrip())
+                || !sameManifest(selected)
                 || selected.stream()
                         .filter(reservation -> reservation.getDriver() != null)
                         .anyMatch(reservation ->
@@ -109,5 +112,11 @@ public class DriverRouteService {
 
         reservationRepository.saveAll(changed);
         return reservationRepository.saveAllAndFlush(ordered);
+    }
+
+    private boolean sameManifest(List<Reservation> reservations) {
+        if (reservations.isEmpty()) return true;
+        Reservation first = reservations.getFirst();
+        return reservations.stream().allMatch(candidate -> routeCalculator.sameManifest(first, candidate));
     }
 }

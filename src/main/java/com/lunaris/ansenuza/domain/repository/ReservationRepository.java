@@ -116,6 +116,34 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     List<Reservation> findByTravelDateAndStatusNot(LocalDate travelDate, String status);
 
+    @Query("""
+           SELECT r FROM Reservation r
+           LEFT JOIN FETCH r.passenger
+           LEFT JOIN FETCH r.driver
+           WHERE r.travelDate = :travelDate
+           AND (r.status IS NULL OR UPPER(r.status) <> 'CANCELLED')
+           AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.COMPLETED,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.REALIZED,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW))
+           AND COALESCE(r.departureSchedule, '03:00 AM') LIKE CONCAT(:schedule, '%')
+           AND ((:returnDirection = true
+                 AND LOWER(r.pickupLocality) IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
+                 AND LOWER(r.destination) NOT IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
+                 AND (r.reservationCode IS NULL OR r.reservationCode LIKE '%-VUELTA'))
+                OR (:returnDirection = false
+                 AND LOWER(r.pickupLocality) NOT IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
+                 AND LOWER(r.destination) IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
+                 AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%-VUELTA')))
+           ORDER BY r.routeSequence ASC NULLS LAST, r.createdAt ASC
+           """)
+    List<Reservation> findActiveManifest(
+            @Param("travelDate") LocalDate travelDate,
+            @Param("schedule") String schedule,
+            @Param("returnDirection") boolean returnDirection);
+
     List<Reservation> findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(
             Passenger passenger);
 

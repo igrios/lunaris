@@ -79,6 +79,13 @@
                         </select>
                     </div>
                     <div class="col-auto">
+                        <label for="direction" class="visually-hidden">Sentido</label>
+                        <select id="direction" name="direction" class="form-select">
+                            <option value="OUTBOUND" th:selected="${selectedDirection == null || selectedDirection.name() == 'OUTBOUND'}">Pueblos → Córdoba (IDA)</option>
+                            <option value="RETURN" th:selected="${selectedDirection != null && selectedDirection.name() == 'RETURN'}">Córdoba → Pueblos (VUELTA)</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
                         <button type="submit" class="btn btn-dark">Buscar Día</button>
                     </div>
                 </form>

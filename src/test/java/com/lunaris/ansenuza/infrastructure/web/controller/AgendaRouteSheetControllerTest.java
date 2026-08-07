@@ -70,6 +70,8 @@ class AgendaRouteSheetControllerTest {
                 .driver(driver)
                 .travelDate(travelDate)
                 .pickupLocality("Morteros")
+                .destination("Córdoba")
+                .departureSchedule("03:00")
                 .passengerCount(1)
                 .build();
         when(drivers.findById(driverId)).thenReturn(Optional.of(driver));

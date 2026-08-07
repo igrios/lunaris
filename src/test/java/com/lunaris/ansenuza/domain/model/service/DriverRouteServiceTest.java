@@ -95,11 +95,33 @@ class DriverRouteServiceTest {
         assertEquals(1, assigned.getFirst().getRouteSequence());
     }
 
+    @Test
+    void rejectsOutboundAndReturnLegsInSameDriverManifest() {
+        ReservationRepository repository = mock(ReservationRepository.class);
+        DriverRouteService service = new DriverRouteService(repository, mock(DriverRepository.class));
+        LocalDate date = LocalDate.of(2026, 8, 4);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        Reservation outbound = reservation(date, null, null);
+        outbound.setReservationCode("ARR-COR-001-IDA");
+        Reservation returned = reservation(date, null, null);
+        returned.setReservationCode("ARR-COR-001-VUELTA");
+        returned.setPickupLocality("Córdoba");
+        returned.setDestination("Arrufó");
+        List<UUID> ids = List.of(outbound.getId(), returned.getId());
+        when(repository.findAllById(ids)).thenReturn(List.of(outbound, returned));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.replaceRoute(driver, date, ids));
+    }
+
     private Reservation reservation(LocalDate date, Driver driver, Integer sequence) {
         return Reservation.builder()
                 .id(UUID.randomUUID())
                 .travelDate(date)
                 .departureSchedule("08:00")
+                .pickupLocality("Arrufó")
+                .destination("Córdoba")
                 .status("CONFIRMED")
                 .driver(driver)
                 .routeSequence(sequence)

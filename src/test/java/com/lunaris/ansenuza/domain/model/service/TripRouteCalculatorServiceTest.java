@@ -3,6 +3,8 @@ package com.lunaris.ansenuza.domain.model.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.BookingDemand;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
+import com.lunaris.ansenuza.domain.model.Reservation;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -43,5 +45,29 @@ class TripRouteCalculatorServiceTest {
 
         assertThat(result.effectiveOrigin()).isNull();
         assertThat(result.message()).contains("Sin pasajeros confirmados");
+    }
+
+    @Test
+    void separatesOutboundAndReturnLegsForSameGroupDateAndShift() {
+        Reservation outbound = Reservation.builder().reservationCode("ARR-COR-001-IDA")
+                .pickupLocality("Arrufó").destination("Córdoba")
+                .departureSchedule("03:00 AM").build();
+        Reservation returned = Reservation.builder().reservationCode("ARR-COR-001-VUELTA")
+                .pickupLocality("Córdoba").destination("Arrufó")
+                .departureSchedule("03:00 AM").build();
+
+        assertThat(calculator.matchesManifest(outbound, RouteDirection.OUTBOUND, "03:00")).isTrue();
+        assertThat(calculator.matchesManifest(returned, RouteDirection.OUTBOUND, "03:00")).isFalse();
+        assertThat(calculator.matchesManifest(returned, RouteDirection.RETURN, "03:00")).isTrue();
+        assertThat(calculator.matchesManifest(outbound, RouteDirection.RETURN, "03:00")).isFalse();
+    }
+
+    @Test
+    void excludesAnotherShiftFromManifest() {
+        Reservation outbound = Reservation.builder().reservationCode("ARR-COR-001-IDA")
+                .pickupLocality("Arrufó").destination("Córdoba")
+                .departureSchedule("08:00 AM").build();
+
+        assertThat(calculator.matchesManifest(outbound, RouteDirection.OUTBOUND, "03:00")).isFalse();
     }
 }

@@ -33,6 +33,8 @@ import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -158,9 +160,12 @@ public class AgendaViewController {
     @GetMapping("/agenda/view-detalle")
     public String dayAgenda(
             @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(value = "schedule", defaultValue = "03:00") String schedule,
+            @RequestParam(value = "direction", defaultValue = "OUTBOUND") RouteDirection direction,
             Model model) {
 
-        List<Reservation> reservations = reservationRepository.findByTravelDate(date);
+        List<Reservation> reservations = reservationRepository.findActiveManifest(
+                date, schedule, direction == RouteDirection.RETURN);
         List<Driver> choferes = driverRepository.findByActiveTrue();
 
         List<Reservation> activeReservations = reservations.stream()
@@ -175,6 +180,8 @@ public class AgendaViewController {
         model.addAttribute("date", date);
         model.addAttribute("reservations", activeReservations);
         model.addAttribute("choferes", choferes);
+        model.addAttribute("selectedSchedule", schedule);
+        model.addAttribute("selectedDirection", direction);
         model.addAttribute(
                 "pickupAddressTexts",
                 activeReservations.stream().collect(java.util.stream.Collectors.toMap(
@@ -540,6 +547,13 @@ public class AgendaViewController {
             List<Reservation> reservations =
                     reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
                             driverId, travelDate);
+            if (!reservations.isEmpty()) {
+                TripRouteCalculatorService calculator = new TripRouteCalculatorService();
+                Reservation routeHead = reservations.getFirst();
+                reservations = reservations.stream()
+                        .filter(candidate -> calculator.sameManifest(routeHead, candidate))
+                        .toList();
+            }
             String scheduleBlock = reservations.stream().map(Reservation::getDepartureSchedule)
                     .filter(schedule -> schedule != null && !schedule.isBlank()).findFirst().orElse("03:00");
             RouteOriginResolution originResolution = resolveEffectiveTripOriginUseCase.resolve(travelDate, scheduleBlock);
