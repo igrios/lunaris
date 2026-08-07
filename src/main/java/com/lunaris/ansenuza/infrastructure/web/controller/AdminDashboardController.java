@@ -16,6 +16,7 @@ import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatte
 import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
 import lombok.AllArgsConstructor;
 
 @Controller
@@ -48,13 +49,13 @@ public class AdminDashboardController {
         
         // 3. Calculamos el total yendo desde la zona de los pueblos hacia Córdoba (filtrado automático)
         int totalYendoDesdeZona = reservas.stream()
-                .filter(r -> !"Córdoba".equalsIgnoreCase(r.getPickupLocality()))
+                .filter(r -> !TripRouteCalculatorService.isCordoba(r.getPickupLocality()))
                 .mapToInt(Reservation::getTotalSeats)
                 .sum();
 
         // 4. Calculamos el total volviendo desde Córdoba hacia el norte
         int totalVolviendoDesdeCba = reservas.stream()
-                .filter(r -> "Córdoba".equalsIgnoreCase(r.getPickupLocality()))
+                .filter(r -> TripRouteCalculatorService.isCordoba(r.getPickupLocality()))
                 .mapToInt(Reservation::getTotalSeats)
                 .sum();
                 
@@ -86,8 +87,7 @@ public class AdminDashboardController {
 
     static java.util.Comparator<Reservation> dynamicRouteComparator(RouteOriginResolution resolution) {
         return java.util.Comparator.comparingInt((Reservation reservation) -> {
-            if ("Córdoba".equalsIgnoreCase(reservation.getPickupLocality())
-                    || "Córdoba Capital".equalsIgnoreCase(reservation.getPickupLocality())) return Integer.MAX_VALUE;
+            if (TripRouteCalculatorService.isCordoba(reservation.getPickupLocality())) return Integer.MAX_VALUE;
             return resolution.minuteOffsets().getOrDefault(reservation.getPickupLocality(), Integer.MAX_VALUE - 1);
         }).thenComparing(Reservation::getRouteSequence,
                 java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));

@@ -11,6 +11,21 @@ import org.junit.jupiter.api.Test;
 class TripRouteCalculatorServiceTest {
     private final TripRouteCalculatorService calculator = new TripRouteCalculatorService();
 
+    @org.junit.jupiter.api.Test
+    void recognizesCordobaVariantsInBothManifestDirections() {
+        Reservation outbound = Reservation.builder()
+                .pickupLocality("Arrufó").destination("Aeropuerto Córdoba")
+                .departureSchedule("03:00 AM").reservationCode("ARR-COR-001-IDA").build();
+        Reservation returned = Reservation.builder()
+                .pickupLocality("Terminal Cordoba").destination("Arrufó")
+                .departureSchedule("08:00 AM").reservationCode("ARR-COR-001-VUELTA").build();
+
+        assertThat(calculator.matchesManifest(outbound, RouteDirection.OUTBOUND, "03:00")).isTrue();
+        assertThat(calculator.matchesManifest(returned, RouteDirection.RETURN, "08:00")).isTrue();
+        assertThat(calculator.matchesManifest(outbound, RouteDirection.RETURN, "03:00")).isFalse();
+        assertThat(calculator.matchesManifest(returned, RouteDirection.OUTBOUND, "08:00")).isFalse();
+    }
+
     @Test
     void startsAtMorterosWhenNorthernLocalitiesIncludingSanGuillermoHaveNoPassengers() {
         var result = calculator.calculate(List.of(

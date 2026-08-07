@@ -82,7 +82,7 @@ public class TripRouteCalculatorService {
     public static boolean isCordoba(String locality) {
         if (locality == null) return false;
         String normalized = normalize(locality);
-        return normalized.equals("cordoba") || normalized.equals("cordoba capital");
+        return normalized.contains("cordoba");
     }
 
     private static String normalize(String value) {

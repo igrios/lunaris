@@ -130,12 +130,16 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW))
            AND COALESCE(r.departureSchedule, '03:00 AM') LIKE CONCAT(:schedule, '%')
            AND ((:returnDirection = true
-                 AND LOWER(r.pickupLocality) IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
-                 AND LOWER(r.destination) NOT IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
+                 AND (LOWER(r.pickupLocality) LIKE '%córdoba%'
+                      OR LOWER(r.pickupLocality) LIKE '%cordoba%')
+                 AND LOWER(r.destination) NOT LIKE '%córdoba%'
+                 AND LOWER(r.destination) NOT LIKE '%cordoba%'
                  AND (r.reservationCode IS NULL OR r.reservationCode LIKE '%-VUELTA'))
                 OR (:returnDirection = false
-                 AND LOWER(r.pickupLocality) NOT IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
-                 AND LOWER(r.destination) IN ('córdoba', 'cordoba', 'córdoba capital', 'cordoba capital')
+                 AND LOWER(r.pickupLocality) NOT LIKE '%córdoba%'
+                 AND LOWER(r.pickupLocality) NOT LIKE '%cordoba%'
+                 AND (LOWER(r.destination) LIKE '%córdoba%'
+                      OR LOWER(r.destination) LIKE '%cordoba%')
                  AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%-VUELTA')))
            ORDER BY r.routeSequence ASC NULLS LAST, r.createdAt ASC
            """)

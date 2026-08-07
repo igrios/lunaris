@@ -10,6 +10,7 @@ import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.hojaruta.HojaRutaViewModel;
 import lombok.RequiredArgsConstructor;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
+import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
 
 @Service
 @RequiredArgsConstructor
@@ -31,12 +32,12 @@ public class GetHojaDeRutaUseCase {
         // 🏙️ Si el origen es "Córdoba", asumimos que es "VUELTA" hacia los pueblos.
         // Si NO es Córdoba (Morteros, La Puerta, etc.), es "IDA" hacia Córdoba.
         long totalYendo = reservations.stream()
-                .filter(r -> r.getPickupLocality() != null && !"Córdoba".equalsIgnoreCase(r.getPickupLocality())) 
+                .filter(r -> !TripRouteCalculatorService.isCordoba(r.getPickupLocality()))
                 .mapToLong(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
                 .sum();
 
         long totalVolviendo = reservations.stream()
-                .filter(r -> r.getPickupLocality() != null && "Córdoba".equalsIgnoreCase(r.getPickupLocality()))
+                .filter(r -> TripRouteCalculatorService.isCordoba(r.getPickupLocality()))
                 .mapToLong(r -> r.getPassengerCount() != null ? r.getPassengerCount() : 1)
                 .sum();
 
