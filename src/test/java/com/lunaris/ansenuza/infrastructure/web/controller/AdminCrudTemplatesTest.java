@@ -15,6 +15,13 @@ class AdminCrudTemplatesTest {
         assertThat(template).contains("th:action=\"@{/admin/fares}\"");
         assertThat(template).contains("th:name=\"${_csrf.parameterName}\"");
         assertThat(template).contains("th:value=\"${_csrf.token}\"");
+        assertThat(template).contains("onclick=\"onEdit(this)\"", "data-bs-target=\"#editFareModal\"");
+        assertThat(template).contains("document.getElementById('editName').value = item.name");
+        assertThat(template).contains("document.getElementById('editKms').value = item.kms");
+        assertThat(template).contains("document.getElementById('editMinutes').value = item.minutes");
+        assertThat(template).contains("document.getElementById('editAmount').value = item.amount");
+        assertThat(template).contains("method: 'PUT'", "row.querySelector('.fare-amount').textContent");
+        assertThat(template).doesNotContain("th:data-bs-target=\"'#{editFareModal-");
     }
 
     @Test

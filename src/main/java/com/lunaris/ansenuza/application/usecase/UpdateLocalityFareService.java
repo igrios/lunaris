@@ -25,7 +25,6 @@ public class UpdateLocalityFareService implements UpdateLocalityFareUseCase {
         String normalizedName = FareLocalityValidation.localityName(name);
         FareLocalityValidation.amount(amount);
         FareLocalityValidation.nonNegative(kmsToCordoba, "Los kilómetros");
-        FareLocalityValidation.nonNegative(minutesFromOrigin, "Los minutos de viaje");
 
         var locality = localityRepository.findById(localityId)
                 .orElseThrow(() -> new DomainValidationException("La localidad indicada no existe."));

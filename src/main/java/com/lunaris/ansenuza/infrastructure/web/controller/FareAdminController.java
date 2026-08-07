@@ -73,7 +73,7 @@ public class FareAdminController {
     public record LocalityFareRequest(
             @NotBlank @Size(max = 100) String name,
             @Min(0) Integer kmsToCordoba,
-            @Min(0) Integer minutesFromOrigin,
+            Integer minutesFromOrigin,
             @NotNull @DecimalMin(value = "0.01") BigDecimal amount) {
     }
 }

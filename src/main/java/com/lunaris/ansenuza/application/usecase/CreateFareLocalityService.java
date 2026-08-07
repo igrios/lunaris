@@ -27,7 +27,6 @@ public class CreateFareLocalityService implements CreateFareLocalityUseCase {
         String normalizedName = FareLocalityValidation.localityName(localityName);
         FareLocalityValidation.amount(amount);
         FareLocalityValidation.nonNegative(kmsToCordoba, "Los kilómetros");
-        FareLocalityValidation.nonNegative(minutesFromOrigin, "Los minutos de viaje");
         int effectiveKmsToCordoba = kmsToCordoba == null ? 0 : kmsToCordoba;
         int effectiveMinutesFromOrigin = minutesFromOrigin == null ? 0 : minutesFromOrigin;
         if (localityRepository.findFirstByNameIgnoreCase(normalizedName).isPresent()) {
