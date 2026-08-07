@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import java.time.LocalDate;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -31,11 +32,26 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
             advanceToBilling(session, phoneNumber);
             return;
         }
-        if ("return_choose_date".equals(body) || "return_fixed".equals(body)) {
+        if ("return_today".equals(body) || "hoy".equals(body)
+                || "return_tomorrow".equals(body) || "mañana".equals(body)) {
+            boolean tomorrow = "return_tomorrow".equals(body) || "mañana".equals(body);
+            LocalDate selected = com.lunaris.ansenuza.shared.ArgentinaTime.today()
+                    .plusDays(tomorrow ? 1 : 0);
+            if (session.getTravelDate() != null && selected.isBefore(session.getTravelDate())) {
+                messaging.sendText(phoneNumber,
+                        "❌ La fecha de regreso no puede ser anterior al viaje de ida. Elegí otra opción:");
+                return;
+            }
+            session.setReturnDate(selected);
+            advanceToBilling(session, phoneNumber);
+            return;
+        }
+        if ("return_choose_date".equals(body) || "return_fixed".equals(body)
+                || "otra fecha".equals(body) || "otra_fecha".equals(body)) {
             session.setCurrentStep("ASK_RETURN_DATE");
             conversationSessionRepository.saveAndFlush(session);
             messaging.sendText(phoneNumber,
-                    "✍️ *Ingresá la fecha de tu regreso:*\n\n_Ejemplo: 25/06/2026_\n\n"
+                    "✍️ *Por favor, ingresá la fecha deseada* (ejemplo: 12/08 o 12 de agosto).\n\n"
                             + "Ventanas desde Córdoba: 14:00 a 15:00 hs o 17:30 a 18:00 hs.");
             return;
         }

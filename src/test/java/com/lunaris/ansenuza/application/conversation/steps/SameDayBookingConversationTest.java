@@ -65,12 +65,12 @@ class SameDayBookingConversationTest {
 
         verify(messaging).sendButtons(eq(session.getPhoneNumber()), eq("Fecha del viaje"),
                 argThat(body -> body.contains("¿Qué día")
-                        && body.contains("por ejemplo: 12/08/2026")), buttons.capture());
+                        && body.contains("Otra fecha")), buttons.capture());
         assertFalse(buttons.getValue().stream().anyMatch(button -> button.title().startsWith("Hoy (")));
         assertTrue(buttons.getValue().stream().anyMatch(button ->
-                button.title().matches("Mañana \\(\\d{2}/\\d{2}/\\d{4}\\)")));
-        assertTrue(buttons.getValue().stream().allMatch(button ->
-                button.id().matches("\\d{2}/\\d{2}/\\d{4}")));
+                button.title().equals("Mañana")));
+        assertTrue(buttons.getValue().stream().anyMatch(button ->
+                "return_other_date".equals(button.id())));
     }
 
     @Test

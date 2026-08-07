@@ -41,13 +41,13 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
             try {
                 String publicId = withoutExtension(desiredFileName);
                 Map<?, ?> result = cloudinary.uploader().upload(content, ObjectUtils.asMap(
-                        "resource_type", "auto",
+                        "resource_type", "raw",
                         "folder", "facturas",
                         "public_id", publicId,
                         "overwrite", true));
                 Object secureUrl = result.get("secure_url");
                 if (secureUrl != null && !secureUrl.toString().isBlank()) {
-                    String url = secureUrl.toString();
+                    String url = normalizePdfUrl(secureUrl.toString());
                     log.info("Factura {} guardada en Cloudinary.", desiredFileName);
                     return new StoredInvoice(url, url);
                 }
@@ -83,5 +83,9 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
     private static String withoutExtension(String fileName) {
         int extension = fileName == null ? -1 : fileName.lastIndexOf('.');
         return extension > 0 ? fileName.substring(0, extension) : fileName;
+    }
+
+    private static String normalizePdfUrl(String url) {
+        return url.replace("/image/upload/", "/raw/upload/");
     }
 }

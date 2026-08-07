@@ -12,6 +12,7 @@ import com.cloudinary.Uploader;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort.StoredInvoice;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class CloudinaryInvoiceStorageServiceTest {
 
@@ -22,7 +23,7 @@ class CloudinaryInvoiceStorageServiceTest {
         LocalInvoiceStorageService local = mock(LocalInvoiceStorageService.class);
         when(cloudinary.uploader()).thenReturn(uploader);
         when(uploader.upload(any(byte[].class), anyMap()))
-                .thenReturn(Map.of("secure_url", "https://res.cloudinary.com/demo/raw/upload/facturas/factura.pdf"));
+                .thenReturn(Map.of("secure_url", "https://res.cloudinary.com/demo/image/upload/facturas/factura.pdf"));
 
         CloudinaryInvoiceStorageService service = new CloudinaryInvoiceStorageService(
                 cloudinary, local, "demo", "key", "secret");
@@ -30,7 +31,10 @@ class CloudinaryInvoiceStorageServiceTest {
         StoredInvoice stored = service.store(new byte[] {1, 2}, "factura.pdf");
 
         assertEquals("https://res.cloudinary.com/demo/raw/upload/facturas/factura.pdf", stored.webUrl());
-        verify(uploader).upload(any(byte[].class), anyMap());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        verify(uploader).upload(any(byte[].class), params.capture());
+        assertEquals("raw", params.getValue().get("resource_type"));
     }
 
     @Test

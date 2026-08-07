@@ -250,10 +250,9 @@ public String updateFromPanel(
         
         if (isOpenReturn) {
             Reservation scheduledReturn;
-            if (travelDate == null || assignedDriver == null
-                    || departureSchedule == null || departureSchedule.isBlank()) {
+            if (travelDate == null || departureSchedule == null || departureSchedule.isBlank()) {
                 throw new IllegalArgumentException(
-                        "Para programar una vuelta abierta se requieren fecha, horario y chofer.");
+                        "Para programar una vuelta abierta se requieren fecha y horario.");
             }
             int asientosOriginales = original.getPassengerCount() != null ? original.getPassengerCount() : 1;
             String normalizedSchedule = normalizeDepartureSchedule(departureSchedule);

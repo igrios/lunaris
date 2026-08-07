@@ -62,16 +62,16 @@ public class AskTripTypeHandler implements ConversationStepHandler {
         if (operationControlService.isPastCutoffTime()) {
             candidate = candidate.plusDays(1);
         }
-        while (options.size() < 3) {
+        if (options.size() < 3) {
             String formattedDate = candidate.format(payloadFormat);
             String title = candidate.equals(today.plusDays(1))
-                    ? "Mañana (" + formattedDate + ")"
-                    : formattedDate;
+                    ? "Mañana" : formattedDate;
             options.add(new Button(formattedDate, title));
-            candidate = candidate.plusDays(1);
+        }
+        if (options.size() < 3) {
+            options.add(new Button("return_other_date", "Otra fecha"));
         }
         messaging.sendButtons(phoneNumber, "Fecha del viaje",
-                prompt + "\n\nPor favor, indicá la fecha de tu viaje "
-                        + "(por ejemplo: 12/08/2026):", options);
+                prompt + "\n\nElegí una opción o seleccioná *Otra fecha* para escribirla.", options);
     }
 }

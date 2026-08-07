@@ -130,7 +130,17 @@
 
                             <div class="mb-3">
                               <label class="form-label fw-bold">Nueva Fecha de Viaje:</label>
-                              <input type="date" name="travelDate" class="form-control fw-bold border-success" required>
+                              <div class="btn-group w-100 mb-2" role="group" aria-label="Fecha rápida">
+                                <button type="button" class="btn btn-outline-success"
+                                  th:onclick="|setReturnDate('travelDate-${v.id}', 0)|">Hoy</button>
+                                <button type="button" class="btn btn-outline-success"
+                                  th:onclick="|setReturnDate('travelDate-${v.id}', 1)|">Mañana</button>
+                                <button type="button" class="btn btn-outline-primary"
+                                  th:onclick="|showCustomReturnDate('travelDate-${v.id}')|">Otra Fecha</button>
+                              </div>
+                              <input type="date" name="travelDate" th:id="'travelDate-' + ${v.id}"
+                                class="form-control fw-bold border-success d-none" required disabled>
+                              <small class="text-muted">Para una fecha distinta, seleccioná “Otra Fecha” (dd/mm/aaaa).</small>
                             </div>
 
                             <div class="mb-3">
@@ -139,15 +149,6 @@
                                 class="form-select fw-bold border-success" required>
                                 <option value="03:00 AM">03:00 AM</option>
                                 <option value="08:00 AM">08:00 AM</option>
-                              </select>
-                            </div>
-
-                            <div class="mb-3">
-                              <label class="form-label fw-bold">Chofer asignado:</label>
-                              <select name="driverId" class="form-select fw-bold border-success" required>
-                                <option value="">-- Seleccionar chofer --</option>
-                                <option th:each="chofer : ${choferes}" th:value="${chofer.id}"
-                                  th:text="${chofer.fullName}"></option>
                               </select>
                             </div>
 
@@ -176,6 +177,30 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function localDatePlus(days) {
+      const date = new Date();
+      date.setHours(12, 0, 0, 0);
+      date.setDate(date.getDate() + days);
+      return date.toISOString().slice(0, 10);
+    }
+
+    function setReturnDate(inputId, days) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.disabled = false;
+      input.classList.remove('d-none');
+      input.value = localDatePlus(days);
+    }
+
+    function showCustomReturnDate(inputId) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.disabled = false;
+      input.classList.remove('d-none');
+      input.focus();
+    }
+  </script>
 </body>
 
 </html>

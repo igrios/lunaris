@@ -35,6 +35,17 @@ public class AskDateHandler implements ConversationStepHandler {
     public void handle(ConversationSession session, IncomingMessage message) {
         String phoneNumber = session.getPhoneNumber();
 
+        String rawBody = message.body() == null ? "" : message.body().trim().toLowerCase();
+        if ("return_other_date".equals(rawBody) || "otra fecha".equals(rawBody)
+                || "otra_fecha".equals(rawBody)) {
+            session.setCurrentStep("ASK_DATE");
+            conversationSessionRepository.saveAndFlush(session);
+            messaging.sendText(phoneNumber,
+                    "✍️ *Por favor, ingresá la fecha en la que querés viajar* "
+                            + "(ejemplo: 12/08 o 12 de agosto).");
+            return;
+        }
+
         // Usamos el parseador flexible para extraer la fecha sin importar los ceros o el año corto
         Optional<LocalDate> fechaParseada = FechaParser.parsear(message.body());
 
@@ -78,8 +89,7 @@ public class AskDateHandler implements ConversationStepHandler {
             messaging.sendButtons(phoneNumber, "Fecha de Regreso",
                     "📅 *¿Cuándo programamos el regreso desde Córdoba?*\n\nSi todavía no sabés el día exacto, podés dejar la fecha abierta y coordinarla más adelante con Martín.",
                     List.of(new Button("return_same_day", "Vuelvo en el día"),
-                            new Button("return_open", "Vuelta abierta"),
-                            new Button("return_choose_date", "Elegir fecha")));
+                            new Button("return_choose_date", "Otra fecha")));
         } else {
             session.setCurrentStep("ASK_DNI_REQUIRED");
             conversationSessionRepository.saveAndFlush(session);

@@ -8,6 +8,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -66,9 +67,10 @@ public class SameDayBookingPolicy {
 
     private LocalTime parseShift(String selectedShift) {
         if (selectedShift == null || selectedShift.isBlank()) return null;
-        String value = selectedShift.trim().toUpperCase();
+        String value = selectedShift.trim().toUpperCase(Locale.ROOT);
         for (DateTimeFormatter formatter : List.of(
-                DateTimeFormatter.ofPattern("H:mm"), DateTimeFormatter.ofPattern("h:mm a"))) {
+                DateTimeFormatter.ofPattern("H:mm", Locale.ROOT),
+                DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH))) {
             try {
                 return LocalTime.parse(value, formatter);
             } catch (DateTimeParseException ignored) {
