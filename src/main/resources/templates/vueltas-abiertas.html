@@ -132,11 +132,14 @@
                               <label class="form-label fw-bold">Nueva Fecha de Viaje:</label>
                               <div class="btn-group w-100 mb-2" role="group" aria-label="Fecha rápida">
                                 <button type="button" class="btn btn-outline-success"
-                                  th:onclick="|setReturnDate('travelDate-${v.id}', 0)|">Hoy</button>
+                                  th:data-target-id="|travelDate-${v.id}|"
+                                  onclick="setReturnDate(this.dataset.targetId, 0)">Hoy</button>
                                 <button type="button" class="btn btn-outline-success"
-                                  th:onclick="|setReturnDate('travelDate-${v.id}', 1)|">Mañana</button>
+                                  th:data-target-id="|travelDate-${v.id}|"
+                                  onclick="setReturnDate(this.dataset.targetId, 1)">Mañana</button>
                                 <button type="button" class="btn btn-outline-primary"
-                                  th:onclick="|showCustomReturnDate('travelDate-${v.id}')|">Otra Fecha</button>
+                                  th:data-target-id="|travelDate-${v.id}|"
+                                  onclick="showCustomReturnDate(this.dataset.targetId)">Otra Fecha</button>
                               </div>
                               <input type="date" name="travelDate" th:id="'travelDate-' + ${v.id}"
                                 class="form-control fw-bold border-success d-none" required disabled>
