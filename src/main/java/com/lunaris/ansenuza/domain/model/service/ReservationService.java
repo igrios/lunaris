@@ -97,6 +97,7 @@ public class ReservationService {
         // --- PROCESAMIENTO TRAMO: IDA ---
         mainReservation.setReservationCode(Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 ? codigoBase + "-IDA" : codigoBase);
+        mainReservation.setBookingGroupCode(codigoBase);
         if (mainReservation.getStatus() == null) {
             mainReservation.setStatus(Boolean.TRUE.equals(mainReservation.getPaymentVerified()) ? "CONFIRMED" : "PENDING_PAYMENT");
         }
@@ -149,6 +150,7 @@ public class ReservationService {
             returnReservation.setRoundTrip(true);
             returnReservation.setTripType(mainReservation.getTripType());
             returnReservation.setReservationCode(codigoBase + "-VUELTA");
+            returnReservation.setBookingGroupCode(codigoBase);
             returnReservation.setPaymentConfirmedAt(mainReservation.getPaymentConfirmedAt());
             returnReservation.setPaymentReceiptUrl(mainReservation.getPaymentReceiptUrl());
 
@@ -236,12 +238,13 @@ public class ReservationService {
                 assertCancellationAllowed(reservation);
 
                 if (isOutboundLeg(reservation) && isUsed(reservation)) {
-                    Reservation returnReservation = reservationRepository
-                            .findByReservationCode(reservation.getReservationCode()
-                                    .replace("-IDA", "-VUELTA"))
-                            .orElseThrow(() -> new DomainValidationException(
-                                    "La ida ya fue utilizada y no posee una vuelta disponible para cancelar."));
-                    cancelReturnOnly(returnReservation, reservation.getPassenger(), triggeredBy);
+                    List<Reservation> returnReservations = associatedReservations(reservation);
+                    if (returnReservations.isEmpty()) {
+                        throw new DomainValidationException(
+                                "La ida ya fue utilizada y no posee una vuelta disponible para cancelar.");
+                    }
+                    returnReservations.forEach(returnReservation ->
+                            cancelReturnOnly(returnReservation, reservation.getPassenger(), triggeredBy));
                     return;
                 }
                 
@@ -272,20 +275,16 @@ public class ReservationService {
                 reservationEventRepository.save(cancelEvent);
 
                 // 2. 🔄 CASCADA UNIDIRECCIONAL: Si se da de baja la IDA, cancelamos la VUELTA. Si se borra la VUELTA, la IDA queda intacta.
-                String codigoActual = reservation.getReservationCode();
-                if (codigoActual != null && codigoActual.endsWith("-IDA")) {
-                    String codigoVueltaBuscado = codigoActual.replace("-IDA", "-VUELTA");
-
-                    reservationRepository.findByReservationCode(codigoVueltaBuscado).ifPresent(returnRes -> {
+                if (isOutboundLeg(reservation)) {
+                    associatedReservations(reservation).forEach(returnRes -> {
                         if (!"CANCELLED".equals(returnRes.getStatus())) {
                             assertCancellationAllowed(returnRes);
-                            
+                            assertNotCompleted(returnRes);
                             boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified()) || "CONFIRMED".equals(returnRes.getStatus());
                             
                             returnRes.setStatus("CANCELLED");
                             returnRes.setTravelStatus(Reservation.TravelStatus.CANCELED);
                             
-                            assertNotCompleted(returnRes);
                             if (pagoVueltaRealizado && returnRes.getAmount() != null && returnRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
                                 totalReintegro[0] = totalReintegro[0].add(refundableAmount(returnRes));
                             }
@@ -359,6 +358,28 @@ public class ReservationService {
                 .description("Solo se canceló y acreditó la porción no utilizada de la vuelta.")
                 .triggeredBy(triggeredBy)
                 .build());
+    }
+
+    private List<Reservation> associatedReservations(Reservation parent) {
+        List<Reservation> grouped = parent.getBookingGroupCode() == null
+                || parent.getBookingGroupCode().isBlank()
+                ? List.of()
+                : reservationRepository.findByBookingGroupCodeForUpdate(parent.getBookingGroupCode());
+        List<Reservation> associated = grouped.stream()
+                .filter(candidate -> !java.util.Objects.equals(candidate.getId(), parent.getId()))
+                .filter(candidate -> !"CANCELLED".equalsIgnoreCase(candidate.getStatus()))
+                .toList();
+        if (!associated.isEmpty()) {
+            return associated;
+        }
+        String code = parent.getReservationCode();
+        if (code == null || !code.endsWith("-IDA")) {
+            return List.of();
+        }
+        return reservationRepository.findByReservationCode(code.replace("-IDA", "-VUELTA"))
+                .filter(candidate -> !"CANCELLED".equalsIgnoreCase(candidate.getStatus()))
+                .stream()
+                .toList();
     }
 
     private BigDecimal refundableAmount(Reservation reservation) {

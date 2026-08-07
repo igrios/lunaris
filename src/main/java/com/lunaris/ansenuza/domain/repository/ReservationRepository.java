@@ -67,6 +67,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            """)
     List<Reservation> findReservationGroupForUpdate(@Param("groupCode") String groupCode);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Reservation r WHERE r.bookingGroupCode = :groupCode ORDER BY r.createdAt, r.id")
+    List<Reservation> findByBookingGroupCodeForUpdate(@Param("groupCode") String groupCode);
+
     // 📱 3. BUSCADOR POR TELÉFONO: Permite a la consulta del Bot (Opción 4) traer el historial por nro de celular
     @Query("""
            SELECT r FROM Reservation r

@@ -204,6 +204,45 @@ class ReservationServiceTest {
     }
 
     @Test
+    void cancellingParentCancelsSplitReturnsAndCreditsOnlyTheirLegAmounts() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(
+                reservations,
+                mock(ReservationEventRepository.class),
+                passengers,
+                mock(OnboardPassengerUseCase.class));
+        Passenger passenger = Passenger.builder().currentBalance(BigDecimal.ZERO).build();
+        String groupCode = "ARR-COR-001";
+        Reservation outbound = paidLeg(passenger, "ARR-COR-001-IDA", groupCode);
+        Reservation returnLeg = paidLeg(passenger, "ARR-COR-001-VUELTA", groupCode);
+        Reservation splitReturn = paidLeg(passenger, "VTA-BLK-f4ad-030", groupCode);
+        when(reservations.findByIdForUpdate(outbound.getId())).thenReturn(Optional.of(outbound));
+        when(reservations.findByBookingGroupCodeForUpdate(groupCode))
+                .thenReturn(List.of(outbound, returnLeg, splitReturn));
+
+        service.cancelReservation(outbound.getId(), "BOT_WHATSAPP");
+
+        assertEquals("CANCELLED", outbound.getStatus());
+        assertEquals("CANCELLED", returnLeg.getStatus());
+        assertEquals("CANCELLED", splitReturn.getStatus());
+        assertEquals(new BigDecimal("417000.00"), passenger.getCurrentBalance());
+    }
+
+    private Reservation paidLeg(Passenger passenger, String code, String groupCode) {
+        return Reservation.builder()
+                .id(UUID.randomUUID())
+                .passenger(passenger)
+                .reservationCode(code)
+                .bookingGroupCode(groupCode)
+                .amount(new BigDecimal("139000.00"))
+                .paymentVerified(true)
+                .status("CONFIRMED")
+                .travelStatus(Reservation.TravelStatus.PENDING)
+                .build();
+    }
+
+    @Test
     void rejectsCancellationWhenPassengerIsOnboard() {
         assertCancellationLockedFor(Reservation.TravelStatus.ONBOARD);
     }

@@ -289,6 +289,7 @@ public String updateFromPanel(
                 
                 String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
                 tramoIndependiente.setReservationCode("VTA-BLK-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
+                tramoIndependiente.setBookingGroupCode(resolveBookingGroupCode(original));
                 
                 scheduledReturn = reservationRepository.saveAndFlush(tramoIndependiente);
                 sendOpenReturnConfirmation(tramoIndependiente);
@@ -348,6 +349,15 @@ public String updateFromPanel(
             return schedule + (hour < 12 ? " AM" : " PM");
         }
         throw new IllegalArgumentException("Formato de horario inválido: " + rawSchedule);
+    }
+
+    private static String resolveBookingGroupCode(Reservation reservation) {
+        if (reservation.getBookingGroupCode() != null
+                && !reservation.getBookingGroupCode().isBlank()) {
+            return reservation.getBookingGroupCode();
+        }
+        String code = reservation.getReservationCode();
+        return code == null ? null : code.replaceFirst("-(IDA|VUELTA)$", "");
     }
 
     private Reservation.TravelStatus parseTravelStatus(UUID reservationId, String rawTravelStatus) {

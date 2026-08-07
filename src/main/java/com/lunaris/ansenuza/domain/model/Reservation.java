@@ -154,6 +154,9 @@ public class Reservation {
     @Column(name = "reservation_code", unique = true, length = 20)
     private String reservationCode;
 
+    @Column(name = "booking_group_code", length = 40)
+    private String bookingGroupCode;
+
     // 🕒 TIMESTAMPS DE AUDITORÍA EMPRESARIAL (Nativos de Hibernate)
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
