@@ -78,7 +78,9 @@ class ReservationViewControllerTest {
 
         verify(reservations).saveAndFlush(openReturn);
         assertEquals(confirmedDate, openReturn.getReturnDate());
-        assertEquals("08:30", openReturn.getDepartureSchedule());
+        assertEquals(confirmedDate, openReturn.getTravelDate());
+        assertEquals("08:30 AM", openReturn.getDepartureSchedule());
+        assertEquals(Reservation.TravelStatus.PENDING, openReturn.getTravelStatus());
         verify(whatsApp).sendMessage(
                 eq("5493511111111"),
                 contains("Tu vuelta quedó confirmada para el " + confirmedDate));
@@ -89,5 +91,12 @@ class ReservationViewControllerTest {
         assertEquals(
                 Reservation.TravelStatus.ONBOARD,
                 updateCaptor.getValue().getTravelStatus());
+    }
+
+    @Test
+    void normalizesStandardOpenReturnShiftFormats() {
+        assertEquals("03:00 AM", ReservationViewController.normalizeDepartureSchedule("03:00"));
+        assertEquals("08:00 AM", ReservationViewController.normalizeDepartureSchedule("08:00 AM"));
+        assertEquals("18:00 PM", ReservationViewController.normalizeDepartureSchedule("18:00"));
     }
 }

@@ -256,6 +256,7 @@ public String updateFromPanel(
                         "Para programar una vuelta abierta se requieren fecha, horario y chofer.");
             }
             int asientosOriginales = original.getPassengerCount() != null ? original.getPassengerCount() : 1;
+            String normalizedSchedule = normalizeDepartureSchedule(departureSchedule);
             
             // A. Si eligen volver MENOS pasajeros de los que tiene el grupo actualmente (Split por Bloque)
             if (cantidadVuelven < asientosOriginales) {
@@ -282,7 +283,8 @@ public String updateFromPanel(
                 tramoIndependiente.setPaymentVerified(true);
                 tramoIndependiente.setDriver(assignedDriver);
                 tramoIndependiente.setReturnDate(travelDate);
-                tramoIndependiente.setDepartureSchedule(departureSchedule.trim());
+                tramoIndependiente.setDepartureSchedule(normalizedSchedule);
+                tramoIndependiente.setTravelStatus(Reservation.TravelStatus.PENDING);
                 tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Bloque" : "Split Bloque");
                 
                 String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
@@ -298,7 +300,7 @@ public String updateFromPanel(
                 if (pickupAddress != null && !pickupAddress.isBlank()) original.setPickupAddress(pickupAddress);
                 original.setRoundTrip(false); // Apagamos el flag de combo de raíz
                 original.setReturnDate(travelDate);
-                original.setDepartureSchedule(departureSchedule.trim());
+                original.setDepartureSchedule(normalizedSchedule);
                 original.setTravelStatus(Reservation.TravelStatus.PENDING);
                 original.setStatus("CONFIRMED");
                 original.setPaymentVerified(true);
@@ -334,6 +336,18 @@ public String updateFromPanel(
         return "redirect:/reservations/vueltas-abiertas";
     }
     return "redirect:/agenda";
+    }
+
+    static String normalizeDepartureSchedule(String rawSchedule) {
+        String schedule = rawSchedule.trim().toUpperCase(java.util.Locale.ROOT);
+        if (schedule.endsWith(" AM") || schedule.endsWith(" PM")) {
+            return schedule;
+        }
+        if (schedule.matches("\\d{2}:\\d{2}")) {
+            int hour = Integer.parseInt(schedule.substring(0, 2));
+            return schedule + (hour < 12 ? " AM" : " PM");
+        }
+        throw new IllegalArgumentException("Formato de horario inválido: " + rawSchedule);
     }
 
     private Reservation.TravelStatus parseTravelStatus(UUID reservationId, String rawTravelStatus) {
