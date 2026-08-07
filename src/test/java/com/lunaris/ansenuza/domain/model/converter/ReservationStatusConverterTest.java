@@ -20,5 +20,9 @@ class ReservationStatusConverterTest {
         assertEquals("CONFIRMED", converter.convertToEntityAttribute(" confirmed "));
         assertEquals("PARTIALLY_COMPLETED",
                 converter.convertToEntityAttribute("partially_completed"));
+        assertEquals("RECEIPT_UPLOADED",
+                converter.convertToEntityAttribute("receipt_uploaded"));
+        assertEquals("RESERVED", converter.convertToEntityAttribute("reserved"));
+        assertEquals("REJECTED", converter.convertToEntityAttribute("rejected"));
     }
 }

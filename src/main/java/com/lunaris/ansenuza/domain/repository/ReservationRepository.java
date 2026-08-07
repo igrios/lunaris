@@ -161,8 +161,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            FROM Reservation r
            WHERE r.travelDate = :date
            AND COALESCE(r.departureSchedule, '03:00 AM') = :schedule
-           AND r.paymentVerified = true
-           AND r.status = 'CONFIRMED'
+           AND (r.status IS NULL OR UPPER(r.status) NOT IN ('CANCELLED', 'REJECTED'))
+           AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.COMPLETED))
            """)
     long countReservedSeats(
             @Param("date") LocalDate date,

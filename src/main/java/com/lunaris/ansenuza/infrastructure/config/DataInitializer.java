@@ -48,6 +48,7 @@ public class DataInitializer implements CommandLineRunner {
             "return.button.no.title", "NO, CANCELAR ❌",
             "SAME_DAY_CUTOFF_TIME", "08:00",
             "SAME_DAY_CUTOFF_BUFFER_MINUTES", "0",
+            "primary.vehicle.capacity", "12",
             "session.inactivity.timeout.minutes", "30");
 
     private final LocalityRepository localityRepository;

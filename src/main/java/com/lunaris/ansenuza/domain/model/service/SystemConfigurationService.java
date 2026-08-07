@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SystemConfigurationService {
 
     private static final String SCHEDULE_MAX_CAPACITY = "schedule.max.capacity";
+    private static final String PRIMARY_VEHICLE_CAPACITY = "primary.vehicle.capacity";
     private static final int DEFAULT_SCHEDULE_MAX_CAPACITY = 12;
 
     private final SystemConfigurationRepository repository;
@@ -42,6 +43,18 @@ public class SystemConfigurationService {
     public int getScheduleMaxCapacity() {
         String configuredValue = getValue(
                 SCHEDULE_MAX_CAPACITY, String.valueOf(DEFAULT_SCHEDULE_MAX_CAPACITY));
+        try {
+            int capacity = Integer.parseInt(configuredValue.trim());
+            return capacity > 0 ? capacity : DEFAULT_SCHEDULE_MAX_CAPACITY;
+        } catch (NumberFormatException exception) {
+            return DEFAULT_SCHEDULE_MAX_CAPACITY;
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public int getPrimaryVehicleCapacity() {
+        String configuredValue = getValue(
+                PRIMARY_VEHICLE_CAPACITY, String.valueOf(DEFAULT_SCHEDULE_MAX_CAPACITY));
         try {
             int capacity = Integer.parseInt(configuredValue.trim());
             return capacity > 0 ? capacity : DEFAULT_SCHEDULE_MAX_CAPACITY;

@@ -30,14 +30,14 @@ class WaitingListCapacityGuardTest {
         ConversationSession session = sessionWithPassengers(3);
         when(reservations.countReservedSeats(session.getTravelDate(), "03:00 AM"))
                 .thenReturn(10L);
-        when(configurations.getScheduleMaxCapacity()).thenReturn(12);
+        when(configurations.getPrimaryVehicleCapacity()).thenReturn(12);
 
         assertTrue(guard.offerWaitingListWhenFull(session));
 
         verify(waitingList).join(session);
         verify(messaging).sendText(
                 org.mockito.ArgumentMatchers.eq(session.getPhoneNumber()),
-                org.mockito.ArgumentMatchers.contains("cupo de 12 pasajeros"));
+                org.mockito.ArgumentMatchers.contains("unidad principal de 12 pasajeros"));
         verify(sessions).delete(session);
         verify(sessions).flush();
     }
@@ -54,11 +54,33 @@ class WaitingListCapacityGuardTest {
         ConversationSession session = sessionWithPassengers(2);
         when(reservations.countReservedSeats(session.getTravelDate(), "03:00 AM"))
                 .thenReturn(10L);
-        when(configurations.getScheduleMaxCapacity()).thenReturn(12);
+        when(configurations.getPrimaryVehicleCapacity()).thenReturn(12);
 
         assertFalse(guard.offerWaitingListWhenFull(session));
 
         verify(sessions, never()).delete(session);
+    }
+
+    @Test
+    void sendsThirteenthPassengerToWaitingListEvenWhenExpandedCapacityIsTwentyFour() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        SystemConfigurationService configurations = mock(SystemConfigurationService.class);
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        WaitingListService waitingList = mock(WaitingListService.class);
+        WaitingListCapacityGuard guard = new WaitingListCapacityGuard(
+                reservations, configurations, sessions, messaging, waitingList);
+        ConversationSession session = sessionWithPassengers(1);
+        when(reservations.countReservedSeats(session.getTravelDate(), "03:00 AM"))
+                .thenReturn(12L);
+        when(configurations.getScheduleMaxCapacity()).thenReturn(24);
+        when(configurations.getPrimaryVehicleCapacity()).thenReturn(12);
+
+        assertTrue(guard.offerWaitingListWhenFull(session));
+
+        verify(waitingList).join(session);
+        verify(sessions).delete(session);
+        verify(sessions).flush();
     }
 
     private ConversationSession sessionWithPassengers(int passengerCount) {

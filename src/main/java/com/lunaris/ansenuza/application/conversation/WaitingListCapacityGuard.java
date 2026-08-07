@@ -29,7 +29,7 @@ public class WaitingListCapacityGuard {
                 ? "03:00 AM" : session.getScheduleBlock().trim();
         int occupiedSeats = Math.toIntExact(reservationRepository.countReservedSeats(
                 session.getTravelDate(), schedule));
-        int maxCapacity = systemConfigurationService.getScheduleMaxCapacity();
+        int maxCapacity = systemConfigurationService.getPrimaryVehicleCapacity();
 
         if (occupiedSeats + requestedSeats <= maxCapacity) {
             return false;
@@ -37,8 +37,8 @@ public class WaitingListCapacityGuard {
 
         waitingListService.join(session);
         messaging.sendText(session.getPhoneNumber(),
-                "⏳ El cupo de " + maxCapacity + " pasajeros para el " + schedule
-                        + " está completo. Te agregamos a la Lista de Espera y te avisaremos "
+                "⏳ La unidad principal de " + maxCapacity + " pasajeros para el " + schedule
+                        + " está completa. Te agregamos a la Lista de Espera y te avisaremos "
                         + "por WhatsApp cuando se libere un lugar.");
         conversationSessionRepository.delete(session);
         conversationSessionRepository.flush();

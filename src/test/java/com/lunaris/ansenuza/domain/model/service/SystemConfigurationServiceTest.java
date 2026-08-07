@@ -51,4 +51,17 @@ class SystemConfigurationServiceTest {
                         .build()));
         assertEquals(12, service.getScheduleMaxCapacity());
     }
+
+    @Test
+    void keepsPrimaryVehicleCapacityIndependentFromExpandedScheduleCapacity() {
+        SystemConfigurationRepository repository = mock(SystemConfigurationRepository.class);
+        SystemConfigurationService service = new SystemConfigurationService(repository);
+        when(repository.findById("schedule.max.capacity")).thenReturn(Optional.of(
+                SystemConfiguration.builder().key("schedule.max.capacity").value("24").build()));
+        when(repository.findById("primary.vehicle.capacity")).thenReturn(Optional.of(
+                SystemConfiguration.builder().key("primary.vehicle.capacity").value("12").build()));
+
+        assertEquals(24, service.getScheduleMaxCapacity());
+        assertEquals(12, service.getPrimaryVehicleCapacity());
+    }
 }
