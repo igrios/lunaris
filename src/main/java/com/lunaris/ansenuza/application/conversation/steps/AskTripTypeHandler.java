@@ -10,6 +10,7 @@ import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
+import com.lunaris.ansenuza.domain.model.service.OperationControlService;
 import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class AskTripTypeHandler implements ConversationStepHandler {
     private final ConversationSessionRepository conversationSessionRepository;
     private final MessagingPort messaging;
     private final SameDayBookingPolicy sameDayBookingPolicy;
+    private final OperationControlService operationControlService;
 
     @Override
     public String step() {
@@ -55,10 +57,18 @@ public class AskTripTypeHandler implements ConversationStepHandler {
             options.add(new Button(today.format(payloadFormat),
                     "Hoy (" + today.format(payloadFormat) + ")"));
         }
-        options.add(new Button(today.plusDays(1).format(payloadFormat),
-                "Mañana (" + today.plusDays(1).format(payloadFormat) + ")"));
-        options.add(new Button(today.plusDays(2).format(payloadFormat),
-                today.plusDays(2).format(payloadFormat)));
+        LocalDate candidate = today.plusDays(1);
+        if (operationControlService.isPastCutoffTime()) {
+            candidate = candidate.plusDays(1);
+        }
+        while (options.size() < 3) {
+            String formattedDate = candidate.format(payloadFormat);
+            String title = candidate.equals(today.plusDays(1))
+                    ? "Mañana (" + formattedDate + ")"
+                    : formattedDate;
+            options.add(new Button(formattedDate, title));
+            candidate = candidate.plusDays(1);
+        }
         messaging.sendButtons(phoneNumber, "Fecha del viaje",
                 prompt + "\n\nPor favor, indicá la fecha de tu viaje "
                         + "(por ejemplo: 12/08/2026):", options);

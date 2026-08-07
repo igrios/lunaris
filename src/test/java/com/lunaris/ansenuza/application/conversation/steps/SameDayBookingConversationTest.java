@@ -52,8 +52,9 @@ class SameDayBookingConversationTest {
         MessagingPort messaging = mock(MessagingPort.class);
         SameDayBookingPolicy policy = mock(SameDayBookingPolicy.class);
         when(policy.isTodayClosed()).thenReturn(true);
+        OperationControlService operationControl = mock(OperationControlService.class);
         AskTripTypeHandler handler = new AskTripTypeHandler(
-                mock(ConversationSessionRepository.class), messaging, policy);
+                mock(ConversationSessionRepository.class), messaging, policy, operationControl);
         ConversationSession session = ConversationSession.builder()
                 .phoneNumber("543511111111").build();
         @SuppressWarnings("unchecked")
@@ -70,5 +71,31 @@ class SameDayBookingConversationTest {
                 button.title().matches("Mañana \\(\\d{2}/\\d{2}/\\d{4}\\)")));
         assertTrue(buttons.getValue().stream().allMatch(button ->
                 button.id().matches("\\d{2}/\\d{2}/\\d{4}")));
+    }
+
+    @Test
+    void usesDayAfterTomorrowAsPrimaryOptionWhenTomorrowLogisticsAreClosed() {
+        MessagingPort messaging = mock(MessagingPort.class);
+        SameDayBookingPolicy policy = mock(SameDayBookingPolicy.class);
+        OperationControlService operationControl = mock(OperationControlService.class);
+        when(policy.isTodayClosed()).thenReturn(true);
+        when(operationControl.isPastCutoffTime()).thenReturn(true);
+        AskTripTypeHandler handler = new AskTripTypeHandler(
+                mock(ConversationSessionRepository.class), messaging, policy, operationControl);
+        ConversationSession session = ConversationSession.builder()
+                .phoneNumber("543511111111").build();
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Button>> buttons = ArgumentCaptor.forClass(List.class);
+
+        handler.handle(session, new IncomingMessage(session.getPhoneNumber(),
+                IncomingMessage.MessageType.INTERACTIVE, "trip_ida", null));
+
+        verify(messaging).sendButtons(eq(session.getPhoneNumber()), eq("Fecha del viaje"),
+                contains("¿Qué día"), buttons.capture());
+        String expected = com.lunaris.ansenuza.shared.ArgentinaTime.today().plusDays(2)
+                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        assertTrue(buttons.getValue().getFirst().id().equals(expected));
+        assertFalse(buttons.getValue().stream()
+                .anyMatch(button -> button.title().startsWith("Mañana (")));
     }
 }

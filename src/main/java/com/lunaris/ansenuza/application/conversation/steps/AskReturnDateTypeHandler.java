@@ -26,7 +26,12 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
         String phoneNumber = session.getPhoneNumber();
         String body = message.body().trim().toLowerCase();
 
-        if ("return_fixed".equals(body)) {
+        if ("return_same_day".equals(body)) {
+            session.setReturnDate(session.getTravelDate());
+            advanceToBilling(session, phoneNumber);
+            return;
+        }
+        if ("return_choose_date".equals(body) || "return_fixed".equals(body)) {
             session.setCurrentStep("ASK_RETURN_DATE");
             conversationSessionRepository.saveAndFlush(session);
             messaging.sendText(phoneNumber,
@@ -35,11 +40,15 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
         }
         if ("return_open".equals(body)) {
             session.setReturnDate(null);
-            session.setCurrentStep("ASK_DNI_REQUIRED");
-            conversationSessionRepository.saveAndFlush(session);
-            messaging.sendText(phoneNumber,
-                    "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números):");
+            advanceToBilling(session, phoneNumber);
             return;
         }
+    }
+
+    private void advanceToBilling(ConversationSession session, String phoneNumber) {
+        session.setCurrentStep("ASK_DNI_REQUIRED");
+        conversationSessionRepository.saveAndFlush(session);
+        messaging.sendText(phoneNumber,
+                "🧾 *Para emitir la facturación fiscal obligatoria:*\n\nIngresá tu número de DNI o CUIT (solo números):");
     }
 }
