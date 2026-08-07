@@ -156,6 +156,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     List<Reservation> findByPassenger(Passenger passenger);
 
     @Query("""
+           SELECT r FROM Reservation r
+           LEFT JOIN FETCH r.passenger
+           WHERE (r.roundTrip = true OR r.travelStatus =
+                  com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN)
+           AND (r.travelDate BETWEEN :fromDate AND :toDate
+                OR r.returnDate BETWEEN :fromDate AND :toDate)
+           AND (r.status IS NULL OR UPPER(r.status) <> 'CANCELLED')
+           ORDER BY r.travelDate, r.createdAt
+           """)
+    List<Reservation> findReturnScheduleAuditCandidates(
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate);
+
+    @Query("""
            SELECT COALESCE(SUM(CASE WHEN r.passengerCount IS NULL OR r.passengerCount < 1
                                    THEN 1 ELSE r.passengerCount END), 0)
            FROM Reservation r

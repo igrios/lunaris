@@ -28,6 +28,20 @@ import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 class AgendaDriverDispatchControllerTest {
 
     @Test
+    void sortsPendingReservationsBeforeDispatchedReservations() {
+        Reservation pending = Reservation.builder().id(UUID.randomUUID()).build();
+        Reservation dispatched = Reservation.builder().id(UUID.randomUUID())
+                .travelStatus(Reservation.TravelStatus.ROUTE_SENT).build();
+
+        List<Reservation> sorted = java.util.stream.Stream.of(dispatched, pending)
+                .sorted(AgendaViewController.dispatchedLastComparator())
+                .toList();
+
+        assertEquals(pending.getId(), sorted.getFirst().getId());
+        assertEquals(dispatched.getId(), sorted.getLast().getId());
+    }
+
+    @Test
     void keepsAssignmentSuccessfulAndReturnsWarningWhenWhatsAppDispatchFails() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);

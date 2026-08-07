@@ -45,6 +45,7 @@ public class Reservation {
         COMPLETED,
         CANCELED,
         NO_SHOW,
+        CONFIRMED,
         ROUTE_SENT,
         IN_PROGRESS,
         ONBOARD,

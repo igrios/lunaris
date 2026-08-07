@@ -173,6 +173,7 @@ class WhatsAppTemplateConfigurationTest {
         assertTrue(summary.contains("San Martín 123"));
         assertTrue(summary.contains("351 555-1234"));
         assertTrue(summary.contains("2 asiento(s)"));
+        assertTrue(summary.contains("03:00 AM"));
         assertTrue(summary.contains("Acompañantes: Juan Pérez"));
         assertTrue(summary.contains(navigationUrl));
         assertFalse(summary.contains("/hoja-ruta"));

@@ -10,8 +10,8 @@ class TravelStatusConverterTest {
     private final TravelStatusConverter converter = new TravelStatusConverter();
 
     @Test
-    void mapsLegacyConfirmedDatabaseValueToPendingInsteadOfThrowing() {
-        assertEquals(Reservation.TravelStatus.PENDING,
+    void mapsConfirmedReturnWindowStatusWithoutDowngradingIt() {
+        assertEquals(Reservation.TravelStatus.CONFIRMED,
                 converter.convertToEntityAttribute("CONFIRMED"));
     }
 

@@ -402,6 +402,9 @@ public String updateFromPanel(
     public String listOpenReturns(Model model) {
         java.time.LocalDate fechaCentinela = java.time.LocalDate.of(2099, 12, 31);
         List<Reservation> abiertas = reservationRepository.findVueltasAbiertasActive(fechaCentinela);
+        abiertas = abiertas.stream()
+                .sorted(AgendaViewController.dispatchedLastComparator())
+                .toList();
         model.addAttribute("vueltasAbiertas", abiertas);
         model.addAttribute("choferes", driverRepository.findByActiveTrue());
         return "vueltas-abiertas";

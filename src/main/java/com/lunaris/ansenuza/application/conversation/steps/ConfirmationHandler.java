@@ -136,6 +136,13 @@ public class ConfirmationHandler implements ConversationStepHandler {
             }
             conversationSessionRepository.delete(session);
 
+            if (Boolean.TRUE.equals(session.getRoundTrip())) {
+                messaging.sendText(phoneNumber, "📌 Información importante sobre tu regreso: "
+                        + "Las salidas de regreso desde Córdoba se realizan de 14:00 a 15:00 hs "
+                        + "o de 17:30 a 18:00 hs. Podés responder a este mensaje indicándonos "
+                        + "tu preferencia de horario.");
+            }
+
             if (freePromotion) {
                 messaging.sendText(phoneNumber, """
                         ✅ *¡Reserva confirmada con promoción 100% bonificada!*

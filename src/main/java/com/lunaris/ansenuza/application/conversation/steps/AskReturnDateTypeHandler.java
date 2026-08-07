@@ -35,7 +35,8 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
             session.setCurrentStep("ASK_RETURN_DATE");
             conversationSessionRepository.saveAndFlush(session);
             messaging.sendText(phoneNumber,
-                    "✍️ *Ingresá la fecha de tu regreso:*\n\n_Ejemplo: 25/06/2026_");
+                    "✍️ *Ingresá la fecha de tu regreso:*\n\n_Ejemplo: 25/06/2026_\n\n"
+                            + "Ventanas desde Córdoba: 14:00 a 15:00 hs o 17:30 a 18:00 hs.");
             return;
         }
         if ("return_open".equals(body)) {

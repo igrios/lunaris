@@ -171,13 +171,16 @@
         </div>
 
         <div th:each="reservation, reservationStat : ${reservations}" th:id="'reservation-card-' + ${reservation.id}"
-            class="card shadow-sm mb-3">
+            class="card shadow-sm mb-3"
+            th:classappend="${reservation.travelStatus != null and reservation.travelStatus.name() == 'ROUTE_SENT'} ? ' reservation-dispatched bg-light text-muted' : ''"
+            th:style="${reservation.travelStatus != null and reservation.travelStatus.name() == 'ROUTE_SENT'} ? 'opacity: 0.6;' : ''">
 
             <div class="card-body">
 
                 <div class="form-check mb-3">
                     <input class="form-check-input reservation-checkbox" type="checkbox"
-                        th:id="'check-' + ${reservation.id}">
+                        th:id="'check-' + ${reservation.id}"
+                        th:disabled="${reservation.travelStatus != null and reservation.travelStatus.name() == 'ROUTE_SENT'}">
                     <label class="form-check-label fw-bold text-muted" th:for="'check-' + ${reservation.id}">
                         Incluir en hoja de ruta del chofer
                     </label>
@@ -207,6 +210,10 @@
                             th:text="${reservation.passenger.firstName + ' ' + reservation.passenger.lastName}"></span>
                     </h5>
                     <div>
+                        <span th:if="${reservation.travelStatus != null and reservation.travelStatus.name() == 'ROUTE_SENT'}"
+                            class="badge bg-secondary shadow-sm px-2 py-1"
+                            th:text="${'✓ Ruta Enviada (' + (reservation.driver != null ? reservation.driver.fullName : 'Chofer') + ')'}">
+                        </span>
                         <span th:if="${reservation.roundTrip}" class="badge bg-success shadow-sm px-2 py-1">
                             🔄 Ida y Vuelta
                         </span>
@@ -360,11 +367,11 @@
             .addEventListener("change", updateViewRouteLink);
 
         function selectAllReservations() {
-            document.querySelectorAll(".reservation-checkbox").forEach(checkbox => checkbox.checked = true);
+            document.querySelectorAll(".reservation-checkbox:not(:disabled)").forEach(checkbox => checkbox.checked = true);
         }
 
         function unselectAllReservations() {
-            document.querySelectorAll(".reservation-checkbox").forEach(checkbox => checkbox.checked = false);
+            document.querySelectorAll(".reservation-checkbox:not(:disabled)").forEach(checkbox => checkbox.checked = false);
         }
 
         function confirmPayment(reservationId) {

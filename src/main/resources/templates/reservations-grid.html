@@ -147,9 +147,14 @@
               </td>
             </tr>
 
-            <tr th:each="r : ${reservas}">
+            <tr th:each="r : ${reservas}"
+                th:classappend="${r.travelStatus != null and r.travelStatus.name() == 'ROUTE_SENT'} ? ' table-secondary' : ''"
+                th:style="${r.travelStatus != null and r.travelStatus.name() == 'ROUTE_SENT'} ? 'opacity: 0.6;' : ''">
               <td class="ps-4 fw-bold text-dark" style="font-family: monospace; font-size: 0.95rem;">
                 <span th:text="${r.reservationCode ?: 'S/C'}"></span>
+                <span th:if="${r.travelStatus != null and r.travelStatus.name() == 'ROUTE_SENT'}"
+                  class="badge bg-secondary ms-1"
+                  th:text="${'✓ Ruta Enviada (' + (r.driver != null ? r.driver.fullName : 'Chofer') + ')'}"></span>
               </td>
               <td>
                 <div class="fw-bold text-dark">

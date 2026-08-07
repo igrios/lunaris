@@ -116,6 +116,9 @@ public class DashboardViewController {
                     .collect(Collectors.toList());
         }
 
+        reservations = reservations.stream()
+                .sorted(AgendaViewController.dispatchedLastComparator())
+                .toList();
         model.addAttribute("reservas", reservations);
         model.addAttribute("currentSearch", search);
         model.addAttribute("currentStatus", status != null ? status : "ALL");

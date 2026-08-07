@@ -524,8 +524,9 @@ static String buildDriverPassengerSummary(
                 : (textOrDefault(passenger.getFirstName(), "") + " "
                         + textOrDefault(passenger.getLastName(), "")).trim();
         String phone = passenger == null ? "" : passenger.getPhone();
-        summary.append(index++).append(". *")
+        summary.append(index).append(". *")
                 .append(textOrDefault(passengerName, "Pasajero")).append("*\n")
+                .append("   🕒 ").append(estimatedRoutePickupTime(reservation, index - 1)).append("\n")
                 .append("   📍 ").append(resolvePickupAddress(reservation)).append("\n")
                 .append("   📞 ").append(textOrDefault(phone, "Sin teléfono")).append("\n")
                 .append("   💺 ").append(reservation.getTotalSeats()).append(" asiento(s)");
@@ -534,8 +535,27 @@ static String buildDriverPassengerSummary(
             summary.append(" — Acompañantes: ").append(reservation.getCompanionNames().trim());
         }
         summary.append("\n\n");
+        index++;
     }
     return summary.toString().trim();
+}
+
+private static String estimatedRoutePickupTime(Reservation reservation, int routeIndex) {
+    String rawSchedule = textOrDefault(reservation.getDepartureSchedule(), "03:00 AM")
+            .toUpperCase(java.util.Locale.ROOT);
+    for (java.time.format.DateTimeFormatter formatter : List.of(
+            java.time.format.DateTimeFormatter.ofPattern("H:mm", java.util.Locale.ROOT),
+            java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.ENGLISH))) {
+        try {
+            java.time.LocalTime base = java.time.LocalTime.parse(rawSchedule, formatter);
+            return base.plusMinutes(15L * routeIndex)
+                    .format(java.time.format.DateTimeFormatter.ofPattern(
+                            "hh:mm a", java.util.Locale.ENGLISH));
+        } catch (java.time.format.DateTimeParseException ignored) {
+            // Se prueba el siguiente formato admitido.
+        }
+    }
+    return rawSchedule;
 }
 
 private static Map<String, Object> onboardRow(Reservation reservation) {
@@ -544,11 +564,15 @@ private static Map<String, Object> onboardRow(Reservation reservation) {
             ? "Pasajero"
             : (textOrDefault(passenger.getFirstName(), "") + " "
                     + textOrDefault(passenger.getLastName(), "")).trim();
+    int routeIndex = reservation.getRouteSequence() == null
+            ? 0 : Math.max(0, reservation.getRouteSequence() - 1);
     return Map.of(
             "id", "ONBOARD_" + reservation.getId(),
             "title", truncateMetaText(
                     "A bordo - " + textOrDefault(passengerName, "Pasajero"), 24),
-            "description", truncateMetaText(resolvePickupAddress(reservation), 72));
+            "description", truncateMetaText(
+                    estimatedRoutePickupTime(reservation, routeIndex)
+                            + " · " + resolvePickupAddress(reservation), 72));
 }
 
 private static Map<String, String> onboardReplyButton(Reservation reservation) {

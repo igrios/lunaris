@@ -192,9 +192,7 @@ public class AgendaViewController {
                 .filter(r -> r != null)
                 .filter(r -> r.getStatus() == null || !"CANCELLED".equalsIgnoreCase(r.getStatus()))
                 .filter(r -> r.getPassengerCount() == null || r.getPassengerCount() > 0)
-                .sorted(java.util.Comparator.comparing(
-                        Reservation::getRouteSequence,
-                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .sorted(dispatchedLastComparator())
                 .toList();
 
         model.addAttribute("date", date);
@@ -503,6 +501,11 @@ public class AgendaViewController {
                     driver.getFullName(),
                     navigationUrl,
                     routeReservations);
+            if (dispatchResult.success()) {
+                routeReservations.forEach(reservation ->
+                        reservation.setTravelStatus(Reservation.TravelStatus.ROUTE_SENT));
+                reservationRepository.saveAllAndFlush(routeReservations);
+            }
             String notice = dispatchResult.success()
                     ? "Success: " + dispatchResult.message()
                     : "Warning: " + dispatchResult.message();
@@ -520,6 +523,15 @@ public class AgendaViewController {
                     "message", "Chofer asignado correctamente en sistema. "
                             + "(Aviso de WhatsApp: Warning: no se pudo enviar la hoja de ruta.)"));
         }
+    }
+
+    static java.util.Comparator<Reservation> dispatchedLastComparator() {
+        return java.util.Comparator
+                .comparing((Reservation reservation) ->
+                        reservation.getTravelStatus() == Reservation.TravelStatus.ROUTE_SENT)
+                .thenComparing(reservation -> reservation.getDriver() != null)
+                .thenComparing(Reservation::getRouteSequence,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
     }
 
     private String normalizeWhatsAppNumber(String phone) {

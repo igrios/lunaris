@@ -55,8 +55,15 @@
               </tr>
             </thead>
             <tbody>
-              <tr th:each="v : ${vueltasAbiertas}">
-                <td class="font-monospace fw-bold text-primary" th:text="${v.reservationCode}"></td>
+              <tr th:each="v : ${vueltasAbiertas}"
+                th:classappend="${v.travelStatus != null and v.travelStatus.name() == 'ROUTE_SENT'} ? ' table-secondary' : ''"
+                th:style="${v.travelStatus != null and v.travelStatus.name() == 'ROUTE_SENT'} ? 'opacity: 0.6;' : ''">
+                <td class="font-monospace fw-bold text-primary">
+                  <span th:text="${v.reservationCode}"></span>
+                  <span th:if="${v.travelStatus != null and v.travelStatus.name() == 'ROUTE_SENT'}"
+                    class="badge bg-secondary d-block mt-1"
+                    th:text="${'✓ Ruta Enviada (' + (v.driver != null ? v.driver.fullName : 'Chofer') + ')'}"></span>
+                </td>
                 <td th:text="${v.passenger.firstName} + ' ' + ${v.passenger.lastName}"></td>
                 <td th:text="${v.createdAt != null ? #temporals.format(v.createdAt, 'dd/MM/yyyy') : '-'}"></td>
                 <td th:text="${v.pickupLocality}"></td>
@@ -69,7 +76,8 @@
                   <div class="btn-group">
                     <!-- Botón para Confirmar Fecha Real -->
                     <button type="button" class="btn btn-sm btn-success fw-bold px-3 shadow-sm" data-bs-toggle="modal"
-                      th:data-bs-target="'#confirmModal-' + ${v.id}">
+                      th:data-bs-target="'#confirmModal-' + ${v.id}"
+                      th:disabled="${v.travelStatus != null and v.travelStatus.name() == 'ROUTE_SENT'}">
                       📅 Programar Vuelta
                     </button>
 

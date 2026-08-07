@@ -19,6 +19,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DriverRouteService {
 
+    private static final int VEHICLE_CAPACITY = 4;
+    private static final String CAPACITY_MESSAGE =
+            "No se pueden asignar más de 4 pasajeros a un solo vehículo/chofer.";
+
     private final ReservationRepository reservationRepository;
     private final DriverRepository driverRepository;
     private final TripRouteCalculatorService routeCalculator = new TripRouteCalculatorService();
@@ -44,6 +48,7 @@ public class DriverRouteService {
             throw new IllegalArgumentException(
                     "Solo se pueden asignar reservas confirmadas del mismo sentido, fecha y turno.");
         }
+        assertVehicleCapacity(selected);
 
         Set<UUID> affectedDriverIds = new HashSet<>();
         affectedDriverIds.add(driver.getId());
@@ -72,6 +77,7 @@ public class DriverRouteService {
             throw new IllegalArgumentException(
                     "Las reservas cambiaron mientras se actualizaba la ruta. Reintentá la operación.");
         }
+        assertVehicleCapacity(selected);
         Set<Reservation> changed = new LinkedHashSet<>();
         List<Reservation> targetRoute =
                 reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
@@ -86,9 +92,13 @@ public class DriverRouteService {
 
         var selectedById = selected.stream()
                 .collect(java.util.stream.Collectors.toMap(Reservation::getId, reservation -> reservation));
-        List<Reservation> ordered = java.util.stream.IntStream.range(0, orderedReservationIds.size())
+        List<Reservation> geographicallyOrdered = orderedReservationIds.stream()
+                .map(selectedById::get)
+                .sorted(routeComparator(selected.getFirst()))
+                .toList();
+        List<Reservation> ordered = java.util.stream.IntStream.range(0, geographicallyOrdered.size())
                 .mapToObj(index -> {
-                    Reservation reservation = selectedById.get(orderedReservationIds.get(index));
+                    Reservation reservation = geographicallyOrdered.get(index);
                     reservation.setDriver(targetDriver);
                     reservation.setRouteSequence(index + 1);
                     changed.add(reservation);
@@ -118,5 +128,26 @@ public class DriverRouteService {
         if (reservations.isEmpty()) return true;
         Reservation first = reservations.getFirst();
         return reservations.stream().allMatch(candidate -> routeCalculator.sameManifest(first, candidate));
+    }
+
+    private void assertVehicleCapacity(List<Reservation> reservations) {
+        int occupiedSeats = reservations.stream().mapToInt(Reservation::getTotalSeats).sum();
+        if (occupiedSeats > VEHICLE_CAPACITY) {
+            throw new IllegalArgumentException(CAPACITY_MESSAGE);
+        }
+    }
+
+    private java.util.Comparator<Reservation> routeComparator(Reservation reference) {
+        boolean returnDirection = TripRouteCalculatorService.isCordoba(reference.getPickupLocality());
+        java.util.Comparator<Reservation> localityOrder = java.util.Comparator.comparingInt(reservation -> {
+            String locality = returnDirection
+                    ? reservation.getDestination() : reservation.getPickupLocality();
+            int index = routeCalculator.corridorIndex(locality);
+            if (index < 0) return Integer.MAX_VALUE;
+            return returnDirection ? -index : index;
+        });
+        return localityOrder
+                .thenComparing(reservation -> reservation.getPickupAddress() == null
+                        ? "" : reservation.getPickupAddress(), String.CASE_INSENSITIVE_ORDER);
     }
 }

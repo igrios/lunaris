@@ -71,6 +71,30 @@ class DriverRouteServiceTest {
     }
 
     @Test
+    void rejectsMoreThanFourSeatsForOneDriverVehicle() {
+        ReservationRepository repository = mock(ReservationRepository.class);
+        DriverRouteService service = new DriverRouteService(
+                repository, mock(DriverRepository.class));
+        LocalDate date = LocalDate.of(2026, 8, 4);
+        Driver driver = new Driver();
+        driver.setId(UUID.randomUUID());
+        Reservation first = reservation(date, null, null);
+        first.setPassengerCount(3);
+        Reservation second = reservation(date, null, null);
+        second.setPassengerCount(2);
+        List<UUID> ids = List.of(first.getId(), second.getId());
+        when(repository.findAllById(ids)).thenReturn(List.of(first, second));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.replaceRoute(driver, date, ids));
+
+        assertEquals(
+                "No se pueden asignar más de 4 pasajeros a un solo vehículo/chofer.",
+                exception.getMessage());
+    }
+
+    @Test
     void assignsConfirmedReservationWithoutDepartureSchedule() {
         ReservationRepository repository = mock(ReservationRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);
