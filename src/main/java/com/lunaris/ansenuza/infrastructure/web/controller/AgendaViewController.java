@@ -31,6 +31,8 @@ import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
+import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
+import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -48,6 +50,7 @@ public class AgendaViewController {
     private final FleetCapacityService fleetCapacityService;
     private final WaitingListRepository waitingListRepository;
     private final SystemConfigurationService systemConfigurationService;
+    private final ResolveEffectiveTripOriginUseCase resolveEffectiveTripOriginUseCase;
 
     @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
     private String whatsappToken;
@@ -434,8 +437,16 @@ public class AgendaViewController {
                     "message", exception.getMessage()));
         }
 
+        String assignedSchedule = assignedReservations.stream().map(Reservation::getDepartureSchedule)
+                .filter(schedule -> schedule != null && !schedule.isBlank()).findFirst().orElse("03:00");
+        RouteOriginResolution dispatchOrigin = resolveEffectiveTripOriginUseCase.resolve(
+                firstReservation.getTravelDate(), assignedSchedule);
+        List<Reservation> routeReservations = assignedReservations.stream()
+                .sorted(AdminDashboardController.dynamicRouteComparator(dispatchOrigin)).toList();
+        org.slf4j.LoggerFactory.getLogger(getClass()).info(dispatchOrigin.summary());
+
         try {
-            assignedReservations.stream()
+            routeReservations.stream()
                     .filter(reservation -> reservation.getPassenger() != null)
                     .collect(java.util.stream.Collectors.toMap(
                             reservation -> normalizeWhatsAppNumber(
@@ -459,20 +470,20 @@ public class AgendaViewController {
         // 3. Enviar plantilla al chofer para abrir su hoja de ruta.
         try {
             String navigationUrl =
-                    GoogleMapsParameterFormatter.buildDirectionsUrl(assignedReservations);
+                    GoogleMapsParameterFormatter.buildDirectionsUrl(routeReservations);
             var dispatchResult = whatsAppService.sendDriverRouteDispatch(
                     normalizedPhone,
                     driver.getFullName(),
                     navigationUrl,
-                    assignedReservations);
+                    routeReservations);
             String notice = dispatchResult.success()
                     ? "Success: " + dispatchResult.message()
                     : "Warning: " + dispatchResult.message();
             return ResponseEntity.ok(java.util.Map.of(
                     "assigned", true,
                     "whatsAppStatus", dispatchResult.success() ? "Success" : "Warning",
-                    "message", "Chofer asignado correctamente en sistema. (Aviso de WhatsApp: "
-                            + notice + ")"));
+                    "message", dispatchOrigin.summary() + " Chofer asignado correctamente en sistema. "
+                            + "(Aviso de WhatsApp: " + notice + ")"));
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(getClass())
                     .error("Error al enviar la plantilla despierta_chofer al chofer", e);
@@ -529,6 +540,11 @@ public class AgendaViewController {
             List<Reservation> reservations =
                     reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
                             driverId, travelDate);
+            String scheduleBlock = reservations.stream().map(Reservation::getDepartureSchedule)
+                    .filter(schedule -> schedule != null && !schedule.isBlank()).findFirst().orElse("03:00");
+            RouteOriginResolution originResolution = resolveEffectiveTripOriginUseCase.resolve(travelDate, scheduleBlock);
+            reservations = reservations.stream()
+                    .sorted(AdminDashboardController.dynamicRouteComparator(originResolution)).toList();
             model.addAttribute("driver", driver);
             model.addAttribute("reservas", reservations);
             model.addAttribute("totalYendo", countSeats(reservations, false));
@@ -536,6 +552,7 @@ public class AgendaViewController {
             model.addAttribute(
                     "navigationUrl",
                     GoogleMapsParameterFormatter.buildDirectionsUrl(reservations));
+            AdminDashboardController.addOriginAttributes(model, originResolution);
         }
         model.addAttribute("fechaSeleccionada", travelDate);
         model.addAttribute("pasajeros0800Count", 0);

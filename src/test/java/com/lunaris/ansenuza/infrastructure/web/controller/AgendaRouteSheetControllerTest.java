@@ -14,6 +14,8 @@ import com.lunaris.ansenuza.domain.model.service.FleetCapacityService;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
+import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
+import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -73,6 +75,10 @@ class AgendaRouteSheetControllerTest {
         when(drivers.findById(driverId)).thenReturn(Optional.of(driver));
         when(reservations.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
                 driverId, travelDate)).thenReturn(List.of(passenger));
+        ResolveEffectiveTripOriginUseCase originResolver = mock(ResolveEffectiveTripOriginUseCase.class);
+        when(originResolver.resolve(travelDate, "03:00")).thenReturn(new RouteOriginResolution(
+                travelDate, "03:00", "Morteros", List.of("Arrufó", "Villa Trinidad", "San Guillermo", "Suardi"),
+                java.util.Map.of("Morteros", 0), "Cabecera del día recalculada: Morteros."));
         AgendaViewController controller = new AgendaViewController(
                 reservations,
                 mock(WhatsAppService.class),
@@ -81,7 +87,7 @@ class AgendaRouteSheetControllerTest {
                 mock(DriverRouteService.class),
                 mock(FleetCapacityService.class),
                 mock(com.lunaris.ansenuza.domain.repository.WaitingListRepository.class),
-                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class));
+                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class), originResolver);
         ConcurrentModel model = new ConcurrentModel();
 
         String view = controller.showHojaRuta(driverId, travelDate, model);
@@ -89,6 +95,7 @@ class AgendaRouteSheetControllerTest {
         assertEquals("admin/hoja-ruta", view);
         assertEquals(List.of(passenger), model.getAttribute("reservas"));
         assertEquals(1, model.getAttribute("totalYendo"));
+        assertEquals("Morteros", model.getAttribute("effectiveOrigin"));
         verify(reservations).findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
                 driverId, travelDate);
     }

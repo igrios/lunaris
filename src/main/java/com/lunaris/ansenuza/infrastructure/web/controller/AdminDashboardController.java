@@ -13,6 +13,8 @@ import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
+import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
+import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 import lombok.AllArgsConstructor;
 
 @Controller
@@ -23,20 +25,21 @@ public class AdminDashboardController {
     private final ReservationRepository reservationRepository;
     private final PricingAndScheduleService scheduleService;
     private final ConversationSessionRepository sessionRepository; // 💬 ¡Inyectamos las sesiones del bot!
+    private final ResolveEffectiveTripOriginUseCase resolveEffectiveTripOriginUseCase;
 
     @GetMapping("/hoja-ruta")
-    public String getHojaRuta(@RequestParam(value = "fecha", required = false) String fechaStr, Model model) {
+    public String getHojaRuta(@RequestParam(value = "fecha", required = false) String fechaStr,
+            @RequestParam(value = "schedule", defaultValue = "03:00") String scheduleBlock, Model model) {
         // 1. Parseamos la fecha elegida o usamos la de hoy por defecto
         LocalDate fecha = (fechaStr == null || fechaStr.isEmpty())
                 ? com.lunaris.ansenuza.shared.ArgentinaTime.today()
                 : LocalDate.parse(fechaStr);
         
         // 2. Traemos solo las reservas activas, IGNORANDO por completo las canceladas
+        RouteOriginResolution originResolution = resolveEffectiveTripOriginUseCase.resolve(fecha, scheduleBlock);
         List<Reservation> reservas = reservationRepository.findByTravelDateAndStatusNot(fecha, "CANCELLED")
                 .stream()
-                .sorted(java.util.Comparator.comparing(
-                        Reservation::getRouteSequence,
-                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .sorted(dynamicRouteComparator(originResolution))
                 .toList();
         
         // 3. Calculamos el total yendo desde la zona de los pueblos hacia Córdoba (filtrado automático)
@@ -68,10 +71,27 @@ public class AdminDashboardController {
         model.addAttribute("totalYendo", totalYendoDesdeZona);
         model.addAttribute("totalVolviendo", totalVolviendoDesdeCba);
         model.addAttribute("sesionesChat", sesionesChat); // 👈 ¡Ahora van las reales!
+        addOriginAttributes(model, originResolution);
         model.addAttribute(
                 "navigationUrl",
                 GoogleMapsParameterFormatter.buildDirectionsUrl(reservas));
 
         return "admin/hoja-ruta"; 
+    }
+
+    static java.util.Comparator<Reservation> dynamicRouteComparator(RouteOriginResolution resolution) {
+        return java.util.Comparator.comparingInt((Reservation reservation) -> {
+            if ("Córdoba".equalsIgnoreCase(reservation.getPickupLocality())
+                    || "Córdoba Capital".equalsIgnoreCase(reservation.getPickupLocality())) return Integer.MAX_VALUE;
+            return resolution.minuteOffsets().getOrDefault(reservation.getPickupLocality(), Integer.MAX_VALUE - 1);
+        }).thenComparing(Reservation::getRouteSequence,
+                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
+    }
+
+    static void addOriginAttributes(Model model, RouteOriginResolution resolution) {
+        model.addAttribute("effectiveOrigin", resolution.effectiveOrigin());
+        model.addAttribute("originRecalculationMessage", resolution.summary());
+        model.addAttribute("routeMinuteOffsets", resolution.minuteOffsets());
+        model.addAttribute("selectedScheduleBlock", resolution.scheduleBlock());
     }
 }

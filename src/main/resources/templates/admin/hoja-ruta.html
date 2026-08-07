@@ -22,6 +22,11 @@
             <span class="badge bg-primary fs-5" th:text="${#temporals.format(fechaSeleccionada, 'dd/MM/yyyy')}">19/06/2026</span>
         </div>
 
+        <div th:if="${originRecalculationMessage}" class="alert alert-primary shadow-sm" role="status">
+            <strong>📍 Cabecera efectiva:</strong>
+            <span th:text="${originRecalculationMessage}">Cabecera del día recalculada: Morteros.</span>
+        </div>
+
         <div class="row g-3 mb-4">
             <div class="col-md-6">
                 <div class="card shadow-sm border-0 bg-white">
@@ -67,6 +72,13 @@
                         <input type="date" id="fecha" name="fecha" class="form-control" th:value="${fechaSeleccionada}">
                     </div>
                     <div class="col-auto">
+                        <label for="schedule" class="visually-hidden">Turno</label>
+                        <select id="schedule" name="schedule" class="form-select">
+                            <option value="03:00" th:selected="${selectedScheduleBlock == '03:00'}">03:00</option>
+                            <option value="08:00" th:selected="${selectedScheduleBlock == '08:00'}">08:00</option>
+                        </select>
+                    </div>
+                    <div class="col-auto">
                         <button type="submit" class="btn btn-dark">Buscar Día</button>
                     </div>
                 </form>
@@ -85,6 +97,7 @@
                             <th>Pasajero</th>
                             <th>Teléfono</th>
                             <th>Origen</th>
+                            <th class="text-center">Min. desde cabecera</th>
                             <th>Destino</th>
                             <th class="text-center">Asientos</th>
                             <th>Horario / Notas</th>
@@ -117,6 +130,8 @@
                                     </a>
                                 </small>
                             </td>
+                            <td class="text-center fw-semibold"
+                                th:text="${routeMinuteOffsets != null && routeMinuteOffsets.containsKey(reserva.pickupLocality) ? routeMinuteOffsets.get(reserva.pickupLocality) + ' min' : '—'}">0 min</td>
                             <td th:text="${reserva.destination}">Córdoba</td>
                             <td th:text="${reserva.passengerCount}" class="text-center fw-bold">1</td>
                             <td th:text="${reserva.notes}">03:00 AM (Ida)</td>
@@ -134,7 +149,7 @@
                             </td>
                         </tr>
                         <tr th:if="${reservas.isEmpty()}">
-                            <td colspan="8" class="text-center text-muted py-4">No hay reservas registradas para esta fecha.</td>
+                            <td colspan="9" class="text-center text-muted py-4">No hay reservas registradas para esta fecha.</td>
                         </tr>
                     </tbody>
                 </table>

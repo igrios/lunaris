@@ -18,6 +18,15 @@ import jakarta.persistence.LockModeType;
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
     @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.travelDate = :travelDate
+           AND r.status = 'CONFIRMED'
+           AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.COMPLETED
+           AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.REALIZED
+           """)
+    List<Reservation> findConfirmedActiveByTravelDate(@Param("travelDate") LocalDate travelDate);
+
+    @Query("""
            SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
            FROM Reservation r
            WHERE (LOWER(r.pickupLocality) = LOWER(:localityName)

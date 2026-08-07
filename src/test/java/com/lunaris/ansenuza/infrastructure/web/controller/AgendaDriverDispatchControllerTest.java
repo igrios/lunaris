@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
+import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 
 class AgendaDriverDispatchControllerTest {
 
@@ -31,11 +33,12 @@ class AgendaDriverDispatchControllerTest {
         DriverRepository drivers = mock(DriverRepository.class);
         DriverRouteService routes = mock(DriverRouteService.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
+        ResolveEffectiveTripOriginUseCase originResolver = mock(ResolveEffectiveTripOriginUseCase.class);
         AgendaViewController controller = new AgendaViewController(
                 reservations, whatsApp, drivers, mock(ConfirmPaymentUseCase.class), routes,
                 mock(FleetCapacityService.class),
                 mock(com.lunaris.ansenuza.domain.repository.WaitingListRepository.class),
-                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class));
+                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class), originResolver);
         UUID driverId = UUID.randomUUID();
         UUID reservationId = UUID.randomUUID();
         Driver driver = new Driver();
@@ -48,6 +51,9 @@ class AgendaDriverDispatchControllerTest {
         when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
         when(routes.replaceRoute(driver, reservation.getTravelDate(), List.of(reservationId)))
                 .thenReturn(List.of(reservation));
+        when(originResolver.resolve(reservation.getTravelDate(), "03:00")).thenReturn(new RouteOriginResolution(
+                reservation.getTravelDate(), "03:00", "Morteros", List.of(), Map.of("Morteros", 0),
+                "Cabecera del día recalculada: Morteros."));
         when(whatsApp.sendDriverRouteDispatch(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(),
