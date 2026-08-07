@@ -67,11 +67,7 @@ public class ProcessPaymentReceiptUseCase {
 
             if (pendingReservation.isPresent() && receiptUrl != null) {
                 Reservation reservation = pendingReservation.get();
-                reservation.setPaymentReceiptUrl(receiptUrl);
-                // El comprobante queda pendiente de revisión humana; recibirlo no verifica el pago.
-                reservation.setPaymentVerified(false);
-                reservation.setStatus("PAYMENT_RECEIVED");
-                reservationRepository.saveAndFlush(reservation);
+                updatePaymentGroup(reservation, receiptUrl, false, "PAYMENT_RECEIVED");
                 log.info("[Bot Webhook] Comprobante enlazado con éxito para código: {}",
                         reservation.getReservationCode());
             } else if (pendingReservation.isEmpty()) {
@@ -106,22 +102,46 @@ public class ProcessPaymentReceiptUseCase {
 
         if (pendingReservation.isEmpty()) {
             validateBookingData(bookingData);
-            sameDayBookingPolicy.validate(bookingData.travelDate());
+            sameDayBookingPolicy.validate(
+                    bookingData.travelDate(), bookingData.scheduleBlock());
         }
 
         String receiptUrl = uploadReceipt(receiptFile, normalizedPhone);
         Reservation reservation = pendingReservation.orElseGet(() -> newWebReservation(passenger, bookingData));
-        if (receiptUrl != null) {
-            reservation.setPaymentReceiptUrl(receiptUrl);
-        }
         if (pendingReservation.isPresent()) {
-            reservation.setPaymentVerified(true);
-            reservation.setStatus("CONFIRMED");
+            return updatePaymentGroup(reservation, receiptUrl, true, "CONFIRMED");
         }
-        if (pendingReservation.isPresent()) {
-            return reservationRepository.saveAndFlush(reservation);
-        }
+        if (receiptUrl != null) reservation.setPaymentReceiptUrl(receiptUrl);
         return reservationService.saveReservationFlow(reservation).getFirst();
+    }
+
+    private Reservation updatePaymentGroup(
+            Reservation selected, String receiptUrl, boolean verified, String status) {
+        String groupCode = paymentGroupCode(selected.getReservationCode());
+        List<Reservation> group = groupCode == null
+                ? List.of(selected)
+                : reservationRepository.findReservationGroupForUpdate(groupCode);
+        if (group.isEmpty()) {
+            throw new IllegalStateException("No se encontró el grupo de reserva vinculado.");
+        }
+        java.time.LocalDateTime confirmedAt = verified
+                ? com.lunaris.ansenuza.shared.ArgentinaTime.now() : null;
+        group.forEach(reservation -> {
+            if (receiptUrl != null) reservation.setPaymentReceiptUrl(receiptUrl);
+            reservation.setPaymentVerified(verified);
+            reservation.setStatus(status);
+            if (verified) reservation.setPaymentConfirmedAt(confirmedAt);
+        });
+        reservationRepository.saveAllAndFlush(group);
+        return group.stream().filter(item -> item.getId() != null
+                        && item.getId().equals(selected.getId()))
+                .findFirst().orElse(selected);
+    }
+
+    private String paymentGroupCode(String reservationCode) {
+        if (reservationCode == null || !(reservationCode.endsWith("-IDA")
+                || reservationCode.endsWith("-VUELTA"))) return null;
+        return reservationCode.replaceFirst("-(IDA|VUELTA)$", "");
     }
 
     private String uploadReceipt(MultipartFile receiptFile, String phoneNumber) {

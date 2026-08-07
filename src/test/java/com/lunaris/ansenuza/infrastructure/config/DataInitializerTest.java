@@ -64,7 +64,7 @@ class DataInitializerTest {
                 "Río Primero")));
 
         verify(parameters, times(2)).save(any(BusinessParameter.class));
-        verify(configurations, times(8)).save(any(SystemConfiguration.class));
+        verify(configurations, times(9)).save(any(SystemConfiguration.class));
     }
 
     @Test

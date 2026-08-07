@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -333,8 +334,8 @@ class ReservationServiceTest {
         UUID id = UUID.randomUUID();
         Reservation reservation = Reservation.builder()
                 .id(id).paymentVerified(false).status("PAYMENT_RECEIVED").build();
+        when(reservations.findById(id)).thenReturn(Optional.of(reservation));
         when(reservations.findByIdForUpdate(id)).thenReturn(Optional.of(reservation));
-        when(reservations.saveAndFlush(reservation)).thenReturn(reservation);
         ReservationService service = new ReservationService(
                 reservations, mock(ReservationEventRepository.class),
                 mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
@@ -346,6 +347,34 @@ class ReservationServiceTest {
         assertEquals("CONFIRMED", reservation.getStatus());
         assertNotNull(reservation.getPaymentConfirmedAt());
         verify(reservations).findByIdForUpdate(id);
-        verify(reservations).saveAndFlush(reservation);
+        verify(reservations).saveAllAndFlush(List.of(reservation));
+    }
+
+    @Test
+    void verifyPaymentSynchronizesBothRoundTripLegs() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        UUID outboundId = UUID.randomUUID();
+        Reservation outbound = Reservation.builder().id(outboundId)
+                .reservationCode("ARR-COR-001-IDA").paymentVerified(false)
+                .status("PAYMENT_RECEIVED").build();
+        Reservation returned = Reservation.builder().id(UUID.randomUUID())
+                .reservationCode("ARR-COR-001-VUELTA").paymentVerified(false)
+                .status("PENDING_PAYMENT").build();
+        when(reservations.findById(outboundId)).thenReturn(Optional.of(outbound));
+        when(reservations.findReservationGroupForUpdate("ARR-COR-001"))
+                .thenReturn(List.of(outbound, returned));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+
+        service.verifyPayment(outboundId);
+
+        assertTrue(outbound.getPaymentVerified());
+        assertTrue(returned.getPaymentVerified());
+        assertEquals("CONFIRMED", outbound.getStatus());
+        assertEquals("CONFIRMED", returned.getStatus());
+        assertNotNull(outbound.getPaymentConfirmedAt());
+        assertEquals(outbound.getPaymentConfirmedAt(), returned.getPaymentConfirmedAt());
+        verify(reservations).saveAllAndFlush(List.of(outbound, returned));
     }
 }

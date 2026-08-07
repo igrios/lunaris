@@ -39,21 +39,22 @@ public class AskTripTypeHandler implements ConversationStepHandler {
             session.setRoundTrip(false);
             session.setCurrentStep("ASK_DATE");
             conversationSessionRepository.saveAndFlush(session);
-            sendDateOptions(phoneNumber, "📅 *¿Qué día es el viaje de ida?*");
+            sendDateOptions(session, "📅 *¿Qué día es el viaje de ida?*");
         } else if ("trip_completo".equals(body)) {
             session.setRoundTrip(true);
             session.setCurrentStep("ASK_DATE");
             conversationSessionRepository.saveAndFlush(session);
-            sendDateOptions(phoneNumber,
+            sendDateOptions(session,
                     "📅 *Perfecto, ida y vuelta.* ¿Qué día es el viaje de ida?");
         }
     }
 
-    private void sendDateOptions(String phoneNumber, String prompt) {
+    private void sendDateOptions(ConversationSession session, String prompt) {
+        String phoneNumber = session.getPhoneNumber();
         LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         DateTimeFormatter payloadFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         List<Button> options = new ArrayList<>();
-        if (!sameDayBookingPolicy.isTodayClosed()) {
+        if (!sameDayBookingPolicy.isTodayClosed(session.getScheduleBlock())) {
             options.add(new Button(today.format(payloadFormat),
                     "Hoy (" + today.format(payloadFormat) + ")"));
         }

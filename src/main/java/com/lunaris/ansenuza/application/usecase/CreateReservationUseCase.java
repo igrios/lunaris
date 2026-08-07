@@ -38,13 +38,13 @@ public class CreateReservationUseCase {
 
     public Reservation execute(CreateReservationRequest request, String paymentReceiptUrl) {
         validate(request);
-        sameDayBookingPolicy.validate(request.travelDate());
+        String departureSchedule = resolveSchedule(request.notes());
+        sameDayBookingPolicy.validate(request.travelDate(), departureSchedule);
 
         Passenger passenger = resolvePassenger(request);
 
         // 🌟 Lógica del desplegable de asientos (Captura directa)
         Integer safePassengerCount = (request.passengerCount() == null || request.passengerCount() <= 0) ? 1 : request.passengerCount();
-        String departureSchedule = resolveSchedule(request.notes());
         long occupiedSeats = pricingAndScheduleService.countReservedSeats(
                 request.travelDate(), departureSchedule);
         if (occupiedSeats + safePassengerCount > tripCapacity) {

@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.port.MessagingPort;
@@ -37,16 +38,23 @@ class ProcessPaymentReceiptUseCaseTest {
         LiveChatPort liveChat = mock(LiveChatPort.class);
         Passenger passenger = Passenger.builder().phone("543511111111").build();
         Reservation reservation = Reservation.builder()
+                .id(UUID.randomUUID())
                 .passenger(passenger)
                 .travelDate(LocalDate.of(2026, 8, 1))
+                .reservationCode("ARR-COR-001-IDA")
                 .status("PENDING_PAYMENT")
                 .paymentVerified(true)
                 .build();
+        Reservation returnLeg = Reservation.builder().id(UUID.randomUUID())
+                .passenger(passenger).reservationCode("ARR-COR-001-VUELTA")
+                .status("PENDING_PAYMENT").paymentVerified(true).build();
         String receiptUrl = "https://cdn.example.com/receipt.jpg";
         when(storage.downloadAndSaveReceipt("media-123")).thenReturn(receiptUrl);
         when(passengers.findByPhone("543511111111")).thenReturn(Optional.of(passenger));
         when(reservations.findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger))
                 .thenReturn(List.of(reservation));
+        when(reservations.findReservationGroupForUpdate("ARR-COR-001"))
+                .thenReturn(List.of(reservation, returnLeg));
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, messaging, liveChat,
                 mock(SameDayBookingPolicy.class), mock(ReservationService.class));
@@ -56,7 +64,10 @@ class ProcessPaymentReceiptUseCaseTest {
         assertEquals(receiptUrl, reservation.getPaymentReceiptUrl());
         assertFalse(reservation.getPaymentVerified());
         assertEquals("PAYMENT_RECEIVED", reservation.getStatus());
-        verify(reservations).saveAndFlush(reservation);
+        assertEquals(receiptUrl, returnLeg.getPaymentReceiptUrl());
+        assertFalse(returnLeg.getPaymentVerified());
+        assertEquals("PAYMENT_RECEIVED", returnLeg.getStatus());
+        verify(reservations).saveAllAndFlush(List.of(reservation, returnLeg));
         verify(liveChat).recordIncomingMessage("543511111111", receiptUrl);
     }
 
@@ -67,15 +78,22 @@ class ProcessPaymentReceiptUseCaseTest {
         ReceiptStoragePort storage = mock(ReceiptStoragePort.class);
         Passenger passenger = Passenger.builder().phone("543511111111").build();
         Reservation reservation = Reservation.builder()
+                .id(UUID.randomUUID())
                 .passenger(passenger)
+                .reservationCode("ARR-COR-002-IDA")
                 .status("PENDING_PAYMENT")
                 .paymentVerified(false)
                 .build();
+        Reservation returnLeg = Reservation.builder().id(UUID.randomUUID())
+                .passenger(passenger).reservationCode("ARR-COR-002-VUELTA")
+                .status("PENDING_PAYMENT").paymentVerified(false).build();
         var receipt = new org.springframework.mock.web.MockMultipartFile(
                 "receipt", "receipt.jpg", "image/jpeg", new byte[] {1});
         when(passengers.findByPhone("543511111111")).thenReturn(Optional.of(passenger));
         when(reservations.findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger))
                 .thenReturn(List.of(reservation));
+        when(reservations.findReservationGroupForUpdate("ARR-COR-002"))
+                .thenReturn(List.of(reservation, returnLeg));
         when(storage.uploadFile(receipt)).thenReturn("https://cdn.example.com/receipt.jpg");
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
@@ -87,7 +105,10 @@ class ProcessPaymentReceiptUseCaseTest {
         assertEquals("CONFIRMED", reservation.getStatus());
         assertTrue(reservation.getPaymentVerified());
         assertEquals("https://cdn.example.com/receipt.jpg", reservation.getPaymentReceiptUrl());
-        verify(reservations).saveAndFlush(reservation);
+        assertEquals("CONFIRMED", returnLeg.getStatus());
+        assertTrue(returnLeg.getPaymentVerified());
+        assertEquals("https://cdn.example.com/receipt.jpg", returnLeg.getPaymentReceiptUrl());
+        verify(reservations).saveAllAndFlush(List.of(reservation, returnLeg));
     }
 
     @Test

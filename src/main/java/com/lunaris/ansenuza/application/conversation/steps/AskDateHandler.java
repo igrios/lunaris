@@ -56,7 +56,7 @@ public class AskDateHandler implements ConversationStepHandler {
         }
 
         try {
-            sameDayBookingPolicy.validate(travelDate);
+            sameDayBookingPolicy.validate(travelDate, session.getScheduleBlock());
         } catch (SameDayBookingClosedException exception) {
             messaging.sendText(phoneNumber, exception.getMessage());
             return;

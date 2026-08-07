@@ -32,7 +32,7 @@ class SameDayBookingConversationTest {
         MessagingPort messaging = mock(MessagingPort.class);
         SameDayBookingPolicy policy = mock(SameDayBookingPolicy.class);
         LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
-        doThrow(new SameDayBookingClosedException()).when(policy).validate(today);
+        doThrow(new SameDayBookingClosedException()).when(policy).validate(today, null);
         AskDateHandler handler = new AskDateHandler(
                 mock(ConversationSessionRepository.class), messaging,
                 mock(OperationControlService.class), policy);
@@ -51,7 +51,7 @@ class SameDayBookingConversationTest {
     void excludesTodayButtonAfterCutoff() {
         MessagingPort messaging = mock(MessagingPort.class);
         SameDayBookingPolicy policy = mock(SameDayBookingPolicy.class);
-        when(policy.isTodayClosed()).thenReturn(true);
+        when(policy.isTodayClosed(null)).thenReturn(true);
         OperationControlService operationControl = mock(OperationControlService.class);
         AskTripTypeHandler handler = new AskTripTypeHandler(
                 mock(ConversationSessionRepository.class), messaging, policy, operationControl);
@@ -78,7 +78,7 @@ class SameDayBookingConversationTest {
         MessagingPort messaging = mock(MessagingPort.class);
         SameDayBookingPolicy policy = mock(SameDayBookingPolicy.class);
         OperationControlService operationControl = mock(OperationControlService.class);
-        when(policy.isTodayClosed()).thenReturn(true);
+        when(policy.isTodayClosed(null)).thenReturn(true);
         when(operationControl.isPastCutoffTime()).thenReturn(true);
         AskTripTypeHandler handler = new AskTripTypeHandler(
                 mock(ConversationSessionRepository.class), messaging, policy, operationControl);

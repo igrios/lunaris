@@ -168,13 +168,29 @@ public class ReservationService {
 
     @Transactional
     public Reservation verifyPayment(UUID id) {
-        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+        Reservation initial = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + id));
-        reservation.setPaymentVerified(true);
-        reservation.setStatus("CONFIRMED");
-        reservation.setPaymentConfirmedAt(
-                com.lunaris.ansenuza.shared.ArgentinaTime.now());
-        return reservationRepository.saveAndFlush(reservation);
+        String groupCode = paymentGroupCode(initial.getReservationCode());
+        List<Reservation> group = groupCode == null
+                ? List.of(reservationRepository.findByIdForUpdate(id)
+                        .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + id)))
+                : reservationRepository.findReservationGroupForUpdate(groupCode);
+        Reservation selected = group.stream().filter(item -> id.equals(item.getId())).findFirst()
+                .orElseThrow(() -> new IllegalStateException("El grupo de reserva está incompleto."));
+        LocalDateTime confirmedAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
+        group.forEach(reservation -> {
+            reservation.setPaymentVerified(true);
+            reservation.setStatus("CONFIRMED");
+            reservation.setPaymentConfirmedAt(confirmedAt);
+        });
+        reservationRepository.saveAllAndFlush(group);
+        return selected;
+    }
+
+    private String paymentGroupCode(String reservationCode) {
+        if (reservationCode == null || !(reservationCode.endsWith("-IDA")
+                || reservationCode.endsWith("-VUELTA"))) return null;
+        return reservationCode.replaceFirst("-(IDA|VUELTA)$", "");
     }
 
     private String cleanLocality(String locality) {
@@ -447,7 +463,21 @@ public class ReservationService {
                 reservation.setTravelStatus(requestedTravelStatus);
             }
 
-            Reservation saved = reservationRepository.saveAndFlush(reservation);
+            Reservation saved;
+            String paymentGroup = paymentGroupCode(reservation.getReservationCode());
+            if (updatedData.getPaymentVerified() != null && paymentGroup != null) {
+                List<Reservation> linked = reservationRepository.findReservationGroupForUpdate(paymentGroup);
+                linked.forEach(item -> {
+                    item.setPaymentVerified(reservation.getPaymentVerified());
+                    item.setStatus(reservation.getStatus());
+                    item.setPaymentConfirmedAt(reservation.getPaymentConfirmedAt());
+                });
+                reservationRepository.saveAllAndFlush(linked);
+                saved = linked.stream().filter(item -> id.equals(item.getId()))
+                        .findFirst().orElse(reservation);
+            } else {
+                saved = reservationRepository.saveAndFlush(reservation);
+            }
 
             ReservationEvent updateEvent = ReservationEvent.builder()
                     .reservationId(saved.getId())

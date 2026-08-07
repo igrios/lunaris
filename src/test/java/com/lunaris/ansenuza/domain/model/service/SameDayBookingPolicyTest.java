@@ -14,26 +14,36 @@ import org.junit.jupiter.api.Test;
 class SameDayBookingPolicyTest {
 
     @Test
-    void closesTodayStrictlyAfterConfiguredCutoff() {
+    void closesSelectedShiftAtExactDepartureTime() {
         SystemConfigurationService configurations = mock(SystemConfigurationService.class);
-        when(configurations.getValue(SameDayBookingPolicy.CONFIGURATION_KEY, "08:00"))
-                .thenReturn("08:00");
+        when(configurations.getValue(SameDayBookingPolicy.BUFFER_CONFIGURATION_KEY, "0"))
+                .thenReturn("0");
         SameDayBookingPolicy policy = new SameDayBookingPolicy(configurations);
-        LocalDate today = LocalDate.of(2026, 8, 3);
 
-        assertFalse(policy.isClosed(today, LocalDateTime.of(2026, 8, 3, 8, 0)));
-        assertTrue(policy.isClosed(today, LocalDateTime.of(2026, 8, 3, 8, 1)));
-        assertFalse(policy.isClosed(today.plusDays(1), LocalDateTime.of(2026, 8, 3, 20, 0)));
+        assertFalse(policy.isShiftClosed("08:00 AM", java.time.LocalTime.of(7, 59)));
+        assertTrue(policy.isShiftClosed("08:00 AM", java.time.LocalTime.of(8, 0)));
+        assertTrue(policy.isShiftClosed("03:00 AM", java.time.LocalTime.of(7, 59)));
     }
 
     @Test
     void throwsSpecificExceptionForClosedSameDayBooking() {
         SystemConfigurationService configurations = mock(SystemConfigurationService.class);
-        when(configurations.getValue(SameDayBookingPolicy.CONFIGURATION_KEY, "08:00"))
-                .thenReturn("00:00");
+        when(configurations.getValue(SameDayBookingPolicy.BUFFER_CONFIGURATION_KEY, "0"))
+                .thenReturn("0");
         SameDayBookingPolicy policy = new SameDayBookingPolicy(configurations);
 
         assertThrows(SameDayBookingClosedException.class,
-                () -> policy.validate(com.lunaris.ansenuza.shared.ArgentinaTime.today()));
+                () -> policy.validate(com.lunaris.ansenuza.shared.ArgentinaTime.today(), "00:00"));
+    }
+
+    @Test
+    void appliesConfiguredBufferBeforeShiftDeparture() {
+        SystemConfigurationService configurations = mock(SystemConfigurationService.class);
+        when(configurations.getValue(SameDayBookingPolicy.BUFFER_CONFIGURATION_KEY, "0"))
+                .thenReturn("30");
+        SameDayBookingPolicy policy = new SameDayBookingPolicy(configurations);
+
+        assertFalse(policy.isShiftClosed("08:00", java.time.LocalTime.of(7, 29)));
+        assertTrue(policy.isShiftClosed("08:00", java.time.LocalTime.of(7, 30)));
     }
 }
