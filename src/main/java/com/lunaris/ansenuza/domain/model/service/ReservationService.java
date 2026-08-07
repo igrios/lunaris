@@ -20,20 +20,43 @@ import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedExceptio
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import lombok.RequiredArgsConstructor;
+import com.lunaris.ansenuza.domain.repository.CapacityLockRepository;
 
 @Service
-@RequiredArgsConstructor
 public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final ReservationEventRepository reservationEventRepository;
     private final PassengerRepository passengerRepository;
     private final OnboardPassengerUseCase onboardPassengerUseCase;
+    private final CapacityLockRepository capacityLockRepository;
+
+    public ReservationService(ReservationRepository reservationRepository,
+            ReservationEventRepository reservationEventRepository,
+            PassengerRepository passengerRepository,
+            OnboardPassengerUseCase onboardPassengerUseCase) {
+        this(reservationRepository, reservationEventRepository, passengerRepository,
+                onboardPassengerUseCase, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ReservationService(ReservationRepository reservationRepository,
+            ReservationEventRepository reservationEventRepository,
+            PassengerRepository passengerRepository,
+            OnboardPassengerUseCase onboardPassengerUseCase,
+            CapacityLockRepository capacityLockRepository) {
+        this.reservationRepository = reservationRepository;
+        this.reservationEventRepository = reservationEventRepository;
+        this.passengerRepository = passengerRepository;
+        this.onboardPassengerUseCase = onboardPassengerUseCase;
+        this.capacityLockRepository = capacityLockRepository;
+    }
 
     @Transactional
     public List<Reservation> saveReservationFlow(Reservation mainReservation) {
         List<Reservation> savedReservations = new ArrayList<>();
+
+        lockAndValidateCapacity(mainReservation);
 
         normalizePassengerName(mainReservation.getPassenger());
         boolean requiresInvoice = Boolean.TRUE.equals(mainReservation.getRequiresInvoice());
@@ -166,6 +189,29 @@ public class ReservationService {
         }
 
         return savedReservations;
+    }
+
+    /** Revalida dentro de la transacción de escritura, cubriendo también el API web. */
+    private void lockAndValidateCapacity(Reservation reservation) {
+        if (capacityLockRepository == null || reservation.getTravelDate() == null) {
+            return;
+        }
+        String schedule = reservation.getDepartureSchedule() == null
+                || reservation.getDepartureSchedule().isBlank()
+                ? "03:00 AM" : reservation.getDepartureSchedule().trim();
+        String direction = TripRouteCalculatorService.isCordoba(reservation.getPickupLocality())
+                ? "RETURN" : "OUTBOUND";
+        String key = reservation.getTravelDate() + "|" + schedule.toLowerCase(java.util.Locale.ROOT)
+                + "|" + direction;
+        capacityLockRepository.ensureExists(key);
+        if (capacityLockRepository.findForUpdate(key) == null) {
+            throw new DomainValidationException("No se pudo bloquear la capacidad del turno.");
+        }
+        long occupied = reservationRepository.countReservedSeats(reservation.getTravelDate(), schedule);
+        if (occupied + reservation.getTotalSeats() > 12) {
+            throw new com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException(
+                    "No hay asientos suficientes para el turno seleccionado.");
+        }
     }
 
     @Transactional

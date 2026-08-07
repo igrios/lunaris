@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class DriverRouteService {
         }
 
         List<Reservation> selected = reservationRepository.findAllById(orderedReservationIds);
+        rejectDispatched(selected);
         if (selected.size() != orderedReservationIds.size()
                 || selected.stream().anyMatch(reservation ->
                         !travelDate.equals(reservation.getTravelDate())
@@ -66,6 +68,7 @@ public class DriverRouteService {
                 .orElseThrow(() -> new IllegalArgumentException("Chofer no encontrado: " + driver.getId()));
 
         selected = reservationRepository.findAllById(orderedReservationIds);
+        rejectDispatched(selected);
         if (selected.size() != orderedReservationIds.size()
                 || selected.stream().anyMatch(reservation -> !travelDate.equals(reservation.getTravelDate()))
                 || selected.stream().anyMatch(reservation -> !reservation.isScheduledConfirmedTrip())
@@ -79,9 +82,8 @@ public class DriverRouteService {
         }
         assertVehicleCapacity(selected);
         Set<Reservation> changed = new LinkedHashSet<>();
-        List<Reservation> targetRoute =
-                reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
-                        targetDriver.getId(), travelDate);
+        Reservation manifestReference = selected.getFirst();
+        List<Reservation> targetRoute = scopedRoute(targetDriver.getId(), travelDate, manifestReference);
         targetRoute.stream()
                 .filter(reservation -> !uniqueIds.contains(reservation.getId()))
                 .forEach(reservation -> {
@@ -109,9 +111,7 @@ public class DriverRouteService {
         lockedDrivers.stream()
                 .filter(locked -> !locked.getId().equals(targetDriver.getId()))
                 .forEach(previousDriver -> {
-                    List<Reservation> remaining =
-                            reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
-                                    previousDriver.getId(), travelDate).stream()
+                    List<Reservation> remaining = scopedRoute(previousDriver.getId(), travelDate, manifestReference).stream()
                                     .filter(reservation -> !uniqueIds.contains(reservation.getId()))
                                     .toList();
                     java.util.stream.IntStream.range(0, remaining.size()).forEach(index -> {
@@ -124,10 +124,37 @@ public class DriverRouteService {
         return reservationRepository.saveAllAndFlush(ordered);
     }
 
+    /** Marca de despacho idempotente y protegida por bloqueo de fila. */
+    @Transactional
+    public void markRouteSent(List<UUID> reservationIds) {
+        if (reservationIds == null || reservationIds.isEmpty()) return;
+        List<Reservation> locked = reservationRepository.findAllByIdForUpdate(reservationIds);
+        if (locked.size() != new HashSet<>(reservationIds).size()) {
+            throw new DomainValidationException("No se encontraron todas las reservas del despacho.");
+        }
+        locked.stream()
+                .filter(reservation -> reservation.getTravelStatus() != Reservation.TravelStatus.ROUTE_SENT)
+                .forEach(reservation -> reservation.setTravelStatus(Reservation.TravelStatus.ROUTE_SENT));
+        reservationRepository.saveAllAndFlush(locked);
+    }
+
     private boolean sameManifest(List<Reservation> reservations) {
         if (reservations.isEmpty()) return true;
         Reservation first = reservations.getFirst();
         return reservations.stream().allMatch(candidate -> routeCalculator.sameManifest(first, candidate));
+    }
+
+    private void rejectDispatched(List<Reservation> reservations) {
+        if (reservations.stream().anyMatch(r -> r.getTravelStatus() == Reservation.TravelStatus.ROUTE_SENT)) {
+            throw new DomainValidationException(
+                    "No se puede reasignar una reserva porque la ruta ya fue enviada al chofer.");
+        }
+    }
+
+    /** Compatibilidad con el repositorio legado: el filtrado de alcance se hace antes de mutar. */
+    private List<Reservation> scopedRoute(UUID driverId, LocalDate date, Reservation reference) {
+        return reservationRepository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(driverId, date)
+                .stream().filter(candidate -> routeCalculator.sameManifest(reference, candidate)).toList();
     }
 
     private void assertVehicleCapacity(List<Reservation> reservations) {

@@ -7,6 +7,7 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import com.lunaris.ansenuza.shared.ArgentinaTime;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @RequiredArgsConstructor
@@ -26,7 +26,6 @@ public class ReturnScheduleAuditScheduler {
     private final WhatsAppService whatsAppService;
 
     @Scheduled(cron = "0 0 9 * * *", zone = "America/Argentina/Cordoba")
-    @Transactional
     public void auditReturnSchedules() {
         LocalDate today = ArgentinaTime.today();
         Map<String, Reservation> candidateByPhone = new LinkedHashMap<>();
@@ -39,22 +38,49 @@ public class ReturnScheduleAuditScheduler {
                         reservation.getPassenger().getPhone().trim(), reservation,
                         ReturnScheduleAuditScheduler::preferReturnLeg));
 
-        candidateByPhone.forEach((phone, reservation) -> {
-            ConversationSession session = conversationSessionRepository.findByPhoneNumber(phone)
-                    .orElseGet(() -> ConversationSession.builder().phoneNumber(phone).build());
-            session.setCurrentStep("RETURN_WINDOW_SELECTION");
-            session.setReservationCode(reservation.getReservationCode());
-            conversationSessionRepository.saveAndFlush(session);
-            whatsAppService.sendInteractiveButtons(
-                    phone,
-                    "Horario de regreso",
-                    "Elegí la ventana de salida desde Córdoba:",
-                    List.of(
-                            Map.of("id", "1", "title", "Turno Tarde"),
-                            Map.of("id", "2", "title", "Turno Vespertino")));
-            log.info("[ReturnScheduleAudit] Preferencia solicitada para reserva {}.",
-                    reservation.getReservationCode());
+        candidateByPhone.forEach((phone, candidate) -> {
+            try {
+                Reservation reservation = candidate;
+                if (reservation == null || alreadyAuditedToday(reservation, today)) {
+                    return;
+                }
+                ConversationSession session = conversationSessionRepository.findByPhoneNumber(phone)
+                        .orElseGet(() -> ConversationSession.builder().phoneNumber(phone).build());
+                if (session.getCurrentStep() != null
+                        && !"RETURN_WINDOW_SELECTION".equals(session.getCurrentStep())
+                        && !session.isBotPaused()) {
+                    log.info("[ReturnScheduleAudit] Se omite {}: conversación activa en {}.",
+                            phone, session.getCurrentStep());
+                    return;
+                }
+                if (reservation.getId() != null
+                        && reservationRepository.claimReturnAudit(reservation.getId(),
+                                LocalDateTime.now(), today.atStartOfDay()) != 1) {
+                    return;
+                }
+                session.setCurrentStep("RETURN_WINDOW_SELECTION");
+                session.setReservationCode(reservation.getReservationCode());
+                conversationSessionRepository.saveAndFlush(session);
+                // La marca se reclama atómicamente antes de la llamada externa para que
+                // dos instancias nunca dupliquen el prompt.
+                whatsAppService.sendInteractiveButtons(
+                        phone,
+                        "Horario de regreso",
+                        "Elegí la ventana de salida desde Córdoba:",
+                        List.of(
+                                Map.of("id", "1", "title", "Turno Tarde"),
+                                Map.of("id", "2", "title", "Turno Vespertino")));
+                log.info("[ReturnScheduleAudit] Preferencia solicitada para reserva {}.",
+                        reservation.getReservationCode());
+            } catch (Exception exception) {
+                log.error("[ReturnScheduleAudit] Error procesando aviso para {}", phone, exception);
+            }
         });
+    }
+
+    private boolean alreadyAuditedToday(Reservation reservation, LocalDate today) {
+        return reservation.getReturnAuditSentAt() != null
+                && reservation.getReturnAuditSentAt().toLocalDate().equals(today);
     }
 
     private static Reservation preferReturnLeg(Reservation first, Reservation second) {

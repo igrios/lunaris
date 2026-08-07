@@ -502,9 +502,8 @@ public class AgendaViewController {
                     navigationUrl,
                     routeReservations);
             if (dispatchResult.success()) {
-                routeReservations.forEach(reservation ->
-                        reservation.setTravelStatus(Reservation.TravelStatus.ROUTE_SENT));
-                reservationRepository.saveAllAndFlush(routeReservations);
+                driverRouteService.markRouteSent(routeReservations.stream()
+                        .map(Reservation::getId).toList());
             }
             String notice = dispatchResult.success()
                     ? "Success: " + dispatchResult.message()

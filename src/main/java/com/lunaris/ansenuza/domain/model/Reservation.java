@@ -158,6 +158,12 @@ public class Reservation {
     @Column(name = "booking_group_code", length = 40)
     private String bookingGroupCode;
 
+    @Column(name = "route_direction", length = 16)
+    private String routeDirection;
+
+    @Column(name = "return_audit_sent_at")
+    private LocalDateTime returnAuditSentAt;
+
     // 🕒 TIMESTAMPS DE AUDITORÍA EMPRESARIAL (Nativos de Hibernate)
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -198,6 +204,14 @@ public class Reservation {
             tripType = Boolean.TRUE.equals(roundTrip)
                     ? (returnDate == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)
                     : TripType.ONE_WAY;
+        }
+        if (pickupLocality != null && destination != null) {
+            boolean fromCordoba = pickupLocality.toLowerCase(java.util.Locale.ROOT)
+                    .replace("ó", "o").contains("cordoba");
+            boolean toCordoba = destination.toLowerCase(java.util.Locale.ROOT)
+                    .replace("ó", "o").contains("cordoba");
+            routeDirection = fromCordoba && !toCordoba ? "VUELTA"
+                    : !fromCordoba && toCordoba ? "IDA" : routeDirection;
         }
         if ("CANCELLED".equalsIgnoreCase(status)) {
             routeSequence = null;

@@ -10,12 +10,26 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.Reservation.TravelStatus;
 import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Reservation r where r.id in :ids")
+    List<Reservation> findAllByIdForUpdate(@Param("ids") List<UUID> ids);
+
+    /** Reclamo atómico de un aviso: solamente una instancia puede obtener 1 fila. */
+    @Modifying
+    @Transactional
+    @Query("UPDATE Reservation r SET r.returnAuditSentAt = :sentAt "
+            + "WHERE r.id = :id AND (r.returnAuditSentAt IS NULL OR r.returnAuditSentAt < :dayStart)")
+    int claimReturnAudit(@Param("id") UUID id, @Param("sentAt") LocalDateTime sentAt,
+            @Param("dayStart") LocalDateTime dayStart);
 
     @Query("""
            SELECT r FROM Reservation r
@@ -318,6 +332,22 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            """)
     List<Reservation> findByDriverIdAndTravelDateOrderByRouteSequenceAsc(
             @Param("driverId") UUID driverId, @Param("travelDate") LocalDate travelDate);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.driver.id = :driverId
+             AND r.travelDate = :travelDate
+             AND r.departureSchedule = :schedule
+             AND r.routeDirection = :direction
+             AND r.status = 'CONFIRMED'
+             AND r.travelStatus <> com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
+           ORDER BY r.routeSequence ASC NULLS LAST
+           """)
+    List<Reservation> findByDriverAndRouteScope(
+            @Param("driverId") UUID driverId,
+            @Param("travelDate") LocalDate travelDate,
+            @Param("schedule") String schedule,
+            @Param("direction") String direction);
 
     @Query("""
            SELECT r FROM Reservation r
