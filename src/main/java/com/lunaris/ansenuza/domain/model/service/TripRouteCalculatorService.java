@@ -54,12 +54,7 @@ public class TripRouteCalculatorService {
         boolean routeMatches = direction == RouteDirection.RETURN
                 ? fromCordoba && !toCordoba
                 : !fromCordoba && toCordoba;
-        boolean legCodeMatches = reservation.getReservationCode() == null
-                || direction == RouteDirection.RETURN
-                        && reservation.getReservationCode().endsWith("-VUELTA")
-                || direction == RouteDirection.OUTBOUND
-                        && !reservation.getReservationCode().endsWith("-VUELTA");
-        return routeMatches && legCodeMatches
+        return routeMatches
                 && normalizeSchedule(scheduleBlock).equals(
                         normalizeSchedule(reservation.getDepartureSchedule()));
     }

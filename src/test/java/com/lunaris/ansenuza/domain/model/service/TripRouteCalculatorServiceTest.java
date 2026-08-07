@@ -27,6 +27,21 @@ class TripRouteCalculatorServiceTest {
     }
 
     @Test
+    void recognizesScheduledOpenReturnWithVtaBlockCodeByGeography() {
+        Reservation scheduledReturn = Reservation.builder()
+                .reservationCode("VTA-BLK-f4ad-030")
+                .pickupLocality("Aeropuerto Córdoba")
+                .destination("San Guillermo")
+                .departureSchedule("08:00 AM")
+                .build();
+
+        assertThat(calculator.matchesManifest(
+                scheduledReturn, RouteDirection.RETURN, "08:00")).isTrue();
+        assertThat(calculator.matchesManifest(
+                scheduledReturn, RouteDirection.OUTBOUND, "08:00")).isFalse();
+    }
+
+    @Test
     void startsAtMorterosWhenNorthernLocalitiesIncludingSanGuillermoHaveNoPassengers() {
         var result = calculator.calculate(List.of(
                 new BookingDemand("Arrufó", 0),
