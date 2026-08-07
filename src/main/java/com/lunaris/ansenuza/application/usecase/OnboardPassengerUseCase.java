@@ -161,6 +161,17 @@ public class OnboardPassengerUseCase {
                 ? "El pasajero"
                 : (onboard.getPassenger().getFirstName() + " "
                         + onboard.getPassenger().getLastName()).trim();
+        if (nextPassenger.isEmpty()) {
+            String direction = onboard.getRouteDirection() == null ? "IDA" : onboard.getRouteDirection();
+            String payload = "COMPLETE_TRIP_" + onboard.getDriver().getId() + "_"
+                    + effectiveLegDate(onboard) + "_" + direction;
+            messaging.sendButtons(
+                    onboard.getDriver().getPhone(),
+                    "Último pasajero abordado",
+                    "🏁 ¡Llegaste al último pasajero de la hoja de ruta! Cuando arribes al destino final, presioná el botón para cerrar el viaje.",
+                    List.of(new Button(payload, "🏁 Finalizar Viaje")));
+            return;
+        }
         String nextNotice = nextPassenger
                 .filter(next -> next.getPassenger() != null)
                 .map(next -> " Ya avisamos a " + next.getPassenger().getFirstName()

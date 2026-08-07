@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.application.port.LiveChatPort;
 import com.lunaris.ansenuza.application.usecase.ProcessPromotionCommandUseCase;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
+import com.lunaris.ansenuza.application.usecase.CompleteTripUseCase;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -24,6 +25,7 @@ import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * Orquestador de la máquina de estados conversacional del bot de WhatsApp.
@@ -57,7 +59,9 @@ public class ConversationOrchestrator {
     private final WhatsAppService whatsAppService;
     private final ProcessPromotionCommandUseCase processPromotionCommandUseCase;
     private final OnboardPassengerUseCase onboardPassengerUseCase;
+    private final CompleteTripUseCase completeTripUseCase;
 
+    @Autowired
     public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
             ConversationSessionRepository conversationSessionRepository,
             LiveChatPort liveChat,
@@ -67,7 +71,8 @@ public class ConversationOrchestrator {
             ReservationRepository reservationRepository,
             WhatsAppService whatsAppService,
             ProcessPromotionCommandUseCase processPromotionCommandUseCase,
-            OnboardPassengerUseCase onboardPassengerUseCase) {
+            OnboardPassengerUseCase onboardPassengerUseCase,
+            CompleteTripUseCase completeTripUseCase) {
         this.handlers = handlerList.stream()
                 .collect(Collectors.toMap(ConversationStepHandler::step, Function.identity()));
         this.conversationSessionRepository = conversationSessionRepository;
@@ -79,6 +84,19 @@ public class ConversationOrchestrator {
         this.whatsAppService = whatsAppService;
         this.processPromotionCommandUseCase = processPromotionCommandUseCase;
         this.onboardPassengerUseCase = onboardPassengerUseCase;
+        this.completeTripUseCase = completeTripUseCase;
+    }
+
+    public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
+            ConversationSessionRepository conversationSessionRepository, LiveChatPort liveChat,
+            OperationControlService operationControlService,
+            ReservationCancellationService reservationCancellationService, DriverRepository driverRepository,
+            ReservationRepository reservationRepository, WhatsAppService whatsAppService,
+            ProcessPromotionCommandUseCase processPromotionCommandUseCase,
+            OnboardPassengerUseCase onboardPassengerUseCase) {
+        this(handlerList, conversationSessionRepository, liveChat, operationControlService,
+                reservationCancellationService, driverRepository, reservationRepository, whatsAppService,
+                processPromotionCommandUseCase, onboardPassengerUseCase, null);
     }
 
     public void process(IncomingMessage message) {
@@ -279,6 +297,11 @@ public class ConversationOrchestrator {
             return;
         }
 
+        if (rawPayload.regionMatches(true, 0, "COMPLETE_TRIP_", 0, "COMPLETE_TRIP_".length())) {
+            handleCompleteTrip(phone, driver, rawPayload.substring("COMPLETE_TRIP_".length()));
+            return;
+        }
+
         Optional<UUID> boardingReservationId = extractBoardingReservationId(message, rawPayload);
         if (boardingReservationId.isPresent()) {
             log.info(
@@ -296,6 +319,20 @@ public class ConversationOrchestrator {
         whatsAppService.sendMessage(
                 phone,
                 "🚐 Menú de chofer\n\nEscribí *VER RUTA* para consultar tus viajes asignados.");
+    }
+
+    private void handleCompleteTrip(String phone, Driver driver, String payload) {
+        try {
+            String[] parts = payload.split("_", 3);
+            if (parts.length != 3 || !driver.getId().equals(UUID.fromString(parts[0]))) {
+                throw new IllegalArgumentException("payload");
+            }
+            completeTripUseCase.execute(driver.getId(), java.time.LocalDate.parse(parts[1]), parts[2]);
+            whatsAppService.sendMessage(phone, "✅ Viaje finalizado correctamente. ¡Gracias!");
+        } catch (Exception ex) {
+            log.warn("[Driver Flow] No se pudo finalizar la hoja de ruta: {}", ex.getMessage());
+            whatsAppService.sendMessage(phone, "❌ No se pudo finalizar el viaje. Comunicate con un operador.");
+        }
     }
 
     private void handleVerRuta(String phone, Driver driver) {

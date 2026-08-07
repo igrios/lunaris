@@ -12,6 +12,7 @@ import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
+import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +65,13 @@ public class CancelReservationHandler implements ConversationStepHandler {
                 return;
             }
 
+            if (res.getTravelStatus() == Reservation.TravelStatus.COMPLETED
+                    || res.getTravelStatus() == Reservation.TravelStatus.REALIZED
+                    || "COMPLETED".equalsIgnoreCase(res.getStatus())) {
+                messaging.sendText(phoneNumber,
+                        "⚠️ Ya te encontrás a bordo o tu viaje ya finalizó. No es posible cancelar este servicio.");
+                return;
+            }
             if (res.getDriver() != null
                     || res.getTravelStatus() == Reservation.TravelStatus.ROUTE_SENT) {
                 messaging.sendText(phoneNumber, DISPATCHED_MESSAGE);
@@ -75,6 +83,10 @@ public class CancelReservationHandler implements ConversationStepHandler {
 
             try {
                 reservationService.cancelReservation(res.getId(), "BOT_WHATSAPP");
+            } catch (ReservationAlreadyCompletedException exception) {
+                messaging.sendText(phoneNumber,
+                        "⚠️ Ya te encontrás a bordo o tu viaje ya finalizó. No es posible cancelar este servicio.");
+                return;
             } catch (IllegalStateException exception) {
                 messaging.sendText(phoneNumber,
                         "⚠️ Tu viaje ya se encuentra en proceso o la ruta fue asignada al chofer, "

@@ -314,7 +314,7 @@ public class ReservationService {
                 // Registro del evento
                 ReservationEvent cancelEvent = ReservationEvent.builder()
                         .reservationId(reservation.getId())
-                        .eventType("RESERVATION_CANCELLED")
+                        .eventType(pagoRealizado ? "CANCELLED_CREDIT_ACCRUED" : "CANCELLED_UNPAID")
                         .description("Reserva " + reservation.getReservationCode() + " dada de baja. Pago verificado anteriormente: " + pagoRealizado)
                         .triggeredBy(triggeredBy)
                         .build();
@@ -338,7 +338,7 @@ public class ReservationService {
 
                             ReservationEvent cancelReturnEvent = ReservationEvent.builder()
                                     .reservationId(returnRes.getId())
-                                    .eventType("RESERVATION_CANCELLED")
+                                    .eventType(pagoVueltaRealizado ? "CANCELLED_CREDIT_ACCRUED" : "CANCELLED_UNPAID")
                                     .description("Cancelación automática de VUELTA por baja de IDA. Pago verificado: " + pagoVueltaRealizado)
                                     .triggeredBy(triggeredBy)
                                     .build();
@@ -471,6 +471,7 @@ public class ReservationService {
                 || reservation.getTravelStatus() == Reservation.TravelStatus.ONBOARDED
                 || reservation.getTravelStatus() == Reservation.TravelStatus.REALIZED
                 || reservation.getTravelStatus() == Reservation.TravelStatus.COMPLETED
+                || reservation.getTravelStatus() == Reservation.TravelStatus.REALIZED
                 || reservation.getTravelDate() != null
                 && reservation.getTravelDate().isBefore(
                         com.lunaris.ansenuza.shared.ArgentinaTime.today());
@@ -497,24 +498,23 @@ public class ReservationService {
 
     private void assertCancellationAllowed(Reservation reservation, String triggeredBy) {
         Reservation.TravelStatus travelStatus = reservation.getTravelStatus();
-        if (travelStatus == Reservation.TravelStatus.ROUTE_SENT
-                || travelStatus == Reservation.TravelStatus.ONBOARD
+        if (travelStatus == Reservation.TravelStatus.ONBOARD
                 || travelStatus == Reservation.TravelStatus.IN_PROGRESS) {
-            if (travelStatus == Reservation.TravelStatus.ROUTE_SENT
-                    && "BOT_WHATSAPP".equalsIgnoreCase(triggeredBy)) {
+            if ("BOT_WHATSAPP".equalsIgnoreCase(triggeredBy)) {
+                throw new DomainValidationException(
+                        "⚠️ Ya te encontrás a bordo o tu viaje ya finalizó. No es posible cancelar este servicio.");
+            }
+            throw new IllegalStateException(
+                    "No se puede cancelar la reserva porque la ruta ya fue enviada al chofer o el viaje está en curso.");
+        }
+        if (travelStatus == Reservation.TravelStatus.ROUTE_SENT || reservation.getDriver() != null) {
+            if ("BOT_WHATSAPP".equalsIgnoreCase(triggeredBy)) {
                 throw new DomainValidationException(
                         "⚠️ Tu viaje ya fue asignado al chofer y la ruta está en curso. "
                                 + "Para cancelar o modificar tu reserva, por favor comunicate con un operador.");
             }
             throw new IllegalStateException(
                     "No se puede cancelar la reserva porque la ruta ya fue enviada al chofer o el viaje está en curso.");
-        }
-        if (reservation.getDriver() != null
-                && ("BOT_WHATSAPP".equalsIgnoreCase(triggeredBy)
-                        || "PASSENGER".equalsIgnoreCase(triggeredBy))) {
-            throw new DomainValidationException(
-                    "⚠️ Tu viaje ya fue asignado al chofer y la ruta está en curso. "
-                            + "Para cancelar o modificar tu reserva, por favor comunicate con un operador.");
         }
     }
 
