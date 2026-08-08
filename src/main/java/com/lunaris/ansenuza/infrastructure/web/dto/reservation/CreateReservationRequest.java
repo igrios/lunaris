@@ -1,6 +1,8 @@
 package com.lunaris.ansenuza.infrastructure.web.dto.reservation;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lunaris.ansenuza.infrastructure.web.json.StringOrStringListDeserializer;
 import java.time.LocalDate;
 import java.util.UUID;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
@@ -18,9 +20,9 @@ public record CreateReservationRequest(
     Boolean roundTrip,
     LocalDate returnDate,
     Boolean paymentVerified,
-    String notes,
+    @JsonDeserialize(using = StringOrStringListDeserializer.class) String notes,
     @JsonAlias({"seatCount", "seats"}) Integer passengerCount,
-    String companionNames,
+    @JsonDeserialize(using = StringOrStringListDeserializer.class) String companionNames,
     ReservationSource source,
     TripType tripType
 ) {
