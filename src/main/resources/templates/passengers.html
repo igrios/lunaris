@@ -140,7 +140,7 @@
               </thead>
               <tbody>
                 <tr th:each="entry : ${waitingListEntries}"
-                  th:attr="data-status=${entry.status},data-event=${entry.eventType},data-special-event=${entry.eventType != null || entry.travelDate == null}"
+                  th:attr="data-status=${entry.status},data-event-type=${entry.eventType},data-travel-date=${entry.travelDate}"
                   style="display: table-row;">
                   <td th:text="${entry.createdAt != null ? #temporals.format(entry.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">20/08/2026 10:00</td>
                   <td class="fw-semibold" th:text="${entry.passengerName}">Ana Pérez</td>
@@ -221,7 +221,9 @@
     function filtrarListaEspera() {
       const modo = document.getElementById('waitingListFilter').value;
       document.querySelectorAll('#waitingListModal tbody tr[data-status]').forEach(function (fila) {
-        const esEvento = fila.dataset.specialEvent === 'true';
+        const tipoEvento = (fila.dataset.eventType || '').toUpperCase();
+        const sinFechaDeViaje = !fila.dataset.travelDate;
+        const esEvento = tipoEvento === 'POPE_VISIT' || sinFechaDeViaje;
         if (modo === 'all') {
           fila.style.display = 'table-row';
           return;

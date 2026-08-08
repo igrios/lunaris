@@ -49,6 +49,11 @@ public class WaitingListService {
     }
 
     @Transactional(readOnly = true)
+    public List<WaitingListEntry> findActiveSpecialEvents() {
+        return repository.findActiveSpecialEventsOrderByCreatedAtDesc();
+    }
+
+    @Transactional(readOnly = true)
     public long countAllActiveWaiting() {
         return repository.countAllActiveWaiting();
     }
@@ -57,6 +62,8 @@ public class WaitingListService {
     public WaitingListEntry create(String phoneNumber, String passengerName,
             LocalDate travelDate, String pickupLocality, String destination,
             Integer passengerCount, String notes, String eventType) {
+        String normalizedEventType = eventType == null || eventType.isBlank()
+                ? (travelDate == null ? "POPE_VISIT" : null) : eventType.trim().toUpperCase();
         return repository.saveAndFlush(WaitingListEntry.builder()
                 .phoneNumber(requireText(phoneNumber, "teléfono del pasajero"))
                 .passengerName(requireText(passengerName, "nombre del pasajero"))
@@ -65,7 +72,7 @@ public class WaitingListService {
                 .destination(requireText(destination, "destino"))
                 .passengerCount(passengerCount == null ? 1 : Math.max(1, passengerCount))
                 .notes(notes)
-                .eventType(eventType)
+                .eventType(normalizedEventType)
                 .status(WaitingListEntry.PENDING)
                 .build());
     }

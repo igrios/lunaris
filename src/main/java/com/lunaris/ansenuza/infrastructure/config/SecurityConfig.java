@@ -57,6 +57,7 @@ public class SecurityConfig {
                                 "/api/reservations/**",
                                 "/api/auth/**",
                                 "/api/v1/portal/**",
+                                "/api/v1/reservations/**",
                                 "/webhook/**",
                                 "/whatsapp/**")
                         .permitAll()
