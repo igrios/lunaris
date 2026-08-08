@@ -24,6 +24,7 @@ import lombok.Setter;
 @AllArgsConstructor
 public class WaitingListEntry {
 
+    public static final String PENDING = "PENDING";
     public static final String WAITING = "WAITING";
     public static final String CONTACTED = "CONTACTED";
     public static final String CONFIRMED = "CONFIRMED";
@@ -42,7 +43,7 @@ public class WaitingListEntry {
     @Column(name = "passenger_name", nullable = false, length = 100)
     private String passengerName;
 
-    @Column(name = "travel_date", nullable = false)
+    @Column(name = "travel_date")
     private LocalDate travelDate;
 
     @Column(name = "pickup_locality", nullable = false, length = 100)
@@ -56,6 +57,12 @@ public class WaitingListEntry {
 
     @Column(nullable = false, length = 20)
     private String status;
+
+    @Column(length = 500)
+    private String notes;
+
+    @Column(name = "event_type", length = 100)
+    private String eventType;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;

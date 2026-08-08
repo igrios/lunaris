@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class WaitingListService {
 
     private static final Set<String> VALID_STATUSES = Set.of(
-            WaitingListEntry.WAITING, WaitingListEntry.CONTACTED,
+            WaitingListEntry.PENDING, WaitingListEntry.WAITING, WaitingListEntry.CONTACTED,
             WaitingListEntry.CONFIRMED, WaitingListEntry.CANCELLED,
             WaitingListEntry.NOTIFIED, WaitingListEntry.AWAITING_PAYMENT,
             WaitingListEntry.CONVERTED);
@@ -35,9 +35,18 @@ public class WaitingListService {
     @Transactional(readOnly = true)
     public List<WaitingListEntry> findWaiting(LocalDate travelDate) {
         return travelDate == null
-                ? repository.findByStatusOrderByCreatedAtAsc(WaitingListEntry.WAITING)
-                : repository.findByTravelDateAndStatusOrderByCreatedAtAsc(
-                        travelDate, WaitingListEntry.WAITING);
+                ? repository.findAllActiveWaitingOrderByCreatedAtDesc()
+                : repository.findByTravelDateAndActiveStatusOrderByCreatedAtAsc(travelDate);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WaitingListEntry> findAllActiveWaiting() {
+        return repository.findAllActiveWaitingOrderByCreatedAtDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public long countAllActiveWaiting() {
+        return repository.countAllActiveWaiting();
     }
 
     @Transactional

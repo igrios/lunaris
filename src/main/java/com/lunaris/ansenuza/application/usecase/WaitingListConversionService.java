@@ -85,7 +85,8 @@ public class WaitingListConversionService {
         WaitingListEntry entry = waitingListRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new DomainValidationException(
                         "La entrada de lista de espera indicada no existe."));
-        if (!WaitingListEntry.WAITING.equals(entry.getStatus())
+        if (!WaitingListEntry.PENDING.equals(entry.getStatus())
+                && !WaitingListEntry.WAITING.equals(entry.getStatus())
                 && !WaitingListEntry.NOTIFIED.equals(entry.getStatus())) {
             throw new DomainValidationException(
                     "La entrada ya no se puede cancelar desde este flujo.");

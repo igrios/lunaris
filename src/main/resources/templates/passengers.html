@@ -29,7 +29,7 @@
             <button type="button" class="btn btn-warning fw-semibold" data-bs-toggle="modal"
               data-bs-target="#waitingListModal">
               📋 Ver Lista de Espera
-              <span class="badge text-bg-dark ms-1" th:text="${#lists.size(waitingListEntries)}">0</span>
+              <span class="badge text-bg-dark ms-1" th:text="${waitingListTotal}">0</span>
             </button>
             <span class="badge bg-dark p-2 fs-6" th:text="${#lists.size(pasajeros)} + ' Totales'">0 Totales</span>
           </div>
@@ -44,6 +44,13 @@
             <label for="travelDate" class="form-label fw-semibold">Fecha de lista de espera</label>
             <input id="travelDate" name="travelDate" type="date" class="form-control"
               th:value="${selectedTravelDate}">
+          </div>
+          <div class="col-sm-5 col-md-3">
+            <label for="waitingListMode" class="form-label fw-semibold">Vista</label>
+            <select id="waitingListMode" name="waitingListMode" class="form-select">
+              <option value="all" th:selected="${waitingListMode == 'all'}">Lista de Espera General / Rutas</option>
+              <option value="events" th:selected="${waitingListMode == 'events'}">Eventos Especiales (Visita Papa)</option>
+            </select>
           </div>
           <div class="col-auto">
             <button class="btn btn-primary" type="submit">Filtrar</button>
@@ -108,33 +115,53 @@
             aria-label="Cerrar"></button>
         </div>
         <div class="modal-body p-0">
+          <div class="d-flex align-items-center gap-2 p-3 border-bottom bg-light">
+            <label for="waitingListFilter" class="fw-semibold mb-0">Mostrar:</label>
+            <select id="waitingListFilter" class="form-select form-select-sm" style="max-width: 280px"
+              onchange="filtrarListaEspera()">
+              <option value="all">Todos</option>
+              <option value="events" th:selected="${waitingListMode == 'events'}">Eventos Especiales</option>
+              <option value="routes">Rutas / Lista general</option>
+            </select>
+            <span class="text-muted small ms-auto">Total pendiente: <strong th:text="${waitingListTotal}">0</strong></span>
+          </div>
           <div class="table-responsive">
             <table class="table table-striped table-hover align-middle mb-0">
               <thead class="table-light">
                 <tr>
+                  <th>Fecha Registro</th>
                   <th>Pasajero</th>
                   <th>Teléfono</th>
-                  <th>Fecha Viaje</th>
-                  <th>Origen → Destino</th>
-                  <th class="text-center">Asientos</th>
+                  <th>Localidad</th>
+                  <th class="text-center">Pasajeros</th>
+                  <th>Notas / Evento</th>
                   <th class="text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                <tr th:each="entry : ${waitingListEntries}">
+                <tr th:each="entry : ${waitingListEntries}"
+                  th:attr="data-special-event=${entry.eventType != null || entry.travelDate == null}">
+                  <td th:text="${entry.createdAt != null ? #temporals.format(entry.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">20/08/2026 10:00</td>
                   <td class="fw-semibold" th:text="${entry.passengerName}">Ana Pérez</td>
                   <td th:text="${entry.phoneNumber}">543511112222</td>
-                  <td th:text="${#temporals.format(entry.travelDate, 'dd/MM/yyyy')}">20/08/2026</td>
                   <td>
                     <span th:text="${entry.pickupLocality}">Morteros</span>
-                    <span class="text-muted mx-1">→</span>
-                    <span th:text="${entry.destination}">Córdoba</span>
+                    <span th:if="${entry.destination != null}" class="text-muted mx-1">→</span>
+                    <span th:if="${entry.destination != null}" th:text="${entry.destination}">Córdoba</span>
                   </td>
-                  <td class="text-center" th:text="${entry.passengerCount}">1</td>
+                  <td class="text-center" th:text="${entry.passengerCount != null ? entry.passengerCount : 1}">1</td>
+                  <td>
+                    <span th:if="${entry.eventType != null || entry.travelDate == null}"
+                      class="badge text-bg-danger me-1">VISITA PAPA</span>
+                    <span th:if="${entry.travelDate != null}" class="badge text-bg-secondary me-1"
+                      th:text="${#temporals.format(entry.travelDate, 'dd/MM/yyyy')}">20/08/2026</span>
+                    <span th:if="${entry.notes != null && !entry.notes.isBlank()}" th:text="${entry.notes}">-</span>
+                    <span th:if="${(entry.notes == null || entry.notes.isBlank()) && entry.eventType == null && entry.travelDate == null}">Evento especial</span>
+                  </td>
                   <td class="text-center">
                     <div class="d-flex gap-1 justify-content-center flex-wrap">
-                      <form th:action="@{/reservations/waiting-list/{id}/promote(id=${entry.id})}"
-                        method="post">
+                      <form th:if="${entry.travelDate != null && entry.eventType == null}"
+                        th:action="@{/reservations/waiting-list/{id}/promote(id=${entry.id})}" method="post">
                         <input th:if="${selectedTravelDate != null}" type="hidden" name="travelDate"
                           th:value="${selectedTravelDate}">
                         <button type="submit" class="btn btn-warning btn-sm"
@@ -159,7 +186,7 @@
                   </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(waitingListEntries)}">
-                  <td colspan="6" class="text-center text-muted py-5">
+                  <td colspan="7" class="text-center text-muted py-5">
                     No hay pasajeros en espera para el filtro seleccionado.
                   </td>
                 </tr>
@@ -188,6 +215,16 @@
         if (coincide) visibles++;
       });
       document.getElementById('sinResultados').classList.toggle('d-none', visibles !== 0);
+    }
+
+    function filtrarListaEspera() {
+      const modo = document.getElementById('waitingListFilter').value;
+      document.querySelectorAll('#waitingListModal tbody tr[data-special-event]').forEach(function (fila) {
+        const esEvento = fila.dataset.specialEvent === 'true';
+        fila.style.display = modo === 'all'
+          || (modo === 'events' && esEvento)
+          || (modo === 'routes' && !esEvento) ? '' : 'none';
+      });
     }
   </script>
 </body>

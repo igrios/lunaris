@@ -127,10 +127,15 @@ public class ReservationViewController {
     public String listPassengersPanel(
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            @RequestParam(defaultValue = "all") String waitingListMode,
             Model model) {
         List<Passenger> todosLosPasajeros = passengerRepository.findAll();
+        List<com.lunaris.ansenuza.domain.model.WaitingListEntry> waitingEntries =
+                waitingListService.findWaiting(travelDate);
         model.addAttribute("pasajeros", todosLosPasajeros);
-        model.addAttribute("waitingListEntries", waitingListService.findWaiting(travelDate));
+        model.addAttribute("waitingListEntries", waitingEntries);
+        model.addAttribute("waitingListTotal", waitingListService.countAllActiveWaiting());
+        model.addAttribute("waitingListMode", waitingListMode);
         model.addAttribute("selectedTravelDate", travelDate);
         return "passengers";
     }

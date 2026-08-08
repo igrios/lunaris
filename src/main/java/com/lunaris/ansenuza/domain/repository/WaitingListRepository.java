@@ -24,9 +24,31 @@ public interface WaitingListRepository extends JpaRepository<WaitingListEntry, L
     List<WaitingListEntry> findByTravelDateAndStatusOrderByCreatedAtAsc(
             LocalDate travelDate, String status);
 
+    @Query("""
+           SELECT entry FROM WaitingListEntry entry
+           WHERE entry.travelDate = :travelDate
+             AND entry.status IN ('WAITING', 'PENDING')
+           ORDER BY entry.createdAt ASC
+           """)
+    List<WaitingListEntry> findByTravelDateAndActiveStatusOrderByCreatedAtAsc(
+            @Param("travelDate") LocalDate travelDate);
+
     List<WaitingListEntry> findAllByOrderByCreatedAtDesc();
 
     List<WaitingListEntry> findByStatusOrderByCreatedAtAsc(String status);
+
+    @Query("""
+           SELECT entry FROM WaitingListEntry entry
+           WHERE entry.status IN ('WAITING', 'PENDING')
+           ORDER BY entry.createdAt DESC
+           """)
+    List<WaitingListEntry> findAllActiveWaitingOrderByCreatedAtDesc();
+
+    @Query("""
+           SELECT COUNT(entry) FROM WaitingListEntry entry
+           WHERE entry.status IN ('WAITING', 'PENDING')
+           """)
+    long countAllActiveWaiting();
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT entry FROM WaitingListEntry entry WHERE entry.id = :id")

@@ -29,7 +29,11 @@ public class WaitingListController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             @RequestParam(required = false) String status) {
-        return service.find(travelDate, status).stream().map(WaitingListResponse::from).toList();
+        List<WaitingListEntry> entries = travelDate == null
+                && (status == null || status.isBlank())
+                        ? service.findAllActiveWaiting()
+                        : service.find(travelDate, status);
+        return entries.stream().map(WaitingListResponse::from).toList();
     }
 
     @PatchMapping("/{id}/status")
@@ -49,13 +53,14 @@ public class WaitingListController {
     public record WaitingListResponse(
             Long id, String phoneNumber, String passengerName, LocalDate travelDate,
             String pickupLocality, String destination, Integer passengerCount,
-            String status, OffsetDateTime createdAt) {
+            String status, OffsetDateTime createdAt, String notes, String eventType) {
 
         private static WaitingListResponse from(WaitingListEntry entry) {
             return new WaitingListResponse(
                     entry.getId(), entry.getPhoneNumber(), entry.getPassengerName(),
                     entry.getTravelDate(), entry.getPickupLocality(), entry.getDestination(),
-                    entry.getPassengerCount(), entry.getStatus(), entry.getCreatedAt());
+                    entry.getPassengerCount(), entry.getStatus(), entry.getCreatedAt(),
+                    entry.getNotes(), entry.getEventType());
         }
     }
 }
