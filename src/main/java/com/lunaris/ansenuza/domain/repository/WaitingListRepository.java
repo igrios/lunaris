@@ -27,7 +27,25 @@ public interface WaitingListRepository extends JpaRepository<WaitingListEntry, L
     @Query("""
            SELECT entry FROM WaitingListEntry entry
            WHERE entry.travelDate = :travelDate
-             AND entry.status IN ('WAITING', 'PENDING')
+             AND UPPER(entry.status) = UPPER(:status)
+           ORDER BY entry.createdAt ASC
+           """)
+    List<WaitingListEntry> findByTravelDateAndNormalizedStatusOrderByCreatedAtAsc(
+            @Param("travelDate") LocalDate travelDate, @Param("status") String status);
+
+    @Query("""
+           SELECT entry FROM WaitingListEntry entry
+           WHERE UPPER(entry.status) = UPPER(:status)
+           ORDER BY entry.createdAt DESC
+           """)
+    List<WaitingListEntry> findByNormalizedStatusOrderByCreatedAtDesc(
+            @Param("status") String status);
+
+    @Query("""
+           SELECT entry FROM WaitingListEntry entry
+           WHERE entry.travelDate = :travelDate
+             AND (UPPER(entry.status) IN ('WAITING', 'PENDING', 'PENDIENTE', 'NEW')
+                  OR entry.status IS NULL)
            ORDER BY entry.createdAt ASC
            """)
     List<WaitingListEntry> findByTravelDateAndActiveStatusOrderByCreatedAtAsc(
@@ -39,14 +57,16 @@ public interface WaitingListRepository extends JpaRepository<WaitingListEntry, L
 
     @Query("""
            SELECT entry FROM WaitingListEntry entry
-           WHERE entry.status IN ('WAITING', 'PENDING')
+           WHERE UPPER(entry.status) IN ('WAITING', 'PENDING', 'PENDIENTE', 'NEW')
+              OR entry.status IS NULL
            ORDER BY entry.createdAt DESC
            """)
     List<WaitingListEntry> findAllActiveWaitingOrderByCreatedAtDesc();
 
     @Query("""
            SELECT COUNT(entry) FROM WaitingListEntry entry
-           WHERE entry.status IN ('WAITING', 'PENDING')
+           WHERE UPPER(entry.status) IN ('WAITING', 'PENDING', 'PENDIENTE', 'NEW')
+              OR entry.status IS NULL
            """)
     long countAllActiveWaiting();
 

@@ -5,7 +5,7 @@ import com.lunaris.ansenuza.application.usecase.CreateReservationUseCase;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
-import java.util.Map;
+import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,17 +24,14 @@ public class ReservationApiController {
 
     @PostMapping(value = {"/api/reservations", "/api/public/reservations"},
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Map<String, Object>> createReservation(
+    public ResponseEntity<CreateReservationResponse> createReservation(
             @RequestPart("reservation") CreateReservationRequest request,
             @RequestPart(value = "paymentReceipt", required = false) MultipartFile receipt) {
         String receiptUrl = receipt != null && !receipt.isEmpty()
                 ? receiptStoragePort.uploadFile(receipt) : null;
         Reservation reservation = createReservationUseCase.execute(
                 request.withSource(ReservationSource.WEB), receiptUrl);
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-                "id", reservation.getId(),
-                "reservationCode", reservation.getReservationCode(),
-                "status", reservation.getStatus(),
-                "source", reservation.getSource()));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(CreateReservationResponse.from(reservation));
     }
 }

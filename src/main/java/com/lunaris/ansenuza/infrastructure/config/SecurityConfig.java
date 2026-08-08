@@ -52,6 +52,7 @@ public class SecurityConfig {
                                 "/actuator/**",
                                 "/api/public/**",
                                 "/api/v1/news-banners",
+                                "/api/v1/reservations",
                                 "/api/schedules/**",
                                 "/api/reservations/**",
                                 "/api/auth/**",

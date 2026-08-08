@@ -9,6 +9,9 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,6 +39,15 @@ public class WaitingListController {
         return entries.stream().map(WaitingListResponse::from).toList();
     }
 
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public WaitingListResponse create(@RequestBody CreateWaitingListRequest request) {
+        return WaitingListResponse.from(service.create(
+                request.phoneNumber(), request.passengerName(), request.travelDate(),
+                request.pickupLocality(), request.destination(), request.passengerCount(),
+                request.notes(), request.eventType()));
+    }
+
     @PatchMapping("/{id}/status")
     public WaitingListResponse updateStatus(
             @PathVariable Long id, @RequestBody UpdateStatusRequest request) {
@@ -48,6 +60,12 @@ public class WaitingListController {
     }
 
     public record UpdateStatusRequest(String status) {
+    }
+
+    public record CreateWaitingListRequest(
+            String phoneNumber, String passengerName, LocalDate travelDate,
+            String pickupLocality, String destination, Integer passengerCount,
+            String notes, String eventType) {
     }
 
     public record WaitingListResponse(

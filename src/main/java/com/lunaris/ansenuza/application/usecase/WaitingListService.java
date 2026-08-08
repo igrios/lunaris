@@ -16,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class WaitingListService {
 
     private static final Set<String> VALID_STATUSES = Set.of(
-            WaitingListEntry.PENDING, WaitingListEntry.WAITING, WaitingListEntry.CONTACTED,
+            WaitingListEntry.PENDING, "PENDIENTE", "NEW",
+            WaitingListEntry.WAITING, WaitingListEntry.CONTACTED,
             WaitingListEntry.CONFIRMED, WaitingListEntry.CANCELLED,
             WaitingListEntry.NOTIFIED, WaitingListEntry.AWAITING_PAYMENT,
             WaitingListEntry.CONVERTED);
@@ -25,9 +26,12 @@ public class WaitingListService {
 
     @Transactional(readOnly = true)
     public List<WaitingListEntry> find(LocalDate travelDate, String status) {
-        if (travelDate != null && status != null && !status.isBlank()) {
-            return repository.findByTravelDateAndStatusOrderByCreatedAtAsc(
-                    travelDate, normalizeStatus(status));
+        if (status != null && !status.isBlank()) {
+            String normalizedStatus = normalizeStatus(status);
+            return travelDate == null
+                    ? repository.findByNormalizedStatusOrderByCreatedAtDesc(normalizedStatus)
+                    : repository.findByTravelDateAndNormalizedStatusOrderByCreatedAtAsc(
+                            travelDate, normalizedStatus);
         }
         return repository.findAllByOrderByCreatedAtDesc();
     }
@@ -47,6 +51,23 @@ public class WaitingListService {
     @Transactional(readOnly = true)
     public long countAllActiveWaiting() {
         return repository.countAllActiveWaiting();
+    }
+
+    @Transactional
+    public WaitingListEntry create(String phoneNumber, String passengerName,
+            LocalDate travelDate, String pickupLocality, String destination,
+            Integer passengerCount, String notes, String eventType) {
+        return repository.saveAndFlush(WaitingListEntry.builder()
+                .phoneNumber(requireText(phoneNumber, "teléfono del pasajero"))
+                .passengerName(requireText(passengerName, "nombre del pasajero"))
+                .travelDate(travelDate)
+                .pickupLocality(requireText(pickupLocality, "localidad de origen"))
+                .destination(requireText(destination, "destino"))
+                .passengerCount(passengerCount == null ? 1 : Math.max(1, passengerCount))
+                .notes(notes)
+                .eventType(eventType)
+                .status(WaitingListEntry.PENDING)
+                .build());
     }
 
     @Transactional
