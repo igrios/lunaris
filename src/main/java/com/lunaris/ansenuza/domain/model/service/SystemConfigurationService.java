@@ -4,6 +4,8 @@ import com.lunaris.ansenuza.domain.model.SystemConfiguration;
 import com.lunaris.ansenuza.domain.repository.SystemConfigurationRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,7 @@ public class SystemConfigurationService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable("systemConfigurations")
     public String getValue(String key, String defaultValue) {
         if (key == null || key.isBlank()) {
             return defaultValue;
@@ -64,6 +67,7 @@ public class SystemConfigurationService {
     }
 
     @Transactional
+    @CacheEvict(value = "systemConfigurations", allEntries = true)
     public SystemConfiguration save(String key, String value) {
         if (key == null || key.isBlank()) {
             throw new IllegalArgumentException("La clave de configuración es obligatoria.");
