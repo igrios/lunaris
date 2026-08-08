@@ -67,7 +67,7 @@ public class PassengerOtpService {
         String normalizedName = fullName == null || fullName.isBlank()
                 ? "Pasajero Sin apellido"
                 : fullName.trim().replaceAll("\\s+", " ");
-        int separator = normalizedName.lastIndexOf(' ');
+        int separator = normalizedName.indexOf(' ');
         String firstName = separator > 0 ? normalizedName.substring(0, separator) : normalizedName;
         String lastName = separator > 0 ? normalizedName.substring(separator + 1) : "Sin apellido";
         Passenger newPassenger = Passenger.builder()

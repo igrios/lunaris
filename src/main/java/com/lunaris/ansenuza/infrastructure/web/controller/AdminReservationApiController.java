@@ -89,6 +89,7 @@ public class AdminReservationApiController {
             String source,
             String travelStatus,
             Boolean paymentVerified,
+            String paymentReceiptUrl,
             UUID passengerId,
             String passengerName,
             UUID driverId,
@@ -117,6 +118,7 @@ public class AdminReservationApiController {
                     reservation.getTravelStatus() != null
                             ? reservation.getTravelStatus().name() : null,
                     reservation.getPaymentVerified(),
+                    reservation.getPaymentReceiptUrl(),
                     passenger != null ? passenger.getId() : null,
                     passengerName,
                     driver != null ? driver.getId() : null,

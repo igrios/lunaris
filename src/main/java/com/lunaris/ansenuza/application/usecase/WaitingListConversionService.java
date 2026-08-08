@@ -110,7 +110,7 @@ public class WaitingListConversionService {
         String normalizedPhone = PhoneUtils.normalizeArgentinePhone(entry.getPhoneNumber());
         return passengerRepository.findByPhone(normalizedPhone).orElseGet(() -> {
             String normalizedName = entry.getPassengerName().trim().replaceAll("\\s+", " ");
-            int separator = normalizedName.lastIndexOf(' ');
+            int separator = normalizedName.indexOf(' ');
             String firstName = separator > 0 ? normalizedName.substring(0, separator) : normalizedName;
             String lastName = separator > 0 ? normalizedName.substring(separator + 1) : "Sin apellido";
             return passengerRepository.saveAndFlush(Passenger.builder()

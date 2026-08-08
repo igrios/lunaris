@@ -144,7 +144,7 @@ public class CreateReservationUseCase {
 
     private NameParts splitFullName(String fullName) {
         String normalizedName = fullName.trim().replaceAll("\\s+", " ");
-        int separator = normalizedName.lastIndexOf(' ');
+        int separator = normalizedName.indexOf(' ');
         return separator > 0
                 ? new NameParts(normalizedName.substring(0, separator), normalizedName.substring(separator + 1))
                 : new NameParts(normalizedName, "Sin apellido");
