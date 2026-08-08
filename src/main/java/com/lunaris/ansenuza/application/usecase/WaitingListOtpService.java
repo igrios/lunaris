@@ -8,12 +8,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /** Gestiona el desafío OTP específico para altas públicas de lista de espera. */
 @Service
 public class WaitingListOtpService {
+
+    private static final Logger logger = LoggerFactory.getLogger(WaitingListOtpService.class);
 
     private static final String INVALID_CODE = "Código OTP inválido o vencido";
 
@@ -29,11 +33,18 @@ public class WaitingListOtpService {
         this.ttl = ttl;
     }
 
-    public void request(String rawPhone) {
+    public String request(String rawPhone) {
         String phone = normalize(rawPhone);
         String code = String.format("%04d", random.nextInt(10_000));
         challenges.put(phone, new Challenge(code, Instant.now().plus(ttl)));
-        messagingPort.sendText(phone, "Tu código de verificación para Lunaris es: " + code);
+        try {
+            messagingPort.sendText(phone, "Tu código de verificación para Lunaris es: " + code);
+        } catch (RuntimeException exception) {
+            logger.warn("No se pudo enviar OTP por WhatsApp para {}. Se conserva el desafío.", phone,
+                    exception);
+            logger.info("OTP generated for {}: {}", phone, code);
+        }
+        return code;
     }
 
     public void verify(String rawPhone, String code) {

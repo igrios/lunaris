@@ -57,7 +57,7 @@ public class AuthController {
     private TokenResponse verify(VerifyOtpRequest request, MultipartFile receiptFile) {
         validateVerificationRequest(request);
         var result = otpService.verifyOtp(request.phone(), request.code());
-        processPaymentReceiptUseCase.confirmOrCreateWebBooking(
+        var reservation = processPaymentReceiptUseCase.confirmOrCreateWebBooking(
                 request.phone(),
                 receiptFile,
                 new BookingVerificationData(
@@ -68,7 +68,10 @@ public class AuthController {
                         request.passengerCount(),
                         request.tripType(),
                         request.totalAmount()));
-        return new TokenResponse(result.accessToken(), "Bearer", result.expiresAt());
+        return new TokenResponse(result.accessToken(), "Bearer", result.expiresAt(),
+                reservation == null ? null : reservation.getReservationCode(),
+                reservation == null ? null : reservation.getBookingGroupCode(),
+                "Reserva confirmada con éxito");
     }
 
     private void validateVerificationRequest(VerifyOtpRequest request) {
@@ -101,6 +104,10 @@ public class AuthController {
         }
     }
 
-    public record TokenResponse(String accessToken, String tokenType, Instant expiresAt) {
+    public record TokenResponse(String accessToken, String tokenType, Instant expiresAt,
+            String reservationCode, String bookingGroupCode, String message) {
+        public TokenResponse(String accessToken, String tokenType, Instant expiresAt) {
+            this(accessToken, tokenType, expiresAt, null, null, null);
+        }
     }
 }
