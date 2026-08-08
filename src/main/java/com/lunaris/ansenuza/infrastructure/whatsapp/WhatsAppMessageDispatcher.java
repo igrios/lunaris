@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Async;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,6 +17,7 @@ public class WhatsAppMessageDispatcher {
     private final ConcurrentHashMap<String, CompletableFuture<Void>> pendingByPhone =
             new ConcurrentHashMap<>();
 
+    @Async("taskExecutor")
     public void dispatch(String phoneNumber, Runnable processing) {
         String key = phoneNumber == null ? "" : phoneNumber;
         pendingByPhone.compute(key, (ignored, previous) -> {
