@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.WaitingListService;
 import com.lunaris.ansenuza.application.usecase.WaitingListReengagementService;
+import com.lunaris.ansenuza.application.usecase.WaitingListOtpService;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -26,6 +27,7 @@ public class WaitingListController {
 
     private final WaitingListService service;
     private final WaitingListReengagementService reengagementService;
+    private final WaitingListOtpService otpService;
 
     @GetMapping
     public List<WaitingListResponse> find(
@@ -48,6 +50,22 @@ public class WaitingListController {
                 request.notes(), request.eventType()));
     }
 
+    @PostMapping("/request-otp")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestOtp(@RequestBody OtpRequest request) {
+        otpService.request(request.phoneNumber());
+    }
+
+    @PostMapping("/confirm")
+    @ResponseStatus(HttpStatus.CREATED)
+    public WaitingListResponse confirm(@RequestBody ConfirmWaitingListRequest request) {
+        otpService.verify(request.phoneNumber(), request.otpCode());
+        return WaitingListResponse.from(service.create(
+                request.phoneNumber(), request.passengerName(), request.travelDate(),
+                request.pickupLocality(), request.destination(), request.passengerCount(),
+                request.notes(), request.eventType()));
+    }
+
     @PatchMapping("/{id}/status")
     public WaitingListResponse updateStatus(
             @PathVariable Long id, @RequestBody UpdateStatusRequest request) {
@@ -64,6 +82,15 @@ public class WaitingListController {
 
     public record CreateWaitingListRequest(
             String phoneNumber, String passengerName, LocalDate travelDate,
+            String pickupLocality, String destination, Integer passengerCount,
+            String notes, String eventType) {
+    }
+
+    public record OtpRequest(String phoneNumber) {
+    }
+
+    public record ConfirmWaitingListRequest(
+            String phoneNumber, String otpCode, String passengerName, LocalDate travelDate,
             String pickupLocality, String destination, Integer passengerCount,
             String notes, String eventType) {
     }

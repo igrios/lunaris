@@ -51,6 +51,16 @@ public interface WaitingListRepository extends JpaRepository<WaitingListEntry, L
     List<WaitingListEntry> findByTravelDateAndActiveStatusOrderByCreatedAtAsc(
             @Param("travelDate") LocalDate travelDate);
 
+    @Query("""
+           SELECT entry FROM WaitingListEntry entry
+           WHERE (entry.travelDate = :travelDate OR entry.travelDate IS NULL)
+             AND (UPPER(entry.status) IN ('WAITING', 'PENDING', 'PENDIENTE', 'NEW')
+                  OR entry.status IS NULL)
+           ORDER BY entry.createdAt DESC
+           """)
+    List<WaitingListEntry> findActiveWaitingForDateIncludingNull(
+            @Param("travelDate") LocalDate travelDate);
+
     List<WaitingListEntry> findAllByOrderByCreatedAtDesc();
 
     List<WaitingListEntry> findByStatusOrderByCreatedAtAsc(String status);
@@ -64,7 +74,7 @@ public interface WaitingListRepository extends JpaRepository<WaitingListEntry, L
     List<WaitingListEntry> findAllActiveWaitingOrderByCreatedAtDesc();
 
     @Query("""
-           SELECT COUNT(entry) FROM WaitingListEntry entry
+           SELECT COALESCE(SUM(entry.passengerCount), 0) FROM WaitingListEntry entry
            WHERE UPPER(entry.status) IN ('WAITING', 'PENDING', 'PENDIENTE', 'NEW')
               OR entry.status IS NULL
            """)

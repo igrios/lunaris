@@ -135,8 +135,9 @@ public class ReservationViewController {
                 : waitingListService.findWaiting(travelDate);
         model.addAttribute("pasajeros", todosLosPasajeros);
         model.addAttribute("waitingListEntries", waitingEntries);
-        model.addAttribute("waitingListCount", waitingEntries.size());
-        model.addAttribute("waitingListTotal", waitingEntries.size());
+        long waitingListCount = waitingListService.countAllActiveWaiting();
+        model.addAttribute("waitingListCount", waitingListCount);
+        model.addAttribute("waitingListTotal", waitingListCount);
         model.addAttribute("waitingListMode", waitingListMode);
         model.addAttribute("selectedTravelDate", travelDate);
         return "passengers";

@@ -40,7 +40,7 @@ public class WaitingListService {
     public List<WaitingListEntry> findWaiting(LocalDate travelDate) {
         return travelDate == null
                 ? repository.findAllActiveWaitingOrderByCreatedAtDesc()
-                : repository.findByTravelDateAndActiveStatusOrderByCreatedAtAsc(travelDate);
+                : repository.findActiveWaitingForDateIncludingNull(travelDate);
     }
 
     @Transactional(readOnly = true)
