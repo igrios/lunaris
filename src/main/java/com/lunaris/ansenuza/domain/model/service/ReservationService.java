@@ -82,22 +82,30 @@ public class ReservationService {
         }
 
         // 💳 PASO CRÍTICO DE CUENTA CORRIENTE: Evaluar y aplicar saldo a favor del Pasajero Titular
-        Passenger titular = mainReservation.getPassenger();
+        Passenger titular = lockPassenger(mainReservation.getPassenger());
+        mainReservation.setPassenger(titular);
         BigDecimal saldoDisponible = titular.getCurrentBalance() != null ? titular.getCurrentBalance() : BigDecimal.ZERO;
-        BigDecimal costoTotalFlujo = mainReservation.getAmount();
+        BigDecimal costoTotalFlujo = amountWithExtras(mainReservation);
 
         if (saldoDisponible.compareTo(BigDecimal.ZERO) > 0) {
             if (saldoDisponible.compareTo(costoTotalFlujo) >= 0) {
                 // El saldo cubre todo el viaje
                 titular.setCurrentBalance(saldoDisponible.subtract(costoTotalFlujo));
                 mainReservation.setAmount(BigDecimal.ZERO);
+                mainReservation.setExtraAmount(BigDecimal.ZERO);
                 mainReservation.setPaymentVerified(true);
                 mainReservation.setStatus("CONFIRMED");
                 mainReservation.setPaymentConfirmedAt(
                         com.lunaris.ansenuza.shared.ArgentinaTime.now());
             } else {
                 // El saldo cubre una parte del viaje
-                mainReservation.setAmount(costoTotalFlujo.subtract(saldoDisponible));
+                BigDecimal saldoRestante = costoTotalFlujo.subtract(saldoDisponible);
+                BigDecimal extraAmount = mainReservation.getExtraAmount() == null
+                        ? BigDecimal.ZERO : mainReservation.getExtraAmount();
+                BigDecimal saldoRestantePositivo = saldoRestante.max(BigDecimal.ZERO);
+                BigDecimal extraRestante = extraAmount.min(saldoRestantePositivo);
+                mainReservation.setAmount(saldoRestantePositivo.subtract(extraRestante));
+                mainReservation.setExtraAmount(extraRestante);
                 titular.setCurrentBalance(BigDecimal.ZERO);
             }
             passengerRepository.saveAndFlush(titular);
@@ -294,13 +302,14 @@ public class ReservationService {
                     return;
                 }
                 
-                Passenger passenger = reservation.getPassenger();
+                Passenger passenger = lockPassenger(reservation.getPassenger());
+                reservation.setPassenger(passenger);
                 BigDecimal saldoActual = passenger.getCurrentBalance() != null ? passenger.getCurrentBalance() : BigDecimal.ZERO;
                 
                 final BigDecimal[] totalReintegro = { BigDecimal.ZERO };
 
                 // 🛡️ FILTRO DE SEGURIDAD: Solo computa dinero si el pago fue verificado o la reserva estaba confirmada
-                boolean pagoRealizado = Boolean.TRUE.equals(reservation.getPaymentVerified()) || "CONFIRMED".equals(reservation.getStatus());
+                boolean pagoRealizado = isPaid(reservation);
 
                 // 1. Cancelamos la reserva actual seleccionada (Ida o Vuelta Abierta)
                 reservation.setStatus("CANCELLED");
@@ -370,16 +379,23 @@ public class ReservationService {
         if (totalSeats - returnedSeats <= 0) {
             throw new ReservationAlreadyCompletedException();
         }
-        BigDecimal totalAmount = amount(reservation);
+        BigDecimal totalAmount = amountWithExtras(reservation);
         BigDecimal seatAmount = totalAmount.divide(
                 BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP);
+        Passenger passenger = lockPassenger(reservation.getPassenger());
+        reservation.setPassenger(passenger);
         reservation.setPassengerCount(totalSeats - 1);
-        reservation.setAmount(totalAmount.subtract(seatAmount));
+        BigDecimal remainingAmount = totalAmount.subtract(seatAmount);
+        BigDecimal existingExtra = reservation.getExtraAmount() == null
+                ? BigDecimal.ZERO : reservation.getExtraAmount();
+        BigDecimal remainingExtra = existingExtra.min(remainingAmount.max(BigDecimal.ZERO));
+        reservation.setAmount(remainingAmount.subtract(remainingExtra));
+        reservation.setExtraAmount(remainingExtra);
         if (returnedSeats > 0) {
             reservation.setTravelStatus(Reservation.TravelStatus.PARTIALLY_COMPLETED);
         }
         reservationRepository.saveAndFlush(reservation);
-        credit(reservation.getPassenger(), isPaid(reservation) ? seatAmount : BigDecimal.ZERO);
+        credit(passenger, isPaid(reservation) ? seatAmount : BigDecimal.ZERO);
         reservationEventRepository.save(ReservationEvent.builder()
                 .reservationId(id)
                 .eventType("RETURN_SEAT_CANCELLED")
@@ -430,11 +446,11 @@ public class ReservationService {
 
     private BigDecimal refundableAmount(Reservation reservation) {
         if (!isReturnLeg(reservation)) {
-            return isUsed(reservation) ? BigDecimal.ZERO : amount(reservation);
+            return isUsed(reservation) ? BigDecimal.ZERO : amountWithExtras(reservation);
         }
         int totalSeats = reservation.getTotalSeats();
         int unusedSeats = Math.max(0, totalSeats - returnedSeats(reservation));
-        return amount(reservation)
+        return amountWithExtras(reservation)
                 .multiply(BigDecimal.valueOf(unusedSeats))
                 .divide(BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP);
     }
@@ -462,7 +478,23 @@ public class ReservationService {
 
     private boolean isPaid(Reservation reservation) {
         return Boolean.TRUE.equals(reservation.getPaymentVerified())
-                || "CONFIRMED".equalsIgnoreCase(reservation.getStatus());
+                || reservation.getPaymentReceiptUrl() != null
+                        && !reservation.getPaymentReceiptUrl().isBlank();
+    }
+
+    private Passenger lockPassenger(Passenger passenger) {
+        if (passenger == null || passenger.getId() == null) {
+            return passenger;
+        }
+        // En una transacción real la consulta bloquea la fila; si el adaptador no
+        // devuelve una entidad (por ejemplo, una reserva recién creada en el mismo
+        // flujo), conservamos la instancia administrada para no perder el saldo.
+        return passengerRepository.findByIdForUpdate(passenger.getId()).orElse(passenger);
+    }
+
+    private BigDecimal amountWithExtras(Reservation reservation) {
+        return amount(reservation).add(reservation.getExtraAmount() == null
+                ? BigDecimal.ZERO : reservation.getExtraAmount());
     }
 
     private boolean isUsed(Reservation reservation) {
@@ -499,7 +531,11 @@ public class ReservationService {
     private void assertCancellationAllowed(Reservation reservation, String triggeredBy) {
         Reservation.TravelStatus travelStatus = reservation.getTravelStatus();
         if (travelStatus == Reservation.TravelStatus.ONBOARD
-                || travelStatus == Reservation.TravelStatus.IN_PROGRESS) {
+                || travelStatus == Reservation.TravelStatus.BOARDED
+                || travelStatus == Reservation.TravelStatus.ONBOARDED
+                || travelStatus == Reservation.TravelStatus.IN_PROGRESS
+                || travelStatus == Reservation.TravelStatus.COMPLETED
+                || travelStatus == Reservation.TravelStatus.REALIZED) {
             if ("BOT_WHATSAPP".equalsIgnoreCase(triggeredBy)) {
                 throw new DomainValidationException(
                         "⚠️ Ya te encontrás a bordo o tu viaje ya finalizó. No es posible cancelar este servicio.");
@@ -558,9 +594,17 @@ public class ReservationService {
             }
 
             Reservation saved;
-            String paymentGroup = paymentGroupCode(reservation.getReservationCode());
+            String paymentGroup = reservation.getBookingGroupCode() != null
+                    && !reservation.getBookingGroupCode().isBlank()
+                            ? reservation.getBookingGroupCode()
+                            : paymentGroupCode(reservation.getReservationCode());
             if (updatedData.getPaymentVerified() != null && paymentGroup != null) {
-                List<Reservation> linked = reservationRepository.findReservationGroupForUpdate(paymentGroup);
+                List<Reservation> lockedLinked = reservationRepository
+                        .findByBookingGroupCodeForUpdate(paymentGroup);
+                if (lockedLinked.isEmpty()) {
+                    lockedLinked = reservationRepository.findReservationGroupForUpdate(paymentGroup);
+                }
+                final List<Reservation> linked = lockedLinked;
                 linked.forEach(item -> {
                     item.setPaymentVerified(reservation.getPaymentVerified());
                     item.setStatus(reservation.getStatus());

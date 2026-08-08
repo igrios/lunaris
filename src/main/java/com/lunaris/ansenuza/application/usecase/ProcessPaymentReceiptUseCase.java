@@ -117,10 +117,17 @@ public class ProcessPaymentReceiptUseCase {
 
     private Reservation updatePaymentGroup(
             Reservation selected, String receiptUrl, boolean verified, String status) {
-        String groupCode = paymentGroupCode(selected.getReservationCode());
-        List<Reservation> group = groupCode == null
+        String groupCode = selected.getBookingGroupCode() != null
+                && !selected.getBookingGroupCode().isBlank()
+                        ? selected.getBookingGroupCode()
+                        : paymentGroupCode(selected.getReservationCode());
+        List<Reservation> lockedGroup = groupCode == null
                 ? List.of(selected)
-                : reservationRepository.findReservationGroupForUpdate(groupCode);
+                : reservationRepository.findByBookingGroupCodeForUpdate(groupCode);
+        if (lockedGroup.isEmpty() && groupCode != null) {
+            lockedGroup = reservationRepository.findReservationGroupForUpdate(groupCode);
+        }
+        final List<Reservation> group = lockedGroup;
         if (group.isEmpty()) {
             throw new IllegalStateException("No se encontró el grupo de reserva vinculado.");
         }
