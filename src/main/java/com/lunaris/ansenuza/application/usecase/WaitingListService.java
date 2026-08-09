@@ -6,6 +6,7 @@ import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -63,7 +64,7 @@ public class WaitingListService {
             LocalDate travelDate, String pickupLocality, String destination,
             Integer passengerCount, String notes, String eventType) {
         String normalizedEventType = eventType == null || eventType.isBlank()
-                ? (travelDate == null ? "POPE_VISIT" : null) : eventType.trim().toUpperCase();
+                ? "GENERAL" : eventType.trim().toUpperCase(Locale.ROOT);
         return repository.saveAndFlush(WaitingListEntry.builder()
                 .phoneNumber(requireText(phoneNumber, "teléfono del pasajero"))
                 .passengerName(requireText(passengerName, "nombre del pasajero"))

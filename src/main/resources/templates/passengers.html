@@ -11,6 +11,7 @@
     body { background-color: #f4f6f9 !important; padding-top: 75px; }
     .card { border: none; border-radius: 12px; }
     .bg-navbar { background-color: #1e293b !important; }
+    .bg-purple { background-color: #6f42c1 !important; color: #fff; }
     .table-hover tbody tr:hover { background-color: #eef4ff; }
   </style>
 </head>
@@ -49,7 +50,7 @@
             <label for="waitingListMode" class="form-label fw-semibold">Vista</label>
             <select id="waitingListMode" name="waitingListMode" class="form-select">
               <option value="all" th:selected="${waitingListMode == 'all'}">Lista de Espera General / Rutas</option>
-              <option value="events" th:selected="${waitingListMode == 'events'}">Eventos Especiales (Visita Papa)</option>
+              <option value="events" th:selected="${waitingListMode == 'events'}">Eventos especiales</option>
             </select>
           </div>
           <div class="col-auto">
@@ -152,8 +153,10 @@
                   </td>
                   <td class="text-center" th:text="${entry.passengerCount != null ? entry.passengerCount : 1}">1</td>
                   <td>
-                    <span th:if="${entry.eventType != null || entry.travelDate == null}"
-                      class="badge text-bg-danger me-1">VISITA PAPA</span>
+                    <span th:if="${entry.eventType == 'AIRBAG_CORDOBA' || entry.eventType == 'AIRBAG'}"
+                      class="badge bg-purple me-1">AIRBAG</span>
+                    <span th:if="${entry.eventType == 'POPE_VISIT'}"
+                      class="badge bg-danger me-1">VISITA PAPA</span>
                     <span th:if="${entry.travelDate != null}" class="badge text-bg-secondary me-1"
                       th:text="${#temporals.format(entry.travelDate, 'dd/MM/yyyy')}">20/08/2026</span>
                     <span th:if="${entry.notes != null && !entry.notes.isBlank()}" th:text="${entry.notes}">-</span>
@@ -161,7 +164,7 @@
                   </td>
                   <td class="text-center">
                     <div class="d-flex gap-1 justify-content-center flex-wrap">
-                      <form th:if="${entry.travelDate != null && entry.eventType == null}"
+                      <form th:if="${entry.travelDate != null && (entry.eventType == null || entry.eventType == 'GENERAL')}"
                         th:action="@{/reservations/waiting-list/{id}/promote(id=${entry.id})}" method="post">
                         <input th:if="${selectedTravelDate != null}" type="hidden" name="travelDate"
                           th:value="${selectedTravelDate}">
@@ -223,7 +226,7 @@
       document.querySelectorAll('#waitingListModal tbody tr[data-status]').forEach(function (fila) {
         const tipoEvento = (fila.dataset.eventType || '').toUpperCase();
         const sinFechaDeViaje = !fila.dataset.travelDate;
-        const esEvento = tipoEvento === 'POPE_VISIT' || sinFechaDeViaje;
+        const esEvento = (tipoEvento !== '' && tipoEvento !== 'GENERAL') || sinFechaDeViaje;
         if (modo === 'all') {
           fila.style.display = 'table-row';
           return;

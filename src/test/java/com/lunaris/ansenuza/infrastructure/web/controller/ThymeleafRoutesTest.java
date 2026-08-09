@@ -34,4 +34,16 @@ class ThymeleafRoutesTest {
         assertTrue(template.contains("th:name=\"${_csrf.parameterName}\""));
         assertTrue(template.contains("th:value=\"${_csrf.token}\""));
     }
+
+    @Test
+    void passengersPanelRendersDistinctSpecialEventBadges() throws Exception {
+        String template = Files.readString(
+                Path.of("src/main/resources/templates/passengers.html"));
+
+        assertTrue(template.contains("entry.eventType == 'AIRBAG_CORDOBA'"));
+        assertTrue(template.contains("entry.eventType == 'AIRBAG'"));
+        assertTrue(template.contains("class=\"badge bg-purple me-1\">AIRBAG</span>"));
+        assertTrue(template.contains("entry.eventType == 'POPE_VISIT'"));
+        assertTrue(template.contains("class=\"badge bg-danger me-1\">VISITA PAPA</span>"));
+    }
 }

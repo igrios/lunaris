@@ -75,8 +75,7 @@ public interface WaitingListRepository extends JpaRepository<WaitingListEntry, L
 
     @Query("""
            SELECT entry FROM WaitingListEntry entry
-           WHERE (UPPER(entry.eventType) LIKE '%PAPA%'
-                  OR UPPER(entry.eventType) = 'POPE_VISIT'
+           WHERE ((entry.eventType IS NOT NULL AND UPPER(entry.eventType) <> 'GENERAL')
                   OR entry.travelDate IS NULL)
              AND (UPPER(entry.status) IN ('WAITING', 'PENDING', 'PENDIENTE', 'NEW')
                   OR entry.status IS NULL)

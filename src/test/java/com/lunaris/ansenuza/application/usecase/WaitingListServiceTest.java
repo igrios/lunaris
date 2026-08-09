@@ -18,6 +18,22 @@ import org.mockito.ArgumentCaptor;
 class WaitingListServiceTest {
 
     @Test
+    void persistsRequestedEventTypeAndDefaultsMissingValueToGeneral() {
+        WaitingListRepository repository = mock(WaitingListRepository.class);
+        WaitingListService service = new WaitingListService(repository);
+        ArgumentCaptor<WaitingListEntry> captor = ArgumentCaptor.forClass(WaitingListEntry.class);
+
+        service.create("543511112222", "Ana Pérez", null, "Morteros", "Córdoba",
+                1, null, "airbag_cordoba");
+        service.create("543511112222", "Ana Pérez", LocalDate.of(2026, 8, 20),
+                "Morteros", "Córdoba", 1, null, "  ");
+
+        verify(repository, org.mockito.Mockito.times(2)).saveAndFlush(captor.capture());
+        assertEquals("AIRBAG_CORDOBA", captor.getAllValues().get(0).getEventType());
+        assertEquals("GENERAL", captor.getAllValues().get(1).getEventType());
+    }
+
+    @Test
     void joinsPassengerUsingConversationData() {
         WaitingListRepository repository = mock(WaitingListRepository.class);
         WaitingListService service = new WaitingListService(repository);
