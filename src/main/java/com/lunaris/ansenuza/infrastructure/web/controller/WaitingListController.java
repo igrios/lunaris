@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.lunaris.ansenuza.application.usecase.WaitingListService;
 import com.lunaris.ansenuza.application.usecase.WaitingListReengagementService;
 import com.lunaris.ansenuza.application.usecase.WaitingListOtpService;
@@ -55,7 +56,7 @@ public class WaitingListController {
 
     @PostMapping("/request-otp")
     public OtpResponse requestOtp(@RequestBody OtpRequest request) {
-        String otp = otpService.request(request.phoneNumber());
+        String otp = otpService.request(request.phone());
         boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
         return new OtpResponse("El código fue enviado por WhatsApp.", production ? null : otp);
     }
@@ -90,7 +91,11 @@ public class WaitingListController {
             String notes, String eventType) {
     }
 
-    public record OtpRequest(String phoneNumber) {
+    public record OtpRequest(
+            String fullName,
+            @JsonAlias("phoneNumber") String phone,
+            String eventType,
+            String notes) {
     }
 
     public record OtpResponse(String message, String otp) {
