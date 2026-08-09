@@ -12,11 +12,13 @@ public record CreateReservationRequest(
     UUID passengerId,
     @JsonAlias({"passengerName"}) String fullName,
     @JsonAlias({"passengerPhone"}) String phone,
+    @JsonAlias({"documentId", "cuil"}) String cuilDni,
     @JsonAlias({"date"})
     LocalDate travelDate,
     @JsonAlias({"origin", "locality", "originLocality"}) String pickupLocality,
     String pickupAddress,
     String destination,
+    @JsonAlias({"schedule", "scheduleBlock"}) String departureSchedule,
     Boolean roundTrip,
     LocalDate returnDate,
     Boolean paymentVerified,
@@ -39,7 +41,8 @@ public record CreateReservationRequest(
             Integer passengerCount,
             String companionNames,
             ReservationSource source) {
-        this(passengerId, null, null, travelDate, pickupLocality, pickupAddress, destination,
+        this(passengerId, null, null, null, travelDate, pickupLocality, pickupAddress, destination,
+                notes != null && notes.contains("08:00") ? "08:00 AM" : "03:00 AM",
                 roundTrip, returnDate, paymentVerified, notes, passengerCount, companionNames, source,
                 null);
     }
@@ -49,10 +52,12 @@ public record CreateReservationRequest(
                 passengerId,
                 fullName,
                 phone,
+                cuilDni,
                 travelDate,
                 pickupLocality,
                 pickupAddress,
                 destination,
+                departureSchedule,
                 roundTrip,
                 returnDate,
                 paymentVerified,

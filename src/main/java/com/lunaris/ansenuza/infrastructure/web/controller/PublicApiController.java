@@ -39,9 +39,12 @@ public class PublicApiController {
     private int tripCapacity = 12;
 
     @GetMapping("/schedules")
-    public List<ScheduleResponse> schedules(@RequestParam(required = false) LocalDate date) {
-        LocalDate effectiveDate = date != null
-                ? date
+    public List<ScheduleResponse> schedules(
+            @RequestParam(required = false) LocalDate travelDate,
+            @RequestParam(required = false) LocalDate date) {
+        LocalDate requestedDate = travelDate != null ? travelDate : date;
+        LocalDate effectiveDate = requestedDate != null
+                ? requestedDate
                 : com.lunaris.ansenuza.shared.ArgentinaTime.today();
         return SCHEDULES.stream()
                 .map(schedule -> {

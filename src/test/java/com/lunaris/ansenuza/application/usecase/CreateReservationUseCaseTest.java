@@ -51,8 +51,9 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
                             passengerRepository, mock(com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase.class)),
                     passengerRepository, pricingService, mock(SameDayBookingPolicy.class));
             String json = """
-                    {"fullName":"juna fenogloi","phone":"3511111111","date":"2026-08-01",
-                     "origin":"Ansenuza","destination":"Córdoba","seats":1,"roundTrip":false}
+                    {"fullName":"juna fenogloi","phone":"3511111111","documentId":"30111222",
+                     "date":"2026-08-01","origin":"Ansenuza","pickupAddress":"Belgrano 10",
+                     "destination":"Córdoba","scheduleBlock":"08:00 AM","seats":1,"roundTrip":false}
                     """;
             CreateReservationRequest request = new com.fasterxml.jackson.databind.ObjectMapper()
                     .findAndRegisterModules().readValue(json, CreateReservationRequest.class);
@@ -62,6 +63,9 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertEquals("juna", result.getPassenger().getFirstName());
             assertEquals("fenogloi", result.getPassenger().getLastName());
             assertEquals("Ansenuza", result.getPickupLocality());
+            assertEquals("30111222", result.getPassenger().getCuil());
+            assertEquals("Belgrano 10", result.getPassenger().getAddress());
+            assertEquals("08:00 AM", result.getDepartureSchedule());
             assertEquals("ANS-COR-001", result.getReservationCode());
             assertEquals(new BigDecimal("56000.00"), result.getAmount());
         }
@@ -78,6 +82,8 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
                                                                                                                                                           
             PassengerRepository passengerRepository = mock(PassengerRepository.class);                                                                    
             when(passengerRepository.findById(passengerId)).thenReturn(Optional.of(passenger));                                                           
+            when(passengerRepository.save(any(Passenger.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
                                                                                                                                                           
             FareRepository fareRepository = mock(FareRepository.class);                                                                                   
             when(fareRepository.findByLocalityNameIgnoreCase("Morteros")).thenReturn(Optional.of(                                                         

@@ -38,7 +38,7 @@ public class CreateReservationUseCase {
 
     public Reservation execute(CreateReservationRequest request, String paymentReceiptUrl) {
         validate(request);
-        String departureSchedule = resolveSchedule(request.notes());
+        String departureSchedule = resolveSchedule(request.departureSchedule(), request.notes());
         sameDayBookingPolicy.validate(request.travelDate(), departureSchedule);
 
         Passenger passenger = resolvePassenger(request);
@@ -106,27 +106,77 @@ public class CreateReservationUseCase {
                 || request.phone() == null || request.phone().isBlank())) {
             throw new DomainValidationException("Nombre y teléfono del pasajero son obligatorios.");
         }
+        if (request.passengerId() == null && (request.cuilDni() == null
+                || !request.cuilDni().replaceAll("[^0-9]", "").matches("[0-9]{7,11}"))) {
+            throw new DomainValidationException("El DNI o CUIT debe contener entre 7 y 11 dígitos.");
+        }
         if (effectivePickupLocality(request).length() < 3
                 || effectiveDestination(request).length() < 3) {
             throw new DomainValidationException("Origen y destino deben tener al menos tres caracteres.");
+        }
+        if (effectivePickupLocality(request).equalsIgnoreCase(effectiveDestination(request))) {
+            throw new DomainValidationException("Origen y destino deben ser diferentes.");
+        }
+        if (request.pickupAddress() == null || request.pickupAddress().isBlank()) {
+            throw new DomainValidationException("La dirección de recogida es obligatoria.");
+        }
+        if (request.departureSchedule() == null || request.departureSchedule().isBlank()) {
+            throw new DomainValidationException("El horario de salida es obligatorio.");
+        }
+        if (request.passengerCount() == null || request.passengerCount() < 1
+                || request.passengerCount() > 4) {
+            throw new DomainValidationException("La cantidad de pasajeros debe estar entre 1 y 4.");
         }
     }
 
     private Passenger resolvePassenger(CreateReservationRequest request) {
         if (request.passengerId() != null) {
-            return passengerRepository.findById(request.passengerId())
+            Passenger passenger = passengerRepository.findById(request.passengerId())
                     .orElseThrow(() -> new DomainValidationException("El pasajero indicado no existe."));
+            return updatePassengerDetails(passenger, request);
         }
 
         String phone = PhoneUtils.normalizeArgentinePhone(request.phone());
         NameParts name = splitFullName(request.fullName());
         return passengerRepository.findByPhone(phone)
-                .map(existing -> repairIncompleteName(existing, name))
+                .map(existing -> updatePassengerDetails(repairIncompleteName(existing, name), request))
                 .orElseGet(() -> passengerRepository.save(Passenger.builder()
                         .firstName(name.firstName())
                         .lastName(name.lastName())
                         .phone(phone)
+                        .cuil(normalizeDocument(request.cuilDni()))
+                        .address(normalizeNullable(request.pickupAddress()))
+                        .locality(normalizeNullable(request.pickupLocality()))
                         .build()));
+    }
+
+    private Passenger updatePassengerDetails(Passenger passenger, CreateReservationRequest request) {
+        boolean changed = false;
+        String normalizedDocument = normalizeDocument(request.cuilDni());
+        if (normalizedDocument != null && !normalizedDocument.equals(passenger.getCuil())) {
+            passenger.setCuil(normalizedDocument);
+            changed = true;
+        }
+        if (request.pickupAddress() != null && !request.pickupAddress().isBlank()
+                && !request.pickupAddress().trim().equals(passenger.getAddress())) {
+            passenger.setAddress(request.pickupAddress().trim());
+            changed = true;
+        }
+        if (request.pickupLocality() != null && !request.pickupLocality().isBlank()
+                && !request.pickupLocality().trim().equals(passenger.getLocality())) {
+            passenger.setLocality(request.pickupLocality().trim());
+            changed = true;
+        }
+        return changed ? passengerRepository.save(passenger) : passenger;
+    }
+
+    private String normalizeNullable(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeDocument(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.replaceAll("[^0-9]", "");
     }
 
     private Passenger repairIncompleteName(Passenger passenger, NameParts submittedName) {
@@ -163,7 +213,10 @@ public class CreateReservationUseCase {
                 ? "Sin especificar" : request.destination().trim();
     }
 
-    private String resolveSchedule(String notes) {
+    private String resolveSchedule(String requestedSchedule, String notes) {
+        if (requestedSchedule != null && !requestedSchedule.isBlank()) {
+            return requestedSchedule.trim();
+        }
         return notes != null && notes.contains("08:00") ? "08:00 AM" : "03:00 AM";
     }
 }

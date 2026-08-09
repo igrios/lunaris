@@ -2,7 +2,10 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.BookingVerificationData;
 import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
+import com.lunaris.ansenuza.application.usecase.CreateReservationUseCase;
 import com.lunaris.ansenuza.application.usecase.ProcessPaymentReceiptUseCase;
+import com.lunaris.ansenuza.domain.model.ReservationSource;
+import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
 import com.lunaris.ansenuza.domain.model.TripType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +32,7 @@ public class AuthController {
 
     private final PassengerOtpService otpService;
     private final ProcessPaymentReceiptUseCase processPaymentReceiptUseCase;
+    private final CreateReservationUseCase createReservationUseCase;
 
     @PostMapping("/send-otp")
     public ResponseEntity<Map<String, String>> sendOtp(
@@ -57,17 +61,31 @@ public class AuthController {
     private TokenResponse verify(VerifyOtpRequest request, MultipartFile receiptFile) {
         validateVerificationRequest(request);
         var result = otpService.verifyOtp(request.phone(), request.code());
-        var reservation = processPaymentReceiptUseCase.confirmOrCreateWebBooking(
-                request.phone(),
-                receiptFile,
-                new BookingVerificationData(
+        var reservation = receiptFile != null && !receiptFile.isEmpty()
+                ? processPaymentReceiptUseCase.confirmOrCreateWebBooking(
+                        request.phone(), receiptFile, new BookingVerificationData(
+                                request.travelDate(), request.departureSchedule(),
+                                request.pickupLocality(), request.destination(),
+                                request.passengerCount(), request.tripType(), request.totalAmount()))
+                : request.travelDate() == null ? null
+                : createReservationUseCase.execute(new CreateReservationRequest(
+                        null,
+                        request.fullName(),
+                        request.phone(),
+                        request.cuilDni(),
                         request.travelDate(),
-                        request.scheduleBlock(),
                         request.pickupLocality(),
+                        request.pickupAddress(),
                         request.destination(),
+                        request.departureSchedule(),
+                        request.tripType() != TripType.ONE_WAY,
+                        request.returnDate(),
+                        false,
+                        request.notes(),
                         request.passengerCount(),
-                        request.tripType(),
-                        request.totalAmount()));
+                        request.companionNames(),
+                        ReservationSource.WEB,
+                        request.tripType()));
         return new TokenResponse(result.accessToken(), "Bearer", result.expiresAt(),
                 reservation == null ? null : reservation.getReservationCode(),
                 reservation == null ? null : reservation.getBookingGroupCode(),
@@ -91,16 +109,22 @@ public class AuthController {
     public record VerifyOtpRequest(
             @NotBlank String phone,
             @NotBlank @Pattern(regexp = "[0-9]{4}", message = "El código debe tener exactamente 4 dígitos.") String code,
+            String fullName,
+            String cuilDni,
             LocalDate travelDate,
-            String scheduleBlock,
+            String departureSchedule,
             String pickupLocality,
+            String pickupAddress,
             String destination,
             Integer passengerCount,
+            String companionNames,
             TripType tripType,
+            LocalDate returnDate,
+            String notes,
             BigDecimal totalAmount) {
 
         public VerifyOtpRequest(String phone, String code) {
-            this(phone, code, null, null, null, null, null, null, null);
+            this(phone, code, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 
