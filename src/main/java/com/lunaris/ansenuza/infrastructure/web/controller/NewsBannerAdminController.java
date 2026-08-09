@@ -85,7 +85,7 @@ public class NewsBannerAdminController {
         }
         if (form.getActive() == null) form.setActive(true);
         try {
-            service.create(form.getTitle(), form.getDescription(), form.getEventType(),
+            service.save(form.getId(), form.getTitle(), form.getDescription(), form.getEventType(),
                     form.getHasWaitingList(), form.getActive(), form.getValidUntil(),
                     form.getImageUrl(), form.getImage());
             redirectAttributes.addFlashAttribute(

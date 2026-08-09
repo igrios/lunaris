@@ -79,6 +79,7 @@
     <div class="card shadow-sm mb-4"><div class="card-body">
       <form th:action="@{/admin/novedades}" th:object="${newsBannerForm}" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
         <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input th:field="*{id}" type="hidden">
         <div class="col-md-4"><label class="form-label" for="title">Título</label><input class="form-control" id="title" th:field="*{title}" maxlength="150" required></div>
         <div class="col-md-4"><label class="form-label" for="eventType">Código de evento</label><input class="form-control" id="eventType" th:field="*{eventType}" maxlength="100" placeholder="Se genera desde el título si queda vacío"></div>
         <div class="col-md-4"><label class="form-label" for="description">Descripción</label><input class="form-control" id="description" th:field="*{description}" maxlength="500" placeholder="Fecha, lugar o detalle breve"></div>

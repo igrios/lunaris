@@ -57,7 +57,7 @@ class NewsBannerAdminControllerTest {
     @Test
     void createAppliesDefaultsAndHandlesMultipartFailure() {
         NewsBannerService service = mock(NewsBannerService.class);
-        when(service.create(any(), any(), any(), any(Boolean.class), any(Boolean.class),
+        when(service.save(any(), any(), any(), any(), any(Boolean.class), any(Boolean.class),
                 any(), any(), any()))
                 .thenThrow(new IllegalStateException("cloudinary unavailable"));
         NewsBannerAdminController controller = new NewsBannerAdminController(service);

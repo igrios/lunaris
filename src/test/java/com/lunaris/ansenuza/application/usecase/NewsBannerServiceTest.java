@@ -1,7 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -19,7 +19,7 @@ import org.springframework.mock.web.MockMultipartFile;
 class NewsBannerServiceTest {
 
     @Test
-    void createsBannerWithCloudinaryUrlAndDefensiveUuid() {
+    void createsBannerWithNullIdSoHibernatePerformsInsert() {
         NewsBannerRepository repository = mock(NewsBannerRepository.class);
         NewsBannerStoragePort storage = mock(NewsBannerStoragePort.class);
         MockMultipartFile image = new MockMultipartFile(
@@ -31,11 +31,35 @@ class NewsBannerServiceTest {
         NewsBanner result = service.create(
                 "  Promo agosto  ", true, LocalDate.of(2026, 8, 31), image);
 
-        assertNotNull(result.getId());
+        assertNull(result.getId());
         assertEquals("Promo agosto", result.getTitle());
         assertEquals("https://res.cloudinary.com/flyer.jpg", result.getImageUrl());
         assertEquals("PROMO_AGOSTO", result.getEventType());
         verify(repository).save(result);
+    }
+
+    @Test
+    void updatesFetchedBannerAndKeepsCurrentImageWhenNoReplacementArrives() {
+        NewsBannerRepository repository = mock(NewsBannerRepository.class);
+        NewsBannerStoragePort storage = mock(NewsBannerStoragePort.class);
+        UUID id = UUID.randomUUID();
+        NewsBanner existing = new NewsBanner();
+        existing.setId(id);
+        existing.setImageUrl("https://example.com/original.jpg");
+        when(repository.findById(id)).thenReturn(java.util.Optional.of(existing));
+        when(repository.save(existing)).thenReturn(existing);
+        NewsBannerService service = new NewsBannerService(repository, storage);
+
+        NewsBanner result = service.save(id, "Título actualizado", "Descripción",
+                "evento_actualizado", true, false, LocalDate.of(2026, 12, 1),
+                null, null);
+
+        assertEquals(id, result.getId());
+        assertEquals("Título actualizado", result.getTitle());
+        assertEquals("EVENTO_ACTUALIZADO", result.getEventType());
+        assertEquals("https://example.com/original.jpg", result.getImageUrl());
+        verify(repository).findById(id);
+        verify(repository).save(existing);
     }
 
     @Test

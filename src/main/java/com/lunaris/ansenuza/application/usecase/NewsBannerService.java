@@ -48,19 +48,30 @@ public class NewsBannerService {
     public NewsBanner create(String title, String description, String eventType,
             boolean hasWaitingList, boolean active, LocalDate validUntil,
             String externalImageUrl, MultipartFile image) {
+        return save(null, title, description, eventType, hasWaitingList, active,
+                validUntil, externalImageUrl, image);
+    }
+
+    @Transactional
+    public NewsBanner save(UUID id, String title, String description, String eventType,
+            boolean hasWaitingList, boolean active, LocalDate validUntil,
+            String externalImageUrl, MultipartFile image) {
         if (title == null || title.isBlank()) {
             throw new DomainValidationException("El título es obligatorio.");
         }
         if (title.trim().length() > 150) {
             throw new DomainValidationException("El título no puede superar los 150 caracteres.");
         }
-        NewsBanner banner = new NewsBanner();
-        banner.setId(UUID.randomUUID());
+        NewsBanner banner = id == null
+                ? new NewsBanner()
+                : repository.findById(id).orElseThrow(() ->
+                        new DomainValidationException("La novedad indicada no existe."));
         banner.setTitle(title.trim());
         banner.setDescription(normalizeOptional(description));
         banner.setEventType(normalizeEventType(eventType, title));
         banner.setHasWaitingList(hasWaitingList);
-        banner.setImageUrl(resolveImageUrl(externalImageUrl, image));
+        banner.setImageUrl(resolveImageUrl(
+                externalImageUrl, image, banner.getImageUrl()));
         banner.setActive(active);
         banner.setValidUntil(validUntil);
         return repository.save(banner);
@@ -77,7 +88,8 @@ public class NewsBannerService {
         return labels;
     }
 
-    private String resolveImageUrl(String externalImageUrl, MultipartFile image) {
+    private String resolveImageUrl(
+            String externalImageUrl, MultipartFile image, String currentImageUrl) {
         if (externalImageUrl != null && !externalImageUrl.isBlank()) {
             String url = externalImageUrl.trim();
             if (!url.startsWith("https://") && !url.startsWith("http://")) {
@@ -85,10 +97,13 @@ public class NewsBannerService {
             }
             return url;
         }
-        if (image == null || image.isEmpty()) {
+        if (image != null && !image.isEmpty()) {
+            return storage.upload(image);
+        }
+        if (currentImageUrl == null || currentImageUrl.isBlank()) {
             throw new DomainValidationException("Debés subir un flyer o indicar una URL externa.");
         }
-        return storage.upload(image);
+        return currentImageUrl;
     }
 
     private String normalizeEventType(String eventType, String title) {
