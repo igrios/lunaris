@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.application.usecase;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,25 +9,47 @@ import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
 import com.lunaris.ansenuza.shared.PhoneUtils;
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class CreateReservationUseCase {
 
     private final ReservationService reservationService;
     private final PassengerRepository passengerRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
     private final SameDayBookingPolicy sameDayBookingPolicy;
+    private final PromotionService promotionService;
+
+    public CreateReservationUseCase(ReservationService reservationService,
+            PassengerRepository passengerRepository,
+            PricingAndScheduleService pricingAndScheduleService,
+            SameDayBookingPolicy sameDayBookingPolicy) {
+        this(reservationService, passengerRepository, pricingAndScheduleService,
+                sameDayBookingPolicy, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CreateReservationUseCase(ReservationService reservationService,
+            PassengerRepository passengerRepository,
+            PricingAndScheduleService pricingAndScheduleService,
+            SameDayBookingPolicy sameDayBookingPolicy,
+            PromotionService promotionService) {
+        this.reservationService = reservationService;
+        this.passengerRepository = passengerRepository;
+        this.pricingAndScheduleService = pricingAndScheduleService;
+        this.sameDayBookingPolicy = sameDayBookingPolicy;
+        this.promotionService = promotionService;
+    }
 
     @Value("${lunaris.trips.capacity:12}")
     private int tripCapacity = 12;
@@ -44,7 +67,7 @@ public class CreateReservationUseCase {
         Passenger passenger = resolvePassenger(request);
 
         // 🌟 Lógica del desplegable de asientos (Captura directa)
-        Integer safePassengerCount = (request.passengerCount() == null || request.passengerCount() <= 0) ? 1 : request.passengerCount();
+        int safePassengerCount = passengerCount(request.companionNames());
         long occupiedSeats = pricingAndScheduleService.countReservedSeats(
                 request.travelDate(), departureSchedule);
         if (occupiedSeats + safePassengerCount > tripCapacity) {
@@ -58,9 +81,17 @@ public class CreateReservationUseCase {
         // Centralizamos la cotización en el servicio de pricing para no duplicar reglas.
         TripType tripType = resolveTripType(request);
         boolean pairedTrip = tripType != TripType.ONE_WAY;
-        var computedAmount = pricingAndScheduleService.calculateReservationAmount(
-                effectivePickupLocality(request), effectiveDestination(request),
-                tripType, safePassengerCount);
+        BigDecimal computedAmount = pricingAndScheduleService.calculateTripPrice(
+                effectivePickupLocality(request), pairedTrip, safePassengerCount);
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        Promotion promotion = null;
+        if (request.promotionCode() != null && !request.promotionCode().isBlank()) {
+            promotion = promotionService.requireAvailable(
+                    request.promotionCode().trim(), passenger.getPhone());
+            discountAmount = promotionService.calculateDiscount(
+                    computedAmount, promotion.getDiscountPercentage());
+            computedAmount = computedAmount.subtract(discountAmount).max(BigDecimal.ZERO);
+        }
 
         Reservation reservation = Reservation.builder()
                 .passenger(passenger)
@@ -78,6 +109,10 @@ public class CreateReservationUseCase {
                 .status(initialStatus)
                 .source(request.source() != null ? request.source() : ReservationSource.WEB)
                 .amount(computedAmount) // 🌟 Inyectamos el monto calculado automáticamente
+                .discountAmount(discountAmount)
+                .promotionCode(promotion != null ? promotion.getCode() : null)
+                .promotionId(promotion != null ? promotion.getId() : null)
+                .promotionDiscountPercentage(promotion != null ? promotion.getDiscountPercentage() : null)
                 .notes(request.notes())
                 .departureSchedule(departureSchedule)
                 .paymentReceiptUrl(paymentReceiptUrl)
@@ -95,6 +130,16 @@ public class CreateReservationUseCase {
         return Boolean.TRUE.equals(request.roundTrip())
                 ? (request.returnDate() == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)
                 : TripType.ONE_WAY;
+    }
+
+    private int passengerCount(String companionNames) {
+        if (companionNames == null || companionNames.isBlank()) {
+            return 1;
+        }
+        return 1 + (int) java.util.Arrays.stream(companionNames.split(","))
+                .map(String::trim)
+                .filter(name -> !name.isBlank())
+                .count();
     }
 
     private void validate(CreateReservationRequest request) {
@@ -123,8 +168,7 @@ public class CreateReservationUseCase {
         if (request.departureSchedule() == null || request.departureSchedule().isBlank()) {
             throw new DomainValidationException("El horario de salida es obligatorio.");
         }
-        if (request.passengerCount() == null || request.passengerCount() < 1
-                || request.passengerCount() > 4) {
+        if (passengerCount(request.companionNames()) > 4) {
             throw new DomainValidationException("La cantidad de pasajeros debe estar entre 1 y 4.");
         }
     }

@@ -85,7 +85,8 @@ public class AuthController {
                         request.passengerCount(),
                         request.companionNames(),
                         ReservationSource.WEB,
-                        request.tripType()));
+                        request.tripType(),
+                        request.promotionCode()));
         return new TokenResponse(result.accessToken(), "Bearer", result.expiresAt(),
                 reservation == null ? null : reservation.getReservationCode(),
                 reservation == null ? null : reservation.getBookingGroupCode(),
@@ -121,10 +122,11 @@ public class AuthController {
             TripType tripType,
             LocalDate returnDate,
             String notes,
-            BigDecimal totalAmount) {
+            BigDecimal totalAmount,
+            String promotionCode) {
 
         public VerifyOtpRequest(String phone, String code) {
-            this(phone, code, null, null, null, null, null, null, null, null, null, null, null, null, null);
+            this(phone, code, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 

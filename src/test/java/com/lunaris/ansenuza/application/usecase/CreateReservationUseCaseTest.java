@@ -71,7 +71,7 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
         }
                                                                                                                                                           
         @Test                                                                                                                                             
-        void executeDelegatesAmountCalculationToPricingService() {                                                                                        
+        void executeCalculatesPassengerCountFromCompanionNames() {
             UUID passengerId = UUID.randomUUID();                                                                                                         
             Passenger passenger = Passenger.builder()                                                                                                     
                     .id(passengerId)                                                                                                                      
@@ -144,8 +144,8 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             Reservation persisted = reservationCaptor.getValue();                                                                                         
                                                                                                                                                           
             assertSame(persisted, result);                                                                                                                
-            assertEquals(new BigDecimal("116000.00"), persisted.getAmount());                                                                             
-            assertEquals(2, persisted.getPassengerCount());                                                                                               
+            assertEquals(new BigDecimal("174000.00"), persisted.getAmount());
+            assertEquals(3, persisted.getPassengerCount());
             assertEquals("PENDING_PAYMENT", persisted.getStatus());
             assertEquals("MOR-COR-001", persisted.getReservationCode());
             assertEquals(ReservationSource.WEB, persisted.getSource());

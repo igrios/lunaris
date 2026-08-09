@@ -26,7 +26,8 @@ public record CreateReservationRequest(
     @JsonAlias({"seatCount", "seats"}) Integer passengerCount,
     @JsonDeserialize(using = StringOrStringListDeserializer.class) String companionNames,
     ReservationSource source,
-    TripType tripType
+    TripType tripType,
+    String promotionCode
 ) {
     public CreateReservationRequest(
             UUID passengerId,
@@ -44,7 +45,7 @@ public record CreateReservationRequest(
         this(passengerId, null, null, null, travelDate, pickupLocality, pickupAddress, destination,
                 notes != null && notes.contains("08:00") ? "08:00 AM" : "03:00 AM",
                 roundTrip, returnDate, paymentVerified, notes, passengerCount, companionNames, source,
-                null);
+                null, null);
     }
 
     public CreateReservationRequest withSource(ReservationSource source) {
@@ -65,6 +66,7 @@ public record CreateReservationRequest(
                 passengerCount,
                 companionNames,
                 source,
-                tripType);
+                tripType,
+                promotionCode);
     }
 }
