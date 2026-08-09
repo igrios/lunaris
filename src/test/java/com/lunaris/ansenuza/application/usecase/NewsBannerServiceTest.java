@@ -34,7 +34,25 @@ class NewsBannerServiceTest {
         assertNotNull(result.getId());
         assertEquals("Promo agosto", result.getTitle());
         assertEquals("https://res.cloudinary.com/flyer.jpg", result.getImageUrl());
+        assertEquals("PROMO_AGOSTO", result.getEventType());
         verify(repository).save(result);
+    }
+
+    @Test
+    void createsWaitingListBannerFromExternalUrlAndExplicitEventType() {
+        NewsBannerRepository repository = mock(NewsBannerRepository.class);
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        NewsBannerService service = new NewsBannerService(
+                repository, mock(NewsBannerStoragePort.class));
+
+        NewsBanner result = service.create("Airbag - Estadio Belgrano",
+                "10 de Octubre · Traslados al show", "airbag_cordoba", true, true,
+                null, "https://example.com/airbag.jpg", null);
+
+        assertEquals("AIRBAG_CORDOBA", result.getEventType());
+        assertEquals("10 de Octubre · Traslados al show", result.getDescription());
+        assertEquals("https://example.com/airbag.jpg", result.getImageUrl());
+        assertEquals(true, result.isHasWaitingList());
     }
 
     @Test

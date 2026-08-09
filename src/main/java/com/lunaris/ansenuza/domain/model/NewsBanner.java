@@ -32,6 +32,15 @@ public class NewsBanner {
     @Column(nullable = false, length = 150)
     private String title;
 
+    @Column(length = 500)
+    private String description;
+
+    @Column(name = "event_type", nullable = false, length = 100)
+    private String eventType;
+
+    @Column(name = "has_waiting_list", nullable = false)
+    private boolean hasWaitingList;
+
     @Column(nullable = false)
     private boolean active = true;
 

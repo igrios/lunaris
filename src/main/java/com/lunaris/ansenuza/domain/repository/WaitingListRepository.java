@@ -63,6 +63,10 @@ public interface WaitingListRepository extends JpaRepository<WaitingListEntry, L
 
     List<WaitingListEntry> findAllByOrderByCreatedAtDesc();
 
+    @Query("select distinct entry.eventType from WaitingListEntry entry "
+            + "where entry.eventType is not null and entry.eventType <> ''")
+    List<String> findDistinctEventTypes();
+
     List<WaitingListEntry> findByStatusOrderByCreatedAtAsc(String status);
 
     @Query("""

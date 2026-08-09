@@ -79,24 +79,29 @@
       <form th:action="@{/admin/novedades}" method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
         <input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
         <div class="col-md-4"><label class="form-label" for="title">Título</label><input class="form-control" id="title" name="title" maxlength="150" required></div>
-        <div class="col-md-3"><label class="form-label" for="image">Flyer</label><input class="form-control" id="image" name="image" type="file" accept="image/*" required></div>
+        <div class="col-md-4"><label class="form-label" for="eventType">Código de evento</label><input class="form-control" id="eventType" name="eventType" maxlength="100" placeholder="Se genera desde el título si queda vacío"></div>
+        <div class="col-md-4"><label class="form-label" for="description">Descripción</label><input class="form-control" id="description" name="description" maxlength="500" placeholder="Fecha, lugar o detalle breve"></div>
+        <div class="col-md-4"><label class="form-label" for="image">Subir flyer</label><input class="form-control" id="image" name="image" type="file" accept="image/*"></div>
+        <div class="col-md-4"><label class="form-label" for="imageUrl">URL externa del flyer</label><input class="form-control" id="imageUrl" name="imageUrl" type="url" placeholder="https://..."></div>
         <div class="col-md-2"><label class="form-label" for="validUntil">Válido hasta</label><input class="form-control" id="validUntil" name="validUntil" type="date"></div>
-        <div class="col-md-1 form-check ms-3 mb-2"><input class="form-check-input" id="active" name="active" type="checkbox" value="true" checked><label class="form-check-label" for="active">Activo</label></div>
+        <div class="col-md-2 form-check ms-3 mb-2"><input class="form-check-input" id="hasWaitingList" name="hasWaitingList" type="checkbox" value="true"><label class="form-check-label" for="hasWaitingList">Activar Lista de Espera</label></div>
+        <input name="active" type="hidden" value="true">
         <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Publicar</button></div>
       </form>
     </div></div>
     <div class="card shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-      <thead class="table-dark"><tr><th>Flyer</th><th>Título</th><th>Estado</th><th>Vigencia</th><th>Creación</th><th>Acciones</th></tr></thead>
+      <thead class="table-dark"><tr><th>Flyer</th><th>Evento</th><th>Lista de espera</th><th>Estado</th><th>Vigencia</th><th>Creación</th><th>Acciones</th></tr></thead>
       <tbody>
         <tr th:each="banner : ${banners}">
           <td><a th:href="${banner.imageUrl}" target="_blank" rel="noopener"><img class="flyer" th:src="${banner.imageUrl}" th:alt="${banner.title}"></a></td>
-          <td class="fw-semibold" th:text="${banner.title}"></td>
+          <td><div class="fw-semibold" th:text="${banner.title}"></div><code th:text="${banner.eventType}"></code><div class="small text-muted" th:if="${banner.description != null}" th:text="${banner.description}"></div></td>
+          <td><span class="badge" th:classappend="${banner.hasWaitingList} ? 'text-bg-primary' : 'text-bg-secondary'" th:text="${banner.hasWaitingList ? 'Activa' : 'No'}"></span></td>
           <td><span class="badge" th:classappend="${banner.active} ? 'text-bg-success' : 'text-bg-secondary'" th:text="${banner.active ? 'Activo' : 'Inactivo'}"></span></td>
           <td th:text="${banner.validUntil != null ? #temporals.format(banner.validUntil, 'dd/MM/yyyy') : 'Sin vencimiento'}"></td>
           <td th:text="${#temporals.format(banner.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
           <td><form th:action="@{/admin/novedades/{id}/eliminar(id=${banner.id})}" method="post" onsubmit="return confirm('¿Eliminar esta novedad?');"><input th:if="${_csrf != null}" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"><button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button></form></td>
         </tr>
-        <tr th:if="${#lists.isEmpty(banners)}"><td colspan="6" class="text-center text-muted py-5">No hay novedades cargadas.</td></tr>
+        <tr th:if="${#lists.isEmpty(banners)}"><td colspan="7" class="text-center text-muted py-5">No hay novedades cargadas.</td></tr>
       </tbody>
     </table></div></div>
   </main>

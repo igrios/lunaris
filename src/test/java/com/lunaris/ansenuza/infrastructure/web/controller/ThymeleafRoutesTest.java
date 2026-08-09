@@ -36,14 +36,15 @@ class ThymeleafRoutesTest {
     }
 
     @Test
-    void passengersPanelRendersDistinctSpecialEventBadges() throws Exception {
+    void passengersPanelRendersDynamicSpecialEventBadges() throws Exception {
         String template = Files.readString(
                 Path.of("src/main/resources/templates/passengers.html"));
 
         assertTrue(template.contains("entry.eventType == 'AIRBAG_CORDOBA'"));
         assertTrue(template.contains("entry.eventType == 'AIRBAG'"));
-        assertTrue(template.contains("class=\"badge bg-purple me-1\">AIRBAG</span>"));
+        assertTrue(template.contains("'bg-purple'"));
         assertTrue(template.contains("entry.eventType == 'POPE_VISIT'"));
-        assertTrue(template.contains("class=\"badge bg-danger me-1\">VISITA PAPA</span>"));
+        assertTrue(template.contains("'bg-danger'"));
+        assertTrue(template.contains("eventLabels[entry.eventType]"));
     }
 }

@@ -2,8 +2,6 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.NewsBannerService;
 import com.lunaris.ansenuza.domain.model.NewsBanner;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -18,23 +16,23 @@ public class NewsBannerApiController {
 
     private final NewsBannerService service;
 
-    @GetMapping
+    @GetMapping({"", "/active"})
     public List<NewsBannerResponse> findActive() {
         return service.findActive().stream().map(NewsBannerResponse::from).toList();
     }
 
     public record NewsBannerResponse(
             UUID id,
-            String imageUrl,
             String title,
-            boolean active,
-            LocalDate validUntil,
-            LocalDateTime createdAt) {
+            String description,
+            String imageUrl,
+            String eventType,
+            boolean hasWaitingList) {
 
         private static NewsBannerResponse from(NewsBanner banner) {
             return new NewsBannerResponse(
-                    banner.getId(), banner.getImageUrl(), banner.getTitle(), banner.isActive(),
-                    banner.getValidUntil(), banner.getCreatedAt());
+                    banner.getId(), banner.getTitle(), banner.getDescription(),
+                    banner.getImageUrl(), banner.getEventType(), banner.isHasWaitingList());
         }
     }
 }

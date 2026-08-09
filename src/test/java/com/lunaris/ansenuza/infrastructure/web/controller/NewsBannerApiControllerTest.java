@@ -26,6 +26,9 @@ class NewsBannerApiControllerTest {
         banner.setId(UUID.randomUUID());
         banner.setTitle("Promo agosto");
         banner.setImageUrl("https://res.cloudinary.com/flyer.jpg");
+        banner.setDescription("Traslados al show");
+        banner.setEventType("AIRBAG_CORDOBA");
+        banner.setHasWaitingList(true);
         banner.setActive(true);
         banner.setValidUntil(LocalDate.of(2026, 8, 31));
         when(service.findActive()).thenReturn(List.of(banner));
@@ -36,11 +39,12 @@ class NewsBannerApiControllerTest {
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
 
-        mockMvc.perform(get("/api/v1/news-banners"))
+        mockMvc.perform(get("/api/v1/news-banners/active"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].title").value("Promo agosto"))
                 .andExpect(jsonPath("$[0].imageUrl").value("https://res.cloudinary.com/flyer.jpg"))
-                .andExpect(jsonPath("$[0].active").value(true))
-                .andExpect(jsonPath("$[0].validUntil").value("2026-08-31"));
+                .andExpect(jsonPath("$[0].description").value("Traslados al show"))
+                .andExpect(jsonPath("$[0].eventType").value("AIRBAG_CORDOBA"))
+                .andExpect(jsonPath("$[0].hasWaitingList").value(true));
     }
 }

@@ -62,12 +62,17 @@ public class NewsBannerAdminController {
     @PostMapping
     public String create(
             @RequestParam String title,
-            @RequestParam(defaultValue = "false") boolean active,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false) String eventType,
+            @RequestParam(defaultValue = "false") boolean hasWaitingList,
+            @RequestParam(defaultValue = "true") boolean active,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validUntil,
-            @RequestParam("image") MultipartFile image,
+            @RequestParam(required = false) String imageUrl,
+            @RequestParam(value = "image", required = false) MultipartFile image,
             RedirectAttributes redirectAttributes) {
-        service.create(title, active, validUntil, image);
+        service.create(title, description, eventType, hasWaitingList, active,
+                validUntil, imageUrl, image);
         redirectAttributes.addFlashAttribute("successMessage", "Novedad publicada correctamente.");
         return "redirect:/admin/novedades";
     }

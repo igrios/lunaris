@@ -59,6 +59,11 @@ public class WaitingListService {
         return repository.countAllActiveWaiting();
     }
 
+    @Transactional(readOnly = true)
+    public List<String> findDistinctEventTypes() {
+        return repository.findDistinctEventTypes();
+    }
+
     @Transactional
     public WaitingListEntry create(String phoneNumber, String passengerName,
             LocalDate travelDate, String pickupLocality, String destination,

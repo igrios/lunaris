@@ -122,6 +122,8 @@
               onchange="filtrarListaEspera()">
               <option value="all">Todos</option>
               <option value="events" th:selected="${waitingListMode == 'events'}">Eventos Especiales</option>
+              <option th:each="event : ${eventLabels}" th:value="${event.key}"
+                th:text="${event.value}" th:selected="${waitingListMode == event.key}"></option>
               <option value="routes">Rutas / Lista general</option>
             </select>
             <span class="text-muted small ms-auto">Total pendiente: <strong th:text="${waitingListCount}">0</strong></span>
@@ -153,10 +155,10 @@
                   </td>
                   <td class="text-center" th:text="${entry.passengerCount != null ? entry.passengerCount : 1}">1</td>
                   <td>
-                    <span th:if="${entry.eventType == 'AIRBAG_CORDOBA' || entry.eventType == 'AIRBAG'}"
-                      class="badge bg-purple me-1">AIRBAG</span>
-                    <span th:if="${entry.eventType == 'POPE_VISIT'}"
-                      class="badge bg-danger me-1">VISITA PAPA</span>
+                    <span th:if="${entry.eventType != null && entry.eventType != 'GENERAL'}"
+                      class="badge me-1"
+                      th:classappend="${entry.eventType == 'POPE_VISIT'} ? 'bg-danger' : (${entry.eventType == 'AIRBAG_CORDOBA' || entry.eventType == 'AIRBAG'} ? 'bg-purple' : 'text-bg-primary')"
+                      th:text="${eventLabels.containsKey(entry.eventType) ? eventLabels[entry.eventType] : #strings.replace(entry.eventType, '_', ' ')}">EVENTO</span>
                     <span th:if="${entry.travelDate != null}" class="badge text-bg-secondary me-1"
                       th:text="${#temporals.format(entry.travelDate, 'dd/MM/yyyy')}">20/08/2026</span>
                     <span th:if="${entry.notes != null && !entry.notes.isBlank()}" th:text="${entry.notes}">-</span>
@@ -232,7 +234,8 @@
           return;
         }
         fila.style.display = (modo === 'events' && esEvento)
-          || (modo === 'routes' && !esEvento) ? 'table-row' : 'none';
+          || (modo === 'routes' && !esEvento)
+          || modo === tipoEvento ? 'table-row' : 'none';
       });
     }
   </script>

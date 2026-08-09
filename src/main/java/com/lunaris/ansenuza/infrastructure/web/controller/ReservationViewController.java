@@ -17,6 +17,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.lunaris.ansenuza.application.usecase.WaitingListConversionService;
 import com.lunaris.ansenuza.application.usecase.WaitingListService;
 import com.lunaris.ansenuza.application.usecase.WaitingListReengagementService;
+import com.lunaris.ansenuza.application.usecase.NewsBannerService;
 import org.springframework.web.server.ResponseStatusException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Driver;
@@ -49,6 +50,7 @@ public class ReservationViewController {
     private final WaitingListService waitingListService;
     private final WaitingListConversionService waitingListConversionService;
     private final WaitingListReengagementService waitingListReengagementService;
+    private final NewsBannerService newsBannerService;
 
     @GetMapping("/new")
     public String newReservation(Model model) {
@@ -140,6 +142,15 @@ public class ReservationViewController {
         model.addAttribute("waitingListTotal", waitingListCount);
         model.addAttribute("waitingListMode", waitingListMode);
         model.addAttribute("selectedTravelDate", travelDate);
+        java.util.Map<String, String> eventLabels = new java.util.TreeMap<>();
+        newsBannerService.findEventLabels().forEach((type, title) -> {
+            if (type != null && !type.isBlank()) eventLabels.put(type, title);
+        });
+        waitingListService.findDistinctEventTypes().stream()
+                .filter(type -> type != null && !type.isBlank() && !"GENERAL".equals(type))
+                .forEach(type -> eventLabels.putIfAbsent(
+                        type, type.replace('_', ' ')));
+        model.addAttribute("eventLabels", eventLabels);
         return "passengers";
     }
 

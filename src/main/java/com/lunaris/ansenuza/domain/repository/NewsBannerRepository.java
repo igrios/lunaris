@@ -19,4 +19,8 @@ public interface NewsBannerRepository extends JpaRepository<NewsBanner, UUID> {
             order by banner.createdAt desc
             """)
     List<NewsBanner> findActiveOn(@Param("today") LocalDate today);
+
+    @Query("select distinct banner.eventType from NewsBanner banner "
+            + "where banner.eventType is not null and banner.eventType <> ''")
+    List<String> findDistinctEventTypes();
 }
