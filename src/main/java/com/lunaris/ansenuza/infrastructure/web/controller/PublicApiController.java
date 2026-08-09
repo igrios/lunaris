@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,8 +37,12 @@ public class PublicApiController {
     public List<String> schedules(
             @RequestParam String pickupLocality,
             @RequestParam(required = false) String destination,
-            @RequestParam(required = false) LocalDate travelDate,
-            @RequestParam(required = false) LocalDate date,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE, fallbackPatterns = "dd/MM/yyyy")
+            LocalDate travelDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE, fallbackPatterns = "dd/MM/yyyy")
+            LocalDate date,
             @RequestParam(defaultValue = "false") boolean roundTrip,
             @RequestParam(defaultValue = "false") boolean openReturn) {
         LocalDate requestedDate = travelDate != null ? travelDate : date;

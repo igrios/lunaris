@@ -24,4 +24,17 @@ class SecurityConfigCorsTest {
         assertEquals(List.of("*"), configuration.getAllowedHeaders());
         assertEquals(Boolean.TRUE, configuration.getAllowCredentials());
     }
+
+    @Test
+    void newsBannersAllowAnyPublicFrontendWithoutCredentials() {
+        var source = new SecurityConfig().corsConfigurationSource();
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/news-banners/active");
+
+        var configuration = source.getCorsConfiguration(request);
+
+        assertEquals(List.of("*"), configuration.getAllowedOrigins());
+        assertEquals(Boolean.FALSE, configuration.getAllowCredentials());
+        assertTrue(configuration.getAllowedMethods().containsAll(List.of("GET", "OPTIONS")));
+    }
 }

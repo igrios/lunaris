@@ -34,6 +34,18 @@
             verify(reservations).countReservedSeats(travelDate, "03:00 AM");
             verify(reservations).countReservedSeats(travelDate, "08:00 AM");
         }
+
+        @Test
+        void availableDepartureSchedulesReturnsDefaultBlocksWithoutExclusions() {
+            ReservationRepository reservations = mock(ReservationRepository.class);
+            PricingAndScheduleService service = new PricingAndScheduleService(
+                    mock(FareRepository.class), mock(LocalityRepository.class),
+                    mock(BusinessParameterRepository.class), reservations);
+
+            assertEquals(java.util.List.of("03:00 AM", "08:00 AM"),
+                    service.availableDepartureSchedules(
+                            "Morteros", "Córdoba", LocalDate.of(2026, 8, 20)));
+        }
   
         @Test
         void calculateTripPriceAppliesOneWayRuleAndSeatCount() {

@@ -64,8 +64,10 @@ class PublicApiSecurityIntegrationTest {
 
     @Test
     void activeNewsBannersDoesNotRequireAuthentication() throws Exception {
-        mockMvc.perform(get("/api/v1/news-banners/active"))
-                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/news-banners/active")
+                        .header("Origin", "https://frontend.example.com"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "*"));
     }
 
     @Test

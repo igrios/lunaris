@@ -43,6 +43,7 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news-banners/**").permitAll()
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/drivers/apply",
@@ -51,7 +52,6 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/actuator/**",
                                 "/api/public/**",
-                                "/api/v1/news-banners/**",
                                 "/api/v1/reservations",
                                 "/api/schedules/**",
                                 "/api/reservations/**",
@@ -178,6 +178,13 @@ public class SecurityConfig {
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration publicNewsBanners = new CorsConfiguration();
+        publicNewsBanners.setAllowedOrigins(List.of("*"));
+        publicNewsBanners.setAllowedMethods(List.of("GET", "OPTIONS"));
+        publicNewsBanners.setAllowedHeaders(List.of("*"));
+        publicNewsBanners.setAllowCredentials(false);
+        publicNewsBanners.setMaxAge(3600L);
+        source.registerCorsConfiguration("/api/v1/news-banners/**", publicNewsBanners);
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
