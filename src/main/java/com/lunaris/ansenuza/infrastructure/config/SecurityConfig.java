@@ -58,6 +58,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/v1/portal/**",
                                 "/api/v1/reservations/**",
+                                "/api/v1/waiting-list/request-otp",
+                                "/api/v1/waiting-list/confirm",
                                 "/webhook/**",
                                 "/whatsapp/**")
                         .permitAll()

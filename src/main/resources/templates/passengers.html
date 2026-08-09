@@ -140,7 +140,7 @@
               </thead>
               <tbody>
                 <tr th:each="entry : ${waitingListEntries}"
-                  th:attr="data-status=${entry.status},data-event-type=${entry.eventType},data-travel-date=${entry.travelDate}"
+                  th:attr="data-status=${entry.status != null ? entry.status : ''},data-event-type=${entry.eventType != null ? entry.eventType : ''},data-travel-date=${entry.travelDate != null ? entry.travelDate : ''}"
                   style="display: table-row;">
                   <td th:text="${entry.createdAt != null ? #temporals.format(entry.createdAt, 'dd/MM/yyyy HH:mm') : '-'}">20/08/2026 10:00</td>
                   <td class="fw-semibold" th:text="${entry.passengerName}">Ana Pérez</td>
