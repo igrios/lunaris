@@ -26,12 +26,16 @@ public class NewsBannerService {
 
     @Transactional(readOnly = true)
     public List<NewsBanner> findActive() {
-        return repository.findActiveOn(ArgentinaTime.today());
+        List<NewsBanner> banners = repository.findActiveOn(ArgentinaTime.today());
+        return banners == null ? List.of()
+                : banners.stream().filter(java.util.Objects::nonNull).toList();
     }
 
     @Transactional(readOnly = true)
     public List<NewsBanner> findAll() {
-        return repository.findAllByOrderByCreatedAtDesc();
+        List<NewsBanner> banners = repository.findAllByOrderByCreatedAtDesc();
+        return banners == null ? List.of()
+                : banners.stream().filter(java.util.Objects::nonNull).toList();
     }
 
     @Transactional

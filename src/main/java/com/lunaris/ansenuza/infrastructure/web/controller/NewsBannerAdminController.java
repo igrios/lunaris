@@ -23,9 +23,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import lombok.extern.slf4j.Slf4j;
 
 @Controller
 @RequestMapping("/admin/novedades")
+@Slf4j
 public class NewsBannerAdminController {
 
     private final NewsBannerService service;
@@ -54,14 +56,19 @@ public class NewsBannerAdminController {
 
     @GetMapping
     public String panel(Model model) {
-        java.util.List<com.lunaris.ansenuza.domain.model.NewsBanner> banners = service.findAll();
-        model.addAttribute("banners", banners == null
-                ? java.util.List.of()
-                : banners.stream().filter(java.util.Objects::nonNull).toList());
         model.addAttribute("newsBannerForm", new NewsBannerDto());
-        var specialTrips = specialTripsQuery == null ? null : specialTripsQuery.getAll();
-        model.addAttribute("specialTrips", specialTrips == null ? java.util.List.of() : specialTrips);
         model.addAttribute("cloudinaryCloudName", cloudinaryCloudName);
+        try {
+            model.addAttribute("banners", service.findAll());
+            var specialTrips = specialTripsQuery == null ? null : specialTripsQuery.getAll();
+            model.addAttribute("specialTrips",
+                    specialTrips == null ? java.util.List.of() : specialTrips);
+        } catch (RuntimeException exception) {
+            log.error("Error processing news banner: ", exception);
+            model.addAttribute("banners", java.util.List.of());
+            model.addAttribute("specialTrips", java.util.List.of());
+            model.addAttribute("errorMessage", "No se pudieron cargar las novedades.");
+        }
         return "admin/novedades";
     }
 
@@ -69,11 +76,25 @@ public class NewsBannerAdminController {
     public String create(
             @ModelAttribute("newsBannerForm") NewsBannerDto form,
             RedirectAttributes redirectAttributes) {
-        service.create(form.getTitle(), form.getDescription(), form.getEventType(),
-                Boolean.TRUE.equals(form.getHasWaitingList()),
-                !Boolean.FALSE.equals(form.getActive()), form.getValidUntil(),
-                form.getImageUrl(), form.getImage());
-        redirectAttributes.addFlashAttribute("successMessage", "Novedad publicada correctamente.");
+        if (form == null) {
+            form = new NewsBannerDto();
+        }
+        if (form.getHasWaitingList() == null) form.setHasWaitingList(false);
+        if (form.getEventType() == null || form.getEventType().isBlank()) {
+            form.setEventType("GENERAL");
+        }
+        if (form.getActive() == null) form.setActive(true);
+        try {
+            service.create(form.getTitle(), form.getDescription(), form.getEventType(),
+                    form.getHasWaitingList(), form.getActive(), form.getValidUntil(),
+                    form.getImageUrl(), form.getImage());
+            redirectAttributes.addFlashAttribute(
+                    "successMessage", "Novedad publicada correctamente.");
+        } catch (RuntimeException exception) {
+            log.error("Error processing news banner: ", exception);
+            redirectAttributes.addFlashAttribute(
+                    "errorMessage", "No se pudo procesar la novedad. Revisá el flyer y los datos.");
+        }
         return "redirect:/admin/novedades";
     }
 

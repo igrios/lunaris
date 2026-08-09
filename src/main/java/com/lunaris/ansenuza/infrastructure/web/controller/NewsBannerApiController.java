@@ -34,7 +34,10 @@ public class NewsBannerApiController {
         private static NewsBannerResponse from(NewsBanner banner) {
             return new NewsBannerResponse(
                     banner.getId(), banner.getTitle(), banner.getDescription(),
-                    banner.getImageUrl(), banner.getEventType(), banner.isHasWaitingList());
+                    banner.getImageUrl(),
+                    banner.getEventType() == null || banner.getEventType().isBlank()
+                            ? "GENERAL" : banner.getEventType(),
+                    banner.isHasWaitingList());
         }
     }
 }
