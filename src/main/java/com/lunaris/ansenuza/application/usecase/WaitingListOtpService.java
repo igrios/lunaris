@@ -1,7 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
-import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
+import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import com.lunaris.ansenuza.shared.PhoneUtils;
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -21,15 +21,15 @@ public class WaitingListOtpService {
 
     private static final String INVALID_CODE = "Código OTP inválido o vencido";
 
-    private final MessagingPort messagingPort;
+    private final WhatsAppService whatsAppService;
     private final Duration ttl;
     private final SecureRandom random = new SecureRandom();
     private final Map<String, Challenge> challenges = new ConcurrentHashMap<>();
 
     public WaitingListOtpService(
-            MessagingPort messagingPort,
+            WhatsAppService whatsAppService,
             @Value("${lunaris.waiting-list.otp-ttl:PT5M}") Duration ttl) {
-        this.messagingPort = messagingPort;
+        this.whatsAppService = whatsAppService;
         this.ttl = ttl;
     }
 
@@ -38,7 +38,8 @@ public class WaitingListOtpService {
         String code = String.format("%04d", random.nextInt(10_000));
         challenges.put(phone, new Challenge(code, Instant.now().plus(ttl)));
         try {
-            messagingPort.sendText(phone, "Tu código de verificación para Lunaris es: " + code);
+            whatsAppService.sendOtpMessage(phone, code);
+            logger.info("WhatsApp OTP sent for special event waiting list to {}", phone);
         } catch (RuntimeException exception) {
             logger.warn("No se pudo enviar OTP por WhatsApp para {}. Se conserva el desafío.", phone,
                     exception);

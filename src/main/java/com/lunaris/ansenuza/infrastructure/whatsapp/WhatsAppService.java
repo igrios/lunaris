@@ -64,6 +64,11 @@ public class WhatsAppService implements MessagingPort {
         sendMessage(to, message);
     }
 
+    public void sendOtpMessage(String phoneNumber, String otpCode) {
+        sendMessage(phoneNumber,
+                "Tu código de verificación para Lunaris es: " + otpCode);
+    }
+
     @Override
     public void sendButtons(String to, String header, String body, List<Button> buttons) {
         sendInteractiveButtons(to, header, body, buttons.stream()
