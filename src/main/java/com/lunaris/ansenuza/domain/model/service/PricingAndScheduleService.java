@@ -4,21 +4,24 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.domain.repository.BusinessParameterRepository;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.model.TripType;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class PricingAndScheduleService {
 
+    private static final List<String> DEPARTURE_BLOCKS = List.of("03:00 AM", "08:00 AM");
     private static final String ONE_WAY_EXTRA_AMOUNT = "ONE_WAY_EXTRA_AMOUNT";
     private static final java.math.BigDecimal DEFAULT_ONE_WAY_EXTRA = new java.math.BigDecimal("8000");
 
@@ -26,6 +29,9 @@ public class PricingAndScheduleService {
     private final LocalityRepository localityRepository;
     private final BusinessParameterRepository businessParameterRepository;
     private final ReservationRepository reservationRepository; 
+
+    @Value("${lunaris.trips.capacity:12}")
+    private int tripCapacity = 12;
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Map<String, Integer> MINUTES_VUELTA_FROM_HUB = new HashMap<>();
@@ -173,6 +179,20 @@ public class PricingAndScheduleService {
 
     public long countReservedSeats(LocalDate date, String schedule) {
         return reservationRepository.countReservedSeats(date, schedule);
+    }
+
+    /**
+     * Bloques de salida compartidos por el bot y la API pública.
+     * La disponibilidad corresponde únicamente al tramo de ida y a su fecha de viaje.
+     */
+    public List<String> availableDepartureSchedules(
+            String pickupLocality, String destination, LocalDate travelDate) {
+        if (pickupLocality == null || pickupLocality.isBlank() || travelDate == null) {
+            return List.of();
+        }
+        return DEPARTURE_BLOCKS.stream()
+                .filter(schedule -> countReservedSeats(travelDate, schedule) < tripCapacity)
+                .toList();
     }
 
     /**

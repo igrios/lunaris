@@ -13,7 +13,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,30 +28,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class PublicApiController {
 
-    private static final List<String> SCHEDULES = List.of("03:00 AM", "08:00 AM");
-
     private final CreateReservationUseCase createReservationUseCase;
     private final SubmitDriverApplicationUseCase submitDriverApplicationUseCase;
     private final PricingAndScheduleService scheduleService;
 
-    @Value("${lunaris.trips.capacity:12}")
-    private int tripCapacity = 12;
-
-    @GetMapping("/schedules")
-    public List<ScheduleResponse> schedules(
+    @GetMapping({"/schedules", "/v1/schedules"})
+    public List<String> schedules(
+            @RequestParam String pickupLocality,
+            @RequestParam(required = false) String destination,
             @RequestParam(required = false) LocalDate travelDate,
-            @RequestParam(required = false) LocalDate date) {
+            @RequestParam(required = false) LocalDate date,
+            @RequestParam(defaultValue = "false") boolean roundTrip,
+            @RequestParam(defaultValue = "false") boolean openReturn) {
         LocalDate requestedDate = travelDate != null ? travelDate : date;
         LocalDate effectiveDate = requestedDate != null
                 ? requestedDate
                 : com.lunaris.ansenuza.shared.ArgentinaTime.today();
-        return SCHEDULES.stream()
-                .map(schedule -> {
-                    long reserved = scheduleService.countReservedSeats(effectiveDate, schedule);
-                    return new ScheduleResponse(
-                            effectiveDate, schedule, Math.max(0, tripCapacity - reserved), reserved < tripCapacity);
-                })
-                .toList();
+        // roundTrip/openReturn no agregan horarios de regreso: sólo se consulta la ida.
+        return scheduleService.availableDepartureSchedules(
+                pickupLocality, destination, effectiveDate);
     }
 
     @PostMapping({"/reservations", "/public/reservations", "/v1/reservations"})
@@ -73,10 +67,4 @@ public class PublicApiController {
                 "status", application.getStatus().name()));
     }
 
-    public record ScheduleResponse(
-            LocalDate date,
-            String departureTime,
-            long availableSeats,
-            boolean available) {
-    }
 }

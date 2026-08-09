@@ -18,6 +18,22 @@
     import com.lunaris.ansenuza.domain.repository.ReservationRepository;
   
     class PricingAndScheduleServiceTest {
+
+        @Test
+        void availableDepartureSchedulesUsesOutgoingDateAndFiltersFullBlocks() {
+            ReservationRepository reservations = mock(ReservationRepository.class);
+            LocalDate travelDate = LocalDate.of(2026, 8, 20);
+            when(reservations.countReservedSeats(travelDate, "03:00 AM")).thenReturn(12L);
+            when(reservations.countReservedSeats(travelDate, "08:00 AM")).thenReturn(4L);
+            PricingAndScheduleService service = new PricingAndScheduleService(
+                    mock(FareRepository.class), mock(LocalityRepository.class),
+                    mock(BusinessParameterRepository.class), reservations);
+
+            assertEquals(java.util.List.of("08:00 AM"),
+                    service.availableDepartureSchedules("Morteros", "Córdoba", travelDate));
+            verify(reservations).countReservedSeats(travelDate, "03:00 AM");
+            verify(reservations).countReservedSeats(travelDate, "08:00 AM");
+        }
   
         @Test
         void calculateTripPriceAppliesOneWayRuleAndSeatCount() {

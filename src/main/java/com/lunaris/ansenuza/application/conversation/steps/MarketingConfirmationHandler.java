@@ -31,22 +31,31 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
         String body = message.body().trim().toLowerCase();
 
         if ("yes_reserve".equals(body)) {
+            List<String> schedules = pricingAndScheduleService.availableDepartureSchedules(
+                    session.getPickupLocality(), session.getDestination(), session.getTravelDate());
+            if (schedules.isEmpty()) {
+                messaging.sendText(phoneNumber,
+                        "No hay horarios con disponibilidad para la fecha seleccionada.");
+                return;
+            }
             session.setCurrentStep("SELECT_SCHEDULE");
             conversationSessionRepository.saveAndFlush(session);
 
-            String primerHorario = pricingAndScheduleService
-                    .calculateEstimatedPickupTime(session.getPickupLocality(), "03:00");
-            String segundoHorario = pricingAndScheduleService
-                    .calculateEstimatedPickupTime(session.getPickupLocality(), "08:00");
-
+            String scheduleDetails = schedules.stream()
+                    .map(schedule -> "• Pasa aprox *" + pricingAndScheduleService
+                            .calculateEstimatedPickupTime(
+                                    session.getPickupLocality(), schedule.substring(0, 5)) + "*")
+                    .collect(java.util.stream.Collectors.joining("\n"));
             String infoTexto = "⏱️ *Horarios de retiro por tu domicilio:*\n"
-                    + "• Opción 1: Pasa aprox *" + primerHorario + "*\n"
-                    + "• Opción 2: Pasa aprox *" + segundoHorario + "*\n\n"
-                    + "Seleccioná el horario en el que preferís viajar:";
+                    + scheduleDetails + "\n\nSeleccioná el horario en el que preferís viajar:";
 
             messaging.sendButtons(phoneNumber, "Selección de Horario", infoTexto,
-                    List.of(new Button("time_0300", "Primer Horario 🌙"),
-                            new Button("time_0800", "Segundo Horario ☀️")));
+                    schedules.stream()
+                            .map(schedule -> new Button(
+                                    "03:00 AM".equals(schedule) ? "time_0300" : "time_0800",
+                                    "03:00 AM".equals(schedule)
+                                            ? "Primer Horario 🌙" : "Segundo Horario ☀️"))
+                            .toList());
             return;
         }
         if ("no_cancel".equals(body)) {
