@@ -30,5 +30,9 @@ class AdminCrudTemplatesTest {
 
         assertThat(template).contains("Viajes especiales", "cloudinary-input", "trip-status");
         assertThat(template).contains("/admin/novedades/viajes", "name=\"_csrf\"");
+        assertThat(template).contains("th:object=\"${newsBannerForm}\"");
+        assertThat(template).contains("th:field=\"*{eventType}\"");
+        assertThat(template).contains("banner.eventType != null ? banner.eventType : 'GENERAL'");
+        assertThat(template).contains("banner.hasWaitingList != null ? banner.hasWaitingList : false");
     }
 }

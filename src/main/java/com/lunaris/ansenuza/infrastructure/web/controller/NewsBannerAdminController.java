@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.NewsBannerService;
+import com.lunaris.ansenuza.infrastructure.web.dto.NewsBannerDto;
 import com.lunaris.ansenuza.domain.port.in.CreateSpecialTripUseCase;
 import com.lunaris.ansenuza.domain.port.in.GetSpecialTripsQuery;
 import com.lunaris.ansenuza.domain.port.in.SpecialTripCommand;
@@ -15,12 +16,12 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -53,26 +54,25 @@ public class NewsBannerAdminController {
 
     @GetMapping
     public String panel(Model model) {
-        model.addAttribute("banners", service.findAll());
-        model.addAttribute("specialTrips", specialTripsQuery == null ? java.util.List.of() : specialTripsQuery.getAll());
+        java.util.List<com.lunaris.ansenuza.domain.model.NewsBanner> banners = service.findAll();
+        model.addAttribute("banners", banners == null
+                ? java.util.List.of()
+                : banners.stream().filter(java.util.Objects::nonNull).toList());
+        model.addAttribute("newsBannerForm", new NewsBannerDto());
+        var specialTrips = specialTripsQuery == null ? null : specialTripsQuery.getAll();
+        model.addAttribute("specialTrips", specialTrips == null ? java.util.List.of() : specialTrips);
         model.addAttribute("cloudinaryCloudName", cloudinaryCloudName);
         return "admin/novedades";
     }
 
     @PostMapping
     public String create(
-            @RequestParam String title,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String eventType,
-            @RequestParam(defaultValue = "false") boolean hasWaitingList,
-            @RequestParam(defaultValue = "true") boolean active,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate validUntil,
-            @RequestParam(required = false) String imageUrl,
-            @RequestParam(value = "image", required = false) MultipartFile image,
+            @ModelAttribute("newsBannerForm") NewsBannerDto form,
             RedirectAttributes redirectAttributes) {
-        service.create(title, description, eventType, hasWaitingList, active,
-                validUntil, imageUrl, image);
+        service.create(form.getTitle(), form.getDescription(), form.getEventType(),
+                Boolean.TRUE.equals(form.getHasWaitingList()),
+                !Boolean.FALSE.equals(form.getActive()), form.getValidUntil(),
+                form.getImageUrl(), form.getImage());
         redirectAttributes.addFlashAttribute("successMessage", "Novedad publicada correctamente.");
         return "redirect:/admin/novedades";
     }

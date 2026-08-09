@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.application.usecase.NewsBannerService;
+import com.lunaris.ansenuza.infrastructure.web.dto.NewsBannerDto;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ class NewsBannerAdminControllerTest {
 
         assertEquals("admin/novedades", controller.panel(model));
         assertEquals(List.of(), model.get("banners"));
+        assertEquals(NewsBannerDto.class, model.get("newsBannerForm").getClass());
     }
 
     @Test
