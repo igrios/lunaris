@@ -24,7 +24,7 @@ public class PublicCatalogApiController {
         return ResponseEntity.ok(new SchedulesResponse(SCHEDULES));
     }
 
-    @GetMapping({"/api/public/localities", "/api/v1/localities"})
+    @GetMapping({"/api/public/localities", "/api/v1/localities", "/api/v1/fares/localities"})
     public ResponseEntity<List<LocalityResponse>> localities() {
         List<LocalityResponse> response = localityService.findAllWithActiveFare().stream()
                 .map(locality -> new LocalityResponse(

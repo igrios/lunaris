@@ -20,7 +20,7 @@ class PublicSchedulesApiTest {
     void roundTripReturnsOnlyCleanAvailableOutgoingBlocks() throws Exception {
         ScheduleService schedules = mock(ScheduleService.class);
         LocalDate travelDate = LocalDate.of(2026, 8, 20);
-        when(schedules.getSchedulesForWeb(travelDate)).thenReturn(List.of(
+        when(schedules.getSchedulesForWeb("Morteros", travelDate)).thenReturn(List.of(
                 new ScheduleDto("03:00", "03:00", 10, true),
                 new ScheduleDto("08:00", "08:00", 0, false)));
         SchedulesController controller = new SchedulesController(schedules);
@@ -45,7 +45,7 @@ class PublicSchedulesApiTest {
     void acceptsArgentineTravelDateFormat() throws Exception {
         ScheduleService schedules = mock(ScheduleService.class);
         LocalDate travelDate = LocalDate.of(2026, 8, 20);
-        when(schedules.getSchedulesForWeb(travelDate)).thenReturn(List.of(
+        when(schedules.getSchedulesForWeb("Morteros", travelDate)).thenReturn(List.of(
                 new ScheduleDto("03:00", "03:00", 10, true),
                 new ScheduleDto("08:00", "08:00", 9, true)));
         SchedulesController controller = new SchedulesController(schedules);

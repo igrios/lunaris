@@ -12,7 +12,7 @@ import com.lunaris.ansenuza.domain.model.ChatMessage;
 import com.lunaris.ansenuza.domain.model.Reservation; // 🚐 Importación de tu modelo de Reserva
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
-import com.lunaris.ansenuza.domain.repository.LocalityRepository; // 📍 Tu repositorio de localidades
+import com.lunaris.ansenuza.application.usecase.LocalityService;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.model.service.WhatsAppConversationWindowService;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -25,7 +25,7 @@ public class ChatController {
 
     private final ChatMessageRepository messageRepository;
     private final ConversationSessionRepository sessionRepository;
-    private final LocalityRepository localityRepository; // 👈 Agregado para soportar el formulario de la derecha
+    private final LocalityService localityService;
     private final PassengerRepository passengerRepository;
     private final WhatsAppConversationWindowService conversationWindowService;
     private final WhatsAppService whatsAppService;
@@ -44,7 +44,7 @@ public class ChatController {
                 conversationWindowService.expirationFor(phoneNumber).orElse(null));
 
         // 2. Datos dinámicos para habilitar la Nueva Reserva Asistida en espejo
-        model.addAttribute("localities", localityRepository.findAll()); 
+        model.addAttribute("localities", localityService.findAllWithActiveFare());
         model.addAttribute("reservation", new Reservation()); 
 
         return "admin/chat-room";

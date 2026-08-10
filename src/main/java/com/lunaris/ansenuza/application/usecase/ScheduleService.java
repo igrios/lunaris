@@ -14,8 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScheduleService {
 
     private final PricingAndScheduleService pricingAndScheduleService;
+    private final LocalityService localityService;
 
-    public List<ScheduleDto> getSchedulesForWeb(LocalDate travelDate) {
+    public List<ScheduleDto> getSchedulesForWeb(String pickupLocality, LocalDate travelDate) {
+        if (!isActivePickupLocality(pickupLocality)) {
+            return List.of();
+        }
         return pricingAndScheduleService.departureSchedules().stream()
                 .map(schedule -> {
                     int availableSeats = pricingAndScheduleService
@@ -29,6 +33,9 @@ public class ScheduleService {
 
     public List<String> getSchedulesForBot(
             String pickupLocality, String destination, LocalDate travelDate) {
+        if (!isActivePickupLocality(pickupLocality)) {
+            return List.of();
+        }
         // El bot selecciona el bloque antes de solicitar la fecha de viaje.
         // Sin fecha todavía no corresponde evaluar ocupación.
         if (travelDate == null) {
@@ -36,5 +43,13 @@ public class ScheduleService {
         }
         return pricingAndScheduleService.availableDepartureSchedules(
                 pickupLocality, destination, travelDate);
+    }
+
+    private boolean isActivePickupLocality(String pickupLocality) {
+        if (pickupLocality == null || pickupLocality.isBlank()) {
+            return true;
+        }
+        return localityService.findAllWithActiveFare().stream()
+                .anyMatch(locality -> locality.getName().equalsIgnoreCase(pickupLocality.trim()));
     }
 }

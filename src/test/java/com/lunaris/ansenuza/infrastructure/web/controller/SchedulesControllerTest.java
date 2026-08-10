@@ -37,7 +37,8 @@ class SchedulesControllerTest {
 
     @Test
     void versionedSchedulesArePublicAndPreserveFrontendContract() throws Exception {
-        when(scheduleService.getSchedulesForWeb(org.mockito.ArgumentMatchers.any()))
+        when(scheduleService.getSchedulesForWeb(
+                org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of(
                         new ScheduleDto("03:00", "03:00", 19, true),
                         new ScheduleDto("08:00", "08:00", 0, false)));

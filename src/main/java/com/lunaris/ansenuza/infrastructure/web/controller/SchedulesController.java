@@ -34,6 +34,6 @@ public class SchedulesController {
         LocalDate requestedDate = travelDate != null ? travelDate : date;
         LocalDate effectiveDate = requestedDate != null ? requestedDate : ArgentinaTime.today();
 
-        return scheduleService.getSchedulesForWeb(effectiveDate);
+        return scheduleService.getSchedulesForWeb(pickupLocality, effectiveDate);
     }
 }

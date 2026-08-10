@@ -63,6 +63,12 @@ class PublicApiSecurityIntegrationTest {
     }
 
     @Test
+    void fareLocalitiesDoesNotRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/fares/localities"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void publicSchedulesDoesNotRequireAuthentication() throws Exception {
         mockMvc.perform(get("/api/public/schedules"))
                 .andExpect(status().isOk());
