@@ -21,6 +21,6 @@ public interface LocalityRepository extends JpaRepository<Locality, UUID> {
             WHERE f.amount IS NOT NULL AND f.amount > 0
             ORDER BY l.name ASC
             """)
-    List<Locality> findLocalitiesWithFares();
+    List<Locality> findAllWithActiveFare();
 
 }

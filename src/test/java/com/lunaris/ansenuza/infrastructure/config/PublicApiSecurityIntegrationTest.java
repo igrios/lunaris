@@ -8,9 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
 import com.lunaris.ansenuza.application.usecase.NewsBannerService;
+import com.lunaris.ansenuza.application.usecase.LocalityService;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
-import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.infrastructure.web.controller.PublicCatalogApiController;
 import com.lunaris.ansenuza.infrastructure.web.controller.NewsBannerApiController;
 import java.util.List;
@@ -30,7 +30,7 @@ class PublicApiSecurityIntegrationTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private LocalityRepository localityRepository;
+    private LocalityService localityService;
 
     @MockitoBean
     private FareRepository fareRepository;
@@ -46,7 +46,7 @@ class PublicApiSecurityIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        when(localityRepository.findLocalitiesWithFares()).thenReturn(List.of());
+        when(localityService.findAllWithActiveFare()).thenReturn(List.of());
         when(newsBannerService.findActive()).thenReturn(List.of());
     }
 

@@ -8,8 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Locality;
+import com.lunaris.ansenuza.application.usecase.LocalityService;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
-import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -21,16 +21,16 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class PublicCatalogApiContractTest {
 
-    private LocalityRepository localityRepository;
+    private LocalityService localityService;
     private FareRepository fareRepository;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        localityRepository = mock(LocalityRepository.class);
+        localityService = mock(LocalityService.class);
         fareRepository = mock(FareRepository.class);
         mockMvc = MockMvcBuilders.standaloneSetup(
-                        new PublicCatalogApiController(localityRepository, fareRepository))
+                        new PublicCatalogApiController(localityService, fareRepository))
                 .build();
     }
 
@@ -57,7 +57,7 @@ class PublicCatalogApiContractTest {
                 .localityName("Miramar")
                 .amount(new BigDecimal("62000.00"))
                 .build();
-        when(localityRepository.findLocalitiesWithFares()).thenReturn(List.of(locality));
+        when(localityService.findAllWithActiveFare()).thenReturn(List.of(locality));
         when(fareRepository.findFirstByLocalityNameIgnoreCase("Miramar"))
                 .thenReturn(Optional.of(fare));
 
@@ -84,7 +84,7 @@ class PublicCatalogApiContractTest {
                 .localityName("Morteros")
                 .amount(new BigDecimal("100000"))
                 .build();
-        when(localityRepository.findLocalitiesWithFares()).thenReturn(List.of(locality));
+        when(localityService.findAllWithActiveFare()).thenReturn(List.of(locality));
         when(fareRepository.findFirstByLocalityNameIgnoreCase("Morteros"))
                 .thenReturn(Optional.of(fare));
 

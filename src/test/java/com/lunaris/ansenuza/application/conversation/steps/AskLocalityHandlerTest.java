@@ -31,13 +31,13 @@ class AskLocalityHandlerTest {
                 .phoneNumber("543511112222")
                 .currentStep("ASK_LOCALITY")
                 .build();
-        when(localities.findLocalitiesWithFares()).thenReturn(List.of(
+        when(localities.findAllWithActiveFare()).thenReturn(List.of(
                 Locality.builder().name("Morteros").build()));
 
         handler.handle(session, new IncomingMessage(
                 session.getPhoneNumber(), IncomingMessage.MessageType.TEXT, "2", null));
 
-        verify(localities).findLocalitiesWithFares();
+        verify(localities).findAllWithActiveFare();
         verify(messaging).sendText(eq(session.getPhoneNumber()), contains("Selección inválida"));
         verify(sessions, never()).saveAndFlush(session);
     }

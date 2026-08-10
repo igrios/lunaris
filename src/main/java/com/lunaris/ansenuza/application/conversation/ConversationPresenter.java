@@ -28,7 +28,7 @@ public class ConversationPresenter {
     private final MessagingPort messaging;
 
     public void sendAllLocalitiesList(String phoneNumber, String saludo) {
-        List<Locality> localities = localityRepository.findLocalitiesWithFares();
+        List<Locality> localities = localityRepository.findAllWithActiveFare();
         StringBuilder menu = new StringBuilder(saludo)
                 .append("📍 *¿Desde qué localidad salís?*\n\n");
         int index = 1;

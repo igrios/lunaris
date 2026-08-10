@@ -57,7 +57,7 @@ public class ReservationViewController {
         model.addAttribute("reservation", new CreateReservationForm());
         
         // 🎯 Usamos el método filtrado para traer solo los pueblos con tarifas comerciales activas
-        var localidadesConTarifa = localityRepository.findLocalitiesWithFares();
+        var localidadesConTarifa = localityRepository.findAllWithActiveFare();
         
         model.addAttribute("origenes", localidadesConTarifa);
         model.addAttribute("destinos", localidadesConTarifa);
@@ -72,7 +72,7 @@ public class ReservationViewController {
             Model model) {
 
         if (bindingResult.hasErrors()) {
-            var localidadesConTarifa = localityRepository.findLocalitiesWithFares();
+            var localidadesConTarifa = localityRepository.findAllWithActiveFare();
             model.addAttribute("origenes", localidadesConTarifa);
             model.addAttribute("destinos", localidadesConTarifa);
             return "reservation-form";

@@ -45,7 +45,7 @@ public class AskLocalityHandler implements ConversationStepHandler {
         }
         try {
             int option = Integer.parseInt(body);
-            List<Locality> localities = localityRepository.findLocalitiesWithFares();
+            List<Locality> localities = localityRepository.findAllWithActiveFare();
 
             if (option < 1 || option > localities.size()) {
                 messaging.sendText(phoneNumber,

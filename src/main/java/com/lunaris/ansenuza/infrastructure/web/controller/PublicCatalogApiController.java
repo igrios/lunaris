@@ -1,7 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
+import com.lunaris.ansenuza.application.usecase.LocalityService;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
-import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +16,7 @@ public class PublicCatalogApiController {
 
     private static final List<String> SCHEDULES = List.of("03:00", "08:00");
 
-    private final LocalityRepository localityRepository;
+    private final LocalityService localityService;
     private final FareRepository fareRepository;
 
     @GetMapping("/api/public/schedules")
@@ -26,7 +26,7 @@ public class PublicCatalogApiController {
 
     @GetMapping({"/api/public/localities", "/api/v1/localities"})
     public ResponseEntity<List<LocalityResponse>> localities() {
-        List<LocalityResponse> response = localityRepository.findLocalitiesWithFares().stream()
+        List<LocalityResponse> response = localityService.findAllWithActiveFare().stream()
                 .map(locality -> new LocalityResponse(
                         locality.getId(),
                         locality.getName(),
