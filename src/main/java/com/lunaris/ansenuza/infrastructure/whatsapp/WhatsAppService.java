@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.LongSupplier;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpEntity;
@@ -30,6 +33,10 @@ public class WhatsAppService implements MessagingPort {
     private static final String ARGENTINA_COUNTRY_CODE = "54";
     private static final String ARGENTINA_MOBILE_PREFIX = "549";
     private static final int ARGENTINA_NATIONAL_NUMBER_LENGTH = 10;
+    private static final long MIN_RECIPIENT_GAP_MILLIS = 300L;
+    private static final long PAIR_RATE_LIMIT_BACKOFF_MILLIS = 1_000L;
+    private static final Pattern PAIR_RATE_LIMIT_CODE = Pattern.compile(
+            "\\\"code\\\"\\s*:\\s*131056");
 
     private static final Map<String, String> TEMPLATE_LANGUAGES = Map.of(
             "despierta_chofer", "en",
@@ -52,7 +59,21 @@ public class WhatsAppService implements MessagingPort {
     @Value("${lunaris.support-phone:}")
     private String supportPhone;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+    private final LongSupplier nanoTime;
+    private final Sleeper sleeper;
+    private final Map<String, Long> lastSendNanosByRecipient = new ConcurrentHashMap<>();
+    private final Map<String, Object> recipientLocks = new ConcurrentHashMap<>();
+
+    public WhatsAppService() {
+        this(new RestTemplate(), System::nanoTime, Thread::sleep);
+    }
+
+    WhatsAppService(RestTemplate restTemplate, LongSupplier nanoTime, Sleeper sleeper) {
+        this.restTemplate = restTemplate;
+        this.nanoTime = nanoTime;
+        this.sleeper = sleeper;
+    }
 
     // MENSAJE TEXTO TRADICIONAL
     public void sendMessage(String phoneNumber, String message) {
@@ -348,25 +369,91 @@ public class WhatsAppService implements MessagingPort {
         }
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(sanitizedBody, headers);
         String destination = (String) sanitizedBody.get("to");
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-            log.info("Éxito Meta [{}]: Envío hacia {}. Status: {}", tipoMensaje, destination, response.getStatusCode());
-            return response.getStatusCode().is2xxSuccessful();
-        } catch (HttpClientErrorException e) {
-            if (isTemplateUnavailable(
-                    tipoMensaje, e.getStatusCode().value(), e.getResponseBodyAsString())) {
-                log.warn(
-                        "Plantilla de Meta no disponible o en revisión [{}] para {}. "
-                                + "La operación principal continúa. Respuesta: {}",
-                        tipoMensaje, destination, e.getResponseBodyAsString());
+        Object recipientLock = recipientLocks.computeIfAbsent(destination, ignored -> new Object());
+        synchronized (recipientLock) {
+            if (!awaitRecipientThrottle(destination)) {
                 return false;
             }
-            log.error("Error de Meta HTTP [{}]: {}", e.getStatusCode(), e.getResponseBodyAsString());
-            return false;
-        } catch (Exception e) {
-            log.error("Falla de red en HTTP call Meta: ", e);
+            try {
+                return postToMeta(url, request, tipoMensaje, destination);
+            } catch (HttpClientErrorException exception) {
+                if (isPairRateLimit(exception)) {
+                    log.warn("WhatsApp Rate Limit hit for recipient {}. Applying backoff retry...",
+                            destination);
+                    if (!sleep(PAIR_RATE_LIMIT_BACKOFF_MILLIS)) {
+                        return false;
+                    }
+                    try {
+                        return postToMeta(url, request, tipoMensaje, destination);
+                    } catch (HttpClientErrorException retryException) {
+                        log.warn("WhatsApp Rate Limit retry failed for recipient {}. "
+                                + "Conversation state is preserved. Response: {}",
+                                destination, retryException.getResponseBodyAsString());
+                        return false;
+                    }
+                }
+                return handleMetaClientError(tipoMensaje, destination, exception);
+            } catch (Exception exception) {
+                log.error("Falla de red en HTTP call Meta: ", exception);
+                return false;
+            } finally {
+                lastSendNanosByRecipient.put(destination, nanoTime.getAsLong());
+            }
+        }
+    }
+
+    private boolean postToMeta(String url, HttpEntity<Map<String, Object>> request,
+            String messageType, String destination) {
+        ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+        log.info("Éxito Meta [{}]: Envío hacia {}. Status: {}",
+                messageType, destination, response.getStatusCode());
+        return response.getStatusCode().is2xxSuccessful();
+    }
+
+    private boolean handleMetaClientError(
+            String messageType, String destination, HttpClientErrorException exception) {
+        if (isTemplateUnavailable(messageType, exception.getStatusCode().value(),
+                exception.getResponseBodyAsString())) {
+            log.warn("Plantilla de Meta no disponible o en revisión [{}] para {}. "
+                            + "La operación principal continúa. Respuesta: {}",
+                    messageType, destination, exception.getResponseBodyAsString());
             return false;
         }
+        log.error("Error de Meta HTTP [{}]: {}", exception.getStatusCode(),
+                exception.getResponseBodyAsString());
+        return false;
+    }
+
+    private boolean awaitRecipientThrottle(String destination) {
+        Long previousSend = lastSendNanosByRecipient.get(destination);
+        if (previousSend == null) {
+            return true;
+        }
+        long elapsedMillis = Math.max(0L,
+                (nanoTime.getAsLong() - previousSend) / 1_000_000L);
+        long remainingMillis = MIN_RECIPIENT_GAP_MILLIS - elapsedMillis;
+        return remainingMillis <= 0 || sleep(remainingMillis);
+    }
+
+    private boolean sleep(long millis) {
+        try {
+            sleeper.sleep(millis);
+            return true;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            log.warn("Envío a Meta interrumpido durante el backoff.");
+            return false;
+        }
+    }
+
+    static boolean isPairRateLimit(HttpClientErrorException exception) {
+        return exception.getStatusCode().value() == 400
+                && PAIR_RATE_LIMIT_CODE.matcher(exception.getResponseBodyAsString()).find();
+    }
+
+    @FunctionalInterface
+    interface Sleeper {
+        void sleep(long millis) throws InterruptedException;
     }
 // 📦 Agregá este método al final de tu archivo WhatsAppService.java
 public void sendMediaMessage(String to, String type, String mediaUrl, String caption) {
@@ -394,12 +481,10 @@ public void sendMediaMessage(String to, String type, String mediaUrl, String cap
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
         headers.setBearerAuth(this.accessToken); // 👈 Corregido con tu variable: accessToken
 
-        org.springframework.http.HttpEntity<java.util.Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(body, headers);
-        
-        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        restTemplate.postForEntity(url, entity, String.class);
-        
-        log.info("[WhatsApp API] Comprobante manual enviado con éxito al número: {}", to);
+        boolean sent = executePostCall(url, headers, body, "COMPROBANTE MANUAL");
+        if (sent) {
+            log.info("[WhatsApp API] Comprobante manual enviado con éxito al número: {}", to);
+        }
 
     } catch (Exception e) {
         log.error("[CRÍTICO] Error al enviar the comprobante por WhatsApp API al número {}: ", to, e);
