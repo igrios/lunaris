@@ -40,13 +40,14 @@ class SchedulesControllerTest {
         when(scheduleService.getSchedulesForWeb(
                 org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of(
-                        new ScheduleDto("03:00", "03:00", 19, true),
-                        new ScheduleDto("08:00", "08:00", 0, false)));
+                        new ScheduleDto("03:00", "03:00", "03:00 AM", 19, true),
+                        new ScheduleDto("08:00", "08:00", "08:00 AM", 0, false)));
 
         mockMvc.perform(get("/api/v1/schedules"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("03:00"))
                 .andExpect(jsonPath("$[0].departureTime").value("03:00"))
+                .andExpect(jsonPath("$[0].label").value("03:00 AM"))
                 .andExpect(jsonPath("$[0].availableSeats").value(19))
                 .andExpect(jsonPath("$[0].available").value(true))
                 .andExpect(jsonPath("$[1].departureTime").value("08:00"))

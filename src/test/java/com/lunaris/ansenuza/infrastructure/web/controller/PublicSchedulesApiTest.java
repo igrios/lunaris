@@ -21,8 +21,8 @@ class PublicSchedulesApiTest {
         ScheduleService schedules = mock(ScheduleService.class);
         LocalDate travelDate = LocalDate.of(2026, 8, 20);
         when(schedules.getSchedulesForWeb("Morteros", travelDate)).thenReturn(List.of(
-                new ScheduleDto("03:00", "03:00", 10, true),
-                new ScheduleDto("08:00", "08:00", 0, false)));
+                new ScheduleDto("03:00", "03:00", "03:00 AM", 10, true),
+                new ScheduleDto("08:00", "08:00", "08:00 AM", 0, false)));
         SchedulesController controller = new SchedulesController(schedules);
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
 
@@ -36,6 +36,7 @@ class PublicSchedulesApiTest {
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].id").value("03:00"))
                 .andExpect(jsonPath("$[0].departureTime").value("03:00"))
+                .andExpect(jsonPath("$[0].label").value("03:00 AM"))
                 .andExpect(jsonPath("$[0].availableSeats").value(10))
                 .andExpect(jsonPath("$[0].available").value(true))
                 .andExpect(jsonPath("$[1].available").value(false));
@@ -46,8 +47,8 @@ class PublicSchedulesApiTest {
         ScheduleService schedules = mock(ScheduleService.class);
         LocalDate travelDate = LocalDate.of(2026, 8, 20);
         when(schedules.getSchedulesForWeb("Morteros", travelDate)).thenReturn(List.of(
-                new ScheduleDto("03:00", "03:00", 10, true),
-                new ScheduleDto("08:00", "08:00", 9, true)));
+                new ScheduleDto("03:00", "03:00", "03:00 AM", 10, true),
+                new ScheduleDto("08:00", "08:00", "08:00 AM", 9, true)));
         SchedulesController controller = new SchedulesController(schedules);
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
 
@@ -57,6 +58,7 @@ class PublicSchedulesApiTest {
                         .param("travelDate", "20/08/2026"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].departureTime").value("03:00"))
+                .andExpect(jsonPath("$[0].label").value("03:00 AM"))
                 .andExpect(jsonPath("$[1].departureTime").value("08:00"));
 
     }

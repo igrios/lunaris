@@ -24,8 +24,8 @@ class ScheduleServiceTest {
         ScheduleService service = new ScheduleService(pricing, mock(LocalityService.class));
 
         assertEquals(List.of(
-                new ScheduleDto("03:00", "03:00", 7, true),
-                new ScheduleDto("08:00", "08:00", 0, false)),
+                new ScheduleDto("03:00", "03:00", "03:00 AM", 7, true),
+                new ScheduleDto("08:00", "08:00", "08:00 AM", 0, false)),
                 service.getSchedulesForWeb(null, date));
     }
 

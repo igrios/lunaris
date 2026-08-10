@@ -26,7 +26,7 @@ public class ScheduleService {
                             .availableSeats(travelDate, schedule);
                     String departureTime = schedule.substring(0, 5);
                     return new ScheduleDto(
-                            departureTime, departureTime, availableSeats, availableSeats > 0);
+                            departureTime, departureTime, schedule, availableSeats, availableSeats > 0);
                 })
                 .toList();
     }
