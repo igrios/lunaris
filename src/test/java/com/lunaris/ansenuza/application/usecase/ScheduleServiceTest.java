@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.application.usecase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.application.dto.ScheduleDto;
@@ -29,7 +30,7 @@ class ScheduleServiceTest {
     }
 
     @Test
-    void botContractRemainsFormattedDomainStrings() {
+    void testGetSchedulesForBot_WhenTravelDateIsPresent_AppliesCapacityAndCutoff() {
         PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
         LocalDate date = LocalDate.of(2026, 8, 20);
         when(pricing.availableDepartureSchedules("Arrufó", "Córdoba", date))
@@ -41,10 +42,11 @@ class ScheduleServiceTest {
 
         assertEquals(List.of("03:00 AM", "08:00 AM"),
                 service.getSchedulesForBot("Arrufó", "Córdoba", date));
+        verify(pricing).availableDepartureSchedules("Arrufó", "Córdoba", date);
     }
 
     @Test
-    void botReturnsConfiguredBlocksBeforeTravelDateIsSelected() {
+    void testGetSchedulesForBot_WhenTravelDateIsNull_ReturnsBaseBlocks() {
         PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
         when(pricing.departureSchedules()).thenReturn(List.of("03:00 AM", "08:00 AM"));
         LocalityService localities = mock(LocalityService.class);
@@ -54,6 +56,7 @@ class ScheduleServiceTest {
 
         assertEquals(List.of("03:00 AM", "08:00 AM"),
                 service.getSchedulesForBot("Arrufó", "Córdoba", null));
+        verify(pricing).departureSchedules();
     }
 
     @Test

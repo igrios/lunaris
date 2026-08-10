@@ -53,4 +53,12 @@ class SchedulesControllerTest {
                 .andExpect(jsonPath("$[1].availableSeats").value(0))
                 .andExpect(jsonPath("$[1].available").value(false));
     }
+
+    @Test
+    void versionedSchedulesRejectMalformedTravelDate() throws Exception {
+        mockMvc.perform(get("/api/v1/schedules")
+                        .param("pickupLocality", "Morteros")
+                        .param("travelDate", "fecha-invalida"))
+                .andExpect(status().isBadRequest());
+    }
 }
