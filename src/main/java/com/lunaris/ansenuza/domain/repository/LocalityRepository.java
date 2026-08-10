@@ -13,9 +13,16 @@ public interface LocalityRepository extends JpaRepository<Locality, UUID> {
 
     Optional<Locality> findFirstByNameIgnoreCase(String name);
 
-  // 🎯 Consulta nativa para traer solo pueblos que tengan cargada al menos una tarifa comercial (ORDENADO ALFABÉTICAMENTE)
-    @Query(value = "SELECT DISTINCT l.* FROM localities l INNER JOIN fares f ON l.name = f.locality_name ORDER BY l.name ASC", nativeQuery = true)
+    /**
+     * Devuelve todas las localidades, tengan o no una tarifa comercial explícita.
+     * El LEFT JOIN conserva la compatibilidad con los consumidores que también consultan tarifas.
+     */
+    @Query("""
+            SELECT DISTINCT l
+            FROM Locality l
+            LEFT JOIN Fare f ON UPPER(l.name) = UPPER(f.localityName)
+            ORDER BY l.name ASC
+            """)
     List<Locality> findLocalitiesWithFares();
-   
 
 }

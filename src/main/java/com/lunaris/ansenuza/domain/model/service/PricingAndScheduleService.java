@@ -23,7 +23,11 @@ public class PricingAndScheduleService {
 
     private static final List<String> DEPARTURE_BLOCKS = List.of("03:00 AM", "08:00 AM");
     private static final String ONE_WAY_EXTRA_AMOUNT = "ONE_WAY_EXTRA_AMOUNT";
+    private static final String PRICE_PER_KM = "PRICE_PER_KM";
+    private static final String DEFAULT_FARE = "DEFAULT_FARE";
     private static final java.math.BigDecimal DEFAULT_ONE_WAY_EXTRA = new java.math.BigDecimal("8000");
+    private static final java.math.BigDecimal DEFAULT_PRICE_PER_KM = new java.math.BigDecimal("1000");
+    private static final java.math.BigDecimal FALLBACK_FARE = new java.math.BigDecimal("100000");
 
     private final FareRepository fareRepository;
     private final LocalityRepository localityRepository;
@@ -113,14 +117,7 @@ public class PricingAndScheduleService {
         }
 
         // 1. Buscamos la tarifa completa paramétrica de la base de datos
-        java.math.BigDecimal baseFare = fareRepository.findByLocalityNameIgnoreCase(localityName.trim())
-                .map(fare -> fare.getAmount()) 
-                .orElse(java.math.BigDecimal.ZERO);
-
-        if (baseFare.compareTo(java.math.BigDecimal.ZERO) == 0) {
-            log.warn("No se encontró tarifa cargada para la localidad: {}.", localityName);
-            return java.math.BigDecimal.ZERO;
-        }
+        java.math.BigDecimal baseFare = resolveBaseFare(localityName.trim());
 
         java.math.BigDecimal finalPricePerPassenger;
 
@@ -141,6 +138,46 @@ public class PricingAndScheduleService {
 
         // 3. Multiplicamos por la cantidad total de asientos requeridos
         return finalPricePerPassenger.multiply(java.math.BigDecimal.valueOf(passengerCount));
+    }
+
+    private java.math.BigDecimal resolveBaseFare(String localityName) {
+        return fareRepository.findByLocalityNameIgnoreCase(localityName)
+                .map(fare -> fare.getAmount())
+                .filter(amount -> amount != null && amount.signum() > 0)
+                .orElseGet(() -> calculateFallbackFare(localityName));
+    }
+
+    private java.math.BigDecimal calculateFallbackFare(String localityName) {
+        java.math.BigDecimal pricePerKm = positiveBusinessParameter(
+                PRICE_PER_KM, DEFAULT_PRICE_PER_KM);
+        java.math.BigDecimal calculatedFare = localityRepository
+                .findFirstByNameIgnoreCase(localityName)
+                .map(com.lunaris.ansenuza.domain.model.Locality::getKmsToCordoba)
+                .filter(kms -> kms > 0)
+                .map(kms -> pricePerKm.multiply(java.math.BigDecimal.valueOf(kms)))
+                .orElseGet(() -> positiveBusinessParameter(DEFAULT_FARE, FALLBACK_FARE));
+
+        log.warn("No se encontró tarifa explícita para {}. Se utiliza tarifa de respaldo: {}.",
+                localityName, calculatedFare);
+        return calculatedFare;
+    }
+
+    private java.math.BigDecimal positiveBusinessParameter(
+            String key, java.math.BigDecimal defaultValue) {
+        return businessParameterRepository.findByParameterKey(key)
+                .map(parameter -> parameter.getParameterValue())
+                .flatMap(value -> {
+                    try {
+                        java.math.BigDecimal parsed = new java.math.BigDecimal(value);
+                        return parsed.signum() > 0
+                                ? java.util.Optional.of(parsed)
+                                : java.util.Optional.empty();
+                    } catch (NumberFormatException exception) {
+                        log.warn("Parámetro de negocio {} inválido: {}.", key, value);
+                        return java.util.Optional.empty();
+                    }
+                })
+                .orElse(defaultValue);
     }
 
     public java.math.BigDecimal calculateTripPrice(String localityName, boolean isRoundTrip, int passengerCount) {
