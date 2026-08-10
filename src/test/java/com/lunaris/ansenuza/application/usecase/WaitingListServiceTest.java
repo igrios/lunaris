@@ -34,6 +34,22 @@ class WaitingListServiceTest {
     }
 
     @Test
+    void defaultsMissingDestinationToCordobaAfterOtpConfirmation() {
+        WaitingListRepository repository = mock(WaitingListRepository.class);
+        WaitingListService service = new WaitingListService(repository);
+        ArgumentCaptor<WaitingListEntry> captor = ArgumentCaptor.forClass(WaitingListEntry.class);
+
+        service.create("543511112222", "Ana Pérez", null, "Morteros", null,
+                1, null, "airbag_cordoba");
+        service.create("543511112222", "Ana Pérez", null, "Morteros", "   ",
+                1, null, "airbag_cordoba");
+
+        verify(repository, org.mockito.Mockito.times(2)).saveAndFlush(captor.capture());
+        assertEquals("Córdoba", captor.getAllValues().get(0).getDestination());
+        assertEquals("Córdoba", captor.getAllValues().get(1).getDestination());
+    }
+
+    @Test
     void joinsPassengerUsingConversationData() {
         WaitingListRepository repository = mock(WaitingListRepository.class);
         WaitingListService service = new WaitingListService(repository);

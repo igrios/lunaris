@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class WaitingListService {
 
+    private static final String DEFAULT_DESTINATION = "Córdoba";
+
     private static final Set<String> VALID_STATUSES = Set.of(
             WaitingListEntry.PENDING, "PENDIENTE", "NEW",
             WaitingListEntry.WAITING, WaitingListEntry.CONTACTED,
@@ -70,12 +72,14 @@ public class WaitingListService {
             Integer passengerCount, String notes, String eventType) {
         String normalizedEventType = eventType == null || eventType.isBlank()
                 ? "GENERAL" : eventType.trim().toUpperCase(Locale.ROOT);
+        String effectiveDestination = destination == null || destination.isBlank()
+                ? DEFAULT_DESTINATION : destination.trim();
         return repository.saveAndFlush(WaitingListEntry.builder()
                 .phoneNumber(requireText(phoneNumber, "teléfono del pasajero"))
                 .passengerName(requireText(passengerName, "nombre del pasajero"))
                 .travelDate(travelDate)
                 .pickupLocality(requireText(pickupLocality, "localidad de origen"))
-                .destination(requireText(destination, "destino"))
+                .destination(effectiveDestination)
                 .passengerCount(passengerCount == null ? 1 : Math.max(1, passengerCount))
                 .notes(notes)
                 .eventType(normalizedEventType)
