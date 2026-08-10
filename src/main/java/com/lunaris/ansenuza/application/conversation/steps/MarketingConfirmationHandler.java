@@ -9,6 +9,7 @@ import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
+import com.lunaris.ansenuza.application.usecase.ScheduleService;
 import lombok.RequiredArgsConstructor;
 
 /** ASK_MARKETING_CONFIRMATION: el pasajero confirma (o no) iniciar la reserva tras la cotización. */
@@ -18,6 +19,7 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
 
     private final ConversationSessionRepository conversationSessionRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
+    private final ScheduleService scheduleService;
     private final MessagingPort messaging;
 
     @Override
@@ -31,7 +33,7 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
         String body = message.body().trim().toLowerCase();
 
         if ("yes_reserve".equals(body)) {
-            List<String> schedules = pricingAndScheduleService.availableDepartureSchedules(
+            List<String> schedules = scheduleService.getSchedulesForBot(
                     session.getPickupLocality(), session.getDestination(), session.getTravelDate());
             if (schedules.isEmpty()) {
                 messaging.sendText(phoneNumber,
@@ -52,9 +54,9 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
             messaging.sendButtons(phoneNumber, "Selección de Horario", infoTexto,
                     schedules.stream()
                             .map(schedule -> new Button(
-                                    "03:00 AM".equals(schedule) ? "time_0300" : "time_0800",
+                                    buttonPayload(schedule),
                                     "03:00 AM".equals(schedule)
-                                            ? "Primer Horario 🌙" : "Segundo Horario ☀️"))
+                                            ? "Horario 1 🌙" : "Horario 2 ☀️"))
                             .toList());
             return;
         }
@@ -64,5 +66,9 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
                     "Entendido. Si cambiás de opinión, escribinos 'Hola' cuando quieras.");
             return;
         }
+    }
+
+    private String buttonPayload(String schedule) {
+        return "schedule_" + schedule.substring(0, 5).replace(':', '_');
     }
 }

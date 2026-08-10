@@ -1,7 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
-import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
-import com.lunaris.ansenuza.infrastructure.web.dto.ScheduleDto;
+import com.lunaris.ansenuza.application.dto.ScheduleDto;
+import com.lunaris.ansenuza.application.usecase.ScheduleService;
 import com.lunaris.ansenuza.shared.ArgentinaTime;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class SchedulesController {
 
-    private final PricingAndScheduleService scheduleService;
+    private final ScheduleService scheduleService;
 
     @GetMapping({"/schedules", "/v1/schedules"})
     public List<ScheduleDto> schedules(
@@ -34,13 +34,6 @@ public class SchedulesController {
         LocalDate requestedDate = travelDate != null ? travelDate : date;
         LocalDate effectiveDate = requestedDate != null ? requestedDate : ArgentinaTime.today();
 
-        return scheduleService.departureSchedules().stream()
-                .map(schedule -> {
-                    int availableSeats = scheduleService.availableSeats(effectiveDate, schedule);
-                    String departureTime = schedule.substring(0, 5);
-                    return new ScheduleDto(
-                            departureTime, departureTime, availableSeats, availableSeats > 0);
-                })
-                .toList();
+        return scheduleService.getSchedulesForWeb(effectiveDate);
     }
 }

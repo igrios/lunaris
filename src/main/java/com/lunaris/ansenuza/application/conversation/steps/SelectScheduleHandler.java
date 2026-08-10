@@ -30,9 +30,9 @@ public class SelectScheduleHandler implements ConversationStepHandler {
         String phoneNumber = session.getPhoneNumber();
         String body = message.body().trim().toLowerCase();
 
-        if ("time_0300".equals(body)) {
+        if ("schedule_03_00".equals(body) || "time_0300".equals(body)) {
             session.setScheduleBlock("03:00 AM");
-        } else if ("time_0800".equals(body)) {
+        } else if ("schedule_08_00".equals(body) || "time_0800".equals(body)) {
             session.setScheduleBlock("08:00 AM");
         } else {
             return;

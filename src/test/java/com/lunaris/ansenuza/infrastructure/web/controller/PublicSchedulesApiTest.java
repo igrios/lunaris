@@ -2,12 +2,12 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.application.dto.ScheduleDto;
+import com.lunaris.ansenuza.application.usecase.ScheduleService;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -18,11 +18,11 @@ class PublicSchedulesApiTest {
 
     @Test
     void roundTripReturnsOnlyCleanAvailableOutgoingBlocks() throws Exception {
-        PricingAndScheduleService schedules = mock(PricingAndScheduleService.class);
+        ScheduleService schedules = mock(ScheduleService.class);
         LocalDate travelDate = LocalDate.of(2026, 8, 20);
-        when(schedules.departureSchedules()).thenReturn(List.of("03:00 AM", "08:00 AM"));
-        when(schedules.availableSeats(travelDate, "03:00 AM")).thenReturn(10);
-        when(schedules.availableSeats(travelDate, "08:00 AM")).thenReturn(0);
+        when(schedules.getSchedulesForWeb(travelDate)).thenReturn(List.of(
+                new ScheduleDto("03:00", "03:00", 10, true),
+                new ScheduleDto("08:00", "08:00", 0, false)));
         SchedulesController controller = new SchedulesController(schedules);
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
 
@@ -43,11 +43,11 @@ class PublicSchedulesApiTest {
 
     @Test
     void acceptsArgentineTravelDateFormat() throws Exception {
-        PricingAndScheduleService schedules = mock(PricingAndScheduleService.class);
+        ScheduleService schedules = mock(ScheduleService.class);
         LocalDate travelDate = LocalDate.of(2026, 8, 20);
-        when(schedules.departureSchedules()).thenReturn(List.of("03:00 AM", "08:00 AM"));
-        when(schedules.availableSeats(travelDate, "03:00 AM")).thenReturn(10);
-        when(schedules.availableSeats(travelDate, "08:00 AM")).thenReturn(9);
+        when(schedules.getSchedulesForWeb(travelDate)).thenReturn(List.of(
+                new ScheduleDto("03:00", "03:00", 10, true),
+                new ScheduleDto("08:00", "08:00", 9, true)));
         SchedulesController controller = new SchedulesController(schedules);
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
 
@@ -59,6 +59,5 @@ class PublicSchedulesApiTest {
                 .andExpect(jsonPath("$[0].departureTime").value("03:00"))
                 .andExpect(jsonPath("$[1].departureTime").value("08:00"));
 
-        verify(schedules).availableSeats(travelDate, "03:00 AM");
     }
 }

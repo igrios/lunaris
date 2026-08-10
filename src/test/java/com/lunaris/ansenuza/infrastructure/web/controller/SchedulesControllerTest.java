@@ -6,7 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
-import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.application.dto.ScheduleDto;
+import com.lunaris.ansenuza.application.usecase.ScheduleService;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import com.lunaris.ansenuza.infrastructure.config.PassengerBearerAuthenticationFilter;
 import com.lunaris.ansenuza.infrastructure.config.SecurityConfig;
@@ -26,7 +27,7 @@ class SchedulesControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private PricingAndScheduleService scheduleService;
+    private ScheduleService scheduleService;
 
     @MockitoBean
     private AccountRepository accountRepository;
@@ -36,11 +37,10 @@ class SchedulesControllerTest {
 
     @Test
     void versionedSchedulesArePublicAndPreserveFrontendContract() throws Exception {
-        when(scheduleService.departureSchedules()).thenReturn(List.of("03:00 AM", "08:00 AM"));
-        when(scheduleService.availableSeats(org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.eq("03:00 AM"))).thenReturn(19);
-        when(scheduleService.availableSeats(org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.eq("08:00 AM"))).thenReturn(0);
+        when(scheduleService.getSchedulesForWeb(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of(
+                        new ScheduleDto("03:00", "03:00", 19, true),
+                        new ScheduleDto("08:00", "08:00", 0, false)));
 
         mockMvc.perform(get("/api/v1/schedules"))
                 .andExpect(status().isOk())
