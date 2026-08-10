@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/news-banners/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/schedules/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/localities/**").permitAll()
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/drivers/apply",

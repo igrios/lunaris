@@ -70,4 +70,27 @@ class PublicCatalogApiContractTest {
                 .andExpect(jsonPath("$[0].minutesFromOrigin").value(185))
                 .andExpect(jsonPath("$[0].amount").value(62000.00));
     }
+
+    @Test
+    void versionedLocalitiesUseTheSameActiveFareCatalog() throws Exception {
+        Locality locality = Locality.builder()
+                .id(UUID.randomUUID())
+                .name("Morteros")
+                .kmsToCordoba(240)
+                .minutesFromOrigin(40)
+                .build();
+        Fare fare = Fare.builder()
+                .id(UUID.randomUUID())
+                .localityName("Morteros")
+                .amount(new BigDecimal("100000"))
+                .build();
+        when(localityRepository.findLocalitiesWithFares()).thenReturn(List.of(locality));
+        when(fareRepository.findFirstByLocalityNameIgnoreCase("Morteros"))
+                .thenReturn(Optional.of(fare));
+
+        mockMvc.perform(get("/api/v1/localities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Morteros"))
+                .andExpect(jsonPath("$[0].amount").value(100000));
+    }
 }

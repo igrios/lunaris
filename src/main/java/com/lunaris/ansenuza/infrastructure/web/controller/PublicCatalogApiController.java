@@ -8,11 +8,9 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/public")
 @RequiredArgsConstructor
 public class PublicCatalogApiController {
 
@@ -21,12 +19,12 @@ public class PublicCatalogApiController {
     private final LocalityRepository localityRepository;
     private final FareRepository fareRepository;
 
-    @GetMapping("/schedules")
+    @GetMapping("/api/public/schedules")
     public ResponseEntity<SchedulesResponse> schedules() {
         return ResponseEntity.ok(new SchedulesResponse(SCHEDULES));
     }
 
-    @GetMapping("/localities")
+    @GetMapping({"/api/public/localities", "/api/v1/localities"})
     public ResponseEntity<List<LocalityResponse>> localities() {
         List<LocalityResponse> response = localityRepository.findLocalitiesWithFares().stream()
                 .map(locality -> new LocalityResponse(
