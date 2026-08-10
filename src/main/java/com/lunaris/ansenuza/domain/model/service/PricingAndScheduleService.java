@@ -181,6 +181,15 @@ public class PricingAndScheduleService {
         return reservationRepository.countReservedSeats(date, schedule);
     }
 
+    public List<String> departureSchedules() {
+        return DEPARTURE_BLOCKS;
+    }
+
+    public int availableSeats(LocalDate date, String schedule) {
+        long remainingSeats = (long) tripCapacity - countReservedSeats(date, schedule);
+        return (int) Math.max(0, Math.min(Integer.MAX_VALUE, remainingSeats));
+    }
+
     /**
      * Bloques de salida compartidos por el bot y la API pública.
      * La disponibilidad corresponde únicamente al tramo de ida y a su fecha de viaje.
@@ -191,7 +200,7 @@ public class PricingAndScheduleService {
             return List.of();
         }
         return DEPARTURE_BLOCKS.stream()
-                .filter(schedule -> countReservedSeats(travelDate, schedule) < tripCapacity)
+                .filter(schedule -> availableSeats(travelDate, schedule) > 0)
                 .toList();
     }
 

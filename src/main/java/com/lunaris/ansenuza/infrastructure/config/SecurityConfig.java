@@ -44,6 +44,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/news-banners/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/schedules/**").permitAll()
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/drivers/apply",
