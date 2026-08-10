@@ -6,6 +6,7 @@
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,8 +36,8 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             PassengerRepository passengerRepository = mock(PassengerRepository.class);
             ReservationRepository reservationRepository = mock(ReservationRepository.class);
             FareRepository fareRepository = mock(FareRepository.class);
-            when(passengerRepository.findByPhone("5493511111111")).thenReturn(Optional.empty());
-            when(passengerRepository.save(any(Passenger.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(passengerRepository.findByPhone("543511111111")).thenReturn(Optional.empty());
+            when(passengerRepository.saveAndFlush(any(Passenger.class))).thenAnswer(invocation -> invocation.getArgument(0));
             when(fareRepository.findByLocalityNameIgnoreCase("Ansenuza")).thenReturn(Optional.of(
                     Fare.builder().localityName("Ansenuza").amount(new BigDecimal("96000")).build()));
             when(reservationRepository.countSequenceByRouteAndDate(any(), any(), any())).thenReturn(0L);
@@ -68,6 +69,45 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertEquals("08:00 AM", result.getDepartureSchedule());
             assertEquals("ANS-COR-001", result.getReservationCode());
             assertEquals(new BigDecimal("56000.00"), result.getAmount());
+        }
+
+        @Test
+        void fallsBackToCreatingAndPersistingPassengerWhenSubmittedIdDoesNotExist() {
+            UUID missingPassengerId = UUID.randomUUID();
+            PassengerRepository passengerRepository = mock(PassengerRepository.class);
+            ReservationRepository reservationRepository = mock(ReservationRepository.class);
+            when(passengerRepository.findById(missingPassengerId)).thenReturn(Optional.empty());
+            when(passengerRepository.findByPhone("543511111111")).thenReturn(Optional.empty());
+            when(passengerRepository.saveAndFlush(any(Passenger.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+            when(reservationRepository.countSequenceByRouteAndDate(any(), any(), any())).thenReturn(0L);
+            when(reservationRepository.existsByReservationCode(any())).thenReturn(false);
+            when(reservationRepository.save(any(Reservation.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
+            FareRepository fareRepository = mock(FareRepository.class);
+            when(fareRepository.findByLocalityNameIgnoreCase("Morteros")).thenReturn(Optional.of(
+                    Fare.builder().localityName("Morteros").amount(new BigDecimal("100000")).build()));
+            PricingAndScheduleService pricingService = new PricingAndScheduleService(
+                    fareRepository, mock(LocalityRepository.class), mock(BusinessParameterRepository.class),
+                    reservationRepository);
+            CreateReservationUseCase useCase = new CreateReservationUseCase(
+                    new ReservationService(reservationRepository, mock(ReservationEventRepository.class),
+                            passengerRepository,
+                            mock(com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase.class)),
+                    passengerRepository, pricingService, mock(SameDayBookingPolicy.class));
+            CreateReservationRequest request = new CreateReservationRequest(
+                    missingPassengerId, "Juan Perez", "3511111111", "30111222",
+                    LocalDate.of(2026, 8, 20), "Morteros", "Belgrano 10", "Córdoba", "08:00 AM",
+                    false, null, false, null, 1, null, ReservationSource.WEB, null, null);
+
+            Reservation result = useCase.execute(request);
+
+            assertEquals("543511111111", result.getPassenger().getPhone());
+            assertEquals("Juan", result.getPassenger().getFirstName());
+            var persistenceOrder = inOrder(passengerRepository, reservationRepository);
+            persistenceOrder.verify(passengerRepository).saveAndFlush(result.getPassenger());
+            persistenceOrder.verify(reservationRepository).save(any(Reservation.class));
         }
                                                                                                                                                           
         @Test                                                                                                                                             

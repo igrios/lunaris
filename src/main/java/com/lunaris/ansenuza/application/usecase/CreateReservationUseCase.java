@@ -59,6 +59,7 @@ public class CreateReservationUseCase {
         return execute(request, null);
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Reservation execute(CreateReservationRequest request, String paymentReceiptUrl) {
         validate(request);
         String departureSchedule = resolveSchedule(request.departureSchedule(), request.notes());
@@ -175,16 +176,30 @@ public class CreateReservationUseCase {
 
     private Passenger resolvePassenger(CreateReservationRequest request) {
         if (request.passengerId() != null) {
-            Passenger passenger = passengerRepository.findById(request.passengerId())
-                    .orElseThrow(() -> new DomainValidationException("El pasajero indicado no existe."));
-            return updatePassengerDetails(passenger, request);
+            return passengerRepository.findById(request.passengerId())
+                    .map(passenger -> updatePassengerDetails(passenger, request))
+                    .orElseGet(() -> resolvePassengerBySubmittedIdentity(request));
         }
 
+        return resolvePassengerBySubmittedIdentity(request);
+    }
+
+    private Passenger resolvePassengerBySubmittedIdentity(CreateReservationRequest request) {
+        if (request.phone() == null || request.phone().isBlank()) {
+            throw new DomainValidationException(
+                    "El pasajero indicado no existe y no se informó un teléfono para registrarlo.");
+        }
         String phone = PhoneUtils.normalizeArgentinePhone(request.phone());
+        if (request.fullName() == null || request.fullName().isBlank()) {
+            return passengerRepository.findByPhone(phone)
+                    .map(existing -> updatePassengerDetails(existing, request))
+                    .orElseThrow(() -> new DomainValidationException(
+                            "El pasajero indicado no existe y no se informó su nombre para registrarlo."));
+        }
         NameParts name = splitFullName(request.fullName());
         return passengerRepository.findByPhone(phone)
                 .map(existing -> updatePassengerDetails(repairIncompleteName(existing, name), request))
-                .orElseGet(() -> passengerRepository.save(Passenger.builder()
+                .orElseGet(() -> passengerRepository.saveAndFlush(Passenger.builder()
                         .firstName(name.firstName())
                         .lastName(name.lastName())
                         .phone(phone)
