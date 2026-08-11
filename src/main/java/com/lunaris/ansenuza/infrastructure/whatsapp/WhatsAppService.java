@@ -86,8 +86,26 @@ public class WhatsAppService implements MessagingPort {
     }
 
     public void sendOtpMessage(String phoneNumber, String otpCode) {
-        sendMessage(phoneNumber,
-                "Tu código de verificación para Lunaris es: " + otpCode);
+        String phone = formatMetaPhoneNumber(phoneNumber);
+        Map<String, Object> body = Map.of(
+                "messaging_product", "whatsapp",
+                "to", phone,
+                "type", "template",
+                "template", Map.of(
+                        "name", "account_creation_confirmation_3",
+                        "language", Map.of("code", "es"),
+                        "components", List.of(Map.of(
+                                "type", "body",
+                                "parameters", List.of(
+                                        Map.of("type", "text", "text", "tu cuenta"),
+                                        Map.of("type", "text", "text", otpCode))))));
+
+        boolean sent = executePostCall(
+                "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages",
+                createHeaders(), body, "TEMPLATE account_creation_confirmation_3");
+        if (sent) {
+            log.info("Éxito Meta [TEMPLATE account_creation_confirmation_3]: Envío OTP hacia " + phone);
+        }
     }
 
     @Override
