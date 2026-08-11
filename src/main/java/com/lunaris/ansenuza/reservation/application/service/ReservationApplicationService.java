@@ -9,6 +9,7 @@ import com.lunaris.ansenuza.reservation.domain.model.Reservation;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +19,9 @@ public class ReservationApplicationService implements CreateReservationUseCase, 
     private final PaymentGatewayPort paymentGateway;
     private final Clock clock;
 
-    public ReservationApplicationService(ReservationRepositoryPort repository, PaymentGatewayPort paymentGateway) {
+    @Autowired
+    public ReservationApplicationService(ReservationRepositoryPort repository,
+            PaymentGatewayPort paymentGateway) {
         this(repository, paymentGateway, Clock.systemDefaultZone());
     }
 
