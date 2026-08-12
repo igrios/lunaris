@@ -3,26 +3,27 @@ package com.lunaris.ansenuza.application.conversation.steps;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
+import com.lunaris.ansenuza.application.usecase.UpdatePassengerAddressUseCase;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
-import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 
 class AskAddressTextHandlerTest {
 
     @Test
     void storesMapsLinkWhenPassengerSharesWhatsappLocation() {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
-        PassengerRepository passengers = mock(PassengerRepository.class);
+        UpdatePassengerAddressUseCase addressUpdater = mock(UpdatePassengerAddressUseCase.class);
         MessagingPort messaging = mock(MessagingPort.class);
-        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, passengers, messaging);
+        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, addressUpdater, messaging);
         ConversationSession session = ConversationSession.builder()
                 .phoneNumber("543512282251")
                 .currentStep("ASK_ADDRESS_TEXT")
@@ -46,48 +47,64 @@ class AskAddressTextHandlerTest {
     @Test
     void updatesExistingPassengerAddressAndAdvancesConversation() {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
-        PassengerRepository passengers = mock(PassengerRepository.class);
+        UpdatePassengerAddressUseCase addressUpdater = mock(UpdatePassengerAddressUseCase.class);
         MessagingPort messaging = mock(MessagingPort.class);
-        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, passengers, messaging);
-        Passenger passenger = Passenger.builder()
-                .phone("543512282251")
-                .firstName("Ana")
-                .lastName("Pérez")
-                .address("Dirección anterior")
-                .locality("Porteña")
-                .build();
+        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, addressUpdater, messaging);
         ConversationSession session = ConversationSession.builder()
-                .phoneNumber(passenger.getPhone())
+                .phoneNumber("543512282251")
                 .currentStep("ASK_ADDRESS_TEXT")
                 .pickupLocality("Morteros")
                 .build();
-        when(passengers.findByPhone(passenger.getPhone())).thenReturn(Optional.of(passenger));
 
         handler.handle(session, new IncomingMessage(
-                passenger.getPhone(), IncomingMessage.MessageType.TEXT,
+                session.getPhoneNumber(), IncomingMessage.MessageType.TEXT,
                 "  San Martín 450  ", null));
 
-        assertEquals("San Martín 450", passenger.getAddress());
-        assertEquals("Morteros", passenger.getLocality());
         assertEquals("San Martín 450", session.getPickupAddress());
         assertEquals("ASK_DESTINATION", session.getCurrentStep());
-        verify(passengers).saveAndFlush(passenger);
+        verify(addressUpdater).update("543512282251", "San Martín 450", "Morteros");
+        verify(sessions).saveAndFlush(session);
+    }
+
+    @Test
+    void retriesWithFreshTransactionAfterOptimisticLockConflict() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        UpdatePassengerAddressUseCase addressUpdater = mock(UpdatePassengerAddressUseCase.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, addressUpdater, messaging);
+        ConversationSession session = ConversationSession.builder()
+                .phoneNumber("543512282251")
+                .currentStep("ASK_ADDRESS_TEXT")
+                .pickupLocality("Morteros")
+                .build();
+        doThrow(new ObjectOptimisticLockingFailureException(Passenger.class, "concurrent"))
+                .doNothing()
+                .when(addressUpdater).update("543512282251", "San Martín 450", "Morteros");
+
+        handler.handle(session, new IncomingMessage(
+                session.getPhoneNumber(), IncomingMessage.MessageType.TEXT,
+                "San Martín 450", null));
+
+        assertEquals("ASK_DESTINATION", session.getCurrentStep());
+        verify(addressUpdater, times(2))
+                .update("543512282251", "San Martín 450", "Morteros");
         verify(sessions).saveAndFlush(session);
     }
 
     @Test
     void keepsAddressStepAndAsksToRetryWhenPassengerUpdateFails() {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
-        PassengerRepository passengers = mock(PassengerRepository.class);
+        UpdatePassengerAddressUseCase addressUpdater = mock(UpdatePassengerAddressUseCase.class);
         MessagingPort messaging = mock(MessagingPort.class);
-        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, passengers, messaging);
+        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, addressUpdater, messaging);
         ConversationSession session = ConversationSession.builder()
                 .phoneNumber("543512282251")
                 .currentStep("ASK_ADDRESS_TEXT")
                 .pickupLocality("Morteros")
                 .build();
-        when(passengers.findByPhone(session.getPhoneNumber()))
-                .thenThrow(new IllegalStateException("database unavailable"));
+        doThrow(new IllegalStateException("database unavailable"))
+                .when(addressUpdater).update(
+                        session.getPhoneNumber(), "San Martín 450", "Morteros");
 
         handler.handle(session, new IncomingMessage(
                 session.getPhoneNumber(), IncomingMessage.MessageType.TEXT,

@@ -20,6 +20,10 @@ public interface PassengerRepository extends JpaRepository<Passenger, UUID> {
     @Query("select p from Passenger p where p.id = :id")
     Optional<Passenger> findByIdForUpdate(@Param("id") UUID id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Passenger p where p.phone = :phone")
+    Optional<Passenger> findByPhoneForUpdate(@Param("phone") String phone);
+
     @Override
     @CacheEvict(value = "passengersByPhone", key = "#passenger.phone")
     <S extends Passenger> S save(S passenger);

@@ -6,11 +6,12 @@ import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.application.port.MessagingPort;
+import com.lunaris.ansenuza.application.usecase.UpdatePassengerAddressUseCase;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
-import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 /** ASK_ADDRESS_TEXT: guarda la dirección de retiro ingresada manualmente y pide el destino. */
 @Component
@@ -19,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class AskAddressTextHandler implements ConversationStepHandler {
 
     private final ConversationSessionRepository conversationSessionRepository;
-    private final PassengerRepository passengerRepository;
+    private final UpdatePassengerAddressUseCase updatePassengerAddressUseCase;
     private final MessagingPort messaging;
 
     @Override
@@ -38,11 +39,8 @@ public class AskAddressTextHandler implements ConversationStepHandler {
         }
         String normalizedAddress = pickupAddress.trim();
         try {
-            passengerRepository.findByPhone(phoneNumber).ifPresent(passenger -> {
-                passenger.setAddress(normalizedAddress);
-                passenger.setLocality(session.getPickupLocality());
-                passengerRepository.saveAndFlush(passenger);
-            });
+            updatePassengerAddressWithRetry(
+                    phoneNumber, normalizedAddress, session.getPickupLocality());
 
             session.setPickupAddress(normalizedAddress);
             session.setCurrentStep("ASK_DESTINATION");
@@ -60,6 +58,17 @@ public class AskAddressTextHandler implements ConversationStepHandler {
             messaging.requestLocation(phoneNumber,
                     "⚠️ No pudimos guardar esa dirección. Enviá nuevamente calle y número, "
                             + "o compartí tu ubicación.");
+        }
+    }
+
+    private void updatePassengerAddressWithRetry(
+            String phoneNumber, String address, String locality) {
+        try {
+            updatePassengerAddressUseCase.update(phoneNumber, address, locality);
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            log.warn("Conflicto concurrente actualizando la dirección del pasajero {}. Reintentando con una lectura limpia.",
+                    phoneNumber);
+            updatePassengerAddressUseCase.update(phoneNumber, address, locality);
         }
     }
 }
