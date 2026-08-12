@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -23,7 +24,14 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.CapacityLockRepository;
 
 @Service
+@Slf4j
 public class ReservationService {
+
+    public record CancellationResult(boolean paymentVerified, BigDecimal creditedAmount) {
+        public CancellationResult {
+            creditedAmount = creditedAmount == null ? BigDecimal.ZERO : creditedAmount;
+        }
+    }
 
     private final ReservationRepository reservationRepository;
     private final ReservationEventRepository reservationEventRepository;
@@ -285,9 +293,10 @@ public class ReservationService {
 
     // 🗑️ BAJA LÓGICA ATÓMICA CON CASCADA INTELIGENTE (PROTEGE LA IDA SI SE CANCELA LA VUELTA)
     @Transactional
-    public void cancelReservation(UUID id, String triggeredBy) {
-        reservationRepository.findByIdForUpdate(id).ifPresent(reservation -> {
-            if (!"CANCELLED".equals(reservation.getStatus())) {
+    public CancellationResult cancelReservation(UUID id, String triggeredBy) {
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + id));
+        if (!"CANCELLED".equals(reservation.getStatus())) {
                 assertNotCompleted(reservation);
                 assertCancellationAllowed(reservation, triggeredBy);
 
@@ -297,9 +306,11 @@ public class ReservationService {
                         throw new DomainValidationException(
                                 "La ida ya fue utilizada y no posee una vuelta disponible para cancelar.");
                     }
-                    returnReservations.forEach(returnReservation ->
-                            cancelReturnOnly(returnReservation, reservation.getPassenger(), triggeredBy));
-                    return;
+                    BigDecimal credited = returnReservations.stream()
+                            .map(returnReservation -> cancelReturnOnly(
+                                    returnReservation, reservation.getPassenger(), triggeredBy))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    return new CancellationResult(credited.signum() > 0, credited);
                 }
                 
                 Passenger passenger = lockPassenger(reservation.getPassenger());
@@ -362,9 +373,15 @@ public class ReservationService {
                 if (totalReintegro[0].compareTo(BigDecimal.ZERO) > 0) {
                     passenger.setCurrentBalance(saldoActual.add(totalReintegro[0]));
                     passengerRepository.saveAndFlush(passenger);
+                    log.info("Saldo de {} acreditado al pasajero {}",
+                            totalReintegro[0], passenger.getPhone());
+                } else if (!pagoRealizado) {
+                    log.info("Reserva {} cancelada SIN reembolso porque el pago no estaba verificado (payment_verified=false).",
+                            reservation.getReservationCode());
                 }
-            }
-        });
+                return new CancellationResult(pagoRealizado, totalReintegro[0]);
+        }
+        return new CancellationResult(false, BigDecimal.ZERO);
     }
 
     @Transactional
@@ -410,7 +427,8 @@ public class ReservationService {
                 .build());
     }
 
-    private void cancelReturnOnly(Reservation returnReservation, Passenger passenger, String triggeredBy) {
+    private BigDecimal cancelReturnOnly(
+            Reservation returnReservation, Passenger passenger, String triggeredBy) {
         assertNotCompleted(returnReservation);
         assertCancellationAllowed(returnReservation, triggeredBy);
         boolean refundable = isRefundEligible(returnReservation);
@@ -430,6 +448,13 @@ public class ReservationService {
                         : "La vuelta se canceló sin saldo a favor porque el pago no estaba verificado.")
                 .triggeredBy(triggeredBy)
                 .build());
+        if (refundable && refund.signum() > 0) {
+            log.info("Saldo de {} acreditado al pasajero {}", refund, passenger.getPhone());
+        } else if (!refundable) {
+            log.info("Reserva {} cancelada SIN reembolso porque el pago no estaba verificado (payment_verified=false).",
+                    returnReservation.getReservationCode());
+        }
+        return refund;
     }
 
     private List<Reservation> associatedReservations(Reservation parent) {

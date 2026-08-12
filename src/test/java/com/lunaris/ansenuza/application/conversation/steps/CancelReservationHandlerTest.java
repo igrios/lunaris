@@ -17,6 +17,7 @@ import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import java.util.Optional;
 import java.util.UUID;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
 class CancelReservationHandlerTest {
@@ -40,14 +41,45 @@ class CancelReservationHandlerTest {
                 .travelStatus(Reservation.TravelStatus.PENDING)
                 .build();
         when(reservations.findByReservationCode(code)).thenReturn(Optional.of(reservation));
-        when(reservationService.isRefundEligible(reservation)).thenReturn(false);
+        when(reservationService.cancelReservation(reservation.getId(), "BOT_WHATSAPP"))
+                .thenReturn(new ReservationService.CancellationResult(false, BigDecimal.ZERO));
 
         handler.handle(ConversationSession.builder().phoneNumber(phone).build(),
                 new IncomingMessage(phone, MessageType.TEXT, code, null));
 
         verify(reservationService).cancelReservation(reservation.getId(), "BOT_WHATSAPP");
         verify(messaging).sendText(phone,
-                "Tu reserva fue cancelada. Dado que el pago aún no había sido verificado por administración, no se acreditó saldo a favor.");
+                "Tu reserva MOR-COR-003-IDA fue cancelada. Dado que el comprobante de pago no estaba verificado por la administración, no se acreditó saldo a favor.");
+    }
+
+    @Test
+    void reportsCreditedAmountForVerifiedPaymentCancellation() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        ReservationService reservationService = mock(ReservationService.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        CancelReservationHandler handler = new CancelReservationHandler(
+                sessions, reservations, reservationService, messaging);
+        String phone = "5493511111111";
+        String code = "MOR-COR-004";
+        Reservation reservation = Reservation.builder()
+                .id(UUID.randomUUID())
+                .reservationCode(code)
+                .passenger(Passenger.builder().phone(phone).build())
+                .paymentVerified(true)
+                .status("CONFIRMED")
+                .travelStatus(Reservation.TravelStatus.PENDING)
+                .build();
+        when(reservations.findByReservationCode(code)).thenReturn(Optional.of(reservation));
+        when(reservationService.cancelReservation(reservation.getId(), "BOT_WHATSAPP"))
+                .thenReturn(new ReservationService.CancellationResult(
+                        true, new BigDecimal("2500.00")));
+
+        handler.handle(ConversationSession.builder().phoneNumber(phone).build(),
+                new IncomingMessage(phone, MessageType.TEXT, code, null));
+
+        verify(messaging).sendText(phone,
+                "Tu reserva MOR-COR-004 fue cancelada. Se acreditaron $2500.00 en tu saldo a favor.");
     }
 
     @Test

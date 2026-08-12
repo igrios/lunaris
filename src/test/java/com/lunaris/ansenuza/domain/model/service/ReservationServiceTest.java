@@ -192,9 +192,12 @@ class ReservationServiceTest {
                 .build();
         when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
 
-        service.cancelReservation(reservationId, "PASSENGER");
+        ReservationService.CancellationResult result =
+                service.cancelReservation(reservationId, "PASSENGER");
 
         assertEquals(new BigDecimal("2600.00"), passenger.getCurrentBalance());
+        assertEquals(new BigDecimal("2500.00"), result.creditedAmount());
+        assertTrue(result.paymentVerified());
         assertEquals("CANCELLED", reservation.getStatus());
         assertEquals(Reservation.TravelStatus.CANCELED, reservation.getTravelStatus());
         verify(passengers).saveAndFlush(passenger);
@@ -222,9 +225,12 @@ class ReservationServiceTest {
                 .build();
         when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
 
-        service.cancelReservation(reservationId, "PASSENGER");
+        ReservationService.CancellationResult result =
+                service.cancelReservation(reservationId, "PASSENGER");
 
         assertEquals(new BigDecimal("100.00"), passenger.getCurrentBalance());
+        assertEquals(BigDecimal.ZERO, result.creditedAmount());
+        assertTrue(!result.paymentVerified());
         assertEquals("CANCELLED", reservation.getStatus());
         assertEquals(Reservation.TravelStatus.CANCELED, reservation.getTravelStatus());
         verify(passengers, never()).saveAndFlush(passenger);

@@ -78,11 +78,11 @@ public class CancelReservationHandler implements ConversationStepHandler {
                 return;
             }
 
-            boolean reembolsoHabilitado = reservationService.isRefundEligible(res);
-            boolean esViajeCompleto = res.getRoundTrip() != null && res.getRoundTrip();
+            ReservationService.CancellationResult cancellationResult;
 
             try {
-                reservationService.cancelReservation(res.getId(), "BOT_WHATSAPP");
+                cancellationResult = reservationService.cancelReservation(
+                        res.getId(), "BOT_WHATSAPP");
             } catch (ReservationAlreadyCompletedException exception) {
                 messaging.sendText(phoneNumber,
                         "⚠️ Ya te encontrás a bordo o tu viaje ya finalizó. No es posible cancelar este servicio.");
@@ -100,13 +100,14 @@ public class CancelReservationHandler implements ConversationStepHandler {
                 return;
             }
 
-            if (!reembolsoHabilitado) {
+            if (!cancellationResult.paymentVerified()) {
                 messaging.sendText(phoneNumber,
-                        "Tu reserva fue cancelada. Dado que el pago aún no había sido verificado por administración, no se acreditó saldo a favor.");
-            } else if (esViajeCompleto) {
-                    messaging.sendText(phoneNumber, "✅ Tu viaje completo (Ida y Vuelta) ha sido dado de baja.\n\nUn operador revisará el saldo correspondiente para tus próximos viajes.\n\nEscribí *Menú* para regresar.");
+                        "Tu reserva " + input + " fue cancelada. Dado que el comprobante de pago no estaba verificado por la administración, no se acreditó saldo a favor.");
             } else {
-                messaging.sendText(phoneNumber, "✅ La reserva *" + input + "* ha sido cancelada con éxito.\n\nEscribí *Menú* para regresar.");
+                messaging.sendText(phoneNumber,
+                        "Tu reserva " + input + " fue cancelada. Se acreditaron $"
+                                + cancellationResult.creditedAmount().toPlainString()
+                                + " en tu saldo a favor.");
             }
 
             session.setCurrentStep("START");
