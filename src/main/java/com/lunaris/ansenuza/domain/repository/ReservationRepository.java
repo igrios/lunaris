@@ -216,6 +216,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            LEFT JOIN FETCH r.passenger
            WHERE r.paymentVerified = true
            AND r.requiresInvoice = true
+           AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED')
            AND r.id NOT IN (SELECT i.reservation.id FROM Invoice i)
            AND NOT EXISTS (
                SELECT groupedInvoice.id FROM Invoice groupedInvoice
@@ -233,12 +234,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // cada tramo lleva la mitad del importe neto, por lo que la suma es el total cobrado.
     @Query("SELECT COALESCE(SUM(r.amount), 0) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
-           "AND r.status <> 'CANCELLED'")
+           "AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED')")
     BigDecimal sumConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("SELECT COUNT(r) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
-           "AND r.status <> 'CANCELLED' " +
+           "AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED') " +
            "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%-VUELTA')")
     long countConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 

@@ -141,9 +141,22 @@
                                 </td>
                                 <td th:text="${inv.passengerName}">Nombre</td>
                                 <td th:text="${inv.passengerCuil} ?: '—'">CUIL</td>
-                                <td class="text-end fw-semibold"
-                                    th:text="${'$' + #numbers.formatInteger(inv.amount, 0, 'POINT')}">$0</td>
+                                <td class="text-end fw-semibold">
+                                    <div th:text="${'$' + #numbers.formatInteger(inv.amount, 0, 'POINT')}">$0</div>
+                                    <span class="badge bg-danger mt-1"
+                                          th:if="${inv.refundedToWallet}"
+                                          data-bs-toggle="tooltip"
+                                          title="Monto reacreditado a la billetera del pasajero para futuras reservas">
+                                        REEMBOLSADO A BILLETERA
+                                    </span>
+                                </td>
                                 <td>
+                                    <span class="badge bg-danger"
+                                          th:if="${inv.refundedToWallet}"
+                                          data-bs-toggle="tooltip"
+                                          title="Monto reacreditado a la billetera del pasajero para futuras reservas">
+                                        SALDO A FAVOR
+                                    </span>
                                     <span class="badge bg-success" th:if="${inv.sentViaWhatsapp}">Enviada ✅</span>
                                     <span class="badge bg-warning text-dark" th:unless="${inv.sentViaWhatsapp}">Sin enviar</span>
                                 </td>
@@ -166,5 +179,9 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('[data-bs-toggle="tooltip"]')
+            .forEach(element => new bootstrap.Tooltip(element));
+    </script>
 </body>
 </html>

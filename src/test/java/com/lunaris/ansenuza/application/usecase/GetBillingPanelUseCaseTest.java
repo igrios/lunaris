@@ -6,12 +6,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Invoice;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.InvoiceRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class GetBillingPanelUseCaseTest {
@@ -32,7 +34,7 @@ class GetBillingPanelUseCaseTest {
                 .requiresInvoice(true)
                 .build();
         when(reservations.findPendingInvoiceReservations()).thenReturn(List.of(pending));
-        when(invoices.findAllByOrderByCreatedAtDesc()).thenReturn(List.of());
+        when(invoices.findAllIssuedWithReservation()).thenReturn(List.of());
 
         var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
 
@@ -40,6 +42,7 @@ class GetBillingPanelUseCaseTest {
         assertEquals("BRI-COR-001", panel.pendientes().getFirst().reservationCode());
         assertEquals(new BigDecimal("50500"), panel.pendientes().getFirst().amount());
         verify(reservations).findPendingInvoiceReservations();
+        verify(invoices).findAllIssuedWithReservation();
     }
 
     @Test
@@ -72,7 +75,7 @@ class GetBillingPanelUseCaseTest {
                 .thenReturn(List.of(outbound, returnLeg));
         when(reservations.findReservationGroup("LUN-001"))
                 .thenReturn(List.of(outbound, returnLeg));
-        when(invoices.findAllByOrderByCreatedAtDesc()).thenReturn(List.of());
+        when(invoices.findAllIssuedWithReservation()).thenReturn(List.of());
 
         var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
 
@@ -99,12 +102,38 @@ class GetBillingPanelUseCaseTest {
                 .build();
         when(reservations.findPendingInvoiceReservations()).thenReturn(List.of(outbound));
         when(reservations.findReservationGroup("LUN-002")).thenReturn(List.of(outbound));
-        when(invoices.findAllByOrderByCreatedAtDesc()).thenReturn(List.of());
+        when(invoices.findAllIssuedWithReservation()).thenReturn(List.of());
 
         var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
 
         assertEquals(1, panel.pendientes().size());
         assertEquals("LUN-002", panel.pendientes().getFirst().reservationCode());
         assertEquals("Pasajero sin vincular", panel.pendientes().getFirst().passengerName());
+    }
+
+    @Test
+    void cancelledPaidInvoiceRemainsVisibleAsRefundedToWallet() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        InvoiceRepository invoices = mock(InvoiceRepository.class);
+        Reservation cancelled = Reservation.builder()
+                .id(UUID.randomUUID())
+                .status("CANCELLED")
+                .paymentVerified(true)
+                .build();
+        Invoice invoice = Invoice.builder()
+                .id(UUID.randomUUID())
+                .reservation(cancelled)
+                .invoiceNumber("F-2026-00001")
+                .amount(new BigDecimal("99000"))
+                .sentViaWhatsapp(true)
+                .build();
+        when(reservations.findPendingInvoiceReservations()).thenReturn(List.of());
+        when(invoices.findAllIssuedWithReservation()).thenReturn(List.of(invoice));
+
+        var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
+
+        assertEquals(1, panel.emitidas().size());
+        assertEquals("CANCELLED", panel.emitidas().getFirst().reservationStatus());
+        assertEquals(true, panel.emitidas().getFirst().refundedToWallet());
     }
 }

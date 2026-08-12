@@ -9,10 +9,12 @@ import java.util.LinkedHashMap;
 import org.springframework.stereotype.Service;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Invoice;
 import com.lunaris.ansenuza.domain.model.service.CuilCalculator;
 import com.lunaris.ansenuza.domain.repository.InvoiceRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.billing.BillingPanelView;
+import com.lunaris.ansenuza.infrastructure.web.dto.billing.IssuedInvoiceRow;
 import com.lunaris.ansenuza.infrastructure.web.dto.billing.PendingInvoiceRow;
 import lombok.RequiredArgsConstructor;
 
@@ -44,8 +46,31 @@ public class GetBillingPanelUseCase {
                 ingresoMes != null ? ingresoMes : BigDecimal.ZERO,
                 countMes,
                 pendientes,
-                invoiceRepository.findAllByOrderByCreatedAtDesc()
+                invoiceRepository.findAllIssuedWithReservation().stream()
+                        .map(this::toIssuedRow)
+                        .toList()
         );
+    }
+
+    private IssuedInvoiceRow toIssuedRow(Invoice invoice) {
+        Reservation reservation = invoice.getReservation();
+        String reservationStatus = reservation == null ? null : reservation.getStatus();
+        boolean refundedToWallet = reservation != null
+                && "CANCELLED".equalsIgnoreCase(reservationStatus)
+                && Boolean.TRUE.equals(reservation.getPaymentVerified())
+                && invoice.getAmount() != null
+                && invoice.getAmount().signum() > 0;
+        return new IssuedInvoiceRow(
+                invoice.getId(),
+                invoice.getInvoiceNumber(),
+                invoice.getPassengerName(),
+                invoice.getPassengerCuil(),
+                invoice.getAmount(),
+                invoice.getPdfUrl(),
+                invoice.getSentViaWhatsapp(),
+                invoice.getCreatedAt(),
+                reservationStatus,
+                refundedToWallet);
     }
 
     private List<PendingInvoiceRow> consolidatePendingInvoices(List<Reservation> reservations) {
