@@ -2,6 +2,9 @@ package com.lunaris.ansenuza.application.conversation.steps;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -43,6 +46,10 @@ public class ConfirmationHandler implements ConversationStepHandler {
 
     @Override
     @Transactional
+    @Retryable(
+            retryFor = { ObjectOptimisticLockingFailureException.class },
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 100))
     public void handle(ConversationSession session, IncomingMessage message) {
         String phoneNumber = session.getPhoneNumber();
         String body = message.body().trim().toLowerCase();
@@ -54,24 +61,11 @@ public class ConfirmationHandler implements ConversationStepHandler {
 
             int totalAsientos = session.getPassengerCount() != null ? session.getPassengerCount() : 1;
 
-            Passenger passenger = passengerRepository.findByPhone(phoneNumber).orElseGet(() -> {
-                String[] names = session.getPassengerName().trim().split("\\s+", 2);
-                return passengerRepository.saveAndFlush(Passenger.builder()
-                        .firstName(names[0])
-                        .lastName(names.length > 1 ? names[1] : "")
-                        .phone(phoneNumber)
-                        .address(session.getPickupAddress())
-                        .locality(session.getPickupLocality())
-                        .cuil(session.getCuil())
-                        .build());
-            });
-
-            if (!session.getPickupAddress().equalsIgnoreCase(passenger.getAddress())
-                    || !session.getPickupLocality().equalsIgnoreCase(passenger.getLocality())) {
-                passenger.setAddress(session.getPickupAddress());
-                passenger.setLocality(session.getPickupLocality());
-                passengerRepository.saveAndFlush(passenger);
-            }
+            Passenger passenger = passengerRepository.findByPhone(phoneNumber)
+                    .map(existingPassenger -> passengerRepository.findById(existingPassenger.getId())
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "El pasajero ya no existe: " + existingPassenger.getId())))
+                    .orElseGet(() -> createPassenger(session, phoneNumber));
 
             BigDecimal price = pricingAndScheduleService.calculateTripPrice(
                     session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
@@ -181,5 +175,17 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     """);
             return;
         }
+    }
+
+    private Passenger createPassenger(ConversationSession session, String phoneNumber) {
+        String[] names = session.getPassengerName().trim().split("\\s+", 2);
+        return passengerRepository.saveAndFlush(Passenger.builder()
+                .firstName(names[0])
+                .lastName(names.length > 1 ? names[1] : "")
+                .phone(phoneNumber)
+                .address(session.getPickupAddress())
+                .locality(session.getPickupLocality())
+                .cuil(session.getCuil())
+                .build());
     }
 }
