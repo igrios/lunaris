@@ -220,7 +220,7 @@ class ReservationServiceTest {
                 .amount(new BigDecimal("2500.00"))
                 .paymentVerified(false)
                 .paymentReceiptUrl("https://example.test/unverified-receipt.jpg")
-                .status("PENDING_PAYMENT")
+                .status("PAYMENT_RECEIVED")
                 .reservationCode("COR-MIR-002-VUELTA")
                 .build();
         when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));

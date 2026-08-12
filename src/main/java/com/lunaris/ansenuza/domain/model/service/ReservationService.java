@@ -319,8 +319,12 @@ public class ReservationService {
                 
                 final BigDecimal[] totalReintegro = { BigDecimal.ZERO };
 
-                // 🛡️ FILTRO DE SEGURIDAD: Solo computa dinero si el pago fue verificado o la reserva estaba confirmada
-                boolean pagoRealizado = isRefundEligible(reservation);
+                // EVALUACIÓN ESTRICTA: Solo la bandera payment_verified == true autoriza el reembolso
+                boolean pagoRealizado = Boolean.TRUE.equals(reservation.getPaymentVerified());
+                if (!pagoRealizado) {
+                    log.warn("[CANCEL] Cancelación SIN reembolso para reserva {}. Motivo: payment_verified es FALSE (Estado actual: {})",
+                            reservation.getReservationCode(), reservation.getStatus());
+                }
 
                 // 1. Cancelamos la reserva actual seleccionada (Ida o Vuelta Abierta)
                 reservation.setStatus("CANCELLED");
@@ -347,7 +351,7 @@ public class ReservationService {
                         if (!"CANCELLED".equals(returnRes.getStatus())) {
                             assertCancellationAllowed(returnRes, triggeredBy);
                             assertNotCompleted(returnRes);
-                            boolean pagoVueltaRealizado = isRefundEligible(returnRes);
+                            boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified());
                             
                             returnRes.setStatus("CANCELLED");
                             returnRes.setTravelStatus(Reservation.TravelStatus.CANCELED);
@@ -373,11 +377,8 @@ public class ReservationService {
                 if (totalReintegro[0].compareTo(BigDecimal.ZERO) > 0) {
                     passenger.setCurrentBalance(saldoActual.add(totalReintegro[0]));
                     passengerRepository.saveAndFlush(passenger);
-                    log.info("Saldo de {} acreditado al pasajero {}",
+                    log.info("[CANCEL] Reembolso acreditado: {} a pasajero {}",
                             totalReintegro[0], passenger.getPhone());
-                } else if (!pagoRealizado) {
-                    log.info("Reserva {} cancelada SIN reembolso porque el pago no estaba verificado (payment_verified=false).",
-                            reservation.getReservationCode());
                 }
                 return new CancellationResult(pagoRealizado, totalReintegro[0]);
         }
@@ -512,19 +513,11 @@ public class ReservationService {
     }
 
     /**
-     * Un comprobante cargado no prueba que el dinero haya sido validado. Sólo los
-     * indicadores administrativos canónicos habilitan una acreditación.
+     * Un comprobante cargado o un estado de pago no prueban que el dinero haya sido
+     * validado. Sólo paymentVerified=true habilita una acreditación.
      */
     public boolean isRefundEligible(Reservation reservation) {
-        if (reservation == null) {
-            return false;
-        }
-        if (Boolean.TRUE.equals(reservation.getPaymentVerified())) {
-            return true;
-        }
-        String status = reservation.getStatus();
-        return "PAYMENT_RECEIVED".equalsIgnoreCase(status)
-                || "CONFIRMED".equalsIgnoreCase(status);
+        return reservation != null && Boolean.TRUE.equals(reservation.getPaymentVerified());
     }
 
     private Passenger lockPassenger(Passenger passenger) {
