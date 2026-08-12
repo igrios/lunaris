@@ -90,6 +90,12 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 appliedPromotion = promotion;
             }
 
+            BigDecimal availableBalance = passenger.getCurrentBalance() == null
+                    ? BigDecimal.ZERO
+                    : passenger.getCurrentBalance().max(BigDecimal.ZERO);
+            BigDecimal balanceUsed = availableBalance.min(price);
+            BigDecimal transferAmount = price.subtract(balanceUsed).max(BigDecimal.ZERO);
+
             // 🕒 REPARACIÓN FASE 3: Tomamos el bloque dinámico real elegido por el cliente
             String baseHour = session.getScheduleBlock() != null ? session.getScheduleBlock() : "03:00 AM";
             
@@ -147,9 +153,30 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 return;
             }
 
+            if (balanceUsed.signum() > 0 && transferAmount.signum() == 0 && paymentConfirmed) {
+                BigDecimal remainingBalance = passenger.getCurrentBalance() == null
+                        ? BigDecimal.ZERO
+                        : passenger.getCurrentBalance();
+                messaging.sendText(phoneNumber, """
+                        ✅ *¡Excelente! Cubrimos el total del viaje con tu saldo a favor.*
+
+                        💵 Saldo utilizado: $%s
+                        💰 Saldo restante en tu cuenta: $%s
+
+                        🚗 Tu reserva está confirmada. Un operador coordinará los detalles de tu retiro.
+                        """.formatted(money(balanceUsed), money(remainingBalance)));
+                return;
+            }
+
             messaging.sendImage(phoneNumber, CBU_BANNER_IMAGE_URL, "Datos para la transferencia");
+            String balanceMessage = balanceUsed.signum() > 0
+                    ? "\n💰 *Aplicamos $%s de tu saldo a favor.*\n"
+                            .formatted(money(balanceUsed))
+                    : "";
             messaging.sendText(phoneNumber, """
                     ✅ *¡Tu traslado ha sido registrado con éxito!*
+                    %s
+                    💵 *Importe restante a transferir: $%s*
 
                     💳 *Datos bancarios para congelar la tarifa (Transferencia):*
                     • *Titular:* Martín Fernando Manuel Cuestaz
@@ -157,7 +184,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     • *CBU:* 01103739330037363119529
 
                     📌 *Nota:* Una vez realizado el envío, *subí la captura o foto del comprobante por acá* para registrar tu pago de forma inmediata. ¡Buen viaje con Lunaris! 🚐
-                    """);
+                    """.formatted(balanceMessage, money(transferAmount)));
             return;
         }
 
@@ -187,5 +214,9 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 .locality(session.getPickupLocality())
                 .cuil(session.getCuil())
                 .build());
+    }
+
+    private String money(BigDecimal amount) {
+        return amount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
     }
 }
