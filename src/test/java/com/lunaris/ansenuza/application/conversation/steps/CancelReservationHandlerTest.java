@@ -22,6 +22,35 @@ import org.junit.jupiter.api.Test;
 class CancelReservationHandlerTest {
 
     @Test
+    void explainsThatUnverifiedPaymentCancellationDoesNotCreditBalance() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        ReservationService reservationService = mock(ReservationService.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        CancelReservationHandler handler = new CancelReservationHandler(
+                sessions, reservations, reservationService, messaging);
+        String phone = "5493511111111";
+        String code = "MOR-COR-003-IDA";
+        Reservation reservation = Reservation.builder()
+                .id(UUID.randomUUID())
+                .reservationCode(code)
+                .passenger(Passenger.builder().phone(phone).build())
+                .paymentVerified(false)
+                .status("PENDING_PAYMENT")
+                .travelStatus(Reservation.TravelStatus.PENDING)
+                .build();
+        when(reservations.findByReservationCode(code)).thenReturn(Optional.of(reservation));
+        when(reservationService.isRefundEligible(reservation)).thenReturn(false);
+
+        handler.handle(ConversationSession.builder().phoneNumber(phone).build(),
+                new IncomingMessage(phone, MessageType.TEXT, code, null));
+
+        verify(reservationService).cancelReservation(reservation.getId(), "BOT_WHATSAPP");
+        verify(messaging).sendText(phone,
+                "Tu reserva fue cancelada. Dado que el pago aún no había sido verificado por administración, no se acreditó saldo a favor.");
+    }
+
+    @Test
     void rejectsDriverAssignedReservationBeforeCallingCancellationService() {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         ReservationRepository reservations = mock(ReservationRepository.class);

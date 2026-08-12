@@ -78,7 +78,7 @@ public class CancelReservationHandler implements ConversationStepHandler {
                 return;
             }
 
-            boolean esPagoPendiente = "PENDING_PAYMENT".equalsIgnoreCase(res.getStatus());
+            boolean reembolsoHabilitado = reservationService.isRefundEligible(res);
             boolean esViajeCompleto = res.getRoundTrip() != null && res.getRoundTrip();
 
             try {
@@ -100,18 +100,13 @@ public class CancelReservationHandler implements ConversationStepHandler {
                 return;
             }
 
-            if (esViajeCompleto) {
-                if (esPagoPendiente) {
-                    messaging.sendText(phoneNumber, "✅ Tu viaje completo (Ida y Vuelta) ha sido cancelado con éxito.\n\nAl encontrarse la reserva con *pago pendiente*, la operación se cerró sin cargos adicionales.\n\nEscribí *Menú* para regresar.");
-                } else {
+            if (!reembolsoHabilitado) {
+                messaging.sendText(phoneNumber,
+                        "Tu reserva fue cancelada. Dado que el pago aún no había sido verificado por administración, no se acreditó saldo a favor.");
+            } else if (esViajeCompleto) {
                     messaging.sendText(phoneNumber, "✅ Tu viaje completo (Ida y Vuelta) ha sido dado de baja.\n\nUn operador revisará el saldo correspondiente para tus próximos viajes.\n\nEscribí *Menú* para regresar.");
-                }
             } else {
-                if (esPagoPendiente) {
-                    messaging.sendText(phoneNumber, "✅ La reserva *" + input + "* ha sido cancelada.\n\nAl figurar como *pago pendiente*, la operación se cerró sin cargos adicionales.\n\nEscribí *Menú* para regresar.");
-                } else {
-                    messaging.sendText(phoneNumber, "✅ La reserva *" + input + "* ha sido cancelada con éxito.\n\nEscribí *Menú* para regresar.");
-                }
+                messaging.sendText(phoneNumber, "✅ La reserva *" + input + "* ha sido cancelada con éxito.\n\nEscribí *Menú* para regresar.");
             }
 
             session.setCurrentStep("START");

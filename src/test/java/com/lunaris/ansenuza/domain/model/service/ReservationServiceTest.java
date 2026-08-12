@@ -11,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 import java.time.LocalDate;
 import java.math.BigDecimal;
@@ -22,6 +23,7 @@ import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.ReservationEvent;
 import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
@@ -196,6 +198,41 @@ class ReservationServiceTest {
         assertEquals("CANCELLED", reservation.getStatus());
         assertEquals(Reservation.TravelStatus.CANCELED, reservation.getTravelStatus());
         verify(passengers).saveAndFlush(passenger);
+    }
+
+    @Test
+    void cancellationWithoutVerifiedPaymentDoesNotCreditBalanceAndAuditsReason() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationEventRepository events = mock(ReservationEventRepository.class);
+        ReservationService service = new ReservationService(
+                reservations, events, passengers, mock(OnboardPassengerUseCase.class));
+        UUID reservationId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder()
+                .currentBalance(new BigDecimal("100.00"))
+                .build();
+        Reservation reservation = Reservation.builder()
+                .id(reservationId)
+                .passenger(passenger)
+                .amount(new BigDecimal("2500.00"))
+                .paymentVerified(false)
+                .paymentReceiptUrl("https://example.test/unverified-receipt.jpg")
+                .status("PENDING_PAYMENT")
+                .reservationCode("COR-MIR-002-VUELTA")
+                .build();
+        when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
+
+        service.cancelReservation(reservationId, "PASSENGER");
+
+        assertEquals(new BigDecimal("100.00"), passenger.getCurrentBalance());
+        assertEquals("CANCELLED", reservation.getStatus());
+        assertEquals(Reservation.TravelStatus.CANCELED, reservation.getTravelStatus());
+        verify(passengers, never()).saveAndFlush(passenger);
+        ArgumentCaptor<ReservationEvent> eventCaptor =
+                ArgumentCaptor.forClass(ReservationEvent.class);
+        verify(events).save(eventCaptor.capture());
+        assertEquals("CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT",
+                eventCaptor.getValue().getEventType());
     }
 
     @Test

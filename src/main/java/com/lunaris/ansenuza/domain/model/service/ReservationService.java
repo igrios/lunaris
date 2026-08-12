@@ -309,7 +309,7 @@ public class ReservationService {
                 final BigDecimal[] totalReintegro = { BigDecimal.ZERO };
 
                 // 🛡️ FILTRO DE SEGURIDAD: Solo computa dinero si el pago fue verificado o la reserva estaba confirmada
-                boolean pagoRealizado = isPaid(reservation);
+                boolean pagoRealizado = isRefundEligible(reservation);
 
                 // 1. Cancelamos la reserva actual seleccionada (Ida o Vuelta Abierta)
                 reservation.setStatus("CANCELLED");
@@ -323,7 +323,8 @@ public class ReservationService {
                 // Registro del evento
                 ReservationEvent cancelEvent = ReservationEvent.builder()
                         .reservationId(reservation.getId())
-                        .eventType(pagoRealizado ? "CANCELLED_CREDIT_ACCRUED" : "CANCELLED_UNPAID")
+                        .eventType(pagoRealizado ? "CANCELLED_CREDIT_ACCRUED"
+                                : "CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT")
                         .description("Reserva " + reservation.getReservationCode() + " dada de baja. Pago verificado anteriormente: " + pagoRealizado)
                         .triggeredBy(triggeredBy)
                         .build();
@@ -335,7 +336,7 @@ public class ReservationService {
                         if (!"CANCELLED".equals(returnRes.getStatus())) {
                             assertCancellationAllowed(returnRes, triggeredBy);
                             assertNotCompleted(returnRes);
-                            boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified()) || "CONFIRMED".equals(returnRes.getStatus());
+                            boolean pagoVueltaRealizado = isRefundEligible(returnRes);
                             
                             returnRes.setStatus("CANCELLED");
                             returnRes.setTravelStatus(Reservation.TravelStatus.CANCELED);
@@ -347,7 +348,8 @@ public class ReservationService {
 
                             ReservationEvent cancelReturnEvent = ReservationEvent.builder()
                                     .reservationId(returnRes.getId())
-                                    .eventType(pagoVueltaRealizado ? "CANCELLED_CREDIT_ACCRUED" : "CANCELLED_UNPAID")
+                                    .eventType(pagoVueltaRealizado ? "CANCELLED_CREDIT_ACCRUED"
+                                            : "CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT")
                                     .description("Cancelación automática de VUELTA por baja de IDA. Pago verificado: " + pagoVueltaRealizado)
                                     .triggeredBy(triggeredBy)
                                     .build();
@@ -395,11 +397,15 @@ public class ReservationService {
             reservation.setTravelStatus(Reservation.TravelStatus.PARTIALLY_COMPLETED);
         }
         reservationRepository.saveAndFlush(reservation);
-        credit(passenger, isPaid(reservation) ? seatAmount : BigDecimal.ZERO);
+        boolean refundable = isRefundEligible(reservation);
+        credit(passenger, refundable ? seatAmount : BigDecimal.ZERO);
         reservationEventRepository.save(ReservationEvent.builder()
                 .reservationId(id)
-                .eventType("RETURN_SEAT_CANCELLED")
-                .description("Cancelación de una plaza de vuelta no utilizada.")
+                .eventType(refundable ? "RETURN_SEAT_CANCELLED"
+                        : "CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT")
+                .description(refundable
+                        ? "Cancelación de una plaza de vuelta no utilizada."
+                        : "Plaza cancelada sin saldo a favor porque el pago no estaba verificado.")
                 .triggeredBy(triggeredBy)
                 .build());
     }
@@ -407,7 +413,8 @@ public class ReservationService {
     private void cancelReturnOnly(Reservation returnReservation, Passenger passenger, String triggeredBy) {
         assertNotCompleted(returnReservation);
         assertCancellationAllowed(returnReservation, triggeredBy);
-        BigDecimal refund = isPaid(returnReservation)
+        boolean refundable = isRefundEligible(returnReservation);
+        BigDecimal refund = refundable
                 ? refundableAmount(returnReservation)
                 : BigDecimal.ZERO;
         returnReservation.setStatus("CANCELLED");
@@ -416,8 +423,11 @@ public class ReservationService {
         credit(passenger, refund);
         reservationEventRepository.save(ReservationEvent.builder()
                 .reservationId(returnReservation.getId())
-                .eventType("RETURN_CANCELLED_AFTER_OUTBOUND")
-                .description("Solo se canceló y acreditó la porción no utilizada de la vuelta.")
+                .eventType(refundable ? "RETURN_CANCELLED_AFTER_OUTBOUND"
+                        : "CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT")
+                .description(refundable
+                        ? "Solo se canceló y acreditó la porción no utilizada de la vuelta."
+                        : "La vuelta se canceló sin saldo a favor porque el pago no estaba verificado.")
                 .triggeredBy(triggeredBy)
                 .build());
     }
@@ -476,10 +486,20 @@ public class ReservationService {
                 : Math.max(0, reservation.getReturnedPassengerCount());
     }
 
-    private boolean isPaid(Reservation reservation) {
-        return Boolean.TRUE.equals(reservation.getPaymentVerified())
-                || reservation.getPaymentReceiptUrl() != null
-                        && !reservation.getPaymentReceiptUrl().isBlank();
+    /**
+     * Un comprobante cargado no prueba que el dinero haya sido validado. Sólo los
+     * indicadores administrativos canónicos habilitan una acreditación.
+     */
+    public boolean isRefundEligible(Reservation reservation) {
+        if (reservation == null) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(reservation.getPaymentVerified())) {
+            return true;
+        }
+        String status = reservation.getStatus();
+        return "PAYMENT_RECEIVED".equalsIgnoreCase(status)
+                || "CONFIRMED".equalsIgnoreCase(status);
     }
 
     private Passenger lockPassenger(Passenger passenger) {
