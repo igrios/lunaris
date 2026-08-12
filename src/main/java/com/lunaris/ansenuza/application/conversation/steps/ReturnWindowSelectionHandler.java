@@ -41,6 +41,20 @@ public class ReturnWindowSelectionHandler implements ConversationStepHandler {
         Reservation reservation = reservationRepository
                 .findByReservationCodeForUpdate(session.getReservationCode())
                 .orElseThrow(() -> new IllegalStateException("No se encontró la reserva de regreso."));
+
+        boolean openReturn = reservation.getTravelStatus() == Reservation.TravelStatus.OPEN_RETURN;
+        if (reservation.getTravelDate() == null || openReturn) {
+            reservation.setTravelStatus(
+                    openReturn
+                            ? Reservation.TravelStatus.OPEN_RETURN
+                            : Reservation.TravelStatus.PENDING);
+            reservationRepository.saveAndFlush(reservation);
+            messaging.sendText(session.getPhoneNumber(),
+                    "📅 La vuelta todavía está abierta. Primero debemos coordinar y confirmar la fecha; "
+                            + "el horario se asignará cuando el viaje quede programado.");
+            return;
+        }
+
         reservation.setDepartureSchedule(schedule);
         reservation.setTravelStatus(Reservation.TravelStatus.CONFIRMED);
         reservationRepository.saveAndFlush(reservation);

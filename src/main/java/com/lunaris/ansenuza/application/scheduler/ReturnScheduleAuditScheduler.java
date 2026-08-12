@@ -31,6 +31,8 @@ public class ReturnScheduleAuditScheduler {
         Map<String, Reservation> candidateByPhone = new LinkedHashMap<>();
         reservationRepository.findReturnScheduleAuditCandidates(today, today.plusDays(1))
                 .stream()
+                .filter(reservation -> hasEffectiveDateInRange(
+                        reservation, today, today.plusDays(1)))
                 .filter(reservation -> reservation.getPassenger() != null)
                 .filter(reservation -> reservation.getPassenger().getPhone() != null
                         && !reservation.getPassenger().getPhone().isBlank())
@@ -46,9 +48,13 @@ public class ReturnScheduleAuditScheduler {
                 }
                 ConversationSession session = conversationSessionRepository.findByPhoneNumber(phone)
                         .orElseGet(() -> ConversationSession.builder().phoneNumber(phone).build());
+                if (session.isBotPaused()) {
+                    log.info("[ReturnScheduleAudit] Se omite {}: conversación bajo atención humana.",
+                            phone);
+                    return;
+                }
                 if (session.getCurrentStep() != null
-                        && !"RETURN_WINDOW_SELECTION".equals(session.getCurrentStep())
-                        && !session.isBotPaused()) {
+                        && !"RETURN_WINDOW_SELECTION".equals(session.getCurrentStep())) {
                     log.info("[ReturnScheduleAudit] Se omite {}: conversación activa en {}.",
                             phone, session.getCurrentStep());
                     return;
@@ -81,6 +87,19 @@ public class ReturnScheduleAuditScheduler {
     private boolean alreadyAuditedToday(Reservation reservation, LocalDate today) {
         return reservation.getReturnAuditSentAt() != null
                 && reservation.getReturnAuditSentAt().toLocalDate().equals(today);
+    }
+
+    private static boolean hasEffectiveDateInRange(
+            Reservation reservation, LocalDate fromDate, LocalDate toDate) {
+        if (reservation.getTravelStatus() == Reservation.TravelStatus.OPEN_RETURN) {
+            return false;
+        }
+        return isInRange(reservation.getTravelDate(), fromDate, toDate)
+                || isInRange(reservation.getReturnDate(), fromDate, toDate);
+    }
+
+    private static boolean isInRange(LocalDate date, LocalDate fromDate, LocalDate toDate) {
+        return date != null && !date.isBefore(fromDate) && !date.isAfter(toDate);
     }
 
     private static Reservation preferReturnLeg(Reservation first, Reservation second) {

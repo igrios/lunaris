@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.whatsapp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.List;
 import java.util.Map;
@@ -85,6 +86,30 @@ class WhatsAppWebhookParserTest {
         assertEquals(
                 "BOARD_ID_5ca1ab1e-6806-4a50-94e3-3785b4bf5b68",
                 message.body());
+    }
+
+    @Test
+    void returnsNullForMissingOrEmptyWebhookStructure() {
+        assertNull(parser.parse(null));
+        assertNull(parser.parse(Map.of()));
+        assertNull(parser.parse(Map.of("entry", List.of())));
+        assertNull(parser.parse(Map.of("entry", List.of(Map.of("changes", List.of())))));
+    }
+
+    @Test
+    void returnsNullForMalformedInteractiveReplyWithoutId() {
+        assertNull(parser.parse(payload(Map.of(
+                "from", "5493512282251",
+                "type", "interactive",
+                "interactive", Map.of(
+                        "type", "button_reply",
+                        "button_reply", Map.of("title", "Sin identificador"))))));
+    }
+
+    @Test
+    void returnsNullWhenPayloadNodesHaveUnexpectedTypes() {
+        assertNull(parser.parse(Map.of("entry", "invalid")));
+        assertNull(parser.parse(Map.of("entry", List.of(Map.of("changes", "invalid")))));
     }
 
     private Map<String, Object> payload(Map<String, Object> message) {

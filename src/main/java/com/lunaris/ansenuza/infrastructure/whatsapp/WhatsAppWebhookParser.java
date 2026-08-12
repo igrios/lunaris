@@ -1,6 +1,5 @@
  package com.lunaris.ansenuza.infrastructure.whatsapp;
 
-import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -19,40 +18,32 @@ public class WhatsAppWebhookParser {
      * @return el mensaje entrante, o {@code null} si el payload no contiene un mensaje procesable
      *         (eventos de status, payloads vacíos, etc.).
      */
-    @SuppressWarnings("unchecked")
     public IncomingMessage parse(Map<String, Object> payload) {
-        List<Map<String, Object>> entry = (List<Map<String, Object>>) payload.get("entry");
-        if (entry == null || entry.isEmpty()) {
+        Map<?, ?> entry = firstMap(payload == null ? null : payload.get("entry"));
+        Map<?, ?> change = firstMap(entry == null ? null : entry.get("changes"));
+        Map<?, ?> value = mapValue(change == null ? null : change.get("value"));
+        Map<?, ?> message = firstMap(value == null ? null : value.get("messages"));
+        if (message == null) {
             return null;
         }
 
-        Map<String, Object> change =
-                (Map<String, Object>) ((List<?>) entry.get(0).get("changes")).get(0);
-        Map<String, Object> value = (Map<String, Object>) change.get("value");
-        List<Map<String, Object>> messages = (List<Map<String, Object>>) value.get("messages");
-
-        if (messages == null || messages.isEmpty()) {
-            return null;
-        }
-
-        Map<String, Object> message = messages.get(0);
-        String from = normalizeWhatsAppNumber((String) message.get("from"));
-        String type = (String) message.get("type");
+        String from = normalizeWhatsAppNumber(stringValue(message.get("from")));
+        String type = stringValue(message.get("type"));
 
         if ("image".equals(type)) {
-            Map<String, Object> imageData = (Map<String, Object>) message.get("image");
-            String mediaId = imageData != null ? (String) imageData.get("id") : null;
+            Map<?, ?> imageData = mapValue(message.get("image"));
+            String mediaId = imageData != null ? stringValue(imageData.get("id")) : null;
             return new IncomingMessage(from, MessageType.IMAGE, null, mediaId);
         }
 
         if ("text".equals(type)) {
-            Map<String, Object> text = (Map<String, Object>) message.get("text");
-            String body = text != null ? (String) text.get("body") : null;
+            Map<?, ?> text = mapValue(message.get("text"));
+            String body = text != null ? stringValue(text.get("body")) : null;
             return new IncomingMessage(from, MessageType.TEXT, body, null);
         }
 
         if ("location".equals(type)) {
-            Map<String, Object> location = (Map<String, Object>) message.get("location");
+            Map<?, ?> location = mapValue(message.get("location"));
             Double latitude = numberValue(location, "latitude");
             Double longitude = numberValue(location, "longitude");
             if (latitude == null || longitude == null) {
@@ -64,17 +55,18 @@ public class WhatsAppWebhookParser {
         }
 
         if ("button".equals(type)) {
-            Map<String, Object> buttonData = (Map<String, Object>) message.get("button");
-            String body = buttonData != null ? (String) buttonData.get("payload") : null;
+            Map<?, ?> buttonData = mapValue(message.get("button"));
+            String body = buttonData != null ? stringValue(buttonData.get("payload")) : null;
             if (body == null && buttonData != null) {
-                body = (String) buttonData.get("text");
+                body = stringValue(buttonData.get("text"));
             }
+            if (body == null || body.isBlank()) return null;
             return new IncomingMessage(from, MessageType.INTERACTIVE, body, null);
         }
 
         if ("interactive".equals(type)) {
             String body = null;
-            Map<String, Object> interactive = (Map<String, Object>) message.get("interactive");
+            Map<?, ?> interactive = mapValue(message.get("interactive"));
             if (interactive != null) {
                 if ("button_reply".equals(interactive.get("type"))) {
                     body = interactiveReplyId(interactive, "button_reply");
@@ -85,6 +77,10 @@ public class WhatsAppWebhookParser {
             log.info(
                     "[WhatsApp Webhook] Interactive response parsed. from={}, type={}, payload={}",
                     from, interactive != null ? interactive.get("type") : null, body);
+            if (body == null || body.isBlank()) {
+                log.warn("[WhatsApp Webhook] Respuesta interactiva descartada: falta un ID válido.");
+                return null;
+            }
             return new IncomingMessage(from, MessageType.INTERACTIVE, body, null);
         }
 
@@ -95,19 +91,32 @@ public class WhatsAppWebhookParser {
         return (phone != null && phone.startsWith("549")) ? "54" + phone.substring(3) : phone;
     }
 
-    private Double numberValue(Map<String, Object> values, String key) {
+    private Double numberValue(Map<?, ?> values, String key) {
         if (values == null || !(values.get(key) instanceof Number number)) {
             return null;
         }
         return number.doubleValue();
     }
 
-    private String interactiveReplyId(Map<String, Object> interactive, String replyKey) {
+    private String interactiveReplyId(Map<?, ?> interactive, String replyKey) {
         Object reply = interactive.get(replyKey);
         if (!(reply instanceof Map<?, ?> replyData)) {
             return null;
         }
         Object id = replyData.get("id");
         return id instanceof String value ? value : null;
+    }
+
+    private Map<?, ?> firstMap(Object value) {
+        if (!(value instanceof java.util.List<?> values) || values.isEmpty()) return null;
+        return mapValue(values.getFirst());
+    }
+
+    private Map<?, ?> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? map : null;
+    }
+
+    private String stringValue(Object value) {
+        return value instanceof String string ? string : null;
     }
 }

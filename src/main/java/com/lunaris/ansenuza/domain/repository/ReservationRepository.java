@@ -174,6 +174,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            LEFT JOIN FETCH r.passenger
            WHERE (r.roundTrip = true OR r.travelStatus =
                   com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN)
+           AND (r.travelStatus IS NULL OR r.travelStatus <>
+                  com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN)
            AND (r.travelDate BETWEEN :fromDate AND :toDate
                 OR r.returnDate BETWEEN :fromDate AND :toDate)
            AND (r.status IS NULL OR UPPER(r.status) <> 'CANCELLED')

@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -24,13 +23,14 @@ import com.lunaris.ansenuza.application.port.ReceiptStoragePort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.model.service.OperationControlService;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
-import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +45,6 @@ public class BotMonitorController {
     private final SimpMessagingTemplate messagingTemplate;
 
     // Inyecciones homologadas para el procesamiento con el Bot y Carga Manual
-    private final ReservationRepository reservationRepository;
     private final PassengerRepository passengerRepository;
     private final ChatMessageRepository messageRepository; 
     private final LocalityRepository localityRepository; 
@@ -53,6 +52,7 @@ public class BotMonitorController {
     private final PricingAndScheduleService tarifaService;
     private final ReceiptStoragePort cloudinaryService;
     private final OperationControlService operationControlService;
+    private final ReservationService reservationService;
 
     // 🖥️ Muestra la lista de conversaciones en el monitor filtrada por operador logueado
     @GetMapping("/monitor")
@@ -246,10 +246,6 @@ public class BotMonitorController {
 
             String urlComprobantePermanente = persistirComprobanteEnCloudinary(urlComprobanteCruda, phone);
 
-            String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-            String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
-                    + destination.substring(0, 3).toUpperCase() + "-" + shortId;
-
             String notasAuditoria = urlComprobantePermanente != null
                     ? "Cargado por Operador desde Monitor. Comprobante enlazado y persistido en Cloudinary."
                     : "Cargado por Operador desde Monitor. ⚠️ Comprobante no pudo persistirse.";
@@ -261,40 +257,20 @@ public class BotMonitorController {
             ida.setPickupAddress(pickupAddress);
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
-            ida.setAmount(montoIda); 
+            ida.setAmount(montoIda.add(montoVuelta));
+            ida.setDiscountAmount(java.math.BigDecimal.ZERO);
             ida.setPaymentReceiptUrl(urlComprobantePermanente); 
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
             ida.setRoundTrip(roundTrip);
+            ida.setTripType(tripType(roundTrip, returnDate));
+            ida.setReturnDate(returnDate);
             ida.setDepartureSchedule(departureSchedule);
             ida.setRequiresInvoice(requiresInvoice);
-            ida.setReservationCode(codigoBase + "-IDA");
             ida.setNotes(notasAuditoria);
 
-            reservationRepository.saveAndFlush(ida);
-
-            if (roundTrip) {
-                Reservation vuelta = new Reservation();
-                vuelta.setPassenger(passenger);
-                // Si viene returnDate de formulario (Fecha Cerrada), se asigna, sino centinela (Fecha Abierta)
-                vuelta.setTravelDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
-                vuelta.setPickupLocality(destination);
-                vuelta.setDestination(pickupLocality);
-                vuelta.setPickupAddress(returnDate != null ? "A coordinar domicilio de vuelta" : "A coordinar por WhatsApp (Vuelta Abierta)");
-                vuelta.setPassengerCount(passengerCount);
-                vuelta.setAmount(montoVuelta); 
-                vuelta.setPaymentReceiptUrl(urlComprobantePermanente); 
-                vuelta.setStatus("PENDING_VERIFICATION");
-                vuelta.setPaymentVerified(false);
-                vuelta.setRoundTrip(true);
-                vuelta.setDepartureSchedule(departureSchedule);
-                vuelta.setRequiresInvoice(requiresInvoice);
-                vuelta.setReturnDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
-                vuelta.setReservationCode(codigoBase + "-VUELTA");
-                vuelta.setNotes(notasAuditoria);
-
-                reservationRepository.saveAndFlush(vuelta);
-            }
+            List<Reservation> savedReservations = reservationService.saveReservationFlow(ida);
+            String codigoBase = savedReservations.getFirst().getBookingGroupCode();
 
             String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
                     + "*Detalles de tu viaje registrado:*\n"
@@ -355,10 +331,6 @@ public class BotMonitorController {
             java.math.BigDecimal montoIda = legAmounts.outbound();
             java.math.BigDecimal montoVuelta = legAmounts.inbound();
 
-            String shortId = UUID.randomUUID().toString().substring(0, 5).toUpperCase();
-            String codigoBase = pickupLocality.substring(0, 3).toUpperCase() + "-" 
-                    + destination.substring(0, 3).toUpperCase() + "-" + shortId;
-
             Reservation ida = new Reservation();
             ida.setPassenger(passenger);
             ida.setTravelDate(travelDate);
@@ -366,38 +338,18 @@ public class BotMonitorController {
             ida.setPickupAddress(pickupAddress);
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
-            ida.setAmount(montoIda); 
+            ida.setAmount(montoIda.add(montoVuelta));
+            ida.setDiscountAmount(java.math.BigDecimal.ZERO);
             ida.setStatus("CONFIRMED"); 
             ida.setPaymentVerified(true);
             ida.setRoundTrip(roundTrip);
+            ida.setTripType(tripType(roundTrip, returnDate));
+            ida.setReturnDate(returnDate);
             ida.setDepartureSchedule(departureSchedule);
             ida.setRequiresInvoice(requiresInvoice);
-            ida.setReservationCode(codigoBase + "-IDA");
             ida.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
 
-            reservationRepository.saveAndFlush(ida);
-
-            if (roundTrip) {
-                Reservation vuelta = new Reservation();
-                vuelta.setPassenger(passenger);
-                // Si viene returnDate de formulario (Fecha Cerrada), se asigna, sino centinela (Fecha Abierta)
-                vuelta.setTravelDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
-                vuelta.setPickupLocality(destination);
-                vuelta.setDestination(pickupLocality);
-                vuelta.setPickupAddress(returnDate != null ? "A coordinar domicilio de vuelta" : "A coordinar por WhatsApp (Vuelta Abierta)");
-                vuelta.setPassengerCount(passengerCount);
-                vuelta.setAmount(montoVuelta); 
-                vuelta.setStatus("CONFIRMED");
-                vuelta.setPaymentVerified(true);
-                vuelta.setRoundTrip(true);
-                vuelta.setDepartureSchedule(departureSchedule);
-                vuelta.setRequiresInvoice(requiresInvoice);
-                vuelta.setReturnDate(returnDate != null ? returnDate : LocalDate.of(2099, 12, 31));
-                vuelta.setReservationCode(codigoBase + "-VUELTA");
-                vuelta.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
-
-                reservationRepository.saveAndFlush(vuelta);
-            }
+            reservationService.saveReservationFlow(ida);
 
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva manual creada correctamente!");
 
@@ -419,6 +371,11 @@ public class BotMonitorController {
         java.math.BigDecimal outbound = total.divide(
                 java.math.BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
         return new LegAmounts(outbound, total.subtract(outbound));
+    }
+
+    private TripType tripType(boolean roundTrip, LocalDate returnDate) {
+        if (!roundTrip) return TripType.ONE_WAY;
+        return returnDate == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP;
     }
 
     private record LegAmounts(

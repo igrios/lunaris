@@ -89,7 +89,8 @@ public class AskDateHandler implements ConversationStepHandler {
             messaging.sendButtons(phoneNumber, "Fecha de Regreso",
                     "📅 *¿Cuándo programamos el regreso desde Córdoba?*\n\nSi todavía no sabés el día exacto, podés dejar la fecha abierta y coordinarla más adelante con Martín.",
                     List.of(new Button("return_same_day", "Vuelvo en el día"),
-                            new Button("return_choose_date", "Otra fecha")));
+                            new Button("return_choose_date", "Otra fecha"),
+                            new Button("return_open", "Fecha abierta")));
         } else {
             session.setCurrentStep("ASK_DNI_REQUIRED");
             conversationSessionRepository.saveAndFlush(session);
