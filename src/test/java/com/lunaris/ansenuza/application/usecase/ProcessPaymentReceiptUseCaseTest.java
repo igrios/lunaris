@@ -57,7 +57,8 @@ class ProcessPaymentReceiptUseCaseTest {
                 .thenReturn(List.of(reservation, returnLeg));
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, messaging, liveChat,
-                mock(SameDayBookingPolicy.class), mock(ReservationService.class));
+                mock(SameDayBookingPolicy.class), mock(ReservationService.class),
+                new PersistPaymentReceiptUseCase(passengers, reservations));
 
         useCase.execute("543511111111", "media-123");
 
@@ -98,7 +99,7 @@ class ProcessPaymentReceiptUseCaseTest {
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
                 mock(LiveChatPort.class), mock(SameDayBookingPolicy.class),
-                mock(ReservationService.class));
+                mock(ReservationService.class), mock(PersistPaymentReceiptUseCase.class));
 
         useCase.confirmOrCreateWebBooking("3511111111", receipt, null);
 
@@ -128,7 +129,8 @@ class ProcessPaymentReceiptUseCaseTest {
                 });
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
-                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class), reservationService);
+                mock(LiveChatPort.class), mock(SameDayBookingPolicy.class), reservationService,
+                mock(PersistPaymentReceiptUseCase.class));
         BookingVerificationData payload = new BookingVerificationData(
                 LocalDate.of(2026, 8, 10), "08:00 AM", "La Puerta", "Córdoba",
                 2, TripType.ONE_WAY, new BigDecimal("56000.00"));

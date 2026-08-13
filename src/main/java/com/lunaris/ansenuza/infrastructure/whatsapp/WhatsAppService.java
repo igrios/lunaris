@@ -18,6 +18,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.application.port.Button;
@@ -328,6 +330,18 @@ public class WhatsAppService implements MessagingPort {
     // 🧾 ENVÍO DE DOCUMENTO (PDF) — sube el archivo local a Meta y luego lo manda por su media id
     @Override
     public void sendDocument(String phoneNumber, String absoluteFilePath, String fileName, String caption) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(
+                            () -> sendDocument(phoneNumber, absoluteFilePath, fileName, caption));
+                }
+            });
+            log.debug("Envío de documento a Meta diferido hasta confirmar la transacción.");
+            return;
+        }
         try {
             // Paso 1: Subir el PDF a la Media API (multipart) para obtener un media id
             String uploadUrl = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/media";
@@ -397,6 +411,21 @@ public class WhatsAppService implements MessagingPort {
     }
 
     private boolean executePostCall(String url, HttpHeaders headers, Map<String, Object> body, String tipoMensaje) {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            Map<String, Object> deferredBody = new HashMap<>(body);
+            HttpHeaders deferredHeaders = new HttpHeaders();
+            deferredHeaders.putAll(headers);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(
+                            () -> executePostCall(url, deferredHeaders, deferredBody, tipoMensaje));
+                }
+            });
+            log.debug("Envío Meta [{}] diferido hasta confirmar la transacción.", tipoMensaje);
+            return true;
+        }
         Map<String, Object> sanitizedBody = new HashMap<>(body);
         if (body.get("to") instanceof String destinationPhone) {
             sanitizedBody.put("to", formatMetaPhoneNumber(destinationPhone));

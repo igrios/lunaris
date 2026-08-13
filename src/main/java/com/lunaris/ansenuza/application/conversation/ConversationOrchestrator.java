@@ -302,7 +302,10 @@ public class ConversationOrchestrator {
             return;
         }
 
-        Optional<UUID> boardingReservationId = extractBoardingReservationId(message, rawPayload);
+        Optional<UUID> boardingReservationId = message.type() == IncomingMessage.MessageType.INTERACTIVE
+                && isUuid(rawPayload)
+                        ? Optional.of(UUID.fromString(rawPayload.trim()))
+                        : extractBoardingReservationId(message, rawPayload);
         if (boardingReservationId.isPresent()) {
             log.info(
                     "[Driver Flow] Boarding action received. phone={}, reservationId={}, type={}",
@@ -444,10 +447,6 @@ public class ConversationOrchestrator {
         } else if (rawPayload.regionMatches(
                 true, 0, BOARD_PREFIX, 0, BOARD_PREFIX.length())) {
             candidate = rawPayload.substring(BOARD_PREFIX.length());
-        } else if (message.type() == IncomingMessage.MessageType.INTERACTIVE
-                && isActiveDriverPhone(message.from())
-                && isUuid(rawPayload)) {
-            candidate = rawPayload.trim();
         }
         if (candidate == null) {
             return Optional.empty();
@@ -471,18 +470,14 @@ public class ConversationOrchestrator {
         }
     }
 
-    private boolean isActiveDriverPhone(String phone) {
-        return findActiveDriverByPhone(phone).isPresent();
-    }
-
     private Optional<Driver> findActiveDriverByPhone(String phone) {
         String digitsOnlyPhone = phone == null ? "" : phone.replaceAll("[^0-9]", "");
         String normalizedPhone = normalizeWhatsAppNumber(phone);
-        Optional<Driver> exactMatch = driverRepository.findFirstByPhone(digitsOnlyPhone)
+        Optional<Driver> exactMatch = driverRepository.findFirstByPhoneAndActiveTrue(digitsOnlyPhone)
                 .or(() -> digitsOnlyPhone.equals(normalizedPhone)
                         ? Optional.empty()
-                        : driverRepository.findFirstByPhone(normalizedPhone));
-        if (exactMatch.filter(Driver::isActive).isPresent()) {
+                        : driverRepository.findFirstByPhoneAndActiveTrue(normalizedPhone));
+        if (exactMatch.isPresent()) {
             return exactMatch;
         }
         return driverRepository.findByActiveTrue().stream()

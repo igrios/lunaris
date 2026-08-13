@@ -16,6 +16,7 @@ import java.util.UUID; // 🔥 Agregamos el import
 public interface DriverRepository extends JpaRepository<Driver, UUID> { // 👈 Cambiado Long por UUID
     List<Driver> findByActiveTrue();
     Optional<Driver> findFirstByPhone(String phone);
+    Optional<Driver> findFirstByPhoneAndActiveTrue(String phone);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT d FROM Driver d WHERE d.id IN :ids ORDER BY d.id")

@@ -36,8 +36,8 @@ public class ProcessPaymentReceiptUseCase {
     private final LiveChatPort liveChat;
     private final SameDayBookingPolicy sameDayBookingPolicy;
     private final ReservationService reservationService;
+    private final PersistPaymentReceiptUseCase persistPaymentReceiptUseCase;
 
-    @Transactional
     public void execute(String phoneNumber, String mediaId) {
         // 1. Descargamos y persistimos el comprobante una única vez. Devuelve la URL
         //    pública (Cloudinary secure_url) con la que se renderiza la imagen.
@@ -52,32 +52,8 @@ public class ProcessPaymentReceiptUseCase {
                     mediaId);
         }
 
-        // 3. Enlazamos el comprobante con la primera reserva cronológica esperando pago.
-        Optional<Passenger> passengerOpt = passengerRepository.findByPhone(phoneNumber);
-        if (passengerOpt.isPresent()) {
-            List<Reservation> activeReservations =
-                    reservationRepository
-                            .findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(
-                                    passengerOpt.get());
-
-            // 🎯 FILTRO INTELIGENTE: Busca la primera reserva cronológica esperando pago estricto
-            Optional<Reservation> pendingReservation = activeReservations.stream()
-                    .filter(r -> "PENDING_PAYMENT".equals(r.getStatus()))
-                    .findFirst();
-
-            if (pendingReservation.isPresent() && receiptUrl != null) {
-                Reservation reservation = pendingReservation.get();
-                updatePaymentGroup(reservation, receiptUrl, false, "PAYMENT_RECEIVED");
-                log.info("[Bot Webhook] Comprobante enlazado con éxito para código: {}",
-                        reservation.getReservationCode());
-            } else if (pendingReservation.isEmpty()) {
-                log.warn("[Bot Webhook] No se encontró ninguna reserva en PENDING_PAYMENT para el teléfono: {}",
-                        phoneNumber);
-            }
-        } else {
-            log.warn("[Bot Webhook] No existe ningún pasajero registrado con el teléfono: {}",
-                    phoneNumber);
-        }
+        // 3. Recién ahora se abre una transacción corta para datos financieros.
+        if (receiptUrl != null) persistPaymentReceiptUseCase.execute(phoneNumber, receiptUrl);
 
         messaging.sendText(phoneNumber,
                 "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");

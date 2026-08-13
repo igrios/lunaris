@@ -37,7 +37,7 @@ class ConversationOrchestratorTest {
         Driver driver = new Driver();
         driver.setPhone("351 555-0101");
         driver.setActive(true);
-        when(drivers.findFirstByPhone("543515550101")).thenReturn(Optional.of(driver));
+        when(drivers.findFirstByPhoneAndActiveTrue("543515550101")).thenReturn(Optional.of(driver));
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
                 List.of(),
                 sessions,
@@ -135,7 +135,7 @@ class ConversationOrchestratorTest {
                 .destination("Córdoba")
                 .status("CONFIRMED")
                 .build();
-        when(drivers.findFirstByPhone("3515550101")).thenReturn(Optional.of(driver));
+        when(drivers.findFirstByPhoneAndActiveTrue("3515550101")).thenReturn(Optional.of(driver));
         when(reservations.findAllAssignedByDriverId(driver.getId()))
                 .thenReturn(new java.util.ArrayList<>(List.of(futureTrip)));
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
@@ -176,7 +176,7 @@ class ConversationOrchestratorTest {
         driver.setId(UUID.randomUUID());
         driver.setPhone("543512282251");
         driver.setActive(true);
-        when(drivers.findFirstByPhone(driver.getPhone())).thenReturn(Optional.of(driver));
+        when(drivers.findFirstByPhoneAndActiveTrue(driver.getPhone())).thenReturn(Optional.of(driver));
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
                 List.of(),
                 sessions,
@@ -219,7 +219,7 @@ class ConversationOrchestratorTest {
         Driver driver = new Driver();
         driver.setPhone(phone);
         driver.setActive(true);
-        when(drivers.findFirstByPhone(phone)).thenReturn(Optional.of(driver));
+        when(drivers.findFirstByPhoneAndActiveTrue(phone)).thenReturn(Optional.of(driver));
         when(addressHandler.step()).thenReturn("ASK_ADDRESS_TEXT");
         ConversationOrchestrator orchestrator = new ConversationOrchestrator(
                 List.of(addressHandler),
@@ -296,7 +296,7 @@ class ConversationOrchestratorTest {
         Driver activeDriver = new Driver();
         activeDriver.setPhone("543512282251");
         activeDriver.setActive(true);
-        when(drivers.findFirstByPhone("543512282251"))
+        when(drivers.findFirstByPhoneAndActiveTrue("543512282251"))
                 .thenReturn(Optional.of(activeDriver));
         when(onboard.execute(reservationId, "543512282251")).thenReturn(Reservation.builder()
                 .id(reservationId)
