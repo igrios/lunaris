@@ -52,6 +52,22 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void webScheduleLabelOmitsSeatAvailability() {
+        PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        when(pricing.departureSchedules()).thenReturn(List.of("03:00 AM"));
+        when(pricing.availableSeats(date, "03:00 AM")).thenReturn(12);
+        when(pricing.calculateEstimatedPickupTime(null, "03:00", false, date))
+                .thenReturn("05:05 hs");
+        ScheduleService service = new ScheduleService(pricing, mock(LocalityService.class));
+
+        ScheduleDto schedule = service.getSchedulesForWeb(null, date).getFirst();
+
+        assertEquals("05:05 hs", schedule.label());
+        assertEquals(12, schedule.availableSeats());
+    }
+
+    @Test
     void testGetSchedulesForBot_WhenTravelDateIsPresent_AppliesCapacityAndCutoff() {
         PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
         LocalDate date = LocalDate.of(2026, 8, 20);

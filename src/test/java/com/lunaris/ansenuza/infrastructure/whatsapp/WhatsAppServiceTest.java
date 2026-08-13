@@ -26,7 +26,7 @@ class WhatsAppServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void otpIsSentAsTemplateWithCodeInBodyComponent() {
+    void otpIsSentAsTemplateWithCodeInBodyAndUrlButtonComponents() {
         RestTemplate restTemplate = mock(RestTemplate.class);
         when(restTemplate.postForEntity(anyString(), any(), eq(String.class)))
                 .thenReturn(new org.springframework.http.ResponseEntity<>("{}", HttpStatus.OK));
@@ -58,6 +58,14 @@ class WhatsAppServiceTest {
         Assertions.assertEquals(List.of(
                 Map.of("type", "text", "text", "Ana Pérez"),
                 Map.of("type", "text", "text", "4821")), parameters);
+
+        Assertions.assertEquals(Map.of(
+                "type", "button",
+                "sub_type", "url",
+                "index", "0",
+                "parameters", List.of(
+                        Map.of("type", "text", "text", "4821"))),
+                components.get(1));
     }
 
     @Test

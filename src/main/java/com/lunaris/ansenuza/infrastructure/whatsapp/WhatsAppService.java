@@ -101,12 +101,19 @@ public class WhatsAppService implements MessagingPort {
                 "template", Map.of(
                         "name", ACCOUNT_CREATION_TEMPLATE,
                         "language", Map.of("code", "es"),
-                        "components", List.of(Map.of(
-                                "type", "body",
-                                "parameters", List.of(
-                                        Map.of("type", "text", "text",
-                                                safeTemplateValue(passengerName, "Pasajero")),
-                                        Map.of("type", "text", "text", code))))));
+                        "components", List.of(
+                                Map.of(
+                                        "type", "body",
+                                        "parameters", List.of(
+                                                Map.of("type", "text", "text",
+                                                        safeTemplateValue(passengerName, "Pasajero")),
+                                                Map.of("type", "text", "text", code))),
+                                Map.of(
+                                        "type", "button",
+                                        "sub_type", "url",
+                                        "index", "0",
+                                        "parameters", List.of(
+                                                Map.of("type", "text", "text", code))))));
 
         boolean sent = executePostCall(
                 "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages",
