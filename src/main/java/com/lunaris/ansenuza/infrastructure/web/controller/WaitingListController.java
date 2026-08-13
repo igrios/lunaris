@@ -56,7 +56,7 @@ public class WaitingListController {
 
     @PostMapping("/request-otp")
     public OtpResponse requestOtp(@RequestBody OtpRequest request) {
-        String otp = otpService.request(request.phone());
+        String otp = otpService.request(request.phone(), request.fullName());
         boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
         return new OtpResponse("El código fue enviado por WhatsApp.", production ? null : otp);
     }

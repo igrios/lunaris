@@ -85,7 +85,8 @@ public class WhatsAppService implements MessagingPort {
         sendMessage(to, message);
     }
 
-    public void sendOtpMessage(String phoneNumber, String otpCode) {
+    public void sendOtpMessage(
+            String phoneNumber, String passengerName, String verificationField) {
         String phone = formatMetaPhoneNumber(phoneNumber);
         Map<String, Object> body = Map.of(
                 "messaging_product", "whatsapp",
@@ -97,8 +98,8 @@ public class WhatsAppService implements MessagingPort {
                         "components", List.of(Map.of(
                                 "type", "body",
                                 "parameters", List.of(
-                                        Map.of("type", "text", "text", "tu cuenta"),
-                                        Map.of("type", "text", "text", otpCode))))));
+                                        Map.of("type", "text", "text", passengerName),
+                                        Map.of("type", "text", "text", verificationField))))));
 
         boolean sent = executePostCall(
                 "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages",

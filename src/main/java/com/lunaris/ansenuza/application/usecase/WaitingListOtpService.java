@@ -33,12 +33,16 @@ public class WaitingListOtpService {
         this.ttl = ttl;
     }
 
-    public String request(String rawPhone) {
+    public String request(String rawPhone, String passengerName) {
         String phone = normalize(rawPhone);
         String code = String.format("%04d", random.nextInt(10_000));
         challenges.put(phone, new Challenge(code, Instant.now().plus(ttl)));
         try {
-            whatsAppService.sendOtpMessage(phone, code);
+            String effectiveName = passengerName == null || passengerName.isBlank()
+                    ? "Pasajero"
+                    : passengerName.trim();
+            whatsAppService.sendOtpMessage(
+                    phone, effectiveName, "tu correo electrónico");
             logger.info("WhatsApp OTP sent for special event waiting list to {}", phone);
         } catch (RuntimeException exception) {
             logger.warn("No se pudo enviar OTP por WhatsApp para {}. Se conserva el desafío.", phone,

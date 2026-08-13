@@ -21,12 +21,34 @@ class ScheduleServiceTest {
         when(pricing.departureSchedules()).thenReturn(List.of("03:00 AM", "08:00 AM"));
         when(pricing.availableSeats(date, "03:00 AM")).thenReturn(7);
         when(pricing.availableSeats(date, "08:00 AM")).thenReturn(0);
+        when(pricing.calculateEstimatedPickupTime(null, "03:00", false, date))
+                .thenReturn("03:00 hs");
+        when(pricing.calculateEstimatedPickupTime(null, "08:00", false, date))
+                .thenReturn("08:00 hs");
         ScheduleService service = new ScheduleService(pricing, mock(LocalityService.class));
 
         assertEquals(List.of(
-                new ScheduleDto("03:00", "03:00", "03:00 AM", 7, true),
-                new ScheduleDto("08:00", "08:00", "08:00 AM", 0, false)),
+                new ScheduleDto("03:00", "03:00", "03:00 hs", 7, true),
+                new ScheduleDto("08:00", "08:00", "08:00 hs", 0, false)),
                 service.getSchedulesForWeb(null, date));
+    }
+
+    @Test
+    void webContractUsesTheSameCalculatedPickupTimeAsTheBot() {
+        PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
+        LocalityService localities = mock(LocalityService.class);
+        LocalDate date = LocalDate.of(2026, 8, 20);
+        when(localities.findAllWithActiveFare()).thenReturn(List.of(
+                Locality.builder().name("Morteros").build()));
+        when(pricing.departureSchedules()).thenReturn(List.of("03:00 AM"));
+        when(pricing.availableSeats(date, "03:00 AM")).thenReturn(7);
+        when(pricing.calculateEstimatedPickupTime("Morteros", "03:00", false, date))
+                .thenReturn("04:55 hs");
+        ScheduleService service = new ScheduleService(pricing, localities);
+
+        assertEquals(List.of(
+                new ScheduleDto("03:00", "04:55", "04:55 hs", 7, true)),
+                service.getSchedulesForWeb("Morteros", date));
     }
 
     @Test

@@ -34,7 +34,8 @@ class WhatsAppServiceTest {
         ReflectionTestUtils.setField(service, "phoneNumberId", "phone-id");
         ReflectionTestUtils.setField(service, "accessToken", "token");
 
-        service.sendOtpMessage("+54 9 351-555-1234", "1234");
+        service.sendOtpMessage(
+                "+54 9 351-555-1234", "Ana Pérez", "tu correo electrónico");
 
         ArgumentCaptor<HttpEntity<Map<String, Object>>> requestCaptor =
                 ArgumentCaptor.forClass(HttpEntity.class);
@@ -55,8 +56,8 @@ class WhatsAppServiceTest {
         List<Map<String, Object>> parameters =
                 (List<Map<String, Object>>) components.getFirst().get("parameters");
         Assertions.assertEquals(List.of(
-                Map.of("type", "text", "text", "tu cuenta"),
-                Map.of("type", "text", "text", "1234")), parameters);
+                Map.of("type", "text", "text", "Ana Pérez"),
+                Map.of("type", "text", "text", "tu correo electrónico")), parameters);
     }
 
     @Test

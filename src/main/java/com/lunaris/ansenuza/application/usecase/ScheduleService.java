@@ -24,9 +24,14 @@ public class ScheduleService {
                 .map(schedule -> {
                     int availableSeats = pricingAndScheduleService
                             .availableSeats(travelDate, schedule);
-                    String departureTime = schedule.substring(0, 5);
+                    String baseTime = schedule.substring(0, 5);
+                    String calculatedTime = pricingAndScheduleService
+                            .calculateEstimatedPickupTime(
+                                    pickupLocality, baseTime, false, travelDate);
+                    String departureTime = calculatedTime.substring(0, 5);
                     return new ScheduleDto(
-                            departureTime, departureTime, schedule, availableSeats, availableSeats > 0);
+                            baseTime, departureTime, calculatedTime,
+                            availableSeats, availableSeats > 0);
                 })
                 .toList();
     }

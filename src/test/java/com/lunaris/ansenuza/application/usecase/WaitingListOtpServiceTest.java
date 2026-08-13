@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -36,10 +35,10 @@ class WaitingListOtpServiceTest {
         WaitingListOtpService service = new WaitingListOtpService(
                 whatsAppService, Duration.ofMinutes(5));
 
-        String otp = service.request("+54 9 351-2282251");
+        String otp = service.request("+54 9 351-2282251", "Ana Pérez");
 
         verify(whatsAppService).sendOtpMessage(
-                eq("543512282251"), matches("[0-9]{4}"));
+                eq("543512282251"), eq("Ana Pérez"), eq("tu correo electrónico"));
         assertDoesNotThrow(() -> service.verify("351 228-2251", otp));
         assertThrows(DomainValidationException.class,
                 () -> service.verify("351 228-2251", otp));
