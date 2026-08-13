@@ -15,8 +15,7 @@ import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
-import com.lunaris.ansenuza.domain.model.payment.PaymentPreference;
-import com.lunaris.ansenuza.domain.port.outbound.PaymentGatewayPort;
+import com.lunaris.ansenuza.domain.model.payment.TransferAccountDetails;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -37,7 +36,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
     private final ReservationService reservationService;
     private final MessagingPort messaging;
     private final WaitingListCapacityGuard capacityGuard;
-    private final PaymentGatewayPort paymentGateway;
+    private final TransferAccountDetails transferAccount;
 
     @Override
     public String step() {
@@ -168,13 +167,6 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 return;
             }
 
-            Reservation paymentReservation = savedReservations.stream()
-                    .filter(reservation -> reservation.getReservationCode() != null
-                            && reservation.getReservationCode().endsWith("-IDA"))
-                    .findFirst()
-                    .orElse(savedReservations.getFirst());
-            PaymentPreference paymentPreference = paymentGateway.createPaymentPreference(
-                    paymentReservation, transferAmount);
             String balanceMessage = balanceUsed.signum() > 0
                     ? "\n💰 *Aplicamos $%s de tu saldo a favor.*\n"
                             .formatted(money(balanceUsed))
@@ -184,14 +176,21 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     %s
                     💵 *Importe pendiente: $%s*
 
-                    💳 *Pagá de forma segura con Mercado Pago:*
-                    %s
+                    💳 *Transferí a nuestra cuenta de Mercado Pago:*
+                    • *Alias:* %s
+                    • *CVU:* %s
+                    • *CUIT:* %s
+                    • *Titular:* %s
 
-                    📌 La confirmación se acredita automáticamente. No necesitás enviar comprobante.
+                    ⚠️ Transferí exactamente *$%s*. La acreditación se verifica automáticamente; no necesitás enviar comprobante.
                     """.formatted(
                             balanceMessage,
-                            money(paymentPreference.finalAmount()),
-                            paymentPreference.paymentUrl()));
+                            money(transferAmount),
+                            transferAccount.alias(),
+                            transferAccount.cvu(),
+                            transferAccount.cuit(),
+                            transferAccount.holder(),
+                            money(transferAmount)));
             return;
         }
 

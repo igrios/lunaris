@@ -52,8 +52,11 @@ server:
 
 mercadopago:
   access-token: ${MERCADOPAGO_ACCESS_TOKEN:}
-  server-base-url: ${SERVER_BASE_URL:http://localhost:${PORT:8080}}
-  fee-percentage: ${MERCADOPAGO_FEE_PERCENTAGE:0.06}
+  transfer-account:
+    alias: ${MERCADOPAGO_TRANSFER_ALIAS:}
+    cvu: ${MERCADOPAGO_TRANSFER_CVU:}
+    cuit: ${MERCADOPAGO_TRANSFER_CUIT:}
+    holder: ${MERCADOPAGO_TRANSFER_HOLDER:}
 
 management:
   endpoints:

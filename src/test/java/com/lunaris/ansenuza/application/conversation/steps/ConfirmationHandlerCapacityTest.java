@@ -15,8 +15,7 @@ import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
-import com.lunaris.ansenuza.domain.model.payment.PaymentPreference;
-import com.lunaris.ansenuza.domain.port.outbound.PaymentGatewayPort;
+import com.lunaris.ansenuza.domain.model.payment.TransferAccountDetails;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -42,7 +41,8 @@ class ConfirmationHandlerCapacityTest {
         ConfirmationHandler handler = new ConfirmationHandler(
                 sessions, passengers, schedules, mock(PromotionService.class),
                 mock(ReservationService.class), messaging, capacityGuard,
-                mock(PaymentGatewayPort.class));
+                new TransferAccountDetails("lunaris.mp", "0000000000000000000000",
+                        "20-00000000-0", "Lunaris Ansenuza"));
         ConversationSession session = ConversationSession.builder()
                 .phoneNumber("543511112222")
                 .travelDate(LocalDate.of(2026, 8, 20))
@@ -74,7 +74,6 @@ class ConfirmationHandlerCapacityTest {
 
         fixture.handler.handle(fixture.session, fixture.confirmationMessage());
 
-        verify(fixture.paymentGateway, never()).createPaymentPreference(any(), any());
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("Cubrimos el total del viaje con tu saldo a favor"));
@@ -83,7 +82,7 @@ class ConfirmationHandlerCapacityTest {
     }
 
     @Test
-    void partialWalletBalanceRequestsReceiptOnlyForRemainingAmount() {
+    void partialWalletBalanceSendsTransferDataForExactRemainingAmount() {
         Fixture fixture = new Fixture(new BigDecimal("20000.00"), new BigDecimal("50000.00"));
         when(fixture.reservations.saveReservationFlow(any(Reservation.class)))
                 .thenAnswer(invocation -> {
@@ -95,12 +94,15 @@ class ConfirmationHandlerCapacityTest {
 
         fixture.handler.handle(fixture.session, fixture.confirmationMessage());
 
-        verify(fixture.paymentGateway).createPaymentPreference(any(), eq(new BigDecimal("30000.00")));
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("Aplicamos $20000.00 de tu saldo a favor"));
         assertTrue(message.getValue().contains("Importe pendiente: $30000.00"));
-        assertTrue(message.getValue().contains("https://mp.test/pay"));
+        assertTrue(message.getValue().contains("Alias:*​".replace("​", "")));
+        assertTrue(message.getValue().contains("lunaris.mp"));
+        assertTrue(message.getValue().contains("CVU:"));
+        assertTrue(message.getValue().contains("CUIT:"));
+        assertTrue(message.getValue().contains("Titular:"));
     }
 
     private static final class Fixture {
@@ -111,7 +113,6 @@ class ConfirmationHandlerCapacityTest {
         private final ReservationService reservations = mock(ReservationService.class);
         private final MessagingPort messaging = mock(MessagingPort.class);
         private final WaitingListCapacityGuard capacity = mock(WaitingListCapacityGuard.class);
-        private final PaymentGatewayPort paymentGateway = mock(PaymentGatewayPort.class);
         private final Passenger passenger;
         private final ConversationSession session;
         private final ConfirmationHandler handler;
@@ -140,17 +141,11 @@ class ConfirmationHandlerCapacityTest {
             when(passengers.findByPhone(passenger.getPhone())).thenReturn(Optional.of(passenger));
             when(passengers.findById(passengerId)).thenReturn(Optional.of(passenger));
             when(pricing.calculateTripPrice("Morteros", Boolean.FALSE, 1)).thenReturn(price);
-            when(paymentGateway.createPaymentPreference(any(), any()))
-                    .thenAnswer(invocation -> {
-                        Reservation reservation = invocation.getArgument(0);
-                        BigDecimal amount = invocation.getArgument(1);
-                        return new PaymentPreference(
-                                "pref-1", "https://mp.test/pay", reservation.getReservationCode(),
-                                amount, amount);
-                    });
             handler = new ConfirmationHandler(
                     sessions, passengers, pricing, promotions,
-                    reservations, messaging, capacity, paymentGateway);
+                    reservations, messaging, capacity,
+                    new TransferAccountDetails("lunaris.mp", "0000000000000000000000",
+                            "20-00000000-0", "Lunaris Ansenuza"));
         }
 
         private IncomingMessage confirmationMessage() {

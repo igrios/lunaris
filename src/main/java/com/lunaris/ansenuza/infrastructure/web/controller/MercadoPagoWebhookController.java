@@ -26,6 +26,7 @@ public class MercadoPagoWebhookController {
             processPaymentWebhookUseCase.process(webhookResolver.resolve(payload));
         } catch (Exception exception) {
             log.error("No se pudo procesar el webhook de Mercado Pago.", exception);
+            return ResponseEntity.internalServerError().build();
         }
         return ResponseEntity.ok().build();
     }
