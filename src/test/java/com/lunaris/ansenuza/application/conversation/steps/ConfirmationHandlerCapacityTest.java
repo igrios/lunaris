@@ -15,7 +15,6 @@ import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
-import com.lunaris.ansenuza.domain.model.payment.TransferAccountDetails;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -40,9 +39,7 @@ class ConfirmationHandlerCapacityTest {
         WaitingListCapacityGuard capacityGuard = mock(WaitingListCapacityGuard.class);
         ConfirmationHandler handler = new ConfirmationHandler(
                 sessions, passengers, schedules, mock(PromotionService.class),
-                mock(ReservationService.class), messaging, capacityGuard,
-                new TransferAccountDetails("lunaris.mp", "0000000000000000000000",
-                        "20-00000000-0", "Lunaris Ansenuza"));
+                mock(ReservationService.class), messaging, capacityGuard);
         ConversationSession session = ConversationSession.builder()
                 .phoneNumber("543511112222")
                 .travelDate(LocalDate.of(2026, 8, 20))
@@ -74,6 +71,7 @@ class ConfirmationHandlerCapacityTest {
 
         fixture.handler.handle(fixture.session, fixture.confirmationMessage());
 
+        verify(fixture.messaging, never()).sendImage(any(), any(), any());
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("Cubrimos el total del viaje con tu saldo a favor"));
@@ -82,7 +80,7 @@ class ConfirmationHandlerCapacityTest {
     }
 
     @Test
-    void partialWalletBalanceSendsTransferDataForExactRemainingAmount() {
+    void partialWalletBalanceRequestsReceiptOnlyForRemainingAmount() {
         Fixture fixture = new Fixture(new BigDecimal("20000.00"), new BigDecimal("50000.00"));
         when(fixture.reservations.saveReservationFlow(any(Reservation.class)))
                 .thenAnswer(invocation -> {
@@ -94,15 +92,12 @@ class ConfirmationHandlerCapacityTest {
 
         fixture.handler.handle(fixture.session, fixture.confirmationMessage());
 
+        verify(fixture.messaging).sendImage(
+                eq(fixture.session.getPhoneNumber()), any(), eq("Datos para la transferencia"));
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("Aplicamos $20000.00 de tu saldo a favor"));
-        assertTrue(message.getValue().contains("Importe pendiente: $30000.00"));
-        assertTrue(message.getValue().contains("Alias:*​".replace("​", "")));
-        assertTrue(message.getValue().contains("lunaris.mp"));
-        assertTrue(message.getValue().contains("CVU:"));
-        assertTrue(message.getValue().contains("CUIT:"));
-        assertTrue(message.getValue().contains("Titular:"));
+        assertTrue(message.getValue().contains("Importe restante a transferir: $30000.00"));
     }
 
     private static final class Fixture {
@@ -143,9 +138,7 @@ class ConfirmationHandlerCapacityTest {
             when(pricing.calculateTripPrice("Morteros", Boolean.FALSE, 1)).thenReturn(price);
             handler = new ConfirmationHandler(
                     sessions, passengers, pricing, promotions,
-                    reservations, messaging, capacity,
-                    new TransferAccountDetails("lunaris.mp", "0000000000000000000000",
-                            "20-00000000-0", "Lunaris Ansenuza"));
+                    reservations, messaging, capacity);
         }
 
         private IncomingMessage confirmationMessage() {

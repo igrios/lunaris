@@ -50,8 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/drivers/apply",
-                                "/api/drivers/applications",
-                                "/api/v1/mercadopago/webhook")
+                                "/api/drivers/applications")
                         .permitAll()
                         .requestMatchers(
                                 "/actuator/**",

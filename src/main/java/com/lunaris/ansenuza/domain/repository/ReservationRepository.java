@@ -82,16 +82,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     List<Reservation> findReservationGroupForUpdate(@Param("groupCode") String groupCode);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-           SELECT r FROM Reservation r
-           LEFT JOIN FETCH r.passenger
-           WHERE r.status = 'PENDING_PAYMENT'
-             AND r.paymentVerified = false
-           ORDER BY r.createdAt, r.id
-           """)
-    List<Reservation> findPendingPaymentCandidatesForUpdate();
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM Reservation r WHERE r.bookingGroupCode = :groupCode ORDER BY r.createdAt, r.id")
     List<Reservation> findByBookingGroupCodeForUpdate(@Param("groupCode") String groupCode);
 

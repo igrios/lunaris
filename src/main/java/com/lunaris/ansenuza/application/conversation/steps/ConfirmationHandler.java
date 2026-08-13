@@ -15,7 +15,6 @@ import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
-import com.lunaris.ansenuza.domain.model.payment.TransferAccountDetails;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -29,6 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ConfirmationHandler implements ConversationStepHandler {
 
+    private static final String CBU_BANNER_IMAGE_URL =
+            "https://res.cloudinary.com/dgrwrcb5p/image/upload/CBU_MARTIN_nxpvk8.jpg";
+
     private final ConversationSessionRepository conversationSessionRepository;
     private final PassengerRepository passengerRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
@@ -36,7 +38,6 @@ public class ConfirmationHandler implements ConversationStepHandler {
     private final ReservationService reservationService;
     private final MessagingPort messaging;
     private final WaitingListCapacityGuard capacityGuard;
-    private final TransferAccountDetails transferAccount;
 
     @Override
     public String step() {
@@ -167,6 +168,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 return;
             }
 
+            messaging.sendImage(phoneNumber, CBU_BANNER_IMAGE_URL, "Datos para la transferencia");
             String balanceMessage = balanceUsed.signum() > 0
                     ? "\n💰 *Aplicamos $%s de tu saldo a favor.*\n"
                             .formatted(money(balanceUsed))
@@ -174,23 +176,15 @@ public class ConfirmationHandler implements ConversationStepHandler {
             messaging.sendText(phoneNumber, """
                     ✅ *¡Tu traslado ha sido registrado con éxito!*
                     %s
-                    💵 *Importe pendiente: $%s*
+                    💵 *Importe restante a transferir: $%s*
 
-                    💳 *Transferí a nuestra cuenta de Mercado Pago:*
-                    • *Alias:* %s
-                    • *CVU:* %s
-                    • *CUIT:* %s
-                    • *Titular:* %s
+                    💳 *Datos bancarios para congelar la tarifa (Transferencia):*
+                    • *Titular:* Martín Fernando Manuel Cuestaz
+                    • *Alias:* cuestazm.bna
+                    • *CBU:* 01103739330037363119529
 
-                    ⚠️ Transferí exactamente *$%s*. La acreditación se verifica automáticamente; no necesitás enviar comprobante.
-                    """.formatted(
-                            balanceMessage,
-                            money(transferAmount),
-                            transferAccount.alias(),
-                            transferAccount.cvu(),
-                            transferAccount.cuit(),
-                            transferAccount.holder(),
-                            money(transferAmount)));
+                    📌 *Nota:* Una vez realizado el envío, *subí la captura o foto del comprobante por acá* para registrar tu pago de forma inmediata. ¡Buen viaje con Lunaris! 🚐
+                    """.formatted(balanceMessage, money(transferAmount)));
             return;
         }
 

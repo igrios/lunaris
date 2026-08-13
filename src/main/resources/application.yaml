@@ -50,14 +50,6 @@ storage:
 server:
   port: ${PORT:8080}
 
-mercadopago:
-  access-token: ${MERCADOPAGO_ACCESS_TOKEN:}
-  transfer-account:
-    alias: ${MERCADOPAGO_TRANSFER_ALIAS:}
-    cvu: ${MERCADOPAGO_TRANSFER_CVU:}
-    cuit: ${MERCADOPAGO_TRANSFER_CUIT:}
-    holder: ${MERCADOPAGO_TRANSFER_HOLDER:}
-
 management:
   endpoints:
     web:
