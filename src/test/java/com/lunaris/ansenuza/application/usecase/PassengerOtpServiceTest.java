@@ -38,9 +38,8 @@ class PassengerOtpServiceTest {
         service.sendOtp("+5493515555555");
 
         verify(passengers, never()).save(any(Passenger.class));
-        verify(messaging).sendText(
-                eq("543515555555"),
-                matches("Tu código de acceso a Lunaris Ansenuza es: [0-9]{4}\\. Vence en 5 minutos\\."));
+        verify(messaging).sendOtp(
+                eq("543515555555"), eq("Ana Pérez"), matches("[0-9]{4}"));
     }
 
     @Test
@@ -59,9 +58,9 @@ class PassengerOtpServiceTest {
 
         service.sendOtp("+54 9 351-2282251");
 
-        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
-        verify(messaging).sendText(eq("543512282251"), messageCaptor.capture());
-        String code = messageCaptor.getValue().replaceFirst(".*: ([0-9]{4})\\..*", "$1");
+        ArgumentCaptor<String> codeCaptor = ArgumentCaptor.forClass(String.class);
+        verify(messaging).sendOtp(eq("543512282251"), eq("Ana Pérez"), codeCaptor.capture());
+        String code = codeCaptor.getValue();
 
         PassengerOtpService.TokenResult result = service.verifyOtp("351 228-2251", code);
 
@@ -87,9 +86,8 @@ class PassengerOtpServiceTest {
         assertEquals("Juan", passengerCaptor.getValue().getFirstName());
         assertEquals("Pérez", passengerCaptor.getValue().getLastName());
         assertEquals("543515555555", passengerCaptor.getValue().getPhone());
-        verify(messaging).sendText(
-                eq("543515555555"),
-                matches("Tu código de acceso a Lunaris Ansenuza es: [0-9]{4}\\. Vence en 5 minutos\\."));
+        verify(messaging).sendOtp(
+                eq("543515555555"), eq("Juan Pérez"), matches("[0-9]{4}"));
     }
 
     @Test
@@ -112,8 +110,7 @@ class PassengerOtpServiceTest {
 
         service.sendOtp("3515555555", "Juan Pérez");
 
-        verify(messaging).sendText(
-                eq("543515555555"),
-                matches("Tu código de acceso a Lunaris Ansenuza es: [0-9]{4}\\. Vence en 5 minutos\\."));
+        verify(messaging).sendOtp(
+                eq("543515555555"), eq("Juan Pérez"), matches("[0-9]{4}"));
     }
 }

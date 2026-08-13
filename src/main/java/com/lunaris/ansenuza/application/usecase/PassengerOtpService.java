@@ -58,9 +58,11 @@ public class PassengerOtpService {
         String storedPhone = PhoneUtils.normalizeArgentinePhone(passenger.getPhone());
         String code = String.format("%04d", secureRandom.nextInt(10_000));
         challenges.put(otpKey, new OtpChallenge(code, Instant.now().plus(otpTtl), 0, storedPhone));
-        messagingPort.sendText(storedPhone,
-                "Tu código de acceso a Lunaris Ansenuza es: " + code
-                        + ". Vence en " + otpTtl.toMinutes() + " minutos.");
+        messagingPort.sendOtp(storedPhone, passengerName(passenger), code);
+    }
+
+    private String passengerName(Passenger passenger) {
+        return (passenger.getFirstName() + " " + passenger.getLastName()).trim();
     }
 
     private Passenger createPassenger(String fullName, String phone) {

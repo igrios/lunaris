@@ -42,7 +42,7 @@ public class WaitingListOtpService {
                     ? "Pasajero"
                     : passengerName.trim();
             whatsAppService.sendOtpMessage(
-                    phone, effectiveName, "tu correo electrónico");
+                    phone, effectiveName, code);
             logger.info("WhatsApp OTP sent for special event waiting list to {}", phone);
         } catch (RuntimeException exception) {
             logger.warn("No se pudo enviar OTP por WhatsApp para {}. Se conserva el desafío.", phone,

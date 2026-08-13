@@ -33,6 +33,7 @@ public class WhatsAppService implements MessagingPort {
     private static final String ARGENTINA_COUNTRY_CODE = "54";
     private static final String ARGENTINA_MOBILE_PREFIX = "549";
     private static final int ARGENTINA_NATIONAL_NUMBER_LENGTH = 10;
+    static final String ACCOUNT_CREATION_TEMPLATE = "account_creation_confirmation_3";
     private static final long MIN_RECIPIENT_GAP_MILLIS = 300L;
     private static final long PAIR_RATE_LIMIT_BACKOFF_MILLIS = 1_000L;
     private static final Pattern PAIR_RATE_LIMIT_CODE = Pattern.compile(
@@ -85,27 +86,34 @@ public class WhatsAppService implements MessagingPort {
         sendMessage(to, message);
     }
 
+    @Override
+    public void sendOtp(String phoneNumber, String passengerName, String code) {
+        sendOtpMessage(phoneNumber, passengerName, code);
+    }
+
     public void sendOtpMessage(
-            String phoneNumber, String passengerName, String verificationField) {
+            String phoneNumber, String passengerName, String code) {
         String phone = formatMetaPhoneNumber(phoneNumber);
         Map<String, Object> body = Map.of(
                 "messaging_product", "whatsapp",
                 "to", phone,
                 "type", "template",
                 "template", Map.of(
-                        "name", "account_creation_confirmation_3",
+                        "name", ACCOUNT_CREATION_TEMPLATE,
                         "language", Map.of("code", "es"),
                         "components", List.of(Map.of(
                                 "type", "body",
                                 "parameters", List.of(
-                                        Map.of("type", "text", "text", passengerName),
-                                        Map.of("type", "text", "text", verificationField))))));
+                                        Map.of("type", "text", "text",
+                                                safeTemplateValue(passengerName, "Pasajero")),
+                                        Map.of("type", "text", "text", code))))));
 
         boolean sent = executePostCall(
                 "https://graph.facebook.com/v18.0/" + phoneNumberId + "/messages",
-                createHeaders(), body, "TEMPLATE account_creation_confirmation_3");
+                createHeaders(), body, "TEMPLATE " + ACCOUNT_CREATION_TEMPLATE);
         if (sent) {
-            log.info("Éxito Meta [TEMPLATE account_creation_confirmation_3]: Envío OTP hacia " + phone);
+            log.info("Éxito Meta [TEMPLATE {}]: Envío OTP hacia {}",
+                    ACCOUNT_CREATION_TEMPLATE, phone);
         }
     }
 

@@ -38,7 +38,7 @@ class WaitingListOtpServiceTest {
         String otp = service.request("+54 9 351-2282251", "Ana Pérez");
 
         verify(whatsAppService).sendOtpMessage(
-                eq("543512282251"), eq("Ana Pérez"), eq("tu correo electrónico"));
+                eq("543512282251"), eq("Ana Pérez"), eq(otp));
         assertDoesNotThrow(() -> service.verify("351 228-2251", otp));
         assertThrows(DomainValidationException.class,
                 () -> service.verify("351 228-2251", otp));

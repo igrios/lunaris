@@ -19,6 +19,8 @@ public interface MessagingPort {
 
     void sendTemplate(String to, String templateName, List<String> parameters);
 
+    void sendOtp(String to, String passengerName, String code);
+
     /**
      * Envía un documento (PDF) ubicado en {@code absoluteFilePath} al destinatario.
      * Usado para mandar la factura por WhatsApp.

@@ -45,6 +45,11 @@ public class WhatsAppMessagingAdapter implements MessagingPort {
     }
 
     @Override
+    public void sendOtp(String to, String passengerName, String code) {
+        whatsAppService.sendOtpMessage(to, passengerName, code);
+    }
+
+    @Override
     public void sendDocument(String to, String absoluteFilePath, String fileName, String caption) {
         whatsAppService.sendDocument(to, absoluteFilePath, fileName, caption);
     }
