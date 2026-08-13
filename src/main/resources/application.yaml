@@ -50,6 +50,11 @@ storage:
 server:
   port: ${PORT:8080}
 
+mercadopago:
+  access-token: ${MERCADOPAGO_ACCESS_TOKEN:}
+  server-base-url: ${SERVER_BASE_URL:http://localhost:${PORT:8080}}
+  fee-percentage: ${MERCADOPAGO_FEE_PERCENTAGE:0.06}
+
 management:
   endpoints:
     web:

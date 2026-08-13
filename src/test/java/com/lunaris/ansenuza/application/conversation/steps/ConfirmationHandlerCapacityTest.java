@@ -15,6 +15,8 @@ import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.payment.PaymentPreference;
+import com.lunaris.ansenuza.domain.port.outbound.PaymentGatewayPort;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -39,7 +41,8 @@ class ConfirmationHandlerCapacityTest {
         WaitingListCapacityGuard capacityGuard = mock(WaitingListCapacityGuard.class);
         ConfirmationHandler handler = new ConfirmationHandler(
                 sessions, passengers, schedules, mock(PromotionService.class),
-                mock(ReservationService.class), messaging, capacityGuard);
+                mock(ReservationService.class), messaging, capacityGuard,
+                mock(PaymentGatewayPort.class));
         ConversationSession session = ConversationSession.builder()
                 .phoneNumber("543511112222")
                 .travelDate(LocalDate.of(2026, 8, 20))
@@ -71,7 +74,7 @@ class ConfirmationHandlerCapacityTest {
 
         fixture.handler.handle(fixture.session, fixture.confirmationMessage());
 
-        verify(fixture.messaging, never()).sendImage(any(), any(), any());
+        verify(fixture.paymentGateway, never()).createPaymentPreference(any(), any());
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("Cubrimos el total del viaje con tu saldo a favor"));
@@ -92,12 +95,12 @@ class ConfirmationHandlerCapacityTest {
 
         fixture.handler.handle(fixture.session, fixture.confirmationMessage());
 
-        verify(fixture.messaging).sendImage(
-                eq(fixture.session.getPhoneNumber()), any(), eq("Datos para la transferencia"));
+        verify(fixture.paymentGateway).createPaymentPreference(any(), eq(new BigDecimal("30000.00")));
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("Aplicamos $20000.00 de tu saldo a favor"));
-        assertTrue(message.getValue().contains("Importe restante a transferir: $30000.00"));
+        assertTrue(message.getValue().contains("Importe pendiente: $30000.00"));
+        assertTrue(message.getValue().contains("https://mp.test/pay"));
     }
 
     private static final class Fixture {
@@ -108,6 +111,7 @@ class ConfirmationHandlerCapacityTest {
         private final ReservationService reservations = mock(ReservationService.class);
         private final MessagingPort messaging = mock(MessagingPort.class);
         private final WaitingListCapacityGuard capacity = mock(WaitingListCapacityGuard.class);
+        private final PaymentGatewayPort paymentGateway = mock(PaymentGatewayPort.class);
         private final Passenger passenger;
         private final ConversationSession session;
         private final ConfirmationHandler handler;
@@ -136,9 +140,17 @@ class ConfirmationHandlerCapacityTest {
             when(passengers.findByPhone(passenger.getPhone())).thenReturn(Optional.of(passenger));
             when(passengers.findById(passengerId)).thenReturn(Optional.of(passenger));
             when(pricing.calculateTripPrice("Morteros", Boolean.FALSE, 1)).thenReturn(price);
+            when(paymentGateway.createPaymentPreference(any(), any()))
+                    .thenAnswer(invocation -> {
+                        Reservation reservation = invocation.getArgument(0);
+                        BigDecimal amount = invocation.getArgument(1);
+                        return new PaymentPreference(
+                                "pref-1", "https://mp.test/pay", reservation.getReservationCode(),
+                                amount, amount);
+                    });
             handler = new ConfirmationHandler(
                     sessions, passengers, pricing, promotions,
-                    reservations, messaging, capacity);
+                    reservations, messaging, capacity, paymentGateway);
         }
 
         private IncomingMessage confirmationMessage() {
