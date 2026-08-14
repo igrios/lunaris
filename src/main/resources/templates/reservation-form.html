@@ -293,14 +293,23 @@
             const destinoVal = dest.value;
             const asientosVal = asie.value;
 
-            if (origenVal && destinoVal) {
-                fetch(`/admin/bot/monitor/cotizar?pickupLocality=${encodeURIComponent(origenVal)}&destination=${encodeURIComponent(destinoVal)}&passengerCount=${asientosVal}`)
+            if (origenVal && destinoVal && Number(asientosVal) > 0) {
+                const params = new URLSearchParams({
+                    pickupLocality: origenVal,
+                    destination: destinoVal,
+                    passengerCount: asientosVal,
+                    roundTrip: isRoundTripCheck.checked.toString()
+                });
+                fetch(`/admin/bot/monitor/cotizar?${params}`)
                     .then(response => response.json())
                     .then(data => {
                         document.getElementById('previewMonto').innerText = parseFloat(data.monto).toFixed(2);
                         document.getElementById('previewCodigo').innerText = data.codigo;
                     })
                     .catch(err => console.error("Error al cotizar:", err));
+            } else {
+                document.getElementById('previewMonto').innerText = '0.00';
+                document.getElementById('previewCodigo').innerText = '---';
             }
         }
 
@@ -340,6 +349,7 @@
 
         if (isRoundTripCheck && sectionOpcionesRetorno) {
             isRoundTripCheck.addEventListener('change', () => {
+                actualizarCotizacion();
                 if (isRoundTripCheck.checked) {
                     sectionOpcionesRetorno.classList.remove('d-none');
                     actualizarCalendarioVueltaForm();

@@ -138,12 +138,13 @@ public class BotMonitorController {
     public ResponseEntity<Map<String, Object>> cotizarFilaManual(
             @RequestParam("pickupLocality") String origen,
             @RequestParam("destination") String destino,
-            @RequestParam("passengerCount") int asientos) {
+            @RequestParam("passengerCount") int asientos,
+            @RequestParam(value = "roundTrip", defaultValue = "true") boolean roundTrip) {
 
         Map<String, Object> respuesta = new HashMap<>();
         try {
             java.math.BigDecimal montoTramo =
-                    tarifaService.calculateReservationAmount(origen, destino, Boolean.TRUE, asientos);
+                    tarifaService.calculateReservationAmount(origen, destino, roundTrip, asientos);
 
             String prefijoCodigo = "---";
             if (origen.length() >= 3 && destino.length() >= 3) {
