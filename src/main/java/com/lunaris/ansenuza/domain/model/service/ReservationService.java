@@ -62,6 +62,12 @@ public class ReservationService {
 
     @Transactional
     public List<Reservation> saveReservationFlow(Reservation mainReservation) {
+        return saveReservationFlow(mainReservation, null);
+    }
+
+    @Transactional
+    public List<Reservation> saveReservationFlow(
+            Reservation mainReservation, String returnDepartureSchedule) {
         List<Reservation> savedReservations = new ArrayList<>();
 
         lockAndValidateCapacity(mainReservation);
@@ -192,6 +198,7 @@ public class ReservationService {
             returnReservation.setBookingGroupCode(codigoBase);
             returnReservation.setPaymentConfirmedAt(mainReservation.getPaymentConfirmedAt());
             returnReservation.setPaymentReceiptUrl(mainReservation.getPaymentReceiptUrl());
+            returnReservation.setDepartureSchedule(returnDepartureSchedule);
 
             Reservation savedReturn = reservationRepository.save(returnReservation);
             savedReservations.add(savedReturn);

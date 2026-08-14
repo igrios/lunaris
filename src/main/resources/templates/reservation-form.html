@@ -114,13 +114,12 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold text-dark">Fecha de Viaje (Ida)</label>
-                            <input type="date" name="travelDate" class="form-control fw-bold" required>
+                            <input type="date" name="travelDate" id="travelDateInput" class="form-control fw-bold" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold text-dark">Horario de Salida</label>
-                            <select class="form-select fw-bold" name="departureSchedule" required>
-                                <option value="03:00 AM">🌙 Primer Horario (03:00 AM)</option>
-                                <option value="08:00 AM" selected>☀️ Segundo Horario (08:00 AM)</option>
+                            <select class="form-select fw-bold" id="departureScheduleSelect" name="departureSchedule" required disabled>
+                                <option value="">Seleccioná localidad y fecha</option>
                             </select>
                         </div>
                     </div>
@@ -159,6 +158,11 @@
                         <div id="sectionFechaVuelta" class="mt-2 d-none">
                             <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
                             <input type="date" name="returnDate" id="returnDateInput" class="form-control fw-bold border-primary">
+                            <label class="form-label small fw-bold text-dark mt-3">Horario de Regreso</label>
+                            <select name="returnDepartureSchedule" id="returnScheduleSelect"
+                                class="form-select fw-bold border-primary" disabled>
+                                <option value="">Seleccioná fecha de regreso</option>
+                            </select>
                         </div>
                     </div>
 
@@ -219,6 +223,9 @@
         const orig = document.getElementById('inputOrigen');
         const dest = document.getElementById('inputDestino');
         const asie = document.getElementById('inputAsientos');
+        const travelDateInput = document.getElementById('travelDateInput');
+        const departureScheduleSelect = document.getElementById('departureScheduleSelect');
+        const returnScheduleSelect = document.getElementById('returnScheduleSelect');
         const phoneInput = document.getElementById('phoneInput');
         
         const firstNameInput = document.getElementById('firstNameInput');
@@ -226,6 +233,60 @@
         const cuilInput = document.getElementById('cuilInput');
         const alertaDiv = document.getElementById('alertaSaldoFavor');
         const saldoSpan = document.getElementById('saldoMontoText');
+
+        function cargarHorarios(select, url, placeholder) {
+            select.disabled = true;
+            select.innerHTML = `<option value="">${placeholder}</option>`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(horarios => {
+                    select.innerHTML = '';
+                    horarios.filter(horario => horario.available).forEach(horario => {
+                        const option = document.createElement('option');
+                        option.value = horario.id;
+                        option.textContent = horario.label;
+                        select.appendChild(option);
+                    });
+                    select.disabled = select.options.length === 0;
+                    if (select.disabled) {
+                        select.innerHTML = '<option value="">No hay horarios disponibles</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error cargando horarios:', error);
+                    select.innerHTML = '<option value="">No se pudieron cargar los horarios</option>';
+                });
+        }
+
+        function actualizarHorariosIda() {
+            if (!orig.value || !travelDateInput.value) {
+                departureScheduleSelect.disabled = true;
+                departureScheduleSelect.innerHTML = '<option value="">Seleccioná localidad y fecha</option>';
+                return;
+            }
+            const params = new URLSearchParams({
+                pickupLocality: orig.value,
+                travelDate: travelDateInput.value
+            });
+            cargarHorarios(departureScheduleSelect, `/api/v1/schedules?${params}`, 'Cargando horarios...');
+        }
+
+        function actualizarHorariosVuelta() {
+            if (!returnDateInput.value || !retornoProgramadoForm.checked) {
+                returnScheduleSelect.disabled = true;
+                returnScheduleSelect.innerHTML = '<option value="">Seleccioná fecha de regreso</option>';
+                return;
+            }
+            const params = new URLSearchParams({
+                travelDate: returnDateInput.value,
+                returnTrip: 'true'
+            });
+            cargarHorarios(returnScheduleSelect, `/api/v1/schedules?${params}`, 'Cargando horarios...');
+        }
 
         function actualizarCotizacion() {
             const origenVal = orig.value;
@@ -286,6 +347,7 @@
                     sectionOpcionesRetorno.classList.add('d-none');
                     sectionFechaVuelta.classList.add('d-none');
                     returnDateInput.value = "";
+                    actualizarHorariosVuelta();
                 }
             });
         }
@@ -294,10 +356,14 @@
             if (retornoProgramadoForm.checked) {
                 sectionFechaVuelta.classList.remove('d-none');
                 returnDateInput.setAttribute('required', 'required');
+                returnScheduleSelect.setAttribute('required', 'required');
+                actualizarHorariosVuelta();
             } else {
                 sectionFechaVuelta.classList.add('d-none');
                 returnDateInput.removeAttribute('required');
                 returnDateInput.value = "";
+                returnScheduleSelect.removeAttribute('required');
+                actualizarHorariosVuelta();
             }
         }
 
@@ -307,11 +373,17 @@
         }
 
         if (orig && dest && asie) {
-            orig.addEventListener('change', actualizarCotizacion);
+            orig.addEventListener('change', () => {
+                actualizarCotizacion();
+                actualizarHorariosIda();
+            });
             dest.addEventListener('change', actualizarCotizacion);
             asie.addEventListener('input', actualizarCotizacion);
             asie.addEventListener('change', actualizarCotizacion);
         }
+
+        travelDateInput.addEventListener('change', actualizarHorariosIda);
+        returnDateInput.addEventListener('change', actualizarHorariosVuelta);
 
         window.addEventListener('DOMContentLoaded', cargarLocalidadesDropdown);
     </script>

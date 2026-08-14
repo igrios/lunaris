@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ScheduleService {
 
+    private static final List<String> RETURN_SCHEDULES = List.of("14:00", "17:30");
+
     private final PricingAndScheduleService pricingAndScheduleService;
     private final LocalityService localityService;
 
@@ -31,6 +33,19 @@ public class ScheduleService {
                     String departureTime = calculatedTime.substring(0, 5);
                     return new ScheduleDto(
                             baseTime, departureTime, calculatedTime,
+                            availableSeats, availableSeats > 0);
+                })
+                .toList();
+    }
+
+    public List<ScheduleDto> getReturnSchedulesForWeb(LocalDate travelDate) {
+        return RETURN_SCHEDULES.stream()
+                .map(schedule -> {
+                    int availableSeats = pricingAndScheduleService.availableSeats(travelDate, schedule);
+                    String label = pricingAndScheduleService.calculateEstimatedPickupTime(
+                            null, schedule, true, travelDate);
+                    return new ScheduleDto(
+                            schedule, label.substring(0, 5), label,
                             availableSeats, availableSeats > 0);
                 })
                 .toList();

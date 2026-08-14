@@ -68,6 +68,24 @@ class ScheduleServiceTest {
     }
 
     @Test
+    void returnContractUsesCalculatedReturnWindowsWithoutGenericLabels() {
+        PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
+        LocalDate date = LocalDate.of(2026, 8, 22);
+        when(pricing.availableSeats(date, "14:00")).thenReturn(8);
+        when(pricing.availableSeats(date, "17:30")).thenReturn(4);
+        when(pricing.calculateEstimatedPickupTime(null, "14:00", true, date))
+                .thenReturn("14:00 hs");
+        when(pricing.calculateEstimatedPickupTime(null, "17:30", true, date))
+                .thenReturn("17:30 hs");
+        ScheduleService service = new ScheduleService(pricing, mock(LocalityService.class));
+
+        assertEquals(List.of(
+                new ScheduleDto("14:00", "14:00", "14:00 hs", 8, true),
+                new ScheduleDto("17:30", "17:30", "17:30 hs", 4, true)),
+                service.getReturnSchedulesForWeb(date));
+    }
+
+    @Test
     void testGetSchedulesForBot_WhenTravelDateIsPresent_AppliesCapacityAndCutoff() {
         PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
         LocalDate date = LocalDate.of(2026, 8, 20);

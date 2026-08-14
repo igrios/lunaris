@@ -30,10 +30,13 @@ public class SchedulesController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE, fallbackPatterns = "dd/MM/yyyy")
             LocalDate date,
             @RequestParam(defaultValue = "false") boolean roundTrip,
-            @RequestParam(defaultValue = "false") boolean openReturn) {
+            @RequestParam(defaultValue = "false") boolean openReturn,
+            @RequestParam(defaultValue = "false") boolean returnTrip) {
         LocalDate requestedDate = travelDate != null ? travelDate : date;
         LocalDate effectiveDate = requestedDate != null ? requestedDate : ArgentinaTime.today();
 
-        return scheduleService.getSchedulesForWeb(pickupLocality, effectiveDate);
+        return returnTrip
+                ? scheduleService.getReturnSchedulesForWeb(effectiveDate)
+                : scheduleService.getSchedulesForWeb(pickupLocality, effectiveDate);
     }
 }

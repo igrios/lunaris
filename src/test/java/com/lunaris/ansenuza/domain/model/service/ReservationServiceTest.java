@@ -58,13 +58,14 @@ class ReservationServiceTest {
                 .status("CONFIRMED")
                 .build();
 
-        List<Reservation> saved = service.saveReservationFlow(reservation);
+        List<Reservation> saved = service.saveReservationFlow(reservation, "17:30");
 
         assertEquals(2, saved.size());
         assertEquals(new BigDecimal("52500.00"), saved.get(0).getAmount());
         assertEquals(new BigDecimal("52500.00"), saved.get(1).getAmount());
         assertEquals(new BigDecimal("105000.00"),
                 saved.get(0).getAmount().add(saved.get(1).getAmount()));
+        assertEquals("17:30", saved.get(1).getDepartureSchedule());
         saved.forEach(leg -> {
             assertSame(reservation.getPassenger(), leg.getPassenger());
             assertEquals(true, leg.getRequiresInvoice());

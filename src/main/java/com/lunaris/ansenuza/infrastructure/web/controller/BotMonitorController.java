@@ -306,6 +306,7 @@ public class BotMonitorController {
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             @RequestParam(value = "returnDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate returnDate, 
             @RequestParam("departureSchedule") String departureSchedule,
+            @RequestParam(value = "returnDepartureSchedule", required = false) String returnDepartureSchedule,
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
             @RequestParam(value = "notes", required = false) String notes,
@@ -349,7 +350,7 @@ public class BotMonitorController {
             ida.setRequiresInvoice(requiresInvoice);
             ida.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
 
-            reservationService.saveReservationFlow(ida);
+            reservationService.saveReservationFlow(ida, returnDepartureSchedule);
 
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva manual creada correctamente!");
 

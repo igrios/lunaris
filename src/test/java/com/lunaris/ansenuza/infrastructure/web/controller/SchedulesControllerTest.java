@@ -62,4 +62,19 @@ class SchedulesControllerTest {
                         .param("travelDate", "fecha-invalida"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void returnTripUsesReturnScheduleContract() throws Exception {
+        var date = java.time.LocalDate.of(2026, 8, 22);
+        when(scheduleService.getReturnSchedulesForWeb(date)).thenReturn(List.of(
+                new ScheduleDto("14:00", "14:00", "14:00 hs", 8, true),
+                new ScheduleDto("17:30", "17:30", "17:30 hs", 4, true)));
+
+        mockMvc.perform(get("/api/v1/schedules")
+                        .param("travelDate", "2026-08-22")
+                        .param("returnTrip", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].label").value("14:00 hs"))
+                .andExpect(jsonPath("$[1].label").value("17:30 hs"));
+    }
 }
