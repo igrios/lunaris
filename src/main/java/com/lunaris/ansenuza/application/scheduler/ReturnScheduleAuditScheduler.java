@@ -7,7 +7,6 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import com.lunaris.ansenuza.shared.ArgentinaTime;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,10 +28,8 @@ public class ReturnScheduleAuditScheduler {
     public void auditReturnSchedules() {
         LocalDate today = ArgentinaTime.today();
         Map<String, Reservation> candidateByPhone = new LinkedHashMap<>();
-        reservationRepository.findReturnScheduleAuditCandidates(today, today.plusDays(1))
+        reservationRepository.findReturnScheduleAuditCandidates(today.atStartOfDay())
                 .stream()
-                .filter(reservation -> hasEffectiveDateInRange(
-                        reservation, today, today.plusDays(1)))
                 .filter(reservation -> reservation.getPassenger() != null)
                 .filter(reservation -> reservation.getPassenger().getPhone() != null
                         && !reservation.getPassenger().getPhone().isBlank())
@@ -61,22 +58,22 @@ public class ReturnScheduleAuditScheduler {
                 }
                 if (reservation.getId() != null
                         && reservationRepository.claimReturnAudit(reservation.getId(),
-                                LocalDateTime.now(), today.atStartOfDay()) != 1) {
+                                ArgentinaTime.now(), today.atStartOfDay()) != 1) {
                     return;
                 }
-                session.setCurrentStep("RETURN_WINDOW_SELECTION");
+                session.setCurrentStep("START");
                 session.setReservationCode(reservation.getReservationCode());
                 conversationSessionRepository.saveAndFlush(session);
                 // La marca se reclama atómicamente antes de la llamada externa para que
                 // dos instancias nunca dupliquen el prompt.
                 whatsAppService.sendInteractiveButtons(
                         phone,
-                        "Horario de regreso",
-                        "Elegí la ventana de salida desde Córdoba:",
+                        "Confirmación de regreso",
+                        "¿Volvés hoy?",
                         List.of(
-                                Map.of("id", "1", "title", "Turno Tarde"),
-                                Map.of("id", "2", "title", "Turno Vespertino")));
-                log.info("[ReturnScheduleAudit] Preferencia solicitada para reserva {}.",
+                                Map.of("id", "return_yes_ID", "title", "Sí, vuelvo hoy"),
+                                Map.of("id", "return_postpone", "title", "Postergar (No vuelvo hoy)")));
+                log.info("[ReturnScheduleAudit] Regreso consultado para reserva {}.",
                         reservation.getReservationCode());
             } catch (Exception exception) {
                 log.error("[ReturnScheduleAudit] Error procesando aviso para {}", phone, exception);
@@ -87,19 +84,6 @@ public class ReturnScheduleAuditScheduler {
     private boolean alreadyAuditedToday(Reservation reservation, LocalDate today) {
         return reservation.getReturnAuditSentAt() != null
                 && reservation.getReturnAuditSentAt().toLocalDate().equals(today);
-    }
-
-    private static boolean hasEffectiveDateInRange(
-            Reservation reservation, LocalDate fromDate, LocalDate toDate) {
-        if (reservation.getTravelStatus() == Reservation.TravelStatus.OPEN_RETURN) {
-            return false;
-        }
-        return isInRange(reservation.getTravelDate(), fromDate, toDate)
-                || isInRange(reservation.getReturnDate(), fromDate, toDate);
-    }
-
-    private static boolean isInRange(LocalDate date, LocalDate fromDate, LocalDate toDate) {
-        return date != null && !date.isBefore(fromDate) && !date.isAfter(toDate);
     }
 
     private static Reservation preferReturnLeg(Reservation first, Reservation second) {

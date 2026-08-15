@@ -37,7 +37,7 @@ class ReturnScheduleAuditSchedulerTest {
                 .travelDate(com.lunaris.ansenuza.shared.ArgentinaTime.today())
                 .passenger(Passenger.builder().phone(phone).build())
                 .build();
-        when(reservations.findReturnScheduleAuditCandidates(any(), any()))
+        when(reservations.findReturnScheduleAuditCandidates(any()))
                 .thenReturn(List.of(reservation));
         when(sessions.findByPhoneNumber(phone)).thenReturn(Optional.empty());
 
@@ -45,11 +45,10 @@ class ReturnScheduleAuditSchedulerTest {
 
         ArgumentCaptor<ConversationSession> captor = ArgumentCaptor.forClass(ConversationSession.class);
         verify(sessions).saveAndFlush(captor.capture());
-        assertEquals("RETURN_WINDOW_SELECTION", captor.getValue().getCurrentStep());
+        assertEquals("START", captor.getValue().getCurrentStep());
         assertEquals("ARR-COR-001-VUELTA", captor.getValue().getReservationCode());
         verify(whatsApp).sendInteractiveButtons(
-                eq(phone), eq("Horario de regreso"),
-                eq("Elegí la ventana de salida desde Córdoba:"), anyList());
+                eq(phone), eq("Confirmación de regreso"), eq("¿Volvés hoy?"), anyList());
     }
 
     @Test
@@ -69,7 +68,7 @@ class ReturnScheduleAuditSchedulerTest {
                 .build();
         ConversationSession paused = ConversationSession.builder()
                 .phoneNumber(phone).currentStep("ASK_DATE").botPaused(true).build();
-        when(reservations.findReturnScheduleAuditCandidates(any(), any()))
+        when(reservations.findReturnScheduleAuditCandidates(any()))
                 .thenReturn(List.of(reservation));
         when(sessions.findByPhoneNumber(phone)).thenReturn(Optional.of(paused));
 
@@ -81,7 +80,7 @@ class ReturnScheduleAuditSchedulerTest {
     }
 
     @Test
-    void ignoresOpenReturnWithoutEffectiveDate() {
+    void promptsOpenReturnWithoutEffectiveDate() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
@@ -92,12 +91,14 @@ class ReturnScheduleAuditSchedulerTest {
                 .travelStatus(Reservation.TravelStatus.OPEN_RETURN)
                 .passenger(Passenger.builder().phone("5493511111111").build())
                 .build();
-        when(reservations.findReturnScheduleAuditCandidates(any(), any()))
+        when(reservations.findReturnScheduleAuditCandidates(any()))
                 .thenReturn(List.of(openReturn));
 
         scheduler.auditReturnSchedules();
 
-        verify(sessions, never()).findByPhoneNumber(any());
-        verify(whatsApp, never()).sendInteractiveButtons(any(), any(), any(), anyList());
+        verify(sessions).findByPhoneNumber("5493511111111");
+        verify(whatsApp).sendInteractiveButtons(
+                eq("5493511111111"), eq("Confirmación de regreso"),
+                eq("¿Volvés hoy?"), anyList());
     }
 }

@@ -172,18 +172,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
            SELECT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
-           WHERE (r.roundTrip = true OR r.travelStatus =
-                  com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN)
-           AND (r.travelStatus IS NULL OR r.travelStatus <>
-                  com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN)
-           AND (r.travelDate BETWEEN :fromDate AND :toDate
-                OR r.returnDate BETWEEN :fromDate AND :toDate)
+           WHERE r.travelStatus =
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
+           AND (r.returnAuditSentAt IS NULL OR r.returnAuditSentAt < :dayStart)
            AND (r.status IS NULL OR UPPER(r.status) <> 'CANCELLED')
-           ORDER BY r.travelDate, r.createdAt
+           ORDER BY r.createdAt
            """)
     List<Reservation> findReturnScheduleAuditCandidates(
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate);
+            @Param("dayStart") LocalDateTime dayStart);
+
+    @Query("""
+           SELECT r FROM Reservation r
+           WHERE r.passenger.phone = :phone
+           AND r.travelStatus =
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
+           AND (r.status IS NULL OR UPPER(r.status) <> 'CANCELLED')
+           ORDER BY r.createdAt DESC
+           """)
+    List<Reservation> findOpenReturnReservationsByPassengerPhone(@Param("phone") String phone);
 
     @Query("""
            SELECT COALESCE(SUM(CASE WHEN r.passengerCount IS NULL OR r.passengerCount < 1

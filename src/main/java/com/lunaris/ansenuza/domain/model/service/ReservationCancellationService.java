@@ -16,9 +16,8 @@ public class ReservationCancellationService {
 
     public static final String RETURN_YES_ID = "return_yes_ID";
     public static final String RETURN_LATER_ID = "return_later_ID";
+    public static final String RETURN_POSTPONE_ID = "return_postpone";
     public static final String RETURN_NO_ID = "return_no_ID";
-    private static final LocalDate OPEN_RETURN_SENTINEL_DATE = LocalDate.of(2099, 12, 31);
-
     private final ReservationRepository reservationRepository;
     private final ReservationService reservationService;
 
@@ -34,9 +33,10 @@ public class ReservationCancellationService {
             throw new ReservationAlreadyCompletedException();
         }
 
-        if (RETURN_LATER_ID.equals(decisionId)) {
+        if (isPostponeDecision(decisionId)) {
             returnReservation.setTravelStatus(TravelStatus.OPEN_RETURN);
-            returnReservation.setTravelDate(OPEN_RETURN_SENTINEL_DATE);
+            returnReservation.setReturnAuditSentAt(
+                    com.lunaris.ansenuza.shared.ArgentinaTime.now());
             returnReservation.setNotes(appendNote(returnReservation.getNotes(),
                     "Vuelta marcada como abierta por decisión del pasajero."));
             reservationRepository.saveAndFlush(returnReservation);
@@ -55,6 +55,7 @@ public class ReservationCancellationService {
     public boolean isReturnDecision(String decisionId) {
         return RETURN_YES_ID.equals(decisionId)
                 || RETURN_LATER_ID.equals(decisionId)
+                || RETURN_POSTPONE_ID.equals(decisionId)
                 || RETURN_NO_ID.equals(decisionId);
     }
 
@@ -75,7 +76,17 @@ public class ReservationCancellationService {
             return outboundReservations.get(0);
         }
 
+        List<Reservation> openReturns =
+                reservationRepository.findOpenReturnReservationsByPassengerPhone(normalizedPhone);
+        if (!openReturns.isEmpty()) {
+            return openReturns.get(0);
+        }
+
         throw new IllegalArgumentException("No hay una vuelta activa para confirmar hoy.");
+    }
+
+    private boolean isPostponeDecision(String decisionId) {
+        return RETURN_POSTPONE_ID.equals(decisionId) || RETURN_LATER_ID.equals(decisionId);
     }
 
     private String appendNote(String currentNotes, String newNote) {
