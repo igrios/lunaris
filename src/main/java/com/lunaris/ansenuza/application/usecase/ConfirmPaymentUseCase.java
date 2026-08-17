@@ -8,19 +8,36 @@ import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
+import com.lunaris.ansenuza.domain.model.ReservationEvent;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class ConfirmPaymentUseCase {
 
     private final ReservationRepository reservationRepository;
     private final PromotionService promotionService;
     private final WaitingListRepository waitingListRepository;
     private final ConversationSessionRepository conversationSessionRepository;
+    private final ReservationEventRepository eventRepository;
+
+    public ConfirmPaymentUseCase(ReservationRepository reservations, PromotionService promotions,
+            WaitingListRepository waitingLists, ConversationSessionRepository sessions) {
+        this(reservations, promotions, waitingLists, sessions, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ConfirmPaymentUseCase(ReservationRepository reservations, PromotionService promotions,
+            WaitingListRepository waitingLists, ConversationSessionRepository sessions,
+            ReservationEventRepository events) {
+        this.reservationRepository = reservations;
+        this.promotionService = promotions;
+        this.waitingListRepository = waitingLists;
+        this.conversationSessionRepository = sessions;
+        this.eventRepository = events;
+    }
 
     @Transactional
     public Reservation execute(UUID reservationId) {
@@ -65,8 +82,14 @@ public class ConfirmPaymentUseCase {
             reservation.setPaymentVerified(true);
             reservation.setStatus("CONFIRMED");
             reservation.setPaymentConfirmedAt(confirmedAt);
+            reservation.setPaymentExpiresAt(null);
         });
         reservationRepository.saveAll(group);
+        if (eventRepository != null) group.forEach(reservation -> eventRepository.save(
+                ReservationEvent.builder().reservationId(reservation.getId())
+                        .eventType("PAYMENT_VERIFIED")
+                        .description("Pago verificado y reserva confirmada.")
+                        .triggeredBy("OPERATOR").build()));
         completeWaitingListEntries(group, phoneNumber);
         return selected;
     }

@@ -32,6 +32,7 @@ public class CompleteTripUseCase {
                         && r.getTravelStatus() != Reservation.TravelStatus.NO_SHOW
                         && r.getTravelStatus() != Reservation.TravelStatus.COMPLETED
                         && r.getTravelStatus() != Reservation.TravelStatus.REALIZED)
+                .filter(this::isBoarded)
                 .toList();
         for (Reservation reservation : route) {
             reservation.setTravelStatus(Reservation.TravelStatus.COMPLETED);
@@ -45,6 +46,12 @@ public class CompleteTripUseCase {
                     .build());
         }
         return route.size();
+    }
+
+    private boolean isBoarded(Reservation reservation) {
+        return reservation.getTravelStatus() == Reservation.TravelStatus.BOARDED
+                || reservation.getTravelStatus() == Reservation.TravelStatus.ONBOARD
+                || reservation.getTravelStatus() == Reservation.TravelStatus.ONBOARDED;
     }
 
     private LocalDate effectiveDate(Reservation reservation) {

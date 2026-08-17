@@ -26,6 +26,8 @@ import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
+import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 
 class ProcessPaymentReceiptUseCaseTest {
 
@@ -58,7 +60,9 @@ class ProcessPaymentReceiptUseCaseTest {
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, messaging, liveChat,
                 mock(SameDayBookingPolicy.class), mock(ReservationService.class),
-                new PersistPaymentReceiptUseCase(passengers, reservations));
+                new PersistPaymentReceiptUseCase(passengers, reservations,
+                        mock(ReservationEventRepository.class)),
+                mock(PricingAndScheduleService.class));
 
         useCase.execute("543511111111", "media-123");
 
@@ -73,7 +77,7 @@ class ProcessPaymentReceiptUseCaseTest {
     }
 
     @Test
-    void confirmsExistingPendingReservationDuringWebOtpVerification() {
+    void leavesExistingReservationPendingUntilOperatorVerifiesReceipt() {
         PassengerRepository passengers = mock(PassengerRepository.class);
         ReservationRepository reservations = mock(ReservationRepository.class);
         ReceiptStoragePort storage = mock(ReceiptStoragePort.class);
@@ -96,20 +100,19 @@ class ProcessPaymentReceiptUseCaseTest {
         when(reservations.findReservationGroupForUpdate("ARR-COR-002"))
                 .thenReturn(List.of(reservation, returnLeg));
         when(storage.uploadFile(receipt)).thenReturn("https://cdn.example.com/receipt.jpg");
+        PersistPaymentReceiptUseCase receiptPersistence = mock(PersistPaymentReceiptUseCase.class);
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
                 mock(LiveChatPort.class), mock(SameDayBookingPolicy.class),
-                mock(ReservationService.class), mock(PersistPaymentReceiptUseCase.class));
+                mock(ReservationService.class), receiptPersistence,
+                mock(PricingAndScheduleService.class));
 
         useCase.confirmOrCreateWebBooking("3511111111", receipt, null);
 
-        assertEquals("CONFIRMED", reservation.getStatus());
-        assertTrue(reservation.getPaymentVerified());
-        assertEquals("https://cdn.example.com/receipt.jpg", reservation.getPaymentReceiptUrl());
-        assertEquals("CONFIRMED", returnLeg.getStatus());
-        assertTrue(returnLeg.getPaymentVerified());
-        assertEquals("https://cdn.example.com/receipt.jpg", returnLeg.getPaymentReceiptUrl());
-        verify(reservations).saveAllAndFlush(List.of(reservation, returnLeg));
+        assertEquals("PENDING_PAYMENT", reservation.getStatus());
+        assertFalse(reservation.getPaymentVerified());
+        verify(receiptPersistence).executeByReservationCode(
+                "ARR-COR-002-IDA", "https://cdn.example.com/receipt.jpg", "PASSENGER_WEB");
     }
 
     @Test
@@ -122,6 +125,10 @@ class ProcessPaymentReceiptUseCaseTest {
         when(reservations.findByPassengerOrderByTravelDateAscDepartureScheduleAscCreatedAtDesc(passenger))
                 .thenReturn(List.of());
         ReservationService reservationService = mock(ReservationService.class);
+        PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
+        when(pricing.calculateReservationAmount(
+                "La Puerta", "Córdoba", TripType.ONE_WAY, 2))
+                .thenReturn(new BigDecimal("42000.00"));
         when(reservationService.saveReservationFlow(any(Reservation.class)))
                 .thenAnswer(invocation -> {
                     Reservation newReservation = invocation.getArgument(0);
@@ -130,7 +137,7 @@ class ProcessPaymentReceiptUseCaseTest {
         ProcessPaymentReceiptUseCase useCase = new ProcessPaymentReceiptUseCase(
                 passengers, reservations, storage, mock(MessagingPort.class),
                 mock(LiveChatPort.class), mock(SameDayBookingPolicy.class), reservationService,
-                mock(PersistPaymentReceiptUseCase.class));
+                mock(PersistPaymentReceiptUseCase.class), pricing);
         BookingVerificationData payload = new BookingVerificationData(
                 LocalDate.of(2026, 8, 10), "08:00 AM", "La Puerta", "Córdoba",
                 2, TripType.ONE_WAY, new BigDecimal("56000.00"));
@@ -143,7 +150,7 @@ class ProcessPaymentReceiptUseCaseTest {
         assertFalse(created.getPaymentVerified());
         assertTrue(created.getRequiresInvoice());
         assertEquals(ReservationSource.WEB, created.getSource());
-        assertEquals(payload.totalAmount(), created.getAmount());
+        assertEquals(new BigDecimal("42000.00"), created.getAmount());
         assertEquals(payload.scheduleBlock(), created.getDepartureSchedule());
         verify(reservationService).saveReservationFlow(created);
     }

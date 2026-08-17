@@ -27,19 +27,24 @@ public class ReservationController {
     private final ConfirmPaymentUseCase confirmPayment;
     private final com.lunaris.ansenuza.domain.repository.ReservationRepository reservationRepository;
     private final com.lunaris.ansenuza.domain.model.service.ReservationService reservationService;
+    private final com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService pricingService;
 
     public ReservationController(CreateReservationUseCase createReservation, ConfirmPaymentUseCase confirmPayment,
             com.lunaris.ansenuza.domain.repository.ReservationRepository reservationRepository,
-            com.lunaris.ansenuza.domain.model.service.ReservationService reservationService) {
+            com.lunaris.ansenuza.domain.model.service.ReservationService reservationService,
+            com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService pricingService) {
         this.createReservation = createReservation;
         this.confirmPayment = confirmPayment;
         this.reservationRepository = reservationRepository;
         this.reservationService = reservationService;
+        this.pricingService = pricingService;
     }
 
     @PostMapping
     public ResponseEntity<ReservationResponse> create(@RequestBody CreateReservationRequest request) {
-        Reservation reservation = createReservation.create(request.toDomain());
+        BigDecimal officialAmount = pricingService.calculateReservationAmount(
+                request.pickupLocality(), request.destination(), false, request.passengerCount());
+        Reservation reservation = createReservation.create(request.toDomain(officialAmount));
         return ResponseEntity.created(URI.create("/api/v2/reservations/" + reservation.id()))
                 .body(ReservationResponse.from(reservation));
     }
@@ -63,9 +68,9 @@ public class ReservationController {
     public record CreateReservationRequest(UUID passengerId, LocalDate travelDate,
             String pickupLocality, String pickupAddress, String destination,
             BigDecimal amount, int passengerCount, String departureSchedule) {
-        Reservation toDomain() {
+        Reservation toDomain(BigDecimal officialAmount) {
             return Reservation.builder(passengerId, pickupLocality, destination)
-                    .travelDate(travelDate).pickupAddress(pickupAddress).amount(amount)
+                    .travelDate(travelDate).pickupAddress(pickupAddress).amount(officialAmount)
                     .passengerCount(passengerCount).departureSchedule(departureSchedule)
                     .status(ReservationStatus.PENDING_PAYMENT).paymentVerified(false).build();
         }

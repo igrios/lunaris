@@ -135,6 +135,9 @@ public class Reservation {
     @Column(name = "payment_receipt_url")
     private String paymentReceiptUrl;
 
+    @Column(name = "payment_expires_at")
+    private LocalDateTime paymentExpiresAt;
+
     @Column(name = "waiting_list_entry_id")
     private Long waitingListEntryId;
 
@@ -189,6 +192,15 @@ public class Reservation {
     void prePersist() {
         if (id == null) {
             id = UUID.randomUUID();
+        }
+        if (createdAt == null) {
+            createdAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
+        }
+        if (paymentExpiresAt == null && !Boolean.TRUE.equals(paymentVerified)
+                && ("PENDING_PAYMENT".equalsIgnoreCase(status)
+                    || "PENDING_VERIFICATION".equalsIgnoreCase(status)
+                    || "PAYMENT_RECEIVED".equalsIgnoreCase(status))) {
+            paymentExpiresAt = createdAt.plusMinutes(20);
         }
         if (travelStatus == null) {
             travelStatus = TravelStatus.PENDING;

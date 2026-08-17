@@ -16,6 +16,7 @@ import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
+import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,6 +38,7 @@ public class ProcessPaymentReceiptUseCase {
     private final SameDayBookingPolicy sameDayBookingPolicy;
     private final ReservationService reservationService;
     private final PersistPaymentReceiptUseCase persistPaymentReceiptUseCase;
+    private final PricingAndScheduleService pricingAndScheduleService;
 
     public void execute(String phoneNumber, String mediaId) {
         // 1. Descargamos y persistimos el comprobante una única vez. Devuelve la URL
@@ -59,7 +61,6 @@ public class ProcessPaymentReceiptUseCase {
                 "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");
     }
 
-    @Transactional
     public Reservation confirmOrCreateWebBooking(
             String phoneNumber,
             MultipartFile receiptFile,
@@ -82,49 +83,19 @@ public class ProcessPaymentReceiptUseCase {
                     bookingData.travelDate(), bookingData.scheduleBlock());
         }
 
+        // La llamada a Cloudinary/almacenamiento ocurre antes de abrir cualquier transacción.
         String receiptUrl = uploadReceipt(receiptFile, normalizedPhone);
         Reservation reservation = pendingReservation.orElseGet(() -> newWebReservation(passenger, bookingData));
         if (pendingReservation.isPresent()) {
-            return updatePaymentGroup(reservation, receiptUrl, true, "CONFIRMED");
+            if (receiptUrl != null) {
+                persistPaymentReceiptUseCase.executeByReservationCode(
+                        reservation.getReservationCode(), receiptUrl, "PASSENGER_WEB");
+                return reservationRepository.findById(reservation.getId()).orElse(reservation);
+            }
+            return reservation;
         }
         if (receiptUrl != null) reservation.setPaymentReceiptUrl(receiptUrl);
         return reservationService.saveReservationFlow(reservation).getFirst();
-    }
-
-    private Reservation updatePaymentGroup(
-            Reservation selected, String receiptUrl, boolean verified, String status) {
-        String groupCode = selected.getBookingGroupCode() != null
-                && !selected.getBookingGroupCode().isBlank()
-                        ? selected.getBookingGroupCode()
-                        : paymentGroupCode(selected.getReservationCode());
-        List<Reservation> lockedGroup = groupCode == null
-                ? List.of(selected)
-                : reservationRepository.findByBookingGroupCodeForUpdate(groupCode);
-        if (lockedGroup.isEmpty() && groupCode != null) {
-            lockedGroup = reservationRepository.findReservationGroupForUpdate(groupCode);
-        }
-        final List<Reservation> group = lockedGroup;
-        if (group.isEmpty()) {
-            throw new IllegalStateException("No se encontró el grupo de reserva vinculado.");
-        }
-        java.time.LocalDateTime confirmedAt = verified
-                ? com.lunaris.ansenuza.shared.ArgentinaTime.now() : null;
-        group.forEach(reservation -> {
-            if (receiptUrl != null) reservation.setPaymentReceiptUrl(receiptUrl);
-            reservation.setPaymentVerified(verified);
-            reservation.setStatus(status);
-            if (verified) reservation.setPaymentConfirmedAt(confirmedAt);
-        });
-        reservationRepository.saveAllAndFlush(group);
-        return group.stream().filter(item -> item.getId() != null
-                        && item.getId().equals(selected.getId()))
-                .findFirst().orElse(selected);
-    }
-
-    private String paymentGroupCode(String reservationCode) {
-        if (reservationCode == null || !(reservationCode.endsWith("-IDA")
-                || reservationCode.endsWith("-VUELTA"))) return null;
-        return reservationCode.replaceFirst("-(IDA|VUELTA)$", "");
     }
 
     private String uploadReceipt(MultipartFile receiptFile, String phoneNumber) {
@@ -150,7 +121,9 @@ public class ProcessPaymentReceiptUseCase {
                 .passengerCount(data.passengerCount())
                 .tripType(data.tripType())
                 .roundTrip(data.tripType() != com.lunaris.ansenuza.domain.model.TripType.ONE_WAY)
-                .amount(data.totalAmount())
+                // El total enviado por el navegador se ignora deliberadamente.
+                .amount(pricingAndScheduleService.calculateReservationAmount(
+                        data.pickupLocality(), data.destination(), data.tripType(), data.passengerCount()))
                 .paymentVerified(false)
                 .requiresInvoice(true)
                 .status("PENDING_VERIFICATION")
@@ -162,8 +135,7 @@ public class ProcessPaymentReceiptUseCase {
         if (data == null || data.travelDate() == null
                 || isBlank(data.scheduleBlock()) || isBlank(data.pickupLocality())
                 || isBlank(data.destination()) || data.passengerCount() == null
-                || data.passengerCount() < 1 || data.tripType() == null
-                || data.totalAmount() == null || data.totalAmount().signum() < 0) {
+                || data.passengerCount() < 1 || data.tripType() == null) {
             throw new com.lunaris.ansenuza.domain.exception.DomainValidationException(
                     "Los datos completos del viaje son obligatorios para crear la reserva.");
         }

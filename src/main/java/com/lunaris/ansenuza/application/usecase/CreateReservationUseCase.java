@@ -76,8 +76,9 @@ public class CreateReservationUseCase {
                     "No hay asientos suficientes para el turno seleccionado. Disponibles: "
                             + Math.max(0, tripCapacity - occupiedSeats) + ".");
         }
-        Boolean safePaymentVerified = Boolean.TRUE.equals(request.paymentVerified());
-        String initialStatus = safePaymentVerified ? "CONFIRMED" : "PENDING_PAYMENT";
+        // Las entradas públicas nunca pueden autoverificar un pago desde el payload.
+        Boolean safePaymentVerified = false;
+        String initialStatus = "PENDING_PAYMENT";
 
         // Centralizamos la cotización en el servicio de pricing para no duplicar reglas.
         TripType tripType = resolveTripType(request);

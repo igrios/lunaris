@@ -19,6 +19,27 @@ import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
+    @Query("""
+           SELECT r.id FROM Reservation r
+           WHERE r.paymentVerified = false
+             AND r.paymentExpiresAt IS NOT NULL
+             AND r.paymentExpiresAt <= :now
+             AND UPPER(r.status) IN ('PENDING_PAYMENT', 'PENDING_VERIFICATION', 'PAYMENT_RECEIVED')
+           ORDER BY r.paymentExpiresAt
+           """)
+    List<UUID> findExpiredPaymentCandidateIds(
+            @Param("now") LocalDateTime now, org.springframework.data.domain.Pageable pageable);
+
+    @Query("""
+           SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END FROM Reservation r
+           WHERE r.paymentReceiptUrl = :receiptUrl
+             AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED')
+             AND (:groupCode IS NULL OR r.bookingGroupCode IS NULL
+                  OR r.bookingGroupCode <> :groupCode)
+           """)
+    boolean existsActiveReceiptInAnotherGroup(
+            @Param("receiptUrl") String receiptUrl, @Param("groupCode") String groupCode);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Reservation r where r.id in :ids")
     List<Reservation> findAllByIdForUpdate(@Param("ids") List<UUID> ids);
@@ -197,7 +218,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            FROM Reservation r
            WHERE r.travelDate = :date
            AND COALESCE(r.departureSchedule, '03:00 AM') = :schedule
-           AND (r.status IS NULL OR UPPER(r.status) NOT IN ('CANCELLED', 'REJECTED'))
+           AND (r.status IS NULL OR UPPER(r.status) NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED'))
            AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW,

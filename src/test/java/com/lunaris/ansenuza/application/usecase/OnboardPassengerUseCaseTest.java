@@ -56,7 +56,7 @@ class OnboardPassengerUseCaseTest {
 
         useCase.execute(current.getId());
 
-        assertEquals(Reservation.TravelStatus.ONBOARDED, current.getTravelStatus());
+        assertEquals(Reservation.TravelStatus.BOARDED, current.getTravelStatus());
         InOrder persistenceBeforeLookup = inOrder(reservations);
         persistenceBeforeLookup.verify(reservations).saveAndFlush(current);
         persistenceBeforeLookup.verify(reservations)
@@ -114,9 +114,9 @@ class OnboardPassengerUseCaseTest {
 
         useCase.execute(current.getId());
 
-        assertEquals(Reservation.TravelStatus.COMPLETED, current.getTravelStatus());
-        assertEquals("COMPLETED", current.getStatus());
-        assertEquals(current.getTotalSeats(), current.getReturnedPassengerCount());
+        assertEquals(Reservation.TravelStatus.BOARDED, current.getTravelStatus());
+        assertEquals("CONFIRMED", current.getStatus());
+        assertEquals(0, current.getReturnedPassengerCount());
         verify(whatsApp).sendTemplate(
                 "222", "proximo_en_camino", List.of("Siguiente", driver.getFullName()));
     }
@@ -234,11 +234,9 @@ class OnboardPassengerUseCaseTest {
         when(reservations.findById(reservation.getId())).thenReturn(Optional.of(reservation));
         when(reservations.saveAndFlush(reservation)).thenReturn(reservation);
 
-        Reservation updated = useCase.updateTravelStatus(
-                reservation.getId(), Reservation.TravelStatus.REALIZED);
-
-        assertEquals(Reservation.TravelStatus.REALIZED, updated.getTravelStatus());
-        verify(reservations).saveAndFlush(reservation);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> useCase.updateTravelStatus(
+                        reservation.getId(), Reservation.TravelStatus.REALIZED));
     }
 
     @Test

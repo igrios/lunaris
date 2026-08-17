@@ -8,6 +8,9 @@ import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
+import com.lunaris.ansenuza.domain.model.ReservationEvent;
+import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,6 +22,7 @@ public class PersistPaymentReceiptUseCase {
 
     private final PassengerRepository passengerRepository;
     private final ReservationRepository reservationRepository;
+    private final ReservationEventRepository reservationEventRepository;
 
     @Transactional
     public void execute(String phoneNumber, String receiptUrl) {
@@ -49,14 +53,53 @@ public class PersistPaymentReceiptUseCase {
                 ? List.of(selected)
                 : reservationRepository.findReservationGroupForUpdate(groupCode);
         if (group.isEmpty()) group = List.of(selected);
+        String receiptGroup = groupCode == null ? selected.getReservationCode() : groupCode;
+        if (reservationRepository.existsActiveReceiptInAnotherGroup(receiptUrl, receiptGroup)) {
+            throw new DomainValidationException(
+                    "El comprobante ya está vinculado a otra reserva activa.");
+        }
         group.forEach(reservation -> {
             reservation.setPaymentReceiptUrl(receiptUrl);
             reservation.setPaymentVerified(false);
             reservation.setStatus("PAYMENT_RECEIVED");
         });
         reservationRepository.saveAllAndFlush(group);
+        group.forEach(reservation -> reservationEventRepository.save(ReservationEvent.builder()
+                .reservationId(reservation.getId())
+                .eventType("PAYMENT_RECEIPT_LINKED")
+                .description("Comprobante recibido; pago pendiente de verificación.")
+                .triggeredBy("PASSENGER_WHATSAPP")
+                .build()));
         log.info("[Bot Webhook] Comprobante enlazado con éxito para código: {}",
                 selected.getReservationCode());
+    }
+
+    @Transactional
+    public void executeByReservationCode(String reservationCode, String receiptUrl,
+            String triggeredBy) {
+        Reservation selected = reservationRepository.findByReservationCodeForUpdate(reservationCode)
+                .orElseThrow(() -> new DomainValidationException("La reserva indicada no existe."));
+        String groupCode = selected.getBookingGroupCode() != null
+                && !selected.getBookingGroupCode().isBlank()
+                        ? selected.getBookingGroupCode() : paymentGroupCode(reservationCode);
+        List<Reservation> group = groupCode == null ? List.of(selected)
+                : reservationRepository.findByBookingGroupCodeForUpdate(groupCode);
+        if (group.isEmpty()) group = List.of(selected);
+        String receiptGroup = groupCode == null ? reservationCode : groupCode;
+        if (reservationRepository.existsActiveReceiptInAnotherGroup(receiptUrl, receiptGroup)) {
+            throw new DomainValidationException(
+                    "El comprobante ya está vinculado a otra reserva activa.");
+        }
+        for (Reservation reservation : group) {
+            reservation.setPaymentReceiptUrl(receiptUrl);
+            reservation.setPaymentVerified(false);
+            reservation.setStatus("PAYMENT_RECEIVED");
+            reservationRepository.save(reservation);
+            reservationEventRepository.save(ReservationEvent.builder()
+                    .reservationId(reservation.getId()).eventType("PAYMENT_RECEIPT_LINKED")
+                    .description("Comprobante recibido; pago pendiente de verificación.")
+                    .triggeredBy(triggeredBy).build());
+        }
     }
 
     private String paymentGroupCode(String reservationCode) {

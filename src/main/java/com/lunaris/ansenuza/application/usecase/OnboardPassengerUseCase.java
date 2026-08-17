@@ -12,13 +12,13 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
+import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
+import com.lunaris.ansenuza.domain.model.ReservationEvent;
 import com.lunaris.ansenuza.application.port.Button;
 import com.lunaris.ansenuza.application.port.MessagingPort;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OnboardPassengerUseCase {
 
@@ -26,6 +26,23 @@ public class OnboardPassengerUseCase {
     private final DriverRepository driverRepository;
     private final LocalityRepository localityRepository;
     private final MessagingPort messaging;
+    private final ReservationEventRepository eventRepository;
+
+    public OnboardPassengerUseCase(ReservationRepository reservations, DriverRepository drivers,
+            LocalityRepository localities, MessagingPort messaging) {
+        this(reservations, drivers, localities, messaging, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OnboardPassengerUseCase(ReservationRepository reservations, DriverRepository drivers,
+            LocalityRepository localities, MessagingPort messaging,
+            ReservationEventRepository eventRepository) {
+        this.reservationRepository = reservations;
+        this.driverRepository = drivers;
+        this.localityRepository = localities;
+        this.messaging = messaging;
+        this.eventRepository = eventRepository;
+    }
 
     @Transactional
     public Reservation execute(UUID reservationId) {
@@ -50,8 +67,12 @@ public class OnboardPassengerUseCase {
         if (newStatus != Reservation.TravelStatus.ONBOARD
                 && newStatus != Reservation.TravelStatus.BOARDED
                 && newStatus != Reservation.TravelStatus.ONBOARDED) {
+            assertValidTransition(initial.getTravelStatus(), newStatus);
             initial.setTravelStatus(newStatus);
-            return reservationRepository.saveAndFlush(initial);
+            Reservation saved = reservationRepository.saveAndFlush(initial);
+            audit(saved, "TRAVEL_STATUS_CHANGED", "Estado actualizado a " + newStatus,
+                    "OPERATOR_API");
+            return saved;
         }
         return boardPassenger(reservationId, null);
     }
@@ -123,18 +144,14 @@ public class OnboardPassengerUseCase {
                     "Esta reserva ya se encuentra abordada, finalizada o en un estado inválido.");
         }
 
-        if (isReturnLeg(onboard)) {
-            int passengerCount = onboard.getTotalSeats();
-            onboard.setReturnedPassengerCount(passengerCount);
-            onboard.setTravelStatus(Reservation.TravelStatus.COMPLETED);
-            onboard.setStatus("COMPLETED");
-        } else {
-            onboard.setTravelStatus(Reservation.TravelStatus.ONBOARDED);
-        }
+        onboard.setTravelStatus(Reservation.TravelStatus.BOARDED);
         reservationRepository.saveAndFlush(onboard);
+        audit(onboard, "PASSENGER_BOARDED", "Pasajero marcado como presente y abordado.",
+                actorDriverId == null ? "OPERATOR_API" : "DRIVER_WHATSAPP");
 
         Optional<Reservation> nextPassenger =
                 findNextPassengerInRoute(onboard, lockedEffectiveDate);
+        afterCommit(() -> {
         notifyDriver(onboard, nextPassenger);
         nextPassenger.ifPresentOrElse(
                 next -> {
@@ -149,7 +166,38 @@ public class OnboardPassengerUseCase {
                 () -> log.info(
                         "[ONBOARD] No N+1 passenger found with sequence {}",
                         expectedNextSequence(onboard)));
+        });
         return onboard;
+    }
+
+    private void assertValidTransition(Reservation.TravelStatus current,
+            Reservation.TravelStatus next) {
+        boolean reserved = current == null || current == Reservation.TravelStatus.PENDING
+                || current == Reservation.TravelStatus.CONFIRMED;
+        boolean boarded = current == Reservation.TravelStatus.BOARDED
+                || current == Reservation.TravelStatus.ONBOARD
+                || current == Reservation.TravelStatus.ONBOARDED;
+        boolean valid = (reserved && (next == Reservation.TravelStatus.NO_SHOW
+                        || next == Reservation.TravelStatus.CANCELED))
+                || (boarded && next == Reservation.TravelStatus.COMPLETED);
+        if (!valid) throw new IllegalStateException(
+                "Transición de viaje inválida: " + current + " -> " + next);
+    }
+
+    private void audit(Reservation reservation, String type, String description, String actor) {
+        if (eventRepository != null) eventRepository.save(ReservationEvent.builder()
+                .reservationId(reservation.getId()).eventType(type).description(description)
+                .triggeredBy(actor).build());
+    }
+
+    private void afterCommit(Runnable action) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager
+                .isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager
+                    .registerSynchronization(new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override public void afterCommit() { action.run(); }
+                    });
+        } else action.run();
     }
 
     private void notifyDriver(Reservation onboard, Optional<Reservation> nextPassenger) {

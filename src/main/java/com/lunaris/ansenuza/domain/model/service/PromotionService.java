@@ -103,6 +103,9 @@ public class PromotionService {
                         promotion.getId(), normalizedPhone) == 0) {
                     promotionUsageRepository.saveAndFlush(new PromotionUsage(promotion, normalizedPhone));
                 }
+            } else if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
+                    promotion.getId(), normalizedPhone) == 0) {
+                throw new IllegalArgumentException("El código promocional ya fue utilizado.");
             }
         });
     }
