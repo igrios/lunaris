@@ -170,7 +170,9 @@ public class WhatsAppService implements MessagingPort {
             for (Map<String, String> btn : buttons) {
                 buttonObjects.add(Map.of(
                     "type", "reply",
-                    "reply", Map.of("id", btn.get("id"), "title", btn.get("title"))
+                    "reply", Map.of(
+                            "id", btn.get("id"),
+                            "title", metaReplyButtonTitle(btn.get("title")))
                 ));
             }
 
@@ -776,7 +778,21 @@ private static String textOrDefault(String value, String fallback) {
 }
 
 private static String truncateMetaText(String value, int maxLength) {
-    return value.length() <= maxLength ? value : value.substring(0, maxLength - 1) + "…";
+    if (value.length() <= maxLength) {
+        return value;
+    }
+    int endIndex = maxLength - 1;
+    if (endIndex > 0 && Character.isHighSurrogate(value.charAt(endIndex - 1))) {
+        endIndex--;
+    }
+    return value.substring(0, endIndex) + "…";
+}
+
+static String metaReplyButtonTitle(String title) {
+    if (title == null || title.isBlank()) {
+        throw new IllegalArgumentException("El título del botón de WhatsApp es obligatorio.");
+    }
+    return truncateMetaText(title.trim(), 20);
 }
 
 static java.util.List<java.util.Map<String, Object>> despiertaChoferComponents(

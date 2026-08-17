@@ -17,6 +17,16 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 class WhatsAppTemplateConfigurationTest {
 
     @Test
+    void replyButtonTitlesNeverExceedMetaLimit() {
+        assertEquals("No vuelvo hoy",
+                WhatsAppService.metaReplyButtonTitle("No vuelvo hoy"));
+        assertEquals("Sí, cancelar defini…",
+                WhatsAppService.metaReplyButtonTitle("Sí, cancelar definitivamente"));
+        assertTrue(WhatsAppService.metaReplyButtonTitle(
+                "Título demasiado largo 🚐").length() <= 20);
+    }
+
+    @Test
     void genericInteractiveListConstrainsMetaFieldsAndFallsBackToPlainText() {
         FailingInteractiveWhatsAppService service = new FailingInteractiveWhatsAppService();
         Map<String, Object> row = Map.of(

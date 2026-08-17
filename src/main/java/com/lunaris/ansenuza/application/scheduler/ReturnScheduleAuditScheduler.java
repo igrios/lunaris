@@ -72,7 +72,7 @@ public class ReturnScheduleAuditScheduler {
                         "¿Volvés hoy?",
                         List.of(
                                 Map.of("id", "return_yes_ID", "title", "Sí, vuelvo hoy"),
-                                Map.of("id", "return_postpone", "title", "Postergar (No vuelvo hoy)")));
+                                Map.of("id", "return_postpone", "title", "No vuelvo hoy")));
                 log.info("[ReturnScheduleAudit] Regreso consultado para reserva {}.",
                         reservation.getReservationCode());
             } catch (Exception exception) {
