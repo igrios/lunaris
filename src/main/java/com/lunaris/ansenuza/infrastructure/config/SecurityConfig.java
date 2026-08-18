@@ -74,6 +74,8 @@ public class SecurityConfig {
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
+                        .requestMatchers("/api/v1/dev/whatsapp-simulator/**")
+                        .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/v1/waiting-list/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
                         .requestMatchers(HttpMethod.GET, "/api/passengers/me", "/api/passengers/profile")

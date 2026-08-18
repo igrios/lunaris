@@ -30,6 +30,7 @@
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'novedades'} ? 'active fw-bold'" th:href="@{/admin/novedades}">📰 Novedades</a></li>
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'usuarios'} ? 'active fw-bold'" th:href="@{/admin/usuarios}">👤 Usuarios</a></li>
           <li class="nav-item"><a class="nav-link text-warning fw-semibold" th:href="@{/admin/bot/monitor}">🎛️ Bot</a></li>
+          <li class="nav-item" th:if="${@environment.acceptsProfiles('dev')}"><a class="nav-link text-info fw-semibold" th:classappend="${active == 'bot-simulator'} ? 'active fw-bold'" th:href="@{/admin/bot-simulator}">🧪 Simulador</a></li>
           <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
             <a class="btn btn-primary btn-sm fw-bold w-100" th:href="@{/reservations/new}">➕ Nueva Reserva</a>
           </li>
