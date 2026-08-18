@@ -5,7 +5,6 @@ import com.lunaris.ansenuza.domain.model.Role;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
@@ -14,6 +13,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
@@ -39,10 +39,13 @@ public class AdminUserInitializer implements CommandLineRunner {
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
-        Account account = accountRepository.findByUsernameIgnoreCase(adminUsername)
-                .orElseGet(this::newAdminAccount);
+        accountRepository.findByUsernameIgnoreCase(adminUsername)
+                .ifPresentOrElse(this::updateManagedAdmin, this::createAdmin);
+    }
 
+    private void updateManagedAdmin(Account account) {
         if (account.getPasswordHash() == null
                 || environment.acceptsProfiles(Profiles.of("dev"))) {
             account.setPasswordHash(passwordEncoder.encode(adminPassword));
@@ -53,16 +56,18 @@ public class AdminUserInitializer implements CommandLineRunner {
                 : new HashSet<>(account.getRoles());
         roles.add(Role.ADMIN);
         account.setRoles(roles);
+        // No se invoca save(): la entidad pertenece a esta transacción y Hibernate
+        // persiste los cambios mediante dirty checking al confirmar el commit.
+    }
 
-        if (account.getId() == null) {
-            account.setId(UUID.randomUUID());
-        }
+    private void createAdmin() {
+        Account account = newAdminAccount();
+        account.setPasswordHash(passwordEncoder.encode(adminPassword));
         accountRepository.save(account);
     }
 
     private Account newAdminAccount() {
         return Account.builder()
-                .id(UUID.randomUUID())
                 .username(adminUsername)
                 .displayName("Administrador")
                 .active(true)

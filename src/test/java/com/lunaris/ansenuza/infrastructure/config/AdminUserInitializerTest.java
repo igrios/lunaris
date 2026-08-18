@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -12,6 +13,7 @@ import com.lunaris.ansenuza.domain.model.Role;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -24,6 +26,7 @@ class AdminUserInitializerTest {
         AccountRepository accounts = mock(AccountRepository.class);
         var encoder = new BCryptPasswordEncoder();
         Account existing = Account.builder()
+                .id(UUID.randomUUID())
                 .username("admin")
                 .displayName("Administrador")
                 .passwordHash(encoder.encode("old-password"))
@@ -43,8 +46,7 @@ class AdminUserInitializerTest {
         assertTrue(existing.getRoles().contains(Role.ADMIN));
         assertTrue(existing.getRoles().contains(Role.OPERADOR));
         assertTrue(encoder.matches("admin123", existing.getPasswordHash()));
-        assertNotNull(existing.getId());
-        verify(accounts).save(existing);
+        verify(accounts, never()).save(existing);
     }
 
     @Test
@@ -53,6 +55,12 @@ class AdminUserInitializerTest {
         var encoder = new BCryptPasswordEncoder();
         when(accounts.findByUsernameIgnoreCase("admin"))
                 .thenReturn(Optional.empty());
+        when(accounts.save(org.mockito.ArgumentMatchers.any(Account.class)))
+                .thenAnswer(invocation -> {
+                    Account account = invocation.getArgument(0);
+                    account.setId(UUID.randomUUID());
+                    return account;
+                });
         AdminUserInitializer initializer = new AdminUserInitializer(
                 accounts, encoder, new MockEnvironment(), "admin", "admin123");
 
@@ -75,6 +83,7 @@ class AdminUserInitializerTest {
         var encoder = new BCryptPasswordEncoder();
         String existingHash = encoder.encode("production-secret");
         Account existing = Account.builder()
+                .id(UUID.randomUUID())
                 .username("admin")
                 .displayName("Administrador")
                 .passwordHash(existingHash)
@@ -87,6 +96,6 @@ class AdminUserInitializerTest {
                 "admin", "admin123").run();
 
         assertEquals(existingHash, existing.getPasswordHash());
-        verify(accounts).save(existing);
+        verify(accounts, never()).save(existing);
     }
 }
