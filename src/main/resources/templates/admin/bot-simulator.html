@@ -37,9 +37,15 @@
     <section class="phone" aria-label="Conversación simulada">
       <header class="chat-head"><strong>Lunaris Ansenuza</strong><div class="small opacity-75">Sandbox local · no envía mensajes reales</div></header>
       <div id="messages" class="messages" aria-live="polite"><div class="empty">Abrí una conversación para comenzar.</div></div>
-      <form id="composer" class="composer d-flex gap-2">
-        <input id="text" class="form-control rounded-pill" autocomplete="off" placeholder="Escribí un mensaje" aria-label="Mensaje">
-        <button class="btn btn-success rounded-pill px-4" type="submit">Enviar</button>
+      <form id="composer" class="composer">
+        <div class="d-flex gap-2">
+          <input id="text" class="form-control rounded-pill" autocomplete="off" placeholder="Escribí un mensaje" aria-label="Mensaje">
+          <button class="btn btn-success rounded-pill px-4" type="submit">Enviar</button>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <button id="send-receipt-image" class="btn btn-sm btn-outline-success" type="button">📎 Comprobante imagen</button>
+          <button id="send-receipt-document" class="btn btn-sm btn-outline-secondary" type="button">📄 Comprobante documento</button>
+        </div>
       </form>
     </section>
   </main>
@@ -76,12 +82,14 @@
         }
         messages.innerHTML = items.map(item => {
           const image = item.type === 'IMAGE' && item.resourceUrl
-            ? `<img class="media" src="${escapeHtml(item.resourceUrl)}" alt="Imagen enviada por el bot">` : '';
+            ? `<img class="media" src="${escapeHtml(item.resourceUrl)}" alt="Imagen adjunta">` : '';
+          const document = item.type === 'DOCUMENT' && item.resourceUrl
+            ? `<a class="d-block mb-2" href="${escapeHtml(item.resourceUrl)}" target="_blank" rel="noopener">📄 Abrir documento adjunto</a>` : '';
           const header = item.header ? `<div class="bubble-header">${escapeHtml(item.header)}</div>` : '';
           const body = item.body ? `<div>${escapeHtml(item.body)}</div>` : '';
           const buttons = (item.buttons || []).map(button =>
             `<button class="option" data-payload="${escapeHtml(button.payload)}">${escapeHtml(button.title)}</button>`).join('');
-          return `<article class="bubble ${item.direction === 'USER' ? 'user' : 'bot'}">${image}${header}${body}${buttons}</article>`;
+          return `<article class="bubble ${item.direction === 'USER' ? 'user' : 'bot'}">${image}${document}${header}${body}${buttons}</article>`;
         }).join('');
         messages.scrollTop = messages.scrollHeight;
       }
@@ -113,6 +121,16 @@
         const value = text.value.trim();
         if (value) { text.value = ''; send({text:value}); }
       });
+      document.querySelector('#send-receipt-image').addEventListener('click', () => send({
+        messageType:'IMAGE',
+        mediaUrl:'/images/CBU_MARTIN.jpeg',
+        text:'Comprobante de pago de prueba'
+      }));
+      document.querySelector('#send-receipt-document').addEventListener('click', () => send({
+        messageType:'DOCUMENT',
+        mediaUrl:'data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrCg==',
+        text:'Comprobante PDF de prueba'
+      }));
       messages.addEventListener('click', event => {
         const button = event.target.closest('[data-payload]');
         if (button) send({payload:button.dataset.payload});

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
+import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
@@ -48,5 +49,20 @@ class WhatsAppServiceDevMockTest {
                     .allSatisfy((name, bean) -> assertThat(bean)
                             .isInstanceOf(WhatsAppServiceDevMock.class));
         }
+    }
+
+    @Test
+    void recordsUserMediaWithItsTypeAndResourceUrl() {
+        service.recordUserMessage("3515551234", IncomingMessage.MessageType.IMAGE,
+                "Comprobante", null, "/images/receipt.jpg");
+        service.recordUserMessage("3515551234", IncomingMessage.MessageType.DOCUMENT,
+                null, null, "/documents/receipt.pdf");
+
+        var messages = service.messagesFor("3515551234");
+        assertThat(messages).extracting(WhatsAppServiceDevMock.SimulatorMessage::type)
+                .containsExactly(WhatsAppServiceDevMock.MessageType.IMAGE,
+                        WhatsAppServiceDevMock.MessageType.DOCUMENT);
+        assertThat(messages).extracting(WhatsAppServiceDevMock.SimulatorMessage::resourceUrl)
+                .containsExactly("/images/receipt.jpg", "/documents/receipt.pdf");
     }
 }

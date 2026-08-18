@@ -61,6 +61,17 @@ public class ProcessPaymentReceiptUseCase {
                 "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");
     }
 
+    /** Procesa un recurso ya disponible localmente, usado por el simulador de desarrollo. */
+    public void executeStoredReceipt(String phoneNumber, String receiptUrl) {
+        if (receiptUrl == null || receiptUrl.isBlank()) {
+            throw new IllegalArgumentException("La URL del comprobante es obligatoria.");
+        }
+        liveChat.recordIncomingMessage(phoneNumber, receiptUrl);
+        persistPaymentReceiptUseCase.execute(phoneNumber, receiptUrl);
+        messaging.sendText(phoneNumber,
+                "✅ *Comprobante recibido.*\n\nNuestro equipo verificará la transferencia y confirmará tu viaje a la brevedad.");
+    }
+
     public Reservation confirmOrCreateWebBooking(
             String phoneNumber,
             MultipartFile receiptFile,

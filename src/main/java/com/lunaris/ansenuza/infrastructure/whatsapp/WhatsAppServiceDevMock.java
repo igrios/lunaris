@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.whatsapp;
 
 import com.lunaris.ansenuza.application.port.Button;
+import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,6 +34,18 @@ public class WhatsAppServiceDevMock extends WhatsAppService {
     public void recordUserMessage(String phone, String body, String payload) {
         add(phone, Direction.USER, payload == null ? MessageType.TEXT : MessageType.INTERACTIVE,
                 body, null, null, payload);
+    }
+
+    public void recordUserMessage(String phone, IncomingMessage.MessageType incomingType,
+            String body, String payload, String resourceUrl) {
+        MessageType type = switch (incomingType) {
+            case IMAGE -> MessageType.IMAGE;
+            case DOCUMENT -> MessageType.DOCUMENT;
+            case INTERACTIVE -> MessageType.INTERACTIVE;
+            default -> MessageType.TEXT;
+        };
+        add(phone, Direction.USER, type, body, null, null,
+                type == MessageType.INTERACTIVE ? payload : resourceUrl);
     }
 
     public void reset(String phone) {

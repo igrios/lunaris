@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
-import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import lombok.RequiredArgsConstructor;
 
 @Controller
@@ -26,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 public class AgendaDayController {
 
     private final ReservationRepository reservationRepository;
-    private final WhatsAppService whatsAppService;
     private final ConfirmPaymentUseCase confirmPaymentUseCase;
 
     @Value("${whatsapp.access-token}")
@@ -55,25 +53,6 @@ public class AgendaDayController {
         return reservationRepository.findById(id)
                 .map(reservation -> {
                     confirmPaymentUseCase.execute(id);
-
-                    try {
-                        String clienteCelular = reservation.getPassenger().getPhone();
-                        String nombrePasajero = reservation.getPassenger().getFirstName();
-                        
-                        String mensajeWhatsApp = """
-                                ✅ *¡Pago Verificado con Éxito!*
-                                
-                                Hola %s, te confirmamos que recibimos correctamente tu transferencia. Tu reserva para el traslado hacia *%s* ya se encuentra asentada de forma definitiva.
-                                
-                                🚐 Próximamente nos comunicaremos para coordinar el horario exacto en el que el chofer pasará por tu domicilio. ¡Muchas gracias por viajar con Lunaris!
-                                """.formatted(nombrePasajero, reservation.getDestination());
-
-                        whatsAppService.sendMessage(clienteCelular, mensajeWhatsApp);
-                        
-                    } catch (Exception e) {
-                        org.slf4j.LoggerFactory.getLogger(getClass())
-                            .error("No se pudo enviar el WhatsApp de confirmación de pago", e);
-                    }
 
                     return ResponseEntity.ok().<Void>build();
                 })

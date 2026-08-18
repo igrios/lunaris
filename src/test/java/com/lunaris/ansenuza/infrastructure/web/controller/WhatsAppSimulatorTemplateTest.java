@@ -14,6 +14,7 @@ class WhatsAppSimulatorTemplateTest {
                 .getContentAsString(StandardCharsets.UTF_8);
 
         assertThat(html).contains("/api/v1/dev/whatsapp-simulator", "data-payload",
-                "send-user-reply", "reset-session");
+                "send-user-reply", "reset-session", "send-receipt-image",
+                "send-receipt-document", "messageType:'IMAGE'", "messageType:'DOCUMENT'");
     }
 }

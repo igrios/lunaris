@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.application.conversation.ConversationOrchestrator;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
+import com.lunaris.ansenuza.application.usecase.ProcessPaymentReceiptUseCase;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppServiceDevMock;
@@ -19,8 +20,11 @@ class WhatsAppSimulatorDevControllerTest {
     private final WhatsAppServiceDevMock whatsApp = new WhatsAppServiceDevMock();
     private final ConversationOrchestrator orchestrator = mock(ConversationOrchestrator.class);
     private final ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+    private final ProcessPaymentReceiptUseCase processPaymentReceiptUseCase =
+            mock(ProcessPaymentReceiptUseCase.class);
     private final WhatsAppSimulatorDevController controller =
-            new WhatsAppSimulatorDevController(whatsApp, orchestrator, sessions);
+            new WhatsAppSimulatorDevController(
+                    whatsApp, orchestrator, sessions, processPaymentReceiptUseCase);
 
     @Test
     void sendsButtonPayloadToTheRealConversationEntryPoint() {
@@ -46,5 +50,36 @@ class WhatsAppSimulatorDevControllerTest {
 
         verify(sessions).delete(session);
         assertThat(whatsApp.messagesFor("3515551234")).isEmpty();
+    }
+
+    @Test
+    void forwardsImageReceiptAndRecordsItsResourceUrl() {
+        String receiptUrl = "/images/CBU_MARTIN.jpeg";
+
+        controller.reply(new WhatsAppSimulatorDevController.UserReply(
+                "3515551234", "Comprobante", null, receiptUrl, "IMAGE"));
+
+        ArgumentCaptor<IncomingMessage> captor = ArgumentCaptor.forClass(IncomingMessage.class);
+        verify(orchestrator).process(captor.capture());
+        assertThat(captor.getValue().type()).isEqualTo(IncomingMessage.MessageType.IMAGE);
+        assertThat(captor.getValue().mediaId()).isEqualTo(receiptUrl);
+        verify(processPaymentReceiptUseCase)
+                .executeStoredReceipt("5493515551234", receiptUrl);
+        assertThat(whatsApp.messagesFor("3515551234").getFirst().resourceUrl())
+                .isEqualTo(receiptUrl);
+    }
+
+    @Test
+    void forwardsDocumentReceiptWithDocumentType() {
+        String receiptUrl = "data:application/pdf;base64,JVBERi0xLjQ=";
+
+        controller.reply(new WhatsAppSimulatorDevController.UserReply(
+                "3515551234", null, null, receiptUrl, "DOCUMENT"));
+
+        ArgumentCaptor<IncomingMessage> captor = ArgumentCaptor.forClass(IncomingMessage.class);
+        verify(orchestrator).process(captor.capture());
+        assertThat(captor.getValue().type()).isEqualTo(IncomingMessage.MessageType.DOCUMENT);
+        assertThat(whatsApp.messagesFor("3515551234").getFirst().type())
+                .isEqualTo(WhatsAppServiceDevMock.MessageType.DOCUMENT);
     }
 }

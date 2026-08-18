@@ -146,7 +146,7 @@ public class DashboardViewController {
 
     @PostMapping("/reservations/{id}/verify-payment")
     public String verifyPayment(@PathVariable UUID id) {
-        reservationService.verifyPayment(id);
+        confirmPaymentUseCase.execute(id);
         return "redirect:/reservas-panel";
     }
 
