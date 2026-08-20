@@ -16,6 +16,7 @@ spring:
   flyway:
     enabled: true
     validate-on-migrate: true
+    out-of-order: true
 
   servlet:
     multipart:
