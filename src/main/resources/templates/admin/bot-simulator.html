@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador de WhatsApp - Lunaris</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background:#e7f0ec; padding-top:72px; }
+    .simulator { max-width:900px; }
+    .phone { min-height:70vh; background:#efeae2; border-radius:18px; overflow:hidden; box-shadow:0 12px 35px #0002; }
+    .chat-head { background:#075e54; color:#fff; padding:14px 18px; }
+    .messages { height:56vh; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:10px; }
+    .bubble { max-width:78%; padding:9px 12px; border-radius:10px; white-space:pre-wrap; overflow-wrap:anywhere; box-shadow:0 1px 2px #0002; }
+    .bot { align-self:flex-start; background:#fff; }
+    .user { align-self:flex-end; background:#d9fdd3; }
+    .bubble-header { color:#075e54; font-weight:700; font-size:.85rem; margin-bottom:4px; }
+    .option { display:block; width:100%; background:none; border:0; border-top:1px solid #ddd; color:#027eb5; padding:8px; margin-top:7px; font-weight:600; }
+    .media { max-width:100%; border-radius:8px; margin-bottom:6px; }
+    .composer { background:#f0f2f5; padding:12px; }
+    .empty { margin:auto; color:#68776f; text-align:center; }
+  </style>
+</head>
+<body>
+  <nav th:replace="~{fragments/nav :: bar('bot-simulator')}"></nav>
+  <main class="container simulator pb-4">
+    <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+      <div class="flex-grow-1">
+        <label for="phone" class="form-label fw-semibold">Número de prueba</label>
+        <input id="phone" class="form-control" value="3515551234" inputmode="tel" aria-describedby="phoneHelp">
+        <small id="phoneHelp" class="text-muted">Ingresá un celular argentino de 10 dígitos.</small>
+      </div>
+      <button id="load" class="btn btn-primary">Abrir conversación</button>
+      <button id="reset" class="btn btn-outline-danger">Reiniciar sesión</button>
+    </div>
+    <div id="error" class="alert alert-danger d-none" role="alert"></div>
+    <section class="phone" aria-label="Conversación simulada">
+      <header class="chat-head"><strong>Lunaris Ansenuza</strong><div class="small opacity-75">Sandbox local · no envía mensajes reales</div></header>
+      <div id="messages" class="messages" aria-live="polite"><div class="empty">Abrí una conversación para comenzar.</div></div>
+      <form id="composer" class="composer">
+        <div class="d-flex gap-2">
+          <input id="text" class="form-control rounded-pill" autocomplete="off" placeholder="Escribí un mensaje" aria-label="Mensaje">
+          <button class="btn btn-success rounded-pill px-4" type="submit">Enviar</button>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-2">
+          <button id="send-receipt-image" class="btn btn-sm btn-outline-success" type="button">📎 Comprobante imagen</button>
+          <button id="send-receipt-document" class="btn btn-sm btn-outline-secondary" type="button">📄 Comprobante documento</button>
+        </div>
+      </form>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const api = '/api/v1/dev/whatsapp-simulator';
+      const phone = document.querySelector('#phone');
+      const messages = document.querySelector('#messages');
+      const error = document.querySelector('#error');
+      const text = document.querySelector('#text');
+
+      const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g,
+        char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+
+      function showError(message) {
+        error.textContent = message;
+        error.classList.remove('d-none');
+      }
+
+      async function request(url, options) {
+        error.classList.add('d-none');
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(detail || `Error HTTP ${response.status}`);
+        }
+        return response.status === 204 ? null : response.json();
+      }
+
+      function render(items) {
+        if (!items.length) {
+          messages.innerHTML = '<div class="empty">Todavía no hay mensajes. Escribí “Hola” para iniciar el flujo.</div>';
+          return;
+        }
+        messages.innerHTML = items.map(item => {
+          const image = item.type === 'IMAGE' && item.resourceUrl
+            ? `<img class="media" src="${escapeHtml(item.resourceUrl)}" alt="Imagen adjunta">` : '';
+          const document = item.type === 'DOCUMENT' && item.resourceUrl
+            ? `<a class="d-block mb-2" href="${escapeHtml(item.resourceUrl)}" target="_blank" rel="noopener">📄 Abrir documento adjunto</a>` : '';
+          const header = item.header ? `<div class="bubble-header">${escapeHtml(item.header)}</div>` : '';
+          const body = item.body ? `<div>${escapeHtml(item.body)}</div>` : '';
+          const buttons = (item.buttons || []).map(button =>
+            `<button class="option" data-payload="${escapeHtml(button.payload)}">${escapeHtml(button.title)}</button>`).join('');
+          return `<article class="bubble ${item.direction === 'USER' ? 'user' : 'bot'}">${image}${document}${header}${body}${buttons}</article>`;
+        }).join('');
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      async function load() {
+        try { render(await request(`${api}/messages?phone=${encodeURIComponent(phone.value)}`)); }
+        catch (exception) { showError(exception.message); }
+      }
+
+      async function send(content) {
+        try {
+          const items = await request(`${api}/send-user-reply`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({phone:phone.value, ...content})
+          });
+          render(items);
+        } catch (exception) { showError(exception.message); }
+      }
+
+      document.querySelector('#load').addEventListener('click', load);
+      document.querySelector('#reset').addEventListener('click', async () => {
+        try {
+          await request(`${api}/reset-session?phone=${encodeURIComponent(phone.value)}`, {method:'DELETE'});
+          render([]);
+        } catch (exception) { showError(exception.message); }
+      });
+      document.querySelector('#composer').addEventListener('submit', event => {
+        event.preventDefault();
+        const value = text.value.trim();
+        if (value) { text.value = ''; send({text:value}); }
+      });
+      document.querySelector('#send-receipt-image').addEventListener('click', () => send({
+        messageType:'IMAGE',
+        mediaUrl:'/images/CBU_MARTIN.jpeg',
+        text:'Comprobante de pago de prueba'
+      }));
+      document.querySelector('#send-receipt-document').addEventListener('click', () => send({
+        messageType:'DOCUMENT',
+        mediaUrl:'data:application/pdf;base64,JVBERi0xLjQKJcTl8uXrCg==',
+        text:'Comprobante PDF de prueba'
+      }));
+      messages.addEventListener('click', event => {
+        const button = event.target.closest('[data-payload]');
+        if (button) send({payload:button.dataset.payload});
+      });
+    })();
+  </script>
+</body>
+</html>

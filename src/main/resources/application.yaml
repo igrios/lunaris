@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/lunaris_db}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
 
   jpa:
     properties:
@@ -15,7 +15,7 @@ spring:
 
   flyway:
     enabled: true
-    validate-on-migrate: false # 🛡️ CANCELAMOS LA VALIDACIÓN DE CHECKSUMS PARA PASAR EN LIMPIO
+    validate-on-migrate: true
 
   servlet:
     multipart:
@@ -37,7 +37,7 @@ springdoc:
 
 whatsapp:
   phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID}
-  access-token: ${WHATSAPP_ACCESS_TOKEN:EAAjg5ZALoQWABR1Lgd3paLGp6NNrEMZCN0PSDq15h5ZAIJnYeZB3XZCcfaFknm4AFQhPfWkGjwp5nA05rd2ZBET0mDZANhOFBcqE17h1AU6siILKOfUi204A8iYXvOi29aK57peVM3yKaZBmFRW8onJwwhVpVMW1v4pccWGakw70mxyMPzpDw0iDhAuwker9uOSyv6951qiZC64WhAZB4aW7mS5qMwPRqh1OBgk5msn9uLKyiSkqTzMsGjskfI8ZAp9qdYwyWeO7ZC4C5a930I6mRSpiAd6n5ZADkvE00MewZD}
+  access-token: ${WHATSAPP_ACCESS_TOKEN}
 
 promotions:
   authorized-operator-phone: ${PROMOTIONS_AUTHORIZED_OPERATOR_PHONE:}

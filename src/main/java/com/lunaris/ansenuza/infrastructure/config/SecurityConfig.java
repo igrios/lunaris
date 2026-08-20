@@ -3,9 +3,6 @@ package com.lunaris.ansenuza.infrastructure.config;
 import com.lunaris.ansenuza.domain.model.Account;
 import com.lunaris.ansenuza.domain.model.Role;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
-import java.util.HashSet;
-import java.util.Set;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -74,6 +71,8 @@ public class SecurityConfig {
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
+                        .requestMatchers("/api/v1/dev/whatsapp-simulator/**")
+                        .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/v1/waiting-list/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
                         .requestMatchers(HttpMethod.GET, "/api/passengers/me", "/api/passengers/profile")
@@ -197,27 +196,6 @@ public class SecurityConfig {
         return username -> accountRepository.findByUsernameIgnoreCase(username)
                 .map(this::toUserDetails)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
-    }
-
-    @Bean
-    public ApplicationRunner bootstrapAccounts(AccountRepository accountRepository,
-            PasswordEncoder passwordEncoder) {
-        return args -> {
-            createIfMissing(accountRepository, passwordEncoder, "martin", "Martín", "MartinLunaris2026", Role.OPERADOR);
-        };
-    }
-
-    private void createIfMissing(AccountRepository accountRepository, PasswordEncoder passwordEncoder,
-            String username, String displayName, String password, Role role) {
-        if (!accountRepository.existsByUsernameIgnoreCase(username)) {
-            accountRepository.save(Account.builder()
-                    .username(username)
-                    .displayName(displayName)
-                    .passwordHash(passwordEncoder.encode(password))
-                    .active(true)
-                    .roles(new HashSet<>(Set.of(role)))
-                    .build());
-        }
     }
 
     private org.springframework.security.core.userdetails.UserDetails toUserDetails(Account account) {

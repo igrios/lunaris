@@ -5,54 +5,71 @@ import com.lunaris.ansenuza.domain.model.Role;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class AdminUserInitializer implements CommandLineRunner {
 
-    static final String ADMIN_USERNAME = "ignacio";
-    static final String ADMIN_PASSWORD = "Admin123!";
-
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
+    private final String adminUsername;
+    private final String adminPassword;
 
     public AdminUserInitializer(
             AccountRepository accountRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            Environment environment,
+            @Value("${app.security.admin.username:admin}") String adminUsername,
+            @Value("${app.security.admin.password:admin123}") String adminPassword) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
+        this.environment = environment;
+        this.adminUsername = adminUsername;
+        this.adminPassword = adminPassword;
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
-        Account account = accountRepository.findByUsernameIgnoreCase(ADMIN_USERNAME)
-                .orElseGet(this::newAdminAccount);
+        accountRepository.findByUsernameIgnoreCase(adminUsername)
+                .ifPresentOrElse(this::updateManagedAdmin, this::createAdmin);
+    }
 
-        account.setPasswordHash(passwordEncoder.encode(ADMIN_PASSWORD));
+    private void updateManagedAdmin(Account account) {
+        if (account.getPasswordHash() == null
+                || environment.acceptsProfiles(Profiles.of("dev"))) {
+            account.setPasswordHash(passwordEncoder.encode(adminPassword));
+        }
         account.setActive(true);
         Set<Role> roles = account.getRoles() == null
                 ? new HashSet<>()
                 : new HashSet<>(account.getRoles());
         roles.add(Role.ADMIN);
         account.setRoles(roles);
+        // No se invoca save(): la entidad pertenece a esta transacción y Hibernate
+        // persiste los cambios mediante dirty checking al confirmar el commit.
+    }
 
-        if (account.getId() == null) {
-            account.setId(UUID.randomUUID());
-        }
+    private void createAdmin() {
+        Account account = newAdminAccount();
+        account.setPasswordHash(passwordEncoder.encode(adminPassword));
         accountRepository.save(account);
     }
 
     private Account newAdminAccount() {
         return Account.builder()
-                .id(UUID.randomUUID())
-                .username(ADMIN_USERNAME)
-                .displayName("Ignacio Admin")
+                .username(adminUsername)
+                .displayName("Administrador")
                 .active(true)
                 .roles(new HashSet<>(Set.of(Role.ADMIN)))
                 .build();

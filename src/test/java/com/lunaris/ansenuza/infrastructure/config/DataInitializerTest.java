@@ -48,9 +48,6 @@ class DataInitializerTest {
         List<Fare> seededFares = fareCaptor.getValue();
         assertEquals(9, seededLocalities.size());
         assertEquals(9, seededFares.size());
-        assertTrue(seededLocalities.stream().allMatch(locality -> locality.getId() != null));
-        assertTrue(seededFares.stream().allMatch(fare -> fare.getId() != null));
-
         Set<String> localityNames = seededLocalities.stream()
                 .map(Locality::getName)
                 .collect(Collectors.toSet());

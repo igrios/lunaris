@@ -13,8 +13,11 @@ import com.lunaris.ansenuza.domain.model.ReservationEvent;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
+import com.lunaris.ansenuza.application.port.MessagingPort;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class ConfirmPaymentUseCase {
 
     private final ReservationRepository reservationRepository;
@@ -22,21 +25,29 @@ public class ConfirmPaymentUseCase {
     private final WaitingListRepository waitingListRepository;
     private final ConversationSessionRepository conversationSessionRepository;
     private final ReservationEventRepository eventRepository;
+    private final MessagingPort messaging;
 
     public ConfirmPaymentUseCase(ReservationRepository reservations, PromotionService promotions,
             WaitingListRepository waitingLists, ConversationSessionRepository sessions) {
-        this(reservations, promotions, waitingLists, sessions, null);
+        this(reservations, promotions, waitingLists, sessions, null, null);
+    }
+
+    public ConfirmPaymentUseCase(ReservationRepository reservations, PromotionService promotions,
+            WaitingListRepository waitingLists, ConversationSessionRepository sessions,
+            ReservationEventRepository events) {
+        this(reservations, promotions, waitingLists, sessions, events, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public ConfirmPaymentUseCase(ReservationRepository reservations, PromotionService promotions,
             WaitingListRepository waitingLists, ConversationSessionRepository sessions,
-            ReservationEventRepository events) {
+            ReservationEventRepository events, MessagingPort messaging) {
         this.reservationRepository = reservations;
         this.promotionService = promotions;
         this.waitingListRepository = waitingLists;
         this.conversationSessionRepository = sessions;
         this.eventRepository = events;
+        this.messaging = messaging;
     }
 
     @Transactional
@@ -91,7 +102,32 @@ public class ConfirmPaymentUseCase {
                         .description("Pago verificado y reserva confirmada.")
                         .triggeredBy("OPERATOR").build()));
         completeWaitingListEntries(group, phoneNumber);
+        notifyPaymentConfirmation(selected);
         return selected;
+    }
+
+    private void notifyPaymentConfirmation(Reservation reservation) {
+        if (messaging == null || reservation.getPassenger() == null
+                || reservation.getPassenger().getPhone() == null
+                || reservation.getPassenger().getPhone().isBlank()) {
+            return;
+        }
+        String passengerName = reservation.getPassenger().getFirstName();
+        String destination = reservation.getDestination();
+        try {
+            messaging.sendText(reservation.getPassenger().getPhone(), """
+                    ✅ *¡Pago Verificado con Éxito!*
+
+                    Hola %s, te confirmamos que recibimos correctamente tu transferencia. Tu reserva para el traslado hacia *%s* ya se encuentra asentada de forma definitiva.
+
+                    🚐 Próximamente nos comunicaremos para coordinar el horario exacto en el que el chofer pasará por tu domicilio. ¡Muchas gracias por viajar con Lunaris!
+                    """.formatted(
+                            passengerName == null || passengerName.isBlank() ? "Pasajero" : passengerName,
+                            destination == null || destination.isBlank() ? "tu destino" : destination));
+        } catch (RuntimeException exception) {
+            log.warn("No se pudo emitir la notificación de confirmación para la reserva {}.",
+                    reservation.getId());
+        }
     }
 
     private void completeWaitingListEntries(List<Reservation> reservations, String phoneNumber) {

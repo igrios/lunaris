@@ -44,6 +44,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("select r from Reservation r where r.id in :ids")
     List<Reservation> findAllByIdForUpdate(@Param("ids") List<UUID> ids);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Reservation r WHERE r.id IN :ids ORDER BY r.id")
+    List<Reservation> findAllByIdInForUpdate(@Param("ids") List<UUID> ids);
+
     /** Reclamo atómico de un aviso: solamente una instancia puede obtener 1 fila. */
     @Modifying
     @Transactional

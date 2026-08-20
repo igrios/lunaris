@@ -20,6 +20,7 @@ import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.application.port.MessagingPort;
 
 class ConfirmPaymentUseCaseTest {
 
@@ -100,6 +101,27 @@ class ConfirmPaymentUseCaseTest {
 
         assertEquals(WaitingListEntry.CONVERTED, entry.getStatus());
         verify(waitingList).saveAndFlush(entry);
+    }
+
+    @Test
+    void notifiesPassengerThroughMessagingPortWhenPaymentIsApproved() {
+        UUID reservationId = UUID.randomUUID();
+        Reservation reservation = reservation(reservationId, "MOR-COR-005", null, false);
+        reservation.setDestination("Córdoba");
+        reservation.setPassenger(Passenger.builder()
+                .firstName("Ana").phone("543511112222").build());
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
+
+        new ConfirmPaymentUseCase(reservations, mock(PromotionService.class),
+                mock(WaitingListRepository.class), mock(ConversationSessionRepository.class),
+                null, messaging).execute(reservationId);
+
+        verify(messaging).sendText(
+                org.mockito.ArgumentMatchers.eq("543511112222"),
+                org.mockito.ArgumentMatchers.contains("Pago Verificado"));
     }
 
     private ConfirmPaymentUseCase newUseCase(

@@ -9,6 +9,7 @@ import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,6 +28,7 @@ import com.lunaris.ansenuza.application.port.MessagingPort;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Profile("!dev")
 @Slf4j
 
 
@@ -47,16 +49,16 @@ public class WhatsAppService implements MessagingPort {
             "chofer_asignado", "es",
             "contacto_pasajero", "es");
 
-    @Value("${whatsapp.access-token}")
+    @Value("${whatsapp.access-token:dev-mock-token}")
     private String whatsappToken;
 
-    @Value("${whatsapp.phone-number-id}")
+    @Value("${whatsapp.phone-number-id:123456789}")
     private String whatsappPhoneNumberId;
 
-    @Value("${whatsapp.phone-number-id}")
+    @Value("${whatsapp.phone-number-id:123456789}")
     private String phoneNumberId;
 
-    @Value("${whatsapp.access-token}")
+    @Value("${whatsapp.access-token:dev-mock-token}")
     private String accessToken;
 
     @Value("${lunaris.support-phone:}")
