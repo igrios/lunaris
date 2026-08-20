@@ -31,7 +31,7 @@ class DriverRouteServiceTest {
         Reservation added = reservation(date, null, null);
         List<UUID> requestedOrder = List.of(added.getId(), moved.getId());
 
-        when(repository.findAllById(requestedOrder)).thenReturn(List.of(moved, added));
+        when(repository.findAllByIdInForUpdate(requestedOrder)).thenReturn(List.of(moved, added));
         when(repository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(driver.getId(), date))
                 .thenReturn(List.of(removed, moved));
         when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
@@ -46,7 +46,8 @@ class DriverRouteServiceTest {
         assertEquals(added.getId(), result.get(0).getId());
         assertEquals(1, added.getRouteSequence());
         assertEquals(2, moved.getRouteSequence());
-        verify(repository).saveAll(org.mockito.ArgumentMatchers.any());
+        verify(repository).findAllByIdInForUpdate(requestedOrder);
+        verify(repository).saveAllAndFlush(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -63,7 +64,7 @@ class DriverRouteServiceTest {
         openReturn.setDepartureSchedule(null);
         openReturn.setTravelStatus(Reservation.TravelStatus.OPEN_RETURN);
         List<UUID> requestedOrder = List.of(openReturn.getId());
-        when(repository.findAllById(requestedOrder)).thenReturn(List.of(openReturn));
+        when(repository.findAllByIdInForUpdate(requestedOrder)).thenReturn(List.of(openReturn));
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -83,7 +84,7 @@ class DriverRouteServiceTest {
         Reservation second = reservation(date, null, null);
         second.setPassengerCount(2);
         List<UUID> ids = List.of(first.getId(), second.getId());
-        when(repository.findAllById(ids)).thenReturn(List.of(first, second));
+        when(repository.findAllByIdInForUpdate(ids)).thenReturn(List.of(first, second));
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
@@ -105,7 +106,7 @@ class DriverRouteServiceTest {
         Reservation reservation = reservation(date, null, null);
         reservation.setDepartureSchedule(null);
         List<UUID> requestedOrder = List.of(reservation.getId());
-        when(repository.findAllById(requestedOrder)).thenReturn(List.of(reservation));
+        when(repository.findAllByIdInForUpdate(requestedOrder)).thenReturn(List.of(reservation));
         when(drivers.findAllByIdForUpdate(java.util.Set.of(driver.getId())))
                 .thenReturn(List.of(driver));
         when(repository.findByDriverIdAndTravelDateOrderByRouteSequenceAsc(driver.getId(), date))
@@ -133,7 +134,7 @@ class DriverRouteServiceTest {
         returned.setPickupLocality("Córdoba");
         returned.setDestination("Arrufó");
         List<UUID> ids = List.of(outbound.getId(), returned.getId());
-        when(repository.findAllById(ids)).thenReturn(List.of(outbound, returned));
+        when(repository.findAllByIdInForUpdate(ids)).thenReturn(List.of(outbound, returned));
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.replaceRoute(driver, date, ids));

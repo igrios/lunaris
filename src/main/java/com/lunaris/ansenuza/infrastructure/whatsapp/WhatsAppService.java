@@ -49,16 +49,16 @@ public class WhatsAppService implements MessagingPort {
             "chofer_asignado", "es",
             "contacto_pasajero", "es");
 
-    @Value("${whatsapp.access-token}")
+    @Value("${whatsapp.access-token:dev-mock-token}")
     private String whatsappToken;
 
-    @Value("${whatsapp.phone-number-id}")
+    @Value("${whatsapp.phone-number-id:123456789}")
     private String whatsappPhoneNumberId;
 
-    @Value("${whatsapp.phone-number-id}")
+    @Value("${whatsapp.phone-number-id:123456789}")
     private String phoneNumberId;
 
-    @Value("${whatsapp.access-token}")
+    @Value("${whatsapp.access-token:dev-mock-token}")
     private String accessToken;
 
     @Value("${lunaris.support-phone:}")

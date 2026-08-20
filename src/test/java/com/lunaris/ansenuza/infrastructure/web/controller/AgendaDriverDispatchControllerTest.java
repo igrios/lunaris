@@ -63,7 +63,11 @@ class AgendaDriverDispatchControllerTest {
                 .travelDate(LocalDate.of(2026, 8, 4)).build();
         when(drivers.findById(driverId)).thenReturn(Optional.of(driver));
         when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
-        when(routes.replaceRoute(driver, reservation.getTravelDate(), List.of(reservationId)))
+        when(routes.replaceRoute(
+                org.mockito.ArgumentMatchers.eq(driver),
+                org.mockito.ArgumentMatchers.eq(reservation.getTravelDate()),
+                org.mockito.ArgumentMatchers.eq(List.of(reservationId)),
+                org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of(reservation));
         when(originResolver.resolve(reservation.getTravelDate(), "03:00")).thenReturn(new RouteOriginResolution(
                 reservation.getTravelDate(), "03:00", "Morteros", List.of(), Map.of("Morteros", 0),
@@ -87,7 +91,11 @@ class AgendaDriverDispatchControllerTest {
                 "Chofer asignado correctamente en sistema."));
         verify(drivers).findById(driverId);
         var order = inOrder(routes, whatsApp);
-        order.verify(routes).replaceRoute(driver, reservation.getTravelDate(), List.of(reservationId));
+        order.verify(routes).replaceRoute(
+                org.mockito.ArgumentMatchers.eq(driver),
+                org.mockito.ArgumentMatchers.eq(reservation.getTravelDate()),
+                org.mockito.ArgumentMatchers.eq(List.of(reservationId)),
+                org.mockito.ArgumentMatchers.any());
         order.verify(whatsApp).sendDriverRouteDispatch(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyString(),

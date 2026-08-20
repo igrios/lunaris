@@ -11,7 +11,6 @@ import com.lunaris.ansenuza.domain.repository.SystemConfigurationRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -80,7 +79,6 @@ public class DataInitializer implements CommandLineRunner {
     private void seedLocalitiesAndFares() {
         List<Locality> localities = DEFAULT_LOCALITIES.stream()
                 .map(seed -> Locality.builder()
-                        .id(UUID.randomUUID())
                         .name(seed.name())
                         .kmsToCordoba(seed.kmsToCordoba())
                         .minutesFromOrigin(seed.minutesFromOrigin())
@@ -90,7 +88,6 @@ public class DataInitializer implements CommandLineRunner {
 
         List<Fare> fares = DEFAULT_LOCALITIES.stream()
                 .map(seed -> Fare.builder()
-                        .id(UUID.randomUUID())
                         .localityName(seed.name())
                         .amount(new BigDecimal(seed.amount()))
                         .build())

@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Comparator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
@@ -31,6 +32,13 @@ public class DriverRouteService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<Reservation> replaceRoute(
             Driver driver, LocalDate travelDate, List<UUID> orderedReservationIds) {
+        return replaceRoute(driver, travelDate, orderedReservationIds, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<Reservation> replaceRoute(
+            Driver driver, LocalDate travelDate, List<UUID> orderedReservationIds,
+            Comparator<Reservation> finalOrderComparator) {
         if (driver == null || driver.getId() == null || travelDate == null
                 || orderedReservationIds == null) {
             throw new IllegalArgumentException("Chofer, fecha y orden de reservas son obligatorios.");
@@ -40,7 +48,7 @@ public class DriverRouteService {
             throw new IllegalArgumentException("La ruta no puede contener reservas duplicadas.");
         }
 
-        List<Reservation> selected = reservationRepository.findAllById(orderedReservationIds);
+        List<Reservation> selected = reservationRepository.findAllByIdInForUpdate(orderedReservationIds);
         rejectDispatched(selected);
         if (selected.size() != orderedReservationIds.size()
                 || selected.stream().anyMatch(reservation ->
@@ -67,20 +75,6 @@ public class DriverRouteService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Chofer no encontrado: " + driver.getId()));
 
-        selected = reservationRepository.findAllById(orderedReservationIds);
-        rejectDispatched(selected);
-        if (selected.size() != orderedReservationIds.size()
-                || selected.stream().anyMatch(reservation -> !travelDate.equals(reservation.getTravelDate()))
-                || selected.stream().anyMatch(reservation -> !reservation.isScheduledConfirmedTrip())
-                || !sameManifest(selected)
-                || selected.stream()
-                        .filter(reservation -> reservation.getDriver() != null)
-                        .anyMatch(reservation ->
-                                !affectedDriverIds.contains(reservation.getDriver().getId()))) {
-            throw new IllegalArgumentException(
-                    "Las reservas cambiaron mientras se actualizaba la ruta. Reintentá la operación.");
-        }
-        assertVehicleCapacity(selected);
         Set<Reservation> changed = new LinkedHashSet<>();
         Reservation manifestReference = selected.getFirst();
         List<Reservation> targetRoute = scopedRoute(targetDriver.getId(), travelDate, manifestReference);
@@ -94,9 +88,11 @@ public class DriverRouteService {
 
         var selectedById = selected.stream()
                 .collect(java.util.stream.Collectors.toMap(Reservation::getId, reservation -> reservation));
+        Comparator<Reservation> effectiveComparator = finalOrderComparator != null
+                ? finalOrderComparator : routeComparator(selected.getFirst());
         List<Reservation> geographicallyOrdered = orderedReservationIds.stream()
                 .map(selectedById::get)
-                .sorted(routeComparator(selected.getFirst()))
+                .sorted(effectiveComparator)
                 .toList();
         List<Reservation> ordered = java.util.stream.IntStream.range(0, geographicallyOrdered.size())
                 .mapToObj(index -> {
@@ -120,8 +116,8 @@ public class DriverRouteService {
                     });
                 });
 
-        reservationRepository.saveAll(changed);
-        return reservationRepository.saveAllAndFlush(ordered);
+        reservationRepository.saveAllAndFlush(changed);
+        return ordered;
     }
 
     /** Marca de despacho idempotente y protegida por bloqueo de fila. */
@@ -136,14 +132,6 @@ public class DriverRouteService {
                 .filter(reservation -> reservation.getTravelStatus() != Reservation.TravelStatus.ROUTE_SENT)
                 .forEach(reservation -> reservation.setTravelStatus(Reservation.TravelStatus.ROUTE_SENT));
         reservationRepository.saveAllAndFlush(locked);
-    }
-
-    @Transactional
-    public void persistDispatchSequence(List<Reservation> orderedReservations) {
-        if (orderedReservations == null || orderedReservations.isEmpty()) return;
-        java.util.stream.IntStream.range(0, orderedReservations.size()).forEach(index ->
-                orderedReservations.get(index).setRouteSequence(index + 1));
-        reservationRepository.saveAllAndFlush(orderedReservations);
     }
 
     private boolean sameManifest(List<Reservation> reservations) {

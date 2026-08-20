@@ -433,22 +433,20 @@ public class AgendaViewController {
             return ResponseEntity.badRequest().body(java.util.Map.of(
                     "message", "Las reservas seleccionadas no tienen una fecha válida."));
         }
-        List<Reservation> assignedReservations;
+        String assignedSchedule = firstReservation.getDepartureSchedule() == null
+                || firstReservation.getDepartureSchedule().isBlank()
+                ? "03:00" : firstReservation.getDepartureSchedule();
+        RouteOriginResolution dispatchOrigin = resolveEffectiveTripOriginUseCase.resolve(
+                firstReservation.getTravelDate(), assignedSchedule);
+        List<Reservation> routeReservations;
         try {
-            assignedReservations = driverRouteService.replaceRoute(
-                    driver, firstReservation.getTravelDate(), reservationIds);
+            routeReservations = driverRouteService.replaceRoute(
+                    driver, firstReservation.getTravelDate(), reservationIds,
+                    AdminDashboardController.dynamicRouteComparator(dispatchOrigin));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest().body(java.util.Map.of(
                     "message", exception.getMessage()));
         }
-
-        String assignedSchedule = assignedReservations.stream().map(Reservation::getDepartureSchedule)
-                .filter(schedule -> schedule != null && !schedule.isBlank()).findFirst().orElse("03:00");
-        RouteOriginResolution dispatchOrigin = resolveEffectiveTripOriginUseCase.resolve(
-                firstReservation.getTravelDate(), assignedSchedule);
-        List<Reservation> routeReservations = assignedReservations.stream()
-                .sorted(AdminDashboardController.dynamicRouteComparator(dispatchOrigin)).toList();
-        driverRouteService.persistDispatchSequence(routeReservations);
         org.slf4j.LoggerFactory.getLogger(getClass()).info(dispatchOrigin.summary());
 
         try {
