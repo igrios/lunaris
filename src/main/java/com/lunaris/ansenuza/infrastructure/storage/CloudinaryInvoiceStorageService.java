@@ -16,6 +16,11 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
 
+    private static final String PDF_DOWNLOAD_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
+    private static final int PDF_CONNECT_TIMEOUT_MILLIS = 5_000;
+    private static final int PDF_READ_TIMEOUT_MILLIS = 10_000;
+
     private final Cloudinary cloudinary;
     private final LocalInvoiceStorageService localStorage;
     private final String cloudName;
@@ -44,6 +49,7 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
                         "resource_type", "raw",
                         "folder", "facturas",
                         "public_id", publicId,
+                        "access_mode", "public",
                         "overwrite", true));
                 Object secureUrl = result.get("secure_url");
                 if (secureUrl != null && !secureUrl.toString().isBlank()) {
@@ -71,13 +77,23 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
     @Override
     public byte[] load(String pdfUrl) {
         if (pdfUrl != null && pdfUrl.startsWith("https://")) {
-            try (java.io.InputStream input = java.net.URI.create(pdfUrl).toURL().openStream()) {
-                return input.readAllBytes();
+            try {
+                java.net.URLConnection connection = java.net.URI.create(pdfUrl).toURL().openConnection();
+                configurePdfConnection(connection);
+                try (java.io.InputStream input = connection.getInputStream()) {
+                    return input.readAllBytes();
+                }
             } catch (java.io.IOException | IllegalArgumentException exception) {
                 throw new IllegalStateException("No se pudo descargar el PDF desde Cloudinary.", exception);
             }
         }
         return localStorage.load(pdfUrl);
+    }
+
+    static void configurePdfConnection(java.net.URLConnection connection) {
+        connection.setRequestProperty("User-Agent", PDF_DOWNLOAD_USER_AGENT);
+        connection.setConnectTimeout(PDF_CONNECT_TIMEOUT_MILLIS);
+        connection.setReadTimeout(PDF_READ_TIMEOUT_MILLIS);
     }
 
     private boolean isConfigured() {

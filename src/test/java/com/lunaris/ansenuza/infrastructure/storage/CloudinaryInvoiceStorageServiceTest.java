@@ -17,6 +17,18 @@ import org.mockito.ArgumentCaptor;
 class CloudinaryInvoiceStorageServiceTest {
 
     @Test
+    void configuresBrowserUserAgentAndBoundedTimeoutsForPdfDownload() {
+        java.net.URLConnection connection = mock(java.net.URLConnection.class);
+
+        CloudinaryInvoiceStorageService.configurePdfConnection(connection);
+
+        verify(connection).setRequestProperty(
+                "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+        verify(connection).setConnectTimeout(5_000);
+        verify(connection).setReadTimeout(10_000);
+    }
+
+    @Test
     void uploadsPdfAndReturnsSecureUrl() throws Exception {
         Cloudinary cloudinary = mock(Cloudinary.class);
         Uploader uploader = mock(Uploader.class);
@@ -36,6 +48,7 @@ class CloudinaryInvoiceStorageServiceTest {
         verify(uploader).upload(any(byte[].class), params.capture());
         assertEquals("raw", params.getValue().get("resource_type"));
         assertEquals("factura.pdf", params.getValue().get("public_id"));
+        assertEquals("public", params.getValue().get("access_mode"));
     }
 
     @Test
