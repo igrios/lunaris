@@ -47,4 +47,13 @@ class ThymeleafRoutesTest {
         assertTrue(template.contains("'bg-danger'"));
         assertTrue(template.contains("eventLabels[entry.eventType]"));
     }
+
+    @Test
+    void agendaDetailLinkAlwaysSerializesDateAsIso() throws Exception {
+        String template = Files.readString(
+                Path.of("src/main/resources/templates/agenda.html"));
+
+        assertTrue(template.contains(
+                "date=${#temporals.format(day.date, 'yyyy-MM-dd')}"));
+    }
 }

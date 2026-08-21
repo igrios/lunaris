@@ -74,7 +74,7 @@
                             <span class="badge bg-success p-2 fs-6 shadow-sm">
                                 🚐 <span th:text="${day.estimatedVehicles}">0</span> Flota Estimada
                             </span>
-                            <a th:href="@{/agenda/view-detalle(date=${day.date})}"
+                            <a th:href="@{/agenda/view-detalle(date=${#temporals.format(day.date, 'yyyy-MM-dd')})}"
                                 class="btn btn-primary px-4 fw-semibold shadow-sm">
                                 Ver Detalles / Resumen →
                             </a>

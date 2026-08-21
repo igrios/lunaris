@@ -181,7 +181,11 @@ public class AgendaViewController {
     // 🚐 2. Vista detalle del día (Excluye Pasajeros Fantasma / Cancelados / Conteo <= 0)
     @GetMapping("/agenda/view-detalle")
     public String dayAgenda(
-            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam("date")
+            @DateTimeFormat(
+                    iso = DateTimeFormat.ISO.DATE,
+                    fallbackPatterns = {"dd/MM/yyyy", "d/M/yy"})
+            LocalDate date,
             @RequestParam(value = "schedule", defaultValue = "03:00") String schedule,
             @RequestParam(value = "direction", defaultValue = "OUTBOUND") RouteDirection direction,
             Model model) {

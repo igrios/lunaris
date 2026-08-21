@@ -32,7 +32,11 @@ public class AgendaDayController {
 
     @GetMapping("/agenda/day")
     public String dayAgenda(
-            @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam("date")
+            @DateTimeFormat(
+                    iso = DateTimeFormat.ISO.DATE,
+                    fallbackPatterns = {"dd/MM/yyyy", "d/M/yy"})
+            LocalDate date,
             Model model) {
 
         List<Reservation> reservations = reservationRepository.findByTravelDate(date);
