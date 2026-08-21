@@ -13,6 +13,9 @@ import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.infrastructure.web.controller.PublicCatalogApiController;
 import com.lunaris.ansenuza.infrastructure.web.controller.NewsBannerApiController;
+import com.lunaris.ansenuza.infrastructure.web.controller.PublicInvoiceController;
+import com.lunaris.ansenuza.application.usecase.IssueInvoiceUseCase;
+import java.util.UUID;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +25,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest({PublicCatalogApiController.class, NewsBannerApiController.class})
+@WebMvcTest({PublicCatalogApiController.class, NewsBannerApiController.class,
+        PublicInvoiceController.class})
 @Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class})
 class PublicApiSecurityIntegrationTest {
 
@@ -43,6 +47,9 @@ class PublicApiSecurityIntegrationTest {
 
     @MockitoBean
     private NewsBannerService newsBannerService;
+
+    @MockitoBean
+    private IssueInvoiceUseCase issueInvoiceUseCase;
 
     @BeforeEach
     void setUp() {
@@ -93,5 +100,16 @@ class PublicApiSecurityIntegrationTest {
                 .andExpect(header().string("Access-Control-Allow-Origin", origin))
                 .andExpect(header().string("Access-Control-Allow-Methods",
                         org.hamcrest.Matchers.containsString("GET")));
+    }
+
+    @Test
+    void publicInvoicePdfDoesNotRequireAuthentication() throws Exception {
+        UUID invoiceId = UUID.randomUUID();
+        when(issueInvoiceUseCase.download(invoiceId)).thenReturn(
+                new IssueInvoiceUseCase.InvoiceDocument("F-2026-00003", "%PDF".getBytes()));
+
+        mockMvc.perform(get("/public/invoices/{invoiceId}.pdf", invoiceId))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/pdf"));
     }
 }

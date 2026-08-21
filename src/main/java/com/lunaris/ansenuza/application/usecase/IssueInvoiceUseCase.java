@@ -6,6 +6,7 @@ import java.time.Year;
 import java.util.UUID;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort.StoredInvoice;
@@ -27,6 +28,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class IssueInvoiceUseCase {
 
+    private static final String DEFAULT_PUBLIC_BASE_URL =
+            "https://lunaris-backend-nn6s.onrender.com";
+
     public record InvoiceDocument(String invoiceNumber, byte[] content) {
         public InvoiceDocument {
             content = content.clone();
@@ -37,6 +41,9 @@ public class IssueInvoiceUseCase {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceStoragePort invoiceStorage;
     private final MessagingPort messaging;
+
+    @Value("${lunaris.public-base-url:" + DEFAULT_PUBLIC_BASE_URL + "}")
+    private String publicBaseUrl = DEFAULT_PUBLIC_BASE_URL;
 
     /** Emite (o re-sube) la factura de una reserva y la envía por WhatsApp. */
     @Transactional
@@ -69,8 +76,13 @@ public class IssueInvoiceUseCase {
         invoice.setPassengerCuil(CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()));
         invoice.setAmount(invoiceAmount);
         invoice.setPdfUrl(stored.webUrl());
+        invoice.setSentViaWhatsapp(false);
+        if (invoice.getId() == null) {
+            invoice.setId(UUID.randomUUID());
+        }
+        invoice = invoiceRepository.saveAndFlush(invoice);
 
-        boolean sent = sendByWhatsApp(reservation, invoice, stored);
+        boolean sent = sendByWhatsApp(reservation, invoice, publicInvoiceUrl(invoice));
         invoice.setSentViaWhatsapp(sent);
         if (sent) {
             invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
@@ -85,9 +97,7 @@ public class IssueInvoiceUseCase {
         Reservation reservation = reservationRepository.findById(invoice.getReservationId())
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada para la factura " + invoiceId));
 
-        String documentLocation = invoiceStorage.resolveAbsolutePath(invoice.getPdfUrl());
-        boolean sent = sendByWhatsApp(reservation, invoice,
-                new StoredInvoice(invoice.getPdfUrl(), documentLocation));
+        boolean sent = sendByWhatsApp(reservation, invoice, publicInvoiceUrl(invoice));
         invoice.setSentViaWhatsapp(sent || Boolean.TRUE.equals(invoice.getSentViaWhatsapp()));
         if (sent) {
             invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
@@ -103,7 +113,8 @@ public class IssueInvoiceUseCase {
                 invoice.getInvoiceNumber(), invoiceStorage.load(invoice.getPdfUrl()));
     }
 
-    private boolean sendByWhatsApp(Reservation reservation, Invoice invoice, StoredInvoice stored) {
+    private boolean sendByWhatsApp(
+            Reservation reservation, Invoice invoice, String publicDocumentUrl) {
         try {
             String phone = reservation.getPassenger().getPhone();
             String caption = """
@@ -115,17 +126,23 @@ public class IssueInvoiceUseCase {
                             reservation.getPassenger().getFirstName(),
                             reservation.getReservationCode());
             String fileName = "Factura-" + invoice.getInvoiceNumber() + ".pdf";
-            if (stored.webUrl() != null && stored.webUrl().startsWith("https://")) {
-                messaging.sendDocumentUrl(phone, stored.webUrl(), fileName, caption);
-            } else {
-                messaging.sendDocument(phone, stored.absolutePath(), fileName, caption);
-            }
+            messaging.sendDocumentUrl(phone, publicDocumentUrl, fileName, caption);
             return true;
         } catch (Exception e) {
             log.error("No se pudo enviar la factura {} por WhatsApp. Queda guardada para reenviar.",
                     invoice.getInvoiceNumber(), e);
             return false;
         }
+    }
+
+    private String publicInvoiceUrl(Invoice invoice) {
+        String baseUrl = publicBaseUrl == null || publicBaseUrl.isBlank()
+                ? DEFAULT_PUBLIC_BASE_URL
+                : publicBaseUrl.strip();
+        baseUrl = baseUrl.endsWith("/")
+                ? baseUrl.substring(0, baseUrl.length() - 1)
+                : baseUrl;
+        return baseUrl + "/public/invoices/" + invoice.getId() + ".pdf";
     }
 
     private String nextInvoiceNumber() {

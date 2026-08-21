@@ -114,6 +114,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/special-trips/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/public/invoices/*.pdf")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/hoja-ruta")
                         .permitAll()
                         .requestMatchers(

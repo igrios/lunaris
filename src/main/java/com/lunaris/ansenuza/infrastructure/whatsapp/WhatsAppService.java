@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -460,6 +461,11 @@ public class WhatsAppService implements MessagingPort {
                     }
                 }
                 return handleMetaClientError(tipoMensaje, destination, exception);
+            } catch (RestClientResponseException exception) {
+                log.error("Error de Meta al enviar [{}] hacia {}. Status: {}. Body: {}",
+                        tipoMensaje, destination, exception.getStatusCode(),
+                        exception.getResponseBodyAsString());
+                return false;
             } catch (Exception exception) {
                 log.error("Falla de red en HTTP call Meta: ", exception);
                 return false;
@@ -472,8 +478,8 @@ public class WhatsAppService implements MessagingPort {
     private boolean postToMeta(String url, HttpEntity<Map<String, Object>> request,
             String messageType, String destination) {
         ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-        log.info("Éxito Meta [{}]: Envío hacia {}. Status: {}",
-                messageType, destination, response.getStatusCode());
+        log.info("Éxito Meta [{}]: Envío hacia {}. Status: {}. Body: {}",
+                messageType, destination, response.getStatusCode(), response.getBody());
         return response.getStatusCode().is2xxSuccessful();
     }
 

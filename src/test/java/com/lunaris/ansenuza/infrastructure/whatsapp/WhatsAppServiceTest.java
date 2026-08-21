@@ -26,6 +26,36 @@ class WhatsAppServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void documentUrlPayloadContainsDirectPdfLinkFilenameAndCaption() {
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        when(restTemplate.postForEntity(anyString(), any(), eq(String.class)))
+                .thenReturn(new org.springframework.http.ResponseEntity<>(
+                        "{\"messages\":[{\"id\":\"wamid.1\"}]}", HttpStatus.OK));
+        WhatsAppService service = new WhatsAppService(restTemplate, () -> 0L, millis -> { });
+        ReflectionTestUtils.setField(service, "phoneNumberId", "phone-id");
+        ReflectionTestUtils.setField(service, "accessToken", "token");
+
+        service.sendDocumentUrl("3515551234",
+                "https://lunaris.example/public/invoices/id.pdf",
+                "factura-F-2026-00003.pdf", "Factura emitida");
+
+        ArgumentCaptor<HttpEntity<Map<String, Object>>> requestCaptor =
+                ArgumentCaptor.forClass(HttpEntity.class);
+        verify(restTemplate).postForEntity(
+                eq("https://graph.facebook.com/v25.0/phone-id/messages"),
+                requestCaptor.capture(), eq(String.class));
+        Map<String, Object> payload = requestCaptor.getValue().getBody();
+        Assertions.assertNotNull(payload);
+        Assertions.assertEquals("document", payload.get("type"));
+        Map<String, Object> document = (Map<String, Object>) payload.get("document");
+        Assertions.assertEquals("https://lunaris.example/public/invoices/id.pdf",
+                document.get("link"));
+        Assertions.assertEquals("factura-F-2026-00003.pdf", document.get("filename"));
+        Assertions.assertEquals("Factura emitida", document.get("caption"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void otpIsSentAsTemplateWithCodeInBodyAndUrlButtonComponents() {
         RestTemplate restTemplate = mock(RestTemplate.class);
         when(restTemplate.postForEntity(anyString(), any(), eq(String.class)))

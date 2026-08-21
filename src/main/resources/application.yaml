@@ -58,6 +58,7 @@ management:
         include: health
 
 lunaris:
+  public-base-url: ${LUNARIS_PUBLIC_BASE_URL:https://lunaris-backend-nn6s.onrender.com}
   support-phone: ${LUNARIS_SUPPORT_PHONE:}
   trips:
     capacity: ${LUNARIS_TRIP_CAPACITY:12}

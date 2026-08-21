@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -46,6 +47,8 @@ class IssueInvoiceUseCaseTest {
         when(invoices.count()).thenReturn(0L);
         when(storage.store(any(byte[].class), anyString()))
                 .thenReturn(new StoredInvoice("/invoices/factura.pdf", "/tmp/factura.pdf"));
+        when(invoices.saveAndFlush(any(Invoice.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         when(invoices.save(any(Invoice.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging)
@@ -54,6 +57,12 @@ class IssueInvoiceUseCaseTest {
         assertEquals(outboundId, issued.getReservationId());
         assertEquals(new BigDecimal("20000.00"), issued.getAmount());
         verify(invoices).findByReservationId(outboundId);
+        verify(messaging).sendDocumentUrl(
+                eq("543511112222"),
+                eq("https://lunaris-backend-nn6s.onrender.com/public/invoices/"
+                        + issued.getId() + ".pdf"),
+                eq("Factura-" + issued.getInvoiceNumber() + ".pdf"),
+                anyString());
     }
 
     private Reservation paidLeg(UUID id, String code, Passenger passenger) {
