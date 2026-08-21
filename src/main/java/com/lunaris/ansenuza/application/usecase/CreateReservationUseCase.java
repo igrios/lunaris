@@ -14,6 +14,7 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.model.service.AirportTripDetector;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
@@ -78,16 +79,20 @@ public class CreateReservationUseCase {
         }
         // Las entradas públicas nunca pueden autoverificar un pago desde el payload.
         Boolean safePaymentVerified = false;
-        String initialStatus = "PENDING_PAYMENT";
+        boolean airportTrip = AirportTripDetector.isAirportTrip(
+                effectivePickupLocality(request), effectiveDestination(request));
+        String initialStatus = airportTrip ? "PENDING" : "PENDING_PAYMENT";
 
         // Centralizamos la cotización en el servicio de pricing para no duplicar reglas.
         TripType tripType = resolveTripType(request);
         boolean pairedTrip = tripType != TripType.ONE_WAY;
-        BigDecimal computedAmount = pricingAndScheduleService.calculateTripPrice(
-                effectivePickupLocality(request), pairedTrip, safePassengerCount);
+        BigDecimal computedAmount = airportTrip
+                ? BigDecimal.ZERO
+                : pricingAndScheduleService.calculateTripPrice(
+                        effectivePickupLocality(request), pairedTrip, safePassengerCount);
         BigDecimal discountAmount = BigDecimal.ZERO;
         Promotion promotion = null;
-        if (request.promotionCode() != null && !request.promotionCode().isBlank()) {
+        if (!airportTrip && request.promotionCode() != null && !request.promotionCode().isBlank()) {
             promotion = promotionService.requireAvailable(
                     request.promotionCode().trim(), passenger.getPhone());
             discountAmount = promotionService.calculateDiscount(

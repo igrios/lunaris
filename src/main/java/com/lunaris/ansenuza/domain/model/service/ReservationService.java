@@ -106,7 +106,8 @@ public class ReservationService {
         BigDecimal saldoDisponible = titular.getCurrentBalance() != null ? titular.getCurrentBalance() : BigDecimal.ZERO;
         BigDecimal costoTotalFlujo = amountWithExtras(mainReservation);
 
-        if (saldoDisponible.compareTo(BigDecimal.ZERO) > 0) {
+        if (saldoDisponible.compareTo(BigDecimal.ZERO) > 0
+                && costoTotalFlujo.compareTo(BigDecimal.ZERO) > 0) {
             if (saldoDisponible.compareTo(costoTotalFlujo) >= 0) {
                 // El saldo cubre todo el viaje
                 titular.setCurrentBalance(saldoDisponible.subtract(costoTotalFlujo));

@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -98,6 +99,30 @@ class ConfirmationHandlerCapacityTest {
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("Aplicamos $20000.00 de tu saldo a favor"));
         assertTrue(message.getValue().contains("Importe restante a transferir: $30000.00"));
+    }
+
+    @Test
+    void airportTripIsSavedPendingAndRequestsManualReviewWithoutPricing() {
+        Fixture fixture = new Fixture(BigDecimal.ZERO, new BigDecimal("50000.00"));
+        fixture.session.setDestination("Aeropuerto Internacional Pajas Bláncas");
+        ArgumentCaptor<Reservation> reservation = ArgumentCaptor.forClass(Reservation.class);
+        when(fixture.reservations.saveReservationFlow(reservation.capture()))
+                .thenAnswer(invocation -> {
+                    Reservation saved = invocation.getArgument(0);
+                    return List.of(saved);
+                });
+
+        fixture.handler.handle(fixture.session, fixture.confirmationMessage());
+
+        assertEquals(BigDecimal.ZERO, reservation.getValue().getAmount());
+        assertEquals("PENDING", reservation.getValue().getStatus());
+        verifyNoInteractions(fixture.pricing);
+        verify(fixture.messaging, never()).sendImage(any(), any(), any());
+        ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+        verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
+        assertTrue(message.getValue().contains("espera de revisión"));
+        assertTrue(message.getValue().contains("horario"));
+        assertTrue(message.getValue().contains("cotización"));
     }
 
     private static final class Fixture {

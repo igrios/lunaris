@@ -5,12 +5,18 @@
     import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -191,4 +197,35 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertEquals(ReservationSource.WEB, persisted.getSource());
             assertSame(passenger, persisted.getPassenger());                                                                                              
         }                                                                                                                                                 
+
+        @Test
+        void airportReservationRemainsPendingWithoutCalculatingFare() {
+            UUID passengerId = UUID.randomUUID();
+            Passenger passenger = Passenger.builder().id(passengerId).firstName("Ana")
+                    .lastName("Pérez").phone("543511112222").build();
+            PassengerRepository passengers = mock(PassengerRepository.class);
+            ReservationService reservations = mock(ReservationService.class);
+            PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
+            when(passengers.findById(passengerId)).thenReturn(Optional.of(passenger));
+            when(passengers.save(any(Passenger.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+            when(reservations.saveReservationFlow(any(Reservation.class)))
+                    .thenAnswer(invocation -> {
+                        Reservation saved = invocation.getArgument(0);
+                        return List.of(saved);
+                    });
+            CreateReservationUseCase useCase = new CreateReservationUseCase(
+                    reservations, passengers, pricing, mock(SameDayBookingPolicy.class));
+            CreateReservationRequest request = new CreateReservationRequest(
+                    passengerId, LocalDate.of(2026, 9, 1), "Córdoba", "Av. Colón 100",
+                    "Aeropuerto Internacional Pajas Blancas", false, null, false,
+                    null, 1, null, ReservationSource.WEB);
+
+            Reservation result = useCase.execute(request);
+
+            assertEquals(BigDecimal.ZERO, result.getAmount());
+            assertEquals("PENDING", result.getStatus());
+            verify(pricing, never()).calculateTripPrice(anyString(), anyBoolean(), anyInt());
+            verify(reservations).saveReservationFlow(result);
+        }
     }

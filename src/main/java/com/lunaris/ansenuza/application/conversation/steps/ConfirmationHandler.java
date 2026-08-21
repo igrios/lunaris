@@ -16,6 +16,7 @@ import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.model.service.AirportTripDetector;
 import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
@@ -67,13 +68,17 @@ public class ConfirmationHandler implements ConversationStepHandler {
                                     "El pasajero ya no existe: " + existingPassenger.getId())))
                     .orElseGet(() -> createPassenger(session, phoneNumber));
 
-            BigDecimal price = pricingAndScheduleService.calculateTripPrice(
-                    session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
+            boolean airportTrip = AirportTripDetector.isAirportTrip(
+                    session.getPickupLocality(), session.getDestination());
+            BigDecimal price = airportTrip
+                    ? BigDecimal.ZERO
+                    : pricingAndScheduleService.calculateTripPrice(
+                            session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
 
             BigDecimal discountAmount = BigDecimal.ZERO;
             boolean freePromotion = false;
             Promotion appliedPromotion = null;
-            if (session.getPromotionCode() != null) {
+            if (!airportTrip && session.getPromotionCode() != null) {
                 Promotion promotion;
                 try {
                     promotion = promotionService.requireAvailable(session.getPromotionCode(), phoneNumber);
@@ -122,7 +127,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                             appliedPromotion != null ? appliedPromotion.getDiscountPercentage() : null)
                     .notes(notes)
                     .departureSchedule(baseHour)
-                    .status(freePromotion ? "CONFIRMED" : "PENDING_PAYMENT")
+                    .status(airportTrip ? "PENDING" : freePromotion ? "CONFIRMED" : "PENDING_PAYMENT")
                     .source(ReservationSource.WHATSAPP)
                     .passengerCount(totalAsientos)
                     .companionNames(session.getCompanionNames())
@@ -135,6 +140,15 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 promotionService.consume(session.getPromotionCode(), phoneNumber);
             }
             conversationSessionRepository.delete(session);
+
+            if (airportTrip) {
+                messaging.sendText(phoneNumber, """
+                        ✈️ *Recibimos tu solicitud de viaje especial al aeropuerto.*
+
+                        La solicitud quedó en espera de revisión. Un operador se contactará con vos para coordinar el horario y enviarte la cotización.
+                        """);
+                return;
+            }
 
             if (Boolean.TRUE.equals(session.getRoundTrip())) {
                 messaging.sendText(phoneNumber, "📌 Información importante sobre tu regreso: "
