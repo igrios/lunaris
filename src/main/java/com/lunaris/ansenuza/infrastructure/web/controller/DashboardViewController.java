@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -22,6 +23,7 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
+import com.lunaris.ansenuza.domain.model.service.AirportTripDetector;
 import com.lunaris.ansenuza.infrastructure.web.dto.dashboard.DailyOperationSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -123,6 +125,12 @@ public class DashboardViewController {
         model.addAttribute("currentSearch", search);
         model.addAttribute("currentStatus", status != null ? status : "ALL");
         model.addAttribute("currentDate", date);
+        model.addAttribute("specialReservationIds", reservations.stream()
+                .filter(r -> AirportTripDetector.isAirportTrip(r.getPickupLocality(), r.getDestination())
+                        || ((r.getAmount() == null || r.getAmount().signum() == 0)
+                            && "PENDING".equalsIgnoreCase(r.getStatus())))
+                .map(Reservation::getId)
+                .collect(java.util.stream.Collectors.toSet()));
 
         return "reservations-grid"; 
     }
@@ -148,6 +156,26 @@ public class DashboardViewController {
     public String verifyPayment(@PathVariable UUID id) {
         confirmPaymentUseCase.execute(id);
         return "redirect:/reservas-panel";
+    }
+
+    @PostMapping("/reservas-panel/{id}/importe-acordado")
+    public String updateAgreedAmount(
+            @PathVariable UUID id,
+            @RequestParam BigDecimal amount,
+            @RequestParam LocalDate date,
+            @RequestParam String schedule,
+            @RequestParam com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection direction,
+            RedirectAttributes redirectAttributes) {
+        try {
+            reservationService.updateAgreedAmount(id, amount);
+            redirectAttributes.addFlashAttribute("success", "Importe acordado actualizado.");
+        } catch (RuntimeException exception) {
+            redirectAttributes.addFlashAttribute("error", exception.getMessage());
+        }
+        redirectAttributes.addAttribute("date", date);
+        redirectAttributes.addAttribute("schedule", schedule);
+        redirectAttributes.addAttribute("direction", direction);
+        return "redirect:/agenda/view-detalle";
     }
 
     /**

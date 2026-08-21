@@ -152,6 +152,11 @@
                 th:style="${r.travelStatus != null and r.travelStatus.name() == 'ROUTE_SENT'} ? 'opacity: 0.6;' : ''">
               <td class="ps-4 fw-bold text-dark" style="font-family: monospace; font-size: 0.95rem;">
                 <span th:text="${r.reservationCode ?: 'S/C'}"></span>
+                <span th:if="${specialReservationIds.contains(r.id)}" class="badge ms-1"
+                  style="background-color: #6f42c1; color: white;"
+                  th:text="${r.amount == null or r.amount.signum() == 0
+                    ? '✈ VIAJE ESPECIAL / AEROPUERTO · A COTIZAR'
+                    : '✈ VIAJE ESPECIAL / AEROPUERTO'}"></span>
                 <span th:if="${r.travelStatus != null and r.travelStatus.name() == 'ROUTE_SENT'}"
                   class="badge bg-secondary ms-1"
                   th:text="${'✓ Ruta Enviada (' + (r.driver != null ? r.driver.fullName : 'Chofer') + ')'}"></span>

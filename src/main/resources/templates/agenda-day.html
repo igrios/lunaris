@@ -47,6 +47,9 @@
 
     <div class="container mt-5 mb-5">
 
+        <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+        <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
         <h1 class="text-center mb-4 pt-3 fw-bold">
             🚐 Viajes del Día
         </h1>
@@ -210,6 +213,13 @@
                             th:text="${reservation.passenger.firstName + ' ' + reservation.passenger.lastName}"></span>
                     </h5>
                     <div>
+                        <span th:if="${specialReservationIds.contains(reservation.id)}"
+                            class="badge shadow-sm px-2 py-1 me-1"
+                            style="background-color: #6f42c1; color: white;"
+                            th:text="${reservation.amount == null or reservation.amount.signum() == 0
+                                ? '✈️ VIAJE ESPECIAL / AEROPUERTO · A COTIZAR'
+                                : '✈️ VIAJE ESPECIAL / AEROPUERTO'}">
+                        </span>
                         <span th:if="${reservation.travelStatus != null and reservation.travelStatus.name() == 'ROUTE_SENT'}"
                             class="badge bg-secondary shadow-sm px-2 py-1"
                             th:text="${'✓ Ruta Enviada (' + (reservation.driver != null ? reservation.driver.fullName : 'Chofer') + ')'}">
@@ -278,6 +288,27 @@
                     </div>
                 </div>
 
+                <form th:if="${specialReservationIds.contains(reservation.id)
+                        and (reservation.amount == null or reservation.amount.signum() == 0
+                            or reservation.status == 'PENDING')}"
+                    th:action="@{/reservas-panel/{id}/importe-acordado(id=${reservation.id})}"
+                    method="post" class="alert alert-warning border-warning mb-3">
+                    <input type="hidden" name="date" th:value="${date}">
+                    <input type="hidden" name="schedule" th:value="${selectedSchedule}">
+                    <input type="hidden" name="direction" th:value="${selectedDirection}">
+                    <label class="form-label fw-bold" th:for="'agreed-amount-' + ${reservation.id}">
+                        💵 Monto final acordado
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" min="0.01" step="0.01" required name="amount"
+                            class="form-control" th:id="'agreed-amount-' + ${reservation.id}"
+                            placeholder="Ingresar importe antes de verificar el pago">
+                        <button class="btn btn-warning fw-bold" type="submit">Actualizar precio</button>
+                    </div>
+                    <small class="text-muted">Al guardar, la reserva quedará pendiente de pago y podrá verificarse normalmente.</small>
+                </form>
+
                 <div class="alert alert-success py-2 mb-3"
                     th:if="${reservation.promotionId != null or (reservation.promotionCode != null and reservation.promotionCode != '')}">
                     🎟️ <strong>Promoción aplicada:</strong>
@@ -311,7 +342,10 @@
                         📄 Ver Comprobante
                     </a>
 
-                    <button th:if="${reservation.status != 'CONFIRMED'}" type="button"
+                    <button th:if="${reservation.status != 'CONFIRMED'
+                            and !(specialReservationIds.contains(reservation.id)
+                                and (reservation.amount == null or reservation.amount.signum() == 0))}"
+                        type="button"
                         class="btn bg-success text-white btn-sm shadow-sm"
                         th:attr="onclick=|confirmPayment('${reservation.id}')|">
                         ✔ Verificar Pago

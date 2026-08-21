@@ -145,6 +145,8 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 messaging.sendText(phoneNumber, """
                         ✈️ *Recibimos tu solicitud de viaje especial al aeropuerto.*
 
+                        💵 *Precio: A cotizar / A convenir con operador.*
+
                         La solicitud quedó en espera de revisión. Un operador se contactará con vos para coordinar el horario y enviarte la cotización.
                         """);
                 return;

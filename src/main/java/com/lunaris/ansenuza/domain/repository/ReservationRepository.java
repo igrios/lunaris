@@ -174,14 +174,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            AND COALESCE(r.departureSchedule, '03:00 AM') LIKE CONCAT(:schedule, '%')
            AND ((:returnDirection = true
                  AND (LOWER(r.pickupLocality) LIKE '%córdoba%'
-                      OR LOWER(r.pickupLocality) LIKE '%cordoba%')
+                      OR LOWER(r.pickupLocality) LIKE '%cordoba%'
+                      OR LOWER(r.pickupLocality) LIKE '%aeropuerto%')
                  AND LOWER(r.destination) NOT LIKE '%córdoba%'
-                 AND LOWER(r.destination) NOT LIKE '%cordoba%')
+                 AND LOWER(r.destination) NOT LIKE '%cordoba%'
+                 AND LOWER(r.destination) NOT LIKE '%aeropuerto%')
                 OR (:returnDirection = false
                  AND LOWER(r.pickupLocality) NOT LIKE '%córdoba%'
                  AND LOWER(r.pickupLocality) NOT LIKE '%cordoba%'
+                 AND LOWER(r.pickupLocality) NOT LIKE '%aeropuerto%'
                  AND (LOWER(r.destination) LIKE '%córdoba%'
-                      OR LOWER(r.destination) LIKE '%cordoba%')))
+                      OR LOWER(r.destination) LIKE '%cordoba%'
+                      OR LOWER(r.destination) LIKE '%aeropuerto%')))
            ORDER BY r.routeSequence ASC NULLS LAST, r.createdAt ASC
            """)
     List<Reservation> findActiveManifest(

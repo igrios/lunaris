@@ -121,6 +121,7 @@ class ConfirmationHandlerCapacityTest {
         ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
         verify(fixture.messaging).sendText(eq(fixture.session.getPhoneNumber()), message.capture());
         assertTrue(message.getValue().contains("espera de revisión"));
+        assertTrue(message.getValue().contains("Precio: A cotizar / A convenir con operador"));
         assertTrue(message.getValue().contains("horario"));
         assertTrue(message.getValue().contains("cotización"));
     }

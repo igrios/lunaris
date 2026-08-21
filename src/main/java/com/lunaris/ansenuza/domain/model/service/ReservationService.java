@@ -691,4 +691,27 @@ public class ReservationService {
             return saved;
         }).orElseThrow(() -> new IllegalArgumentException("No se encontró la reserva con ID: " + id));
     }
+
+    /** Registra la tarifa acordada por un operador para un viaje inicialmente a cotizar. */
+    @Transactional
+    public Reservation updateAgreedAmount(UUID id, BigDecimal agreedAmount) {
+        if (agreedAmount == null || agreedAmount.signum() <= 0) {
+            throw new DomainValidationException("El importe acordado debe ser mayor a cero.");
+        }
+        Reservation reservation = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainValidationException("La reserva indicada no existe."));
+        assertNotCompleted(reservation);
+        if (!AirportTripDetector.isAirportTrip(
+                reservation.getPickupLocality(), reservation.getDestination())
+                && (reservation.getAmount() == null || reservation.getAmount().signum() != 0)
+                && !"PENDING".equalsIgnoreCase(reservation.getStatus())) {
+            throw new DomainValidationException(
+                    "La edición rápida sólo está habilitada para viajes especiales pendientes de cotización.");
+        }
+        reservation.setAmount(agreedAmount);
+        if ("PENDING".equalsIgnoreCase(reservation.getStatus())) {
+            reservation.setStatus("PENDING_PAYMENT");
+        }
+        return reservationRepository.saveAndFlush(reservation);
+    }
 }

@@ -35,6 +35,7 @@ import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.RouteDirection;
+import com.lunaris.ansenuza.domain.model.service.AirportTripDetector;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.AgendaDayView;
 import com.lunaris.ansenuza.infrastructure.web.dto.agenda.EnviarHojaRutaRequest;
@@ -201,6 +202,10 @@ public class AgendaViewController {
         model.addAttribute("choferes", choferes);
         model.addAttribute("selectedSchedule", schedule);
         model.addAttribute("selectedDirection", direction);
+        model.addAttribute("specialReservationIds", activeReservations.stream()
+                .filter(AgendaViewController::isSpecialTrip)
+                .map(Reservation::getId)
+                .collect(java.util.stream.Collectors.toSet()));
         model.addAttribute(
                 "pickupAddressTexts",
                 activeReservations.stream().collect(java.util.stream.Collectors.toMap(
@@ -278,6 +283,15 @@ public class AgendaViewController {
                 totalRevenue.subtract(fleetSummary.externalDriverExpense()));
 
         return "agenda-day";
+    }
+
+    static boolean isSpecialTrip(Reservation reservation) {
+        boolean pendingWithoutPrice = (reservation.getAmount() == null
+                || reservation.getAmount().signum() == 0)
+                && "PENDING".equalsIgnoreCase(reservation.getStatus());
+        return AirportTripDetector.isAirportTrip(
+                reservation.getPickupLocality(), reservation.getDestination())
+                || pendingWithoutPrice;
     }
 
     static PickupAddressDisplay resolvePickupAddress(Reservation reservation) {
