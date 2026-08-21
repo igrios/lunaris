@@ -161,7 +161,7 @@
                                     <span class="badge bg-warning text-dark" th:unless="${inv.sentViaWhatsapp}">Sin enviar</span>
                                 </td>
                                 <td>
-                                    <a th:href="@{${inv.pdfUrl}}" target="_blank" class="btn btn-outline-secondary btn-sm"
+                                    <a th:href="@{/facturacion/invoices/{id}/pdf(id=${inv.id})}" target="_blank" class="btn btn-outline-secondary btn-sm"
                                        th:if="${inv.pdfUrl}">Ver PDF</a>
                                 </td>
                                 <td>

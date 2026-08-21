@@ -41,4 +41,14 @@ public class LocalInvoiceStorageService implements InvoiceStoragePort {
         String fileName = pdfUrl.substring(pdfUrl.lastIndexOf('/') + 1);
         return Paths.get(invoicesDir, fileName).toAbsolutePath().toString();
     }
+
+    @Override
+    public byte[] load(String pdfUrl) {
+        try {
+            return java.nio.file.Files.readAllBytes(
+                    java.nio.file.Path.of(resolveAbsolutePath(pdfUrl)));
+        } catch (java.io.IOException exception) {
+            throw new IllegalStateException("No se pudo leer el PDF de la factura.", exception);
+        }
+    }
 }

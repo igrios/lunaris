@@ -35,6 +35,24 @@ class CloudinaryInvoiceStorageServiceTest {
         ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
         verify(uploader).upload(any(byte[].class), params.capture());
         assertEquals("raw", params.getValue().get("resource_type"));
+        assertEquals("factura.pdf", params.getValue().get("public_id"));
+    }
+
+    @Test
+    void appendsPdfExtensionWhenCloudinaryOmitsItFromSecureUrl() throws Exception {
+        Cloudinary cloudinary = mock(Cloudinary.class);
+        Uploader uploader = mock(Uploader.class);
+        when(cloudinary.uploader()).thenReturn(uploader);
+        when(uploader.upload(any(byte[].class), anyMap()))
+                .thenReturn(Map.of("secure_url",
+                        "https://res.cloudinary.com/demo/raw/upload/facturas/factura"));
+        CloudinaryInvoiceStorageService service = new CloudinaryInvoiceStorageService(
+                cloudinary, mock(LocalInvoiceStorageService.class), "demo", "key", "secret");
+
+        StoredInvoice stored = service.store(new byte[] {1, 2}, "factura.pdf");
+
+        assertEquals("https://res.cloudinary.com/demo/raw/upload/facturas/factura.pdf",
+                stored.webUrl());
     }
 
     @Test

@@ -12,6 +12,9 @@ public interface InvoiceStoragePort {
     /** Resuelve la ruta absoluta en disco a partir de la URL web guardada (para reenviar). */
     String resolveAbsolutePath(String pdfUrl);
 
+    /** Recupera el PDF persistido para servirlo con headers HTTP controlados. */
+    byte[] load(String pdfUrl);
+
     record StoredInvoice(String webUrl, String absolutePath) {
     }
 }

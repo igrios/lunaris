@@ -27,6 +27,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class IssueInvoiceUseCase {
 
+    public record InvoiceDocument(String invoiceNumber, byte[] content) {
+        public InvoiceDocument {
+            content = content.clone();
+        }
+    }
+
     private final ReservationRepository reservationRepository;
     private final InvoiceRepository invoiceRepository;
     private final InvoiceStoragePort invoiceStorage;
@@ -87,6 +93,14 @@ public class IssueInvoiceUseCase {
             invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
         }
         return invoiceRepository.save(invoice);
+    }
+
+    @Transactional(readOnly = true)
+    public InvoiceDocument download(UUID invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Factura no encontrada: " + invoiceId));
+        return new InvoiceDocument(
+                invoice.getInvoiceNumber(), invoiceStorage.load(invoice.getPdfUrl()));
     }
 
     private boolean sendByWhatsApp(Reservation reservation, Invoice invoice, StoredInvoice stored) {

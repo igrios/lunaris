@@ -53,4 +53,9 @@ public class WhatsAppMessagingAdapter implements MessagingPort {
     public void sendDocument(String to, String absoluteFilePath, String fileName, String caption) {
         whatsAppService.sendDocument(to, absoluteFilePath, fileName, caption);
     }
+
+    @Override
+    public void sendDocumentUrl(String to, String documentUrl, String fileName, String caption) {
+        whatsAppService.sendDocumentUrl(to, documentUrl, fileName, caption);
+    }
 }

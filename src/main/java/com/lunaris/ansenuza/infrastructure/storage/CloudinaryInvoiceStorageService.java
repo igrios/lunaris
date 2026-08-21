@@ -39,7 +39,7 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
     public StoredInvoice store(byte[] content, String desiredFileName) {
         if (isConfigured()) {
             try {
-                String publicId = withoutExtension(desiredFileName);
+                String publicId = ensurePdfExtension(desiredFileName);
                 Map<?, ?> result = cloudinary.uploader().upload(content, ObjectUtils.asMap(
                         "resource_type", "raw",
                         "folder", "facturas",
@@ -68,6 +68,18 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
         return localStorage.resolveAbsolutePath(pdfUrl);
     }
 
+    @Override
+    public byte[] load(String pdfUrl) {
+        if (pdfUrl != null && pdfUrl.startsWith("https://")) {
+            try (java.io.InputStream input = java.net.URI.create(pdfUrl).toURL().openStream()) {
+                return input.readAllBytes();
+            } catch (java.io.IOException | IllegalArgumentException exception) {
+                throw new IllegalStateException("No se pudo descargar el PDF desde Cloudinary.", exception);
+            }
+        }
+        return localStorage.load(pdfUrl);
+    }
+
     private boolean isConfigured() {
         return hasValue(cloudName) && hasValue(apiKey) && hasValue(cloudSecret());
     }
@@ -80,12 +92,22 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
         return value != null && !value.isBlank();
     }
 
-    private static String withoutExtension(String fileName) {
-        int extension = fileName == null ? -1 : fileName.lastIndexOf('.');
-        return extension > 0 ? fileName.substring(0, extension) : fileName;
+    private static String ensurePdfExtension(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "factura.pdf";
+        }
+        return fileName.toLowerCase(java.util.Locale.ROOT).endsWith(".pdf")
+                ? fileName
+                : fileName + ".pdf";
     }
 
     private static String normalizePdfUrl(String url) {
-        return url.replace("/image/upload/", "/raw/upload/");
+        String normalized = url.replace("/image/upload/", "/raw/upload/");
+        int queryStart = normalized.indexOf('?');
+        String path = queryStart >= 0 ? normalized.substring(0, queryStart) : normalized;
+        String query = queryStart >= 0 ? normalized.substring(queryStart) : "";
+        return path.toLowerCase(java.util.Locale.ROOT).endsWith(".pdf")
+                ? normalized
+                : path + ".pdf" + query;
     }
 }
