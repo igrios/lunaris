@@ -23,7 +23,9 @@ class CloudinaryInvoiceStorageServiceTest {
         CloudinaryInvoiceStorageService.configurePdfConnection(connection);
 
         verify(connection).setRequestProperty(
-                "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        + "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        + "Chrome/120.0.0.0 Safari/537.36");
         verify(connection).setConnectTimeout(5_000);
         verify(connection).setReadTimeout(10_000);
     }
