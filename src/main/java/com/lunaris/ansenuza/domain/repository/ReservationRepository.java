@@ -20,6 +20,19 @@ import jakarta.persistence.LockModeType;
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
     @Query("""
+           SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
+           FROM Reservation r
+           WHERE r.passenger.phone = :phone
+             AND (r.promotionId = :promotionId OR r.promotionCode = :promotionCode)
+             AND UPPER(COALESCE(r.status, '')) NOT IN
+                 ('CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED')
+           """)
+    boolean existsActivePromotionUsageByPhone(
+            @Param("phone") String phone,
+            @Param("promotionId") UUID promotionId,
+            @Param("promotionCode") String promotionCode);
+
+    @Query("""
            SELECT r.id FROM Reservation r
            WHERE r.paymentVerified = false
              AND r.paymentExpiresAt IS NOT NULL

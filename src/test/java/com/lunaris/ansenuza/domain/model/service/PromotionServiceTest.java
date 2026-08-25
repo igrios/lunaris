@@ -16,10 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.lunaris.ansenuza.domain.exception.PromotionExpiredException;
+import com.lunaris.ansenuza.domain.exception.MassivePromotionAlreadyUsedException;
 import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.PromotionUsage;
 import com.lunaris.ansenuza.domain.repository.PromotionRepository;
 import com.lunaris.ansenuza.domain.repository.PromotionUsageRepository;
+import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
 class PromotionServiceTest {
 
@@ -54,6 +56,20 @@ class PromotionServiceTest {
     }
 
     @Test
+    void consumesMassivePromotionAfterItsOwnReservationWasPersisted() {
+        Fixtures fixtures = fixtures();
+        Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
+        when(fixtures.promotions.findByCodeForUpdate("1234")).thenReturn(Optional.of(promotion));
+        when(fixtures.reservations.existsActivePromotionUsageByPhone(
+                "543511111111", promotion.getId(), "1234")).thenReturn(true);
+
+        fixtures.service.consume("1234", "3511111111");
+
+        verify(fixtures.usages).saveAndFlush(
+                org.mockito.ArgumentMatchers.any(PromotionUsage.class));
+    }
+
+    @Test
     void addsArgentinaCountryCodeToTenDigitLocalPhone() {
         Fixtures fixtures = fixtures();
         Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
@@ -76,10 +92,55 @@ class PromotionServiceTest {
         when(fixtures.usages.countByPromotionAndNormalizedPhone(promotion.getId(), "543512282251"))
                 .thenReturn(1L);
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+        MassivePromotionAlreadyUsedException exception = assertThrows(
+                MassivePromotionAlreadyUsedException.class,
                 () -> fixtures.service.requireAvailable("1234", "+54 351 228-2251"));
 
-        assertEquals("Ya has utilizado este código", exception.getMessage());
+        assertEquals("Esta promoción masiva ya fue utilizada por este número de teléfono",
+                exception.getMessage());
+    }
+
+    @Test
+    void allowsFirstMassivePromotionReservationForPhoneA() {
+        Fixtures fixtures = fixtures();
+        Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
+        when(fixtures.promotions.findFirstByCode("1234")).thenReturn(Optional.of(promotion));
+
+        assertEquals(promotion,
+                fixtures.service.requireAvailable("1234", "+54 9 351 111-1111"));
+
+        verify(fixtures.reservations).existsActivePromotionUsageByPhone(
+                "543511111111", promotion.getId(), "1234");
+    }
+
+    @Test
+    void rejectsSecondActiveReservationWithSameMassivePromotionForPhoneA() {
+        Fixtures fixtures = fixtures();
+        Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
+        when(fixtures.promotions.findFirstByCode("1234")).thenReturn(Optional.of(promotion));
+        when(fixtures.reservations.existsActivePromotionUsageByPhone(
+                "543511111111", promotion.getId(), "1234")).thenReturn(true);
+
+        MassivePromotionAlreadyUsedException exception = assertThrows(
+                MassivePromotionAlreadyUsedException.class,
+                () -> fixtures.service.requireAvailable("1234", "3511111111"));
+
+        assertEquals("Esta promoción masiva ya fue utilizada por este número de teléfono",
+                exception.getMessage());
+    }
+
+    @Test
+    void allowsDifferentPhoneBToUseSameMassivePromotion() {
+        Fixtures fixtures = fixtures();
+        Promotion promotion = promotion(true, LocalDateTime.now().plusDays(2));
+        when(fixtures.promotions.findFirstByCode("1234")).thenReturn(Optional.of(promotion));
+        when(fixtures.reservations.existsActivePromotionUsageByPhone(
+                "543511111111", promotion.getId(), "1234")).thenReturn(true);
+
+        assertEquals(promotion,
+                fixtures.service.requireAvailable("1234", "3512222222"));
+        verify(fixtures.reservations).existsActivePromotionUsageByPhone(
+                "543512222222", promotion.getId(), "1234");
     }
 
     @Test
@@ -134,7 +195,9 @@ class PromotionServiceTest {
     private Fixtures fixtures() {
         PromotionRepository promotions = mock(PromotionRepository.class);
         PromotionUsageRepository usages = mock(PromotionUsageRepository.class);
-        return new Fixtures(promotions, usages, new PromotionService(promotions, usages));
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        return new Fixtures(promotions, usages, reservations,
+                new PromotionService(promotions, usages, reservations));
     }
 
     private Promotion promotion(boolean massive, LocalDateTime expiresAt) {
@@ -147,5 +210,5 @@ class PromotionServiceTest {
     }
 
     private record Fixtures(PromotionRepository promotions, PromotionUsageRepository usages,
-            PromotionService service) {}
+            ReservationRepository reservations, PromotionService service) {}
 }

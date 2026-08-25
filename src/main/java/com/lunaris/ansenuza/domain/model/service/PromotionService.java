@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.PromotionUsage;
+import com.lunaris.ansenuza.domain.exception.MassivePromotionAlreadyUsedException;
 import com.lunaris.ansenuza.domain.exception.PromotionExpiredException;
 import com.lunaris.ansenuza.domain.repository.PromotionRepository;
 import com.lunaris.ansenuza.domain.repository.PromotionUsageRepository;
+import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -20,6 +22,7 @@ public class PromotionService {
 
     private final PromotionRepository promotionRepository;
     private final PromotionUsageRepository promotionUsageRepository;
+    private final ReservationRepository reservationRepository;
 
     @Transactional
     public Promotion create(int discountPercentage) {
@@ -58,7 +61,7 @@ public class PromotionService {
     public Promotion requireAvailable(String code, String phoneNumber) {
         Promotion promotion = promotionRepository.findFirstByCode(code)
                 .orElseThrow(() -> new IllegalArgumentException("El código promocional no existe."));
-        validateAvailable(promotion, phoneNumber);
+        validateAvailable(promotion, phoneNumber, true);
         return promotion;
     }
 
@@ -80,7 +83,7 @@ public class PromotionService {
         }
         Promotion promotion = promotionRepository.findByCodeForUpdate(code)
                 .orElseThrow(() -> new IllegalStateException("La promoción no existe."));
-        validateAvailable(promotion, phoneNumber);
+        validateAvailable(promotion, phoneNumber, false);
         String normalizedPhone = normalizePhone(phoneNumber);
         if (!promotion.isMassive()) {
             promotion.setUsed(true);
@@ -117,7 +120,8 @@ public class PromotionService {
         });
     }
 
-    private void validateAvailable(Promotion promotion, String phoneNumber) {
+    private void validateAvailable(
+            Promotion promotion, String phoneNumber, boolean checkActiveReservations) {
         String normalizedPhone = normalizePhone(phoneNumber);
         if (normalizedPhone.isBlank()) {
             throw new IllegalArgumentException("No se pudo identificar el teléfono para aplicar la promoción.");
@@ -129,9 +133,13 @@ public class PromotionService {
             }
             return;
         }
-        if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
-                promotion.getId(), normalizedPhone) > 0) {
-            throw new IllegalArgumentException("Ya has utilizado este código");
+        boolean consumed = promotionUsageRepository.countByPromotionAndNormalizedPhone(
+                promotion.getId(), normalizedPhone) > 0;
+        boolean reserved = checkActiveReservations
+                && reservationRepository.existsActivePromotionUsageByPhone(
+                        normalizedPhone, promotion.getId(), promotion.getCode());
+        if (consumed || reserved) {
+            throw new MassivePromotionAlreadyUsedException();
         }
     }
 
