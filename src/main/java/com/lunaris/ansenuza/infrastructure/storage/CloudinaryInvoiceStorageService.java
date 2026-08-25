@@ -3,6 +3,11 @@ package com.lunaris.ansenuza.infrastructure.storage;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
+import java.util.Arrays;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -48,9 +53,10 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
                 String publicId = ensurePdfExtension(desiredFileName);
                 Map<?, ?> result = cloudinary.uploader().upload(content, ObjectUtils.asMap(
                         "resource_type", "raw",
+                        "access_mode", "public",
+                        "type", "upload",
                         "folder", "facturas",
                         "public_id", publicId,
-                        "access_mode", "public",
                         "overwrite", true));
                 Object secureUrl = result.get("secure_url");
                 if (secureUrl != null && !secureUrl.toString().isBlank()) {
@@ -79,22 +85,88 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
     public byte[] load(String pdfUrl) {
         if (pdfUrl != null && pdfUrl.startsWith("https://")) {
             try {
-                java.net.URLConnection connection = java.net.URI.create(pdfUrl).toURL().openConnection();
-                configurePdfConnection(connection);
-                try (java.io.InputStream input = connection.getInputStream()) {
-                    return input.readAllBytes();
+                try {
+                    return download(pdfUrl);
+                } catch (CloudinaryDownloadException exception) {
+                    if (!exception.isAuthenticationFailure() || !isConfigured()) {
+                        throw exception;
+                    }
+                    log.info("Cloudinary rechazó la URL pública de la factura; se reintenta con descarga firmada.");
+                    return download(createSignedDownloadUrl(pdfUrl));
                 }
-            } catch (java.io.IOException | IllegalArgumentException exception) {
+            } catch (IOException | IllegalArgumentException exception) {
                 throw new IllegalStateException("No se pudo descargar el PDF desde Cloudinary.", exception);
             }
         }
         return localStorage.load(pdfUrl);
     }
 
-    static void configurePdfConnection(java.net.URLConnection connection) {
+    private byte[] download(String url) throws IOException {
+        HttpURLConnection connection = openConnection(url);
+        configurePdfConnection(connection);
+        try {
+            int status = connection.getResponseCode();
+            if (status >= HttpURLConnection.HTTP_BAD_REQUEST) {
+                throw new CloudinaryDownloadException(status);
+            }
+            try (java.io.InputStream input = connection.getInputStream()) {
+                return input.readAllBytes();
+            }
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    HttpURLConnection openConnection(String url) throws IOException {
+        return (HttpURLConnection) URI.create(url).toURL().openConnection();
+    }
+
+    static void configurePdfConnection(HttpURLConnection connection) {
         connection.setRequestProperty("User-Agent", PDF_DOWNLOAD_USER_AGENT);
+        connection.setInstanceFollowRedirects(true);
         connection.setConnectTimeout(PDF_CONNECT_TIMEOUT_MILLIS);
         connection.setReadTimeout(PDF_READ_TIMEOUT_MILLIS);
+    }
+
+    private String createSignedDownloadUrl(String pdfUrl) {
+        String[] segments = URI.create(pdfUrl).getPath().split("/");
+        int rawIndex = Arrays.asList(segments).indexOf("raw");
+        if (rawIndex < 0 || rawIndex + 2 >= segments.length) {
+            throw new IllegalArgumentException("La URL no corresponde a un recurso raw de Cloudinary.");
+        }
+        String deliveryType = segments[rawIndex + 1];
+        int publicIdStart = rawIndex + 2;
+        if (segments[publicIdStart].startsWith("s--")) {
+            publicIdStart++;
+        }
+        if (publicIdStart < segments.length && segments[publicIdStart].matches("v\\d+")) {
+            publicIdStart++;
+        }
+        if (publicIdStart >= segments.length) {
+            throw new IllegalArgumentException("La URL de Cloudinary no contiene un public_id.");
+        }
+        String publicId = String.join("/", Arrays.copyOfRange(segments, publicIdStart, segments.length));
+        try {
+            return cloudinary.privateDownload(publicId, null, Map.<String, Object>of(
+                    "resource_type", "raw",
+                    "type", deliveryType));
+        } catch (Exception exception) {
+            throw new IllegalStateException("No se pudo firmar la descarga de la factura.", exception);
+        }
+    }
+
+    private static final class CloudinaryDownloadException extends IOException {
+        private final int status;
+
+        private CloudinaryDownloadException(int status) {
+            super("Falló la descarga de Cloudinary, HTTP code: " + status);
+            this.status = status;
+        }
+
+        private boolean isAuthenticationFailure() {
+            return status == HttpURLConnection.HTTP_UNAUTHORIZED
+                    || status == HttpURLConnection.HTTP_FORBIDDEN;
+        }
     }
 
     private boolean isConfigured() {
