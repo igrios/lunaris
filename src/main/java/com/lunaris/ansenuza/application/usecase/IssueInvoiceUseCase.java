@@ -8,6 +8,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort.StoredInvoice;
 import com.lunaris.ansenuza.application.port.MessagingPort;
@@ -41,12 +42,12 @@ public class IssueInvoiceUseCase {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceStoragePort invoiceStorage;
     private final MessagingPort messaging;
+    private final InvoicePersistenceService invoicePersistenceService;
 
     @Value("${lunaris.public-base-url:" + DEFAULT_PUBLIC_BASE_URL + "}")
     private String publicBaseUrl = DEFAULT_PUBLIC_BASE_URL;
 
     /** Emite (o re-sube) la factura de una reserva y la envía por WhatsApp. */
-    @Transactional
     public Invoice issue(UUID reservationId, byte[] pdfBytes) {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
@@ -63,31 +64,34 @@ public class IssueInvoiceUseCase {
         }
 
         Reservation primary = primaryReservation(group, reservation);
-        Invoice invoice = invoiceRepository.findByReservationId(primary.getId()).orElseGet(Invoice::new);
-        if (invoice.getInvoiceNumber() == null) {
-            invoice.setInvoiceNumber(nextInvoiceNumber());
-        }
+        String invoiceNumber = invoicePersistenceService.findInvoiceNumber(primary.getId())
+                .orElseGet(this::nextInvoiceNumber);
 
-        String fileName = "factura_" + invoice.getInvoiceNumber().replace("-", "_") + ".pdf";
+        String fileName = "factura_" + invoiceNumber.replace("-", "_") + ".pdf";
         StoredInvoice stored = invoiceStorage.store(pdfBytes, fileName);
 
-        invoice.setReservationId(primary.getId());
-        invoice.setPassengerName(reservation.getPassenger().getFirstName() + " " + reservation.getPassenger().getLastName());
-        invoice.setPassengerCuil(CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()));
-        invoice.setAmount(invoiceAmount);
-        invoice.setPdfUrl(stored.webUrl());
-        invoice.setSentViaWhatsapp(false);
-        if (invoice.getId() == null) {
-            invoice.setId(UUID.randomUUID());
-        }
-        invoice = invoiceRepository.saveAndFlush(invoice);
+        InvoicePersistenceService.InvoiceData invoiceData = new InvoicePersistenceService.InvoiceData(
+                primary.getId(), invoiceNumber,
+                reservation.getPassenger().getFirstName() + " "
+                        + reservation.getPassenger().getLastName(),
+                CuilCalculator.suggestCuil(reservation.getPassenger().getCuil()),
+                invoiceAmount, stored.webUrl());
+        Invoice invoice = persistWithConcurrentRetry(invoiceData);
 
         boolean sent = sendByWhatsApp(reservation, invoice, publicInvoiceUrl(invoice));
-        invoice.setSentViaWhatsapp(sent);
-        if (sent) {
-            invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
+        return invoicePersistenceService.updateDeliveryStatus(
+                invoice.getId(), sent,
+                sent ? com.lunaris.ansenuza.shared.ArgentinaTime.now() : null);
+    }
+
+    private Invoice persistWithConcurrentRetry(InvoicePersistenceService.InvoiceData invoiceData) {
+        try {
+            return invoicePersistenceService.persistUploadedInvoice(invoiceData);
+        } catch (DataIntegrityViolationException concurrentInsert) {
+            log.info("Otra transacción creó la factura de la reserva {}. Se actualiza la fila existente.",
+                    invoiceData.reservationId());
+            return invoicePersistenceService.persistUploadedInvoice(invoiceData);
         }
-        return invoiceRepository.save(invoice);
     }
 
     /** Reenvía por WhatsApp una factura ya registrada. */
@@ -98,11 +102,12 @@ public class IssueInvoiceUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada para la factura " + invoiceId));
 
         boolean sent = sendByWhatsApp(reservation, invoice, publicInvoiceUrl(invoice));
-        invoice.setSentViaWhatsapp(sent || Boolean.TRUE.equals(invoice.getSentViaWhatsapp()));
-        if (sent) {
-            invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
-        }
-        return invoiceRepository.save(invoice);
+        boolean delivered = sent || Boolean.TRUE.equals(invoice.getSentViaWhatsapp());
+        LocalDateTime sentAt = sent
+                ? com.lunaris.ansenuza.shared.ArgentinaTime.now()
+                : invoice.getSentAt();
+        return invoicePersistenceService.updateDeliveryStatus(
+                invoice.getId(), delivered, sentAt);
     }
 
     @Transactional(readOnly = true)
