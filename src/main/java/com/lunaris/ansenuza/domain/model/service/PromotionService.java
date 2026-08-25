@@ -63,6 +63,12 @@ public class PromotionService {
     }
 
     public BigDecimal calculateDiscount(BigDecimal total, int discountPercentage) {
+        if (total == null || total.signum() <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (discountPercentage < 0 || discountPercentage > 100) {
+            throw new IllegalArgumentException("El descuento debe estar entre 0% y 100%.");
+        }
         return total.multiply(BigDecimal.valueOf(discountPercentage))
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
@@ -90,21 +96,22 @@ public class PromotionService {
         }
         promotionRepository.findByCodeForUpdate(code).ifPresent(promotion -> {
             String normalizedPhone = normalizePhone(phoneNumber);
+            long previousUsages = promotionUsageRepository.countByPromotionAndNormalizedPhone(
+                    promotion.getId(), normalizedPhone);
             if (promotion.isMassive()) {
-                validateNotExpired(promotion);
-                if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
-                        promotion.getId(), normalizedPhone) == 0) {
-                    promotionUsageRepository.saveAndFlush(new PromotionUsage(promotion, normalizedPhone));
+                if (previousUsages > 0) {
+                    return;
                 }
+                validateNotExpired(promotion);
+                promotionUsageRepository.saveAndFlush(new PromotionUsage(promotion, normalizedPhone));
             } else if (!promotion.isUsed()) {
+                validateNotExpired(promotion);
                 promotion.setUsed(true);
                 promotionRepository.saveAndFlush(promotion);
-                if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
-                        promotion.getId(), normalizedPhone) == 0) {
+                if (previousUsages == 0) {
                     promotionUsageRepository.saveAndFlush(new PromotionUsage(promotion, normalizedPhone));
                 }
-            } else if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
-                    promotion.getId(), normalizedPhone) == 0) {
+            } else if (previousUsages == 0) {
                 throw new IllegalArgumentException("El código promocional ya fue utilizado.");
             }
         });
@@ -115,13 +122,13 @@ public class PromotionService {
         if (normalizedPhone.isBlank()) {
             throw new IllegalArgumentException("No se pudo identificar el teléfono para aplicar la promoción.");
         }
+        validateNotExpired(promotion);
         if (!promotion.isMassive()) {
             if (promotion.isUsed()) {
                 throw new IllegalArgumentException("El código promocional ya fue utilizado.");
             }
             return;
         }
-        validateNotExpired(promotion);
         if (promotionUsageRepository.countByPromotionAndNormalizedPhone(
                 promotion.getId(), normalizedPhone) > 0) {
             throw new IllegalArgumentException("Ya has utilizado este código");
@@ -129,9 +136,9 @@ public class PromotionService {
     }
 
     private void validateNotExpired(Promotion promotion) {
-        if (promotion.getExpiresAt() == null
-                || com.lunaris.ansenuza.shared.ArgentinaTime.now()
-                        .isAfter(promotion.getExpiresAt())) {
+        if (promotion.getExpiresAt() != null
+                && !com.lunaris.ansenuza.shared.ArgentinaTime.now()
+                        .isBefore(promotion.getExpiresAt())) {
             throw new PromotionExpiredException();
         }
     }

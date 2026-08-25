@@ -269,7 +269,7 @@
                         th:text="${reservation.returnDate}"></span></p>
                 <div class="row g-2 mb-3">
                     <div class="col-md-3">
-                        Importe:
+                        Importe neto:
                         <strong th:text="'$ ' + ${reservation.amount != null ? reservation.amount : 0}">$ 0</strong>
                     </div>
                     <div class="col-md-3">
@@ -283,8 +283,7 @@
                     <div class="col-md-3">
                         Saldo neto:
                         <strong th:text="'$ ' + ${(reservation.amount != null ? reservation.amount : 0)
-                            + (reservation.extraAmount != null ? reservation.extraAmount : 0)
-                            - (reservation.discountAmount != null ? reservation.discountAmount : 0)}">$ 0</strong>
+                            + (reservation.extraAmount != null ? reservation.extraAmount : 0)}">$ 0</strong>
                     </div>
                 </div>
 

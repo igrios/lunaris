@@ -264,7 +264,7 @@ public class AgendaViewController {
         model.addAttribute("totalDiscount", totalDiscount);
         model.addAttribute(
                 "netBalance",
-                totalAmount.add(totalExtraAmount).subtract(totalDiscount));
+                totalAmount.add(totalExtraAmount));
         java.math.BigDecimal totalRevenue = activeReservations.stream()
                 .filter(reservation ->
                         Boolean.TRUE.equals(reservation.getPaymentVerified()))

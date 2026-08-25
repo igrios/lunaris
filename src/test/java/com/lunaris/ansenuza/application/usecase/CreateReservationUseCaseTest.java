@@ -22,9 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import com.lunaris.ansenuza.domain.model.Fare;
 import com.lunaris.ansenuza.domain.model.Passenger;
+import com.lunaris.ansenuza.domain.model.Promotion;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
+import com.lunaris.ansenuza.domain.model.service.PromotionService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
 import com.lunaris.ansenuza.domain.model.service.SameDayBookingPolicy;
 import com.lunaris.ansenuza.domain.repository.BusinessParameterRepository;
@@ -227,5 +229,49 @@ import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservation
             assertEquals("PENDING", result.getStatus());
             verify(pricing, never()).calculateTripPrice(anyString(), anyBoolean(), anyInt());
             verify(reservations).saveReservationFlow(result);
+        }
+
+        @Test
+        void persistsPromotionSnapshotWithoutConsumingItBeforePaymentConfirmation() {
+            UUID passengerId = UUID.randomUUID();
+            UUID promotionId = UUID.randomUUID();
+            Passenger passenger = Passenger.builder().id(passengerId).firstName("Ana")
+                    .lastName("Pérez").phone("543511112222").build();
+            Promotion promotion = new Promotion();
+            promotion.setId(promotionId);
+            promotion.setCode("1234");
+            promotion.setDiscountPercentage(25);
+            PassengerRepository passengers = mock(PassengerRepository.class);
+            ReservationService reservations = mock(ReservationService.class);
+            PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
+            PromotionService promotions = mock(PromotionService.class);
+            when(passengers.findById(passengerId)).thenReturn(Optional.of(passenger));
+            when(passengers.save(any(Passenger.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(pricing.calculateTripPrice("Morteros", false, 1))
+                    .thenReturn(new BigDecimal("10000.00"));
+            when(promotions.requireAvailable("1234", passenger.getPhone())).thenReturn(promotion);
+            when(promotions.calculateDiscount(new BigDecimal("10000.00"), 25))
+                    .thenReturn(new BigDecimal("2500.00"));
+            when(reservations.saveReservationFlow(any(Reservation.class)))
+                    .thenAnswer(invocation -> {
+                        Reservation saved = invocation.getArgument(0);
+                        return List.of(saved);
+                    });
+            CreateReservationUseCase useCase = new CreateReservationUseCase(
+                    reservations, passengers, pricing, mock(SameDayBookingPolicy.class), promotions);
+            CreateReservationRequest request = new CreateReservationRequest(
+                    passengerId, null, null, null, LocalDate.of(2026, 9, 1),
+                    "Morteros", "Belgrano 10", "Córdoba", "08:00 AM",
+                    false, null, false, null, 1, null, ReservationSource.WEB, null, "1234");
+
+            Reservation result = useCase.execute(request);
+
+            assertEquals(new BigDecimal("7500.00"), result.getAmount());
+            assertEquals(new BigDecimal("2500.00"), result.getDiscountAmount());
+            assertEquals(promotionId, result.getPromotionId());
+            assertEquals("1234", result.getPromotionCode());
+            assertEquals(25, result.getPromotionDiscountPercentage());
+            verify(promotions, never()).consume(anyString(), anyString());
+            verify(promotions, never()).consumeIfAvailable(anyString(), anyString());
         }
     }

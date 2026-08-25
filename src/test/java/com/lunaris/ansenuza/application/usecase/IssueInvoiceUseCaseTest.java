@@ -65,6 +65,34 @@ class IssueInvoiceUseCaseTest {
                 anyString());
     }
 
+    @Test
+    void invoicesDiscountedNetAmountPlusExtrasWithoutSubtractingDiscountTwice() {
+        UUID reservationId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder()
+                .firstName("Ana").lastName("Pérez").phone("543511112222")
+                .cuil("27123456789").build();
+        Reservation reservation = paidLeg(reservationId, "MOR-COR-002", passenger);
+        reservation.setAmount(new BigDecimal("7500.00"));
+        reservation.setDiscountAmount(new BigDecimal("2500.00"));
+        reservation.setExtraAmount(new BigDecimal("1000.00"));
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        InvoiceRepository invoices = mock(InvoiceRepository.class);
+        InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
+        when(invoices.findByReservationId(reservationId)).thenReturn(Optional.empty());
+        when(storage.store(any(byte[].class), anyString()))
+                .thenReturn(new StoredInvoice("/invoices/factura.pdf", "/tmp/factura.pdf"));
+        when(invoices.saveAndFlush(any(Invoice.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(invoices.save(any(Invoice.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging)
+                .issue(reservationId, new byte[] {1});
+
+        assertEquals(new BigDecimal("8500.00"), issued.getAmount());
+    }
+
     private Reservation paidLeg(UUID id, String code, Passenger passenger) {
         return Reservation.builder()
                 .id(id)

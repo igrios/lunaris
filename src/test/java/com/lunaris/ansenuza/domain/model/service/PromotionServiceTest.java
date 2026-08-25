@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -89,6 +90,30 @@ class PromotionServiceTest {
 
         assertThrows(PromotionExpiredException.class,
                 () -> fixtures.service.requireAvailable("1234", "5493564000000"));
+    }
+
+    @Test
+    void rejectsExpiredIndividualPromotion() {
+        Fixtures fixtures = fixtures();
+        Promotion promotion = promotion(false, LocalDateTime.now().minusMinutes(1));
+        when(fixtures.promotions.findFirstByCode("1234")).thenReturn(Optional.of(promotion));
+
+        assertThrows(PromotionExpiredException.class,
+                () -> fixtures.service.requireAvailable("1234", "5493564000000"));
+    }
+
+    @Test
+    void calculatesDiscountOnlyOnPositiveBaseAndNeverAboveIt() {
+        Fixtures fixtures = fixtures();
+
+        assertEquals(new BigDecimal("2500.00"),
+                fixtures.service.calculateDiscount(new BigDecimal("10000.00"), 25));
+        assertEquals(new BigDecimal("0.00"),
+                fixtures.service.calculateDiscount(new BigDecimal("-100.00"), 25));
+        assertEquals(new BigDecimal("10000.00"),
+                fixtures.service.calculateDiscount(new BigDecimal("10000.00"), 100));
+        assertThrows(IllegalArgumentException.class,
+                () -> fixtures.service.calculateDiscount(new BigDecimal("10000.00"), 101));
     }
 
     @Test

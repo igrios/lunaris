@@ -267,7 +267,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     // 💰 INGRESO DE DINERO: suma de todos los tramos confirmados; en ida y vuelta
     // cada tramo lleva la mitad del importe neto, por lo que la suma es el total cobrado.
-    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM Reservation r " +
+    @Query("SELECT COALESCE(SUM(COALESCE(r.amount, 0) + COALESCE(r.extraAmount, 0)), 0) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
            "AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED')")
     BigDecimal sumConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
