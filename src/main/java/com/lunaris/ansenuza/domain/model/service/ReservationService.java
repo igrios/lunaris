@@ -332,7 +332,7 @@ public class ReservationService {
         }
     }
 
-    // 🗑️ BAJA LÓGICA ATÓMICA CON CASCADA INTELIGENTE (PROTEGE LA IDA SI SE CANCELA LA VUELTA)
+    // 🗑️ BAJA LÓGICA ATÓMICA CON CASCADA DE TODO EL GRUPO DE RESERVA
     @Transactional
     public CancellationResult cancelReservation(UUID id, String triggeredBy) {
         Reservation reservation = reservationRepository.findByIdForUpdate(id)
@@ -386,33 +386,35 @@ public class ReservationService {
                         .build();
                 reservationEventRepository.save(cancelEvent);
 
-                // 2. 🔄 CASCADA UNIDIRECCIONAL: Si se da de baja la IDA, cancelamos la VUELTA. Si se borra la VUELTA, la IDA queda intacta.
-                if (isOutboundLeg(reservation)) {
-                    associatedReservations(reservation).forEach(returnRes -> {
-                        if (!"CANCELLED".equals(returnRes.getStatus())) {
-                            assertCancellationAllowed(returnRes, triggeredBy);
-                            assertNotCompleted(returnRes);
-                            boolean pagoVueltaRealizado = Boolean.TRUE.equals(returnRes.getPaymentVerified());
+                // 2. 🔄 CASCADA DE GRUPO: cualquier tramo cancela sus tramos gemelos.
+                associatedReservations(reservation).forEach(associated -> {
+                        if (!"CANCELLED".equals(associated.getStatus())) {
+                            assertCancellationAllowed(associated, triggeredBy);
+                            assertNotCompleted(associated);
+                            boolean pagoAsociadoRealizado = Boolean.TRUE.equals(associated.getPaymentVerified());
                             
-                            returnRes.setStatus("CANCELLED");
-                            returnRes.setTravelStatus(Reservation.TravelStatus.CANCELED);
+                            associated.setStatus("CANCELLED");
+                            associated.setTravelStatus(Reservation.TravelStatus.CANCELED);
                             
-                            if (pagoVueltaRealizado && returnRes.getAmount() != null && returnRes.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                                totalReintegro[0] = totalReintegro[0].add(refundableAmount(returnRes));
+                            if (pagoAsociadoRealizado && associated.getAmount() != null
+                                    && associated.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                                totalReintegro[0] = totalReintegro[0].add(refundableAmount(associated));
                             }
-                            reservationRepository.saveAndFlush(returnRes);
+                            reservationRepository.saveAndFlush(associated);
 
-                            ReservationEvent cancelReturnEvent = ReservationEvent.builder()
-                                    .reservationId(returnRes.getId())
-                                    .eventType(pagoVueltaRealizado ? "CANCELLED_CREDIT_ACCRUED"
+                            ReservationEvent cancelAssociatedEvent = ReservationEvent.builder()
+                                    .reservationId(associated.getId())
+                                    .eventType(pagoAsociadoRealizado ? "CANCELLED_CREDIT_ACCRUED"
                                             : "CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT")
-                                    .description("Cancelación automática de VUELTA por baja de IDA. Pago verificado: " + pagoVueltaRealizado)
+                                    .description("Cancelación automática del grupo "
+                                            + reservation.getBookingGroupCode()
+                                            + " por baja de " + reservation.getReservationCode()
+                                            + ". Pago verificado: " + pagoAsociadoRealizado)
                                     .triggeredBy(triggeredBy)
                                     .build();
-                            reservationEventRepository.save(cancelReturnEvent);
+                            reservationEventRepository.save(cancelAssociatedEvent);
                         }
                     });
-                }
 
                 // 3. 💳 ACREDITACIÓN CONTROLADA: Sumamos reintegros validados a la cuenta corriente (Corregido Typo)
                 if (totalReintegro[0].compareTo(BigDecimal.ZERO) > 0) {
@@ -511,11 +513,21 @@ public class ReservationService {
         if (!associated.isEmpty()) {
             return associated;
         }
-        String code = parent.getReservationCode();
-        if (code == null || !code.endsWith("-IDA")) {
+        String groupCode = paymentGroupCode(parent.getReservationCode());
+        if (groupCode == null) {
             return List.of();
         }
-        return reservationRepository.findByReservationCode(code.replace("-IDA", "-VUELTA"))
+        List<Reservation> legacyGroup = reservationRepository
+                .findReservationGroupForUpdate(groupCode).stream()
+                .filter(candidate -> !java.util.Objects.equals(candidate.getId(), parent.getId()))
+                .filter(candidate -> !"CANCELLED".equalsIgnoreCase(candidate.getStatus()))
+                .toList();
+        if (!legacyGroup.isEmpty()) {
+            return legacyGroup;
+        }
+        String twinCode = isOutboundLeg(parent)
+                ? groupCode + "-VUELTA" : groupCode + "-IDA";
+        return reservationRepository.findByReservationCode(twinCode)
                 .filter(candidate -> !"CANCELLED".equalsIgnoreCase(candidate.getStatus()))
                 .stream()
                 .toList();

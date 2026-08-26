@@ -313,6 +313,32 @@ class ReservationServiceTest {
         assertEquals(new BigDecimal("417000.00"), passenger.getCurrentBalance());
     }
 
+    @Test
+    void cancellingReturnLegAlsoCancelsOutboundLegFromBookingGroup() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class), passengers,
+                mock(OnboardPassengerUseCase.class));
+        Passenger passenger = Passenger.builder().currentBalance(BigDecimal.ZERO).build();
+        String groupCode = "MIR-COR-021";
+        Reservation outbound = paidLeg(passenger, groupCode + "-IDA", groupCode);
+        Reservation returnLeg = paidLeg(passenger, groupCode + "-VUELTA", groupCode);
+        when(reservations.findByIdForUpdate(returnLeg.getId())).thenReturn(Optional.of(returnLeg));
+        when(reservations.findByBookingGroupCodeForUpdate(groupCode))
+                .thenReturn(List.of(outbound, returnLeg));
+
+        service.cancelReservation(returnLeg.getId(), "ADMIN_PANEL");
+
+        assertEquals("CANCELLED", returnLeg.getStatus());
+        assertEquals(Reservation.TravelStatus.CANCELED, returnLeg.getTravelStatus());
+        assertEquals("CANCELLED", outbound.getStatus());
+        assertEquals(Reservation.TravelStatus.CANCELED, outbound.getTravelStatus());
+        assertEquals(new BigDecimal("278000.00"), passenger.getCurrentBalance());
+        verify(reservations).saveAndFlush(returnLeg);
+        verify(reservations).saveAndFlush(outbound);
+    }
+
     private Reservation paidLeg(Passenger passenger, String code, String groupCode) {
         return Reservation.builder()
                 .id(UUID.randomUUID())
