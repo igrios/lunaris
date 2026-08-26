@@ -61,11 +61,13 @@
                 </h4>
                 <form th:action="@{/agenda/view-detalle}" method="get" class="row g-2 mt-2">
                     <input type="hidden" name="date" th:value="${date}">
-                    <div class="col-md-3"><select name="schedule" class="form-select">
-                        <option value="03:00" th:selected="${selectedSchedule == '03:00'}">03:00</option>
-                        <option value="08:00" th:selected="${selectedSchedule == '08:00'}">08:00</option>
+                    <div class="col-md-3"><select id="agendaSchedule" name="schedule" class="form-select"
+                            th:attr="data-selected-schedule=${selectedSchedule}">
+                        <option th:each="schedule : ${selectedDirection != null && selectedDirection.name() == 'RETURN' ? returnSchedules : outboundSchedules}"
+                                th:value="${schedule}" th:text="${schedule}"
+                                th:selected="${selectedSchedule == schedule}"></option>
                     </select></div>
-                    <div class="col-md-5"><select name="direction" class="form-select">
+                    <div class="col-md-5"><select id="agendaDirection" name="direction" class="form-select">
                         <option value="OUTBOUND" th:selected="${selectedDirection == null || selectedDirection.name() == 'OUTBOUND'}">Pueblos → Córdoba (IDA)</option>
                         <option value="RETURN" th:selected="${selectedDirection != null && selectedDirection.name() == 'RETURN'}">Córdoba → Pueblos (VUELTA)</option>
                     </select></div>
@@ -374,6 +376,27 @@
 
     <script th:inline="javascript">
         const routeTravelDate = /*[[${date}]]*/ "";
+        const outboundAgendaSchedules = /*[[${outboundSchedules}]]*/ ["03:00", "08:00"];
+        const returnAgendaSchedules = /*[[${returnSchedules}]]*/ ["12:00", "14:00", "16:00", "17:30"];
+
+        function updateAgendaSchedules() {
+            const direction = document.getElementById("agendaDirection");
+            const schedule = document.getElementById("agendaSchedule");
+            const availableSchedules = direction.value === "RETURN"
+                ? returnAgendaSchedules : outboundAgendaSchedules;
+            const previousValue = schedule.value || schedule.dataset.selectedSchedule;
+            schedule.replaceChildren(...availableSchedules.map(value => {
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = value;
+                return option;
+            }));
+            schedule.value = availableSchedules.includes(previousValue)
+                ? previousValue : availableSchedules[0];
+        }
+
+        document.getElementById("agendaDirection")
+            .addEventListener("change", updateAgendaSchedules);
 
         function updateViewRouteLink() {
             const driverSelect = document.getElementById("selectChofer");

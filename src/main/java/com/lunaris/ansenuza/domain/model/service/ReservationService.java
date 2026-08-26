@@ -654,8 +654,14 @@ public class ReservationService {
             LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
 
             if (updatedData.getTravelDate() != null && !updatedData.getTravelDate().equals(reservation.getTravelDate())) {
+                boolean schedulingOpenReturn = reservation.getTravelStatus()
+                        == Reservation.TravelStatus.OPEN_RETURN
+                        && !updatedData.getTravelDate().equals(fechaCentinela);
                 auditoriaDesc.append(String.format("[Fecha: %s -> %s] ", reservation.getTravelDate(), updatedData.getTravelDate()));
                 reservation.setTravelDate(updatedData.getTravelDate());
+                if (schedulingOpenReturn && requestedTravelStatus == null) {
+                    reservation.setTravelStatus(Reservation.TravelStatus.PENDING);
+                }
                 
                 if (!updatedData.getTravelDate().equals(fechaCentinela) && reservation.getNotes() != null) {
                     reservation.setNotes(reservation.getNotes().replace("🛑 VUELTA ABIERTA - Pendiente confirmar fecha.", "🔄 Vuelta agendada:"));

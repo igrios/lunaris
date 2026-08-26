@@ -518,6 +518,29 @@ class ReservationServiceTest {
     }
 
     @Test
+    void assigningDateToOpenReturnMovesItToPending() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        ReservationEventRepository events = mock(ReservationEventRepository.class);
+        ReservationService service = new ReservationService(
+                reservations, events, mock(PassengerRepository.class),
+                mock(OnboardPassengerUseCase.class));
+        UUID id = UUID.randomUUID();
+        Reservation openReturn = Reservation.builder()
+                .id(id).travelStatus(Reservation.TravelStatus.OPEN_RETURN)
+                .reservationCode("MOR-COR-030-VUELTA").build();
+        LocalDate scheduledDate = LocalDate.of(2026, 9, 15);
+        Reservation update = Reservation.builder().travelDate(scheduledDate).build();
+        when(reservations.findById(id)).thenReturn(Optional.of(openReturn));
+        when(reservations.saveAndFlush(openReturn)).thenReturn(openReturn);
+
+        Reservation saved = service.updateReservation(id, update, "ADMIN_PANEL");
+
+        assertEquals(scheduledDate, saved.getTravelDate());
+        assertEquals(Reservation.TravelStatus.PENDING, saved.getTravelStatus());
+        verify(reservations).saveAndFlush(openReturn);
+    }
+
+    @Test
     void verifyPaymentLocksAndUpdatesManagedReservation() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         UUID id = UUID.randomUUID();

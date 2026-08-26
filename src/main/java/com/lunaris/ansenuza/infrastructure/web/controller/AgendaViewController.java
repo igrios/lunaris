@@ -46,6 +46,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AgendaViewController {
 
+    private static final List<String> OUTBOUND_SCHEDULES = List.of("03:00", "08:00");
+    private static final List<String> RETURN_SCHEDULES =
+            List.of("12:00", "14:00", "16:00", "17:30");
+
     private final ReservationRepository reservationRepository;
     private final WhatsAppService whatsAppService;
     private final DriverRepository driverRepository;
@@ -206,6 +210,8 @@ public class AgendaViewController {
         model.addAttribute("choferes", choferes);
         model.addAttribute("selectedSchedule", schedule);
         model.addAttribute("selectedDirection", direction);
+        model.addAttribute("outboundSchedules", OUTBOUND_SCHEDULES);
+        model.addAttribute("returnSchedules", RETURN_SCHEDULES);
         model.addAttribute("specialReservationIds", activeReservations.stream()
                 .filter(AgendaViewController::isSpecialTrip)
                 .map(Reservation::getId)
