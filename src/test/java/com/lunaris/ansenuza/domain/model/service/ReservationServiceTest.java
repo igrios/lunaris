@@ -66,11 +66,51 @@ class ReservationServiceTest {
         assertEquals(new BigDecimal("105000.00"),
                 saved.get(0).getAmount().add(saved.get(1).getAmount()));
         assertEquals("17:30", saved.get(1).getDepartureSchedule());
+        assertEquals("Morteros", saved.get(0).getPickupLocality());
+        assertEquals("Córdoba", saved.get(0).getDestination());
+        assertEquals("IDA", saved.get(0).getRouteDirection());
+        assertTrue(saved.get(0).getReservationCode().endsWith("-IDA"));
+        assertEquals("Córdoba", saved.get(1).getPickupLocality());
+        assertEquals("Morteros", saved.get(1).getDestination());
+        assertEquals("VUELTA", saved.get(1).getRouteDirection());
+        assertTrue(saved.get(1).getReservationCode().endsWith("-VUELTA"));
         saved.forEach(leg -> {
             assertSame(reservation.getPassenger(), leg.getPassenger());
             assertEquals(true, leg.getRequiresInvoice());
             assertEquals(true, leg.getPaymentVerified());
         });
+    }
+
+    @Test
+    void roundTripStartingInCordobaAlignsCodesAndDirectionsWithAgenda() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        when(reservations.countSequenceByRouteAndDate(
+                "Córdoba", "Miramar", LocalDate.of(2026, 8, 10))).thenReturn(0L);
+        when(reservations.existsByReservationCode(any())).thenReturn(false);
+        when(reservations.save(any(Reservation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+        Reservation reservation = Reservation.builder()
+                .passenger(Passenger.builder().currentBalance(BigDecimal.ZERO).build())
+                .pickupLocality("Córdoba").destination("Miramar")
+                .travelDate(LocalDate.of(2026, 8, 10))
+                .returnDate(LocalDate.of(2026, 8, 12))
+                .departureSchedule("14:00").roundTrip(true)
+                .tripType(TripType.ROUND_TRIP).amount(new BigDecimal("1000.00"))
+                .discountAmount(BigDecimal.ZERO).paymentVerified(false).build();
+
+        List<Reservation> saved = service.saveReservationFlow(reservation, "03:00 AM");
+
+        assertEquals("VUELTA", saved.get(0).getRouteDirection());
+        assertTrue(saved.get(0).getReservationCode().endsWith("-VUELTA"));
+        assertEquals("Córdoba", saved.get(0).getPickupLocality());
+        assertEquals("Miramar", saved.get(0).getDestination());
+        assertEquals("IDA", saved.get(1).getRouteDirection());
+        assertTrue(saved.get(1).getReservationCode().endsWith("-IDA"));
+        assertEquals("Miramar", saved.get(1).getPickupLocality());
+        assertEquals("Córdoba", saved.get(1).getDestination());
     }
 
     @Test

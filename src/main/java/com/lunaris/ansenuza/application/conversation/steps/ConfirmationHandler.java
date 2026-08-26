@@ -109,13 +109,18 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 notes += " (Abierta)";
             }
 
+            String pickupLocality = canonicalizeCordoba(session.getPickupLocality());
+            String destination = canonicalizeCordoba(session.getDestination());
+            session.setPickupLocality(pickupLocality);
+            session.setDestination(destination);
+
             Reservation nuevaReserva = Reservation.builder()
                     .passenger(passenger)
                     .travelDate(session.getTravelDate())
                     .returnDate(session.getReturnDate())
-                    .pickupLocality(session.getPickupLocality())
+                    .pickupLocality(pickupLocality)
                     .pickupAddress(session.getPickupAddress())
-                    .destination(session.getDestination())
+                    .destination(destination)
                     .roundTrip(session.getRoundTrip())
                     .paymentVerified(freePromotion)
                     .requiresInvoice(!freePromotion)
@@ -218,6 +223,15 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     """);
             return;
         }
+    }
+
+    private String canonicalizeCordoba(String locality) {
+        if (locality == null) {
+            return null;
+        }
+        String normalized = java.text.Normalizer.normalize(locality.trim(),
+                java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        return "cordoba".equalsIgnoreCase(normalized) ? "Córdoba" : locality.trim();
     }
 
     private Passenger createPassenger(ConversationSession session, String phoneNumber) {

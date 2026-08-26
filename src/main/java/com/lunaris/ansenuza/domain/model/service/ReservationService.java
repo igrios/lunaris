@@ -85,6 +85,8 @@ public class ReservationService {
         // (web, panel y bot) compartan el mismo formato de código.
         String originClean = cleanLocality(mainReservation.getPickupLocality());
         String destClean = cleanLocality(mainReservation.getDestination());
+        String outboundDirection = routeDirection(originClean, destClean);
+        mainReservation.setRouteDirection(outboundDirection);
         String routePrefix = localityPrefix(originClean) + "-" + localityPrefix(destClean);
 
         // 2. Obtenemos la secuencia estimada para el Nexo de Grupo unificado
@@ -145,9 +147,9 @@ public class ReservationService {
                 ? mainReservation.getDiscountAmount().subtract(descuentoIda)
                 : BigDecimal.ZERO;
 
-        // --- PROCESAMIENTO TRAMO: IDA ---
+        // --- PROCESAMIENTO TRAMO INICIAL ---
         mainReservation.setReservationCode(Boolean.TRUE.equals(mainReservation.getRoundTrip())
-                ? codigoBase + "-IDA" : codigoBase);
+                ? codigoBase + "-" + outboundDirection : codigoBase);
         mainReservation.setBookingGroupCode(codigoBase);
         if (mainReservation.getStatus() == null) {
             mainReservation.setStatus(Boolean.TRUE.equals(mainReservation.getPaymentVerified()) ? "CONFIRMED" : "PENDING_PAYMENT");
@@ -166,11 +168,12 @@ public class ReservationService {
         ReservationEvent eventIda = ReservationEvent.builder()
                 .reservationId(savedMain.getId())
                 .eventType("RESERVATION_CREATED")
-                .description("Tramo de IDA registrado bajo el grupo " + codigoBase)
+                .description("Tramo de " + outboundDirection
+                        + " registrado bajo el grupo " + codigoBase)
                 .triggeredBy("API_SYSTEM").build();
         reservationEventRepository.save(eventIda);
 
-        // --- PROCESAMIENTO TRAMO: VUELTA ---
+        // --- PROCESAMIENTO TRAMO INVERSO ---
         if (Boolean.TRUE.equals(mainReservation.getRoundTrip())) {
             Reservation returnReservation = new Reservation();
             returnReservation.setPassenger(mainReservation.getPassenger());
@@ -200,7 +203,9 @@ public class ReservationService {
             returnReservation.setSource(mainReservation.getSource());
             returnReservation.setRoundTrip(true);
             returnReservation.setTripType(mainReservation.getTripType());
-            returnReservation.setReservationCode(codigoBase + "-VUELTA");
+            String returnDirection = oppositeDirection(outboundDirection);
+            returnReservation.setRouteDirection(returnDirection);
+            returnReservation.setReservationCode(codigoBase + "-" + returnDirection);
             returnReservation.setBookingGroupCode(codigoBase);
             returnReservation.setPaymentConfirmedAt(mainReservation.getPaymentConfirmedAt());
             returnReservation.setPaymentReceiptUrl(mainReservation.getPaymentReceiptUrl());
@@ -212,12 +217,28 @@ public class ReservationService {
             ReservationEvent eventVuelta = ReservationEvent.builder()
                     .reservationId(savedReturn.getId())
                     .eventType("RESERVATION_CREATED")
-                    .description("Tramo de VUELTA registrado bajo el grupo " + codigoBase)
+                    .description("Tramo de " + returnDirection
+                            + " registrado bajo el grupo " + codigoBase)
                     .triggeredBy("API_SYSTEM").build();
                     reservationEventRepository.save(eventVuelta);
         }
 
         return savedReservations;
+    }
+
+    private String routeDirection(String pickupLocality, String destination) {
+        boolean fromCordoba = TripRouteCalculatorService.isCordoba(pickupLocality);
+        boolean toCordoba = TripRouteCalculatorService.isCordoba(destination);
+        if (fromCordoba == toCordoba) {
+            // Los viajes especiales (por ejemplo, aeropuerto) pueden no pertenecer al
+            // corredor regular. Conservamos el comportamiento legado IDA.
+            return "IDA";
+        }
+        return fromCordoba ? "VUELTA" : "IDA";
+    }
+
+    private String oppositeDirection(String direction) {
+        return "IDA".equals(direction) ? "VUELTA" : "IDA";
     }
 
     /** Revalida dentro de la transacción de escritura, cubriendo también el API web. */

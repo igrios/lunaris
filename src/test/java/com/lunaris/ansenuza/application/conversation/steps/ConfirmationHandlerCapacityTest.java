@@ -126,6 +126,24 @@ class ConfirmationHandlerCapacityTest {
         assertTrue(message.getValue().contains("cotización"));
     }
 
+    @Test
+    void botReservationKeepsTownAsPickupAndCanonicalCordobaAsDestination() {
+        Fixture fixture = new Fixture(BigDecimal.ZERO, new BigDecimal("50000.00"));
+        fixture.session.setDestination("Cordoba");
+        ArgumentCaptor<Reservation> reservation = ArgumentCaptor.forClass(Reservation.class);
+        when(fixture.reservations.saveReservationFlow(reservation.capture()))
+                .thenAnswer(invocation -> {
+                    Reservation saved = invocation.getArgument(0);
+                    return List.of(saved);
+                });
+
+        fixture.handler.handle(fixture.session, fixture.confirmationMessage());
+
+        assertEquals("Morteros", reservation.getValue().getPickupLocality());
+        assertEquals("Córdoba", reservation.getValue().getDestination());
+        assertEquals("08:00 AM", reservation.getValue().getDepartureSchedule());
+    }
+
     private static final class Fixture {
         private final ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         private final PassengerRepository passengers = mock(PassengerRepository.class);
