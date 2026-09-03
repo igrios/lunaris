@@ -62,6 +62,7 @@ public class PersistPaymentReceiptUseCase {
             reservation.setPaymentReceiptUrl(receiptUrl);
             reservation.setPaymentVerified(false);
             reservation.setStatus("PAYMENT_RECEIVED");
+            reservation.setPaymentExpiresAt(null);
         });
         reservationRepository.saveAllAndFlush(group);
         group.forEach(reservation -> reservationEventRepository.save(ReservationEvent.builder()
@@ -94,6 +95,7 @@ public class PersistPaymentReceiptUseCase {
             reservation.setPaymentReceiptUrl(receiptUrl);
             reservation.setPaymentVerified(false);
             reservation.setStatus("PAYMENT_RECEIVED");
+            reservation.setPaymentExpiresAt(null);
             reservationRepository.save(reservation);
             reservationEventRepository.save(ReservationEvent.builder()
                     .reservationId(reservation.getId()).eventType("PAYMENT_RECEIPT_LINKED")

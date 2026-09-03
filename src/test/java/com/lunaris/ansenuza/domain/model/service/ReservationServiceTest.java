@@ -245,6 +245,56 @@ class ReservationServiceTest {
     }
 
     @Test
+    void cancellationRestoresBalanceUsedEvenWhenTransferWasNotVerified() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class), passengers,
+                mock(OnboardPassengerUseCase.class));
+        UUID reservationId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder().currentBalance(BigDecimal.ZERO).build();
+        Reservation reservation = Reservation.builder()
+                .id(reservationId)
+                .passenger(passenger)
+                .amount(new BigDecimal("1500.00"))
+                .usedBalance(new BigDecimal("1000.00"))
+                .paymentVerified(false)
+                .status("PENDING_PAYMENT")
+                .reservationCode("COR-MIR-099")
+                .build();
+        when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
+
+        ReservationService.CancellationResult result =
+                service.cancelReservation(reservationId, "PASSENGER");
+
+        assertEquals(new BigDecimal("1000.00"), passenger.getCurrentBalance());
+        assertEquals(new BigDecimal("1000.00"), result.creditedAmount());
+        verify(passengers).saveAndFlush(passenger);
+    }
+
+    @Test
+    void cancellationRestoresFullyUsedBalanceWhenCashAmountIsZero() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class), passengers,
+                mock(OnboardPassengerUseCase.class));
+        UUID reservationId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder().currentBalance(BigDecimal.ZERO).build();
+        Reservation reservation = Reservation.builder()
+                .id(reservationId).passenger(passenger).amount(BigDecimal.ZERO)
+                .usedBalance(new BigDecimal("2500.00")).paymentVerified(true)
+                .status("CONFIRMED").reservationCode("COR-MIR-100").build();
+        when(reservations.findByIdForUpdate(reservationId)).thenReturn(Optional.of(reservation));
+
+        ReservationService.CancellationResult result =
+                service.cancelReservation(reservationId, "PASSENGER");
+
+        assertEquals(new BigDecimal("2500.00"), result.creditedAmount());
+        assertEquals(new BigDecimal("2500.00"), passenger.getCurrentBalance());
+    }
+
+    @Test
     void cancellationWithoutVerifiedPaymentDoesNotCreditBalanceAndAuditsReason() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         PassengerRepository passengers = mock(PassengerRepository.class);

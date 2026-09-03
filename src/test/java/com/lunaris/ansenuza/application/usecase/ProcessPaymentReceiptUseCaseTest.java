@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -46,10 +47,12 @@ class ProcessPaymentReceiptUseCaseTest {
                 .reservationCode("ARR-COR-001-IDA")
                 .status("PENDING_PAYMENT")
                 .paymentVerified(true)
+                .paymentExpiresAt(LocalDateTime.of(2026, 8, 1, 10, 0))
                 .build();
         Reservation returnLeg = Reservation.builder().id(UUID.randomUUID())
                 .passenger(passenger).reservationCode("ARR-COR-001-VUELTA")
                 .status("PENDING_PAYMENT").paymentVerified(true).build();
+        returnLeg.setPaymentExpiresAt(LocalDateTime.of(2026, 8, 1, 10, 0));
         String receiptUrl = "https://cdn.example.com/receipt.jpg";
         when(storage.downloadAndSaveReceipt("media-123")).thenReturn(receiptUrl);
         when(passengers.findByPhone("543511111111")).thenReturn(Optional.of(passenger));
@@ -69,9 +72,11 @@ class ProcessPaymentReceiptUseCaseTest {
         assertEquals(receiptUrl, reservation.getPaymentReceiptUrl());
         assertFalse(reservation.getPaymentVerified());
         assertEquals("PAYMENT_RECEIVED", reservation.getStatus());
+        assertEquals(null, reservation.getPaymentExpiresAt());
         assertEquals(receiptUrl, returnLeg.getPaymentReceiptUrl());
         assertFalse(returnLeg.getPaymentVerified());
         assertEquals("PAYMENT_RECEIVED", returnLeg.getStatus());
+        assertEquals(null, returnLeg.getPaymentExpiresAt());
         verify(reservations).saveAllAndFlush(List.of(reservation, returnLeg));
         verify(liveChat).recordIncomingMessage("543511111111", receiptUrl);
     }

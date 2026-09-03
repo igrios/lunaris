@@ -107,9 +107,11 @@ public class ReservationService {
         mainReservation.setPassenger(titular);
         BigDecimal saldoDisponible = titular.getCurrentBalance() != null ? titular.getCurrentBalance() : BigDecimal.ZERO;
         BigDecimal costoTotalFlujo = amountWithExtras(mainReservation);
+        BigDecimal saldoAplicado = BigDecimal.ZERO;
 
         if (saldoDisponible.compareTo(BigDecimal.ZERO) > 0
                 && costoTotalFlujo.compareTo(BigDecimal.ZERO) > 0) {
+            saldoAplicado = saldoDisponible.min(costoTotalFlujo);
             if (saldoDisponible.compareTo(costoTotalFlujo) >= 0) {
                 // El saldo cubre todo el viaje
                 titular.setCurrentBalance(saldoDisponible.subtract(costoTotalFlujo));
@@ -140,6 +142,12 @@ public class ReservationService {
         BigDecimal montoVuelta = Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 ? mainReservation.getAmount().subtract(montoIda)
                 : BigDecimal.ZERO;
+        BigDecimal saldoIda = Boolean.TRUE.equals(mainReservation.getRoundTrip())
+                ? saldoAplicado.divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
+                : saldoAplicado;
+        BigDecimal saldoVuelta = Boolean.TRUE.equals(mainReservation.getRoundTrip())
+                ? saldoAplicado.subtract(saldoIda)
+                : BigDecimal.ZERO;
         BigDecimal descuentoIda = Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 ? mainReservation.getDiscountAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP)
                 : mainReservation.getDiscountAmount();
@@ -160,6 +168,7 @@ public class ReservationService {
         }
         
         mainReservation.setAmount(montoIda);
+        mainReservation.setUsedBalance(saldoIda);
         mainReservation.setDiscountAmount(descuentoIda);
 
         Reservation savedMain = reservationRepository.save(mainReservation);
@@ -191,6 +200,7 @@ public class ReservationService {
             }
 
             returnReservation.setAmount(montoVuelta);
+            returnReservation.setUsedBalance(saldoVuelta);
             returnReservation.setDiscountAmount(descuentoVuelta);
             returnReservation.setPromotionCode(mainReservation.getPromotionCode());
             returnReservation.setPromotionId(mainReservation.getPromotionId());
@@ -360,9 +370,9 @@ public class ReservationService {
                 
                 final BigDecimal[] totalReintegro = { BigDecimal.ZERO };
 
-                // EVALUACIÓN ESTRICTA: Solo la bandera payment_verified == true autoriza el reembolso
+                // El dinero externo exige verificación; el saldo ya debitado siempre se restituye.
                 boolean pagoRealizado = Boolean.TRUE.equals(reservation.getPaymentVerified());
-                if (!pagoRealizado) {
+                if (!pagoRealizado && usedBalance(reservation).signum() == 0) {
                     log.warn("[CANCEL] Cancelación SIN reembolso para reserva {}. Motivo: payment_verified es FALSE (Estado actual: {})",
                             reservation.getReservationCode(), reservation.getStatus());
                 }
@@ -370,16 +380,15 @@ public class ReservationService {
                 // 1. Cancelamos la reserva actual seleccionada (Ida o Vuelta Abierta)
                 reservation.setStatus("CANCELLED");
                 reservation.setTravelStatus(Reservation.TravelStatus.CANCELED);
-                
-                if (pagoRealizado && reservation.getAmount() != null && reservation.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                    totalReintegro[0] = totalReintegro[0].add(refundableAmount(reservation));
-                }
+
+                BigDecimal reintegroReserva = refundableAmount(reservation);
+                totalReintegro[0] = totalReintegro[0].add(reintegroReserva);
                 reservationRepository.saveAndFlush(reservation);
 
                 // Registro del evento
                 ReservationEvent cancelEvent = ReservationEvent.builder()
                         .reservationId(reservation.getId())
-                        .eventType(pagoRealizado ? "CANCELLED_CREDIT_ACCRUED"
+                        .eventType(reintegroReserva.signum() > 0 ? "CANCELLED_CREDIT_ACCRUED"
                                 : "CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT")
                         .description("Reserva " + reservation.getReservationCode() + " dada de baja. Pago verificado anteriormente: " + pagoRealizado)
                         .triggeredBy(triggeredBy)
@@ -395,16 +404,14 @@ public class ReservationService {
                             
                             associated.setStatus("CANCELLED");
                             associated.setTravelStatus(Reservation.TravelStatus.CANCELED);
-                            
-                            if (pagoAsociadoRealizado && associated.getAmount() != null
-                                    && associated.getAmount().compareTo(BigDecimal.ZERO) > 0) {
-                                totalReintegro[0] = totalReintegro[0].add(refundableAmount(associated));
-                            }
+
+                            BigDecimal reintegroAsociado = refundableAmount(associated);
+                            totalReintegro[0] = totalReintegro[0].add(reintegroAsociado);
                             reservationRepository.saveAndFlush(associated);
 
                             ReservationEvent cancelAssociatedEvent = ReservationEvent.builder()
                                     .reservationId(associated.getId())
-                                    .eventType(pagoAsociadoRealizado ? "CANCELLED_CREDIT_ACCRUED"
+                                    .eventType(reintegroAsociado.signum() > 0 ? "CANCELLED_CREDIT_ACCRUED"
                                             : "CANCELLED_WITHOUT_REFUND_UNVERIFIED_PAYMENT")
                                     .description("Cancelación automática del grupo "
                                             + reservation.getBookingGroupCode()
@@ -534,12 +541,19 @@ public class ReservationService {
     }
 
     private BigDecimal refundableAmount(Reservation reservation) {
+        BigDecimal paidAmount = usedBalance(reservation);
+        if (Boolean.TRUE.equals(reservation.getPaymentVerified())) {
+            paidAmount = paidAmount.add(amountWithExtras(reservation));
+        }
+        if (paidAmount.signum() == 0) {
+            return BigDecimal.ZERO;
+        }
         if (!isReturnLeg(reservation)) {
-            return isUsed(reservation) ? BigDecimal.ZERO : amountWithExtras(reservation);
+            return isUsed(reservation) ? BigDecimal.ZERO : paidAmount;
         }
         int totalSeats = reservation.getTotalSeats();
         int unusedSeats = Math.max(0, totalSeats - returnedSeats(reservation));
-        return amountWithExtras(reservation)
+        return paidAmount
                 .multiply(BigDecimal.valueOf(unusedSeats))
                 .divide(BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP);
     }
@@ -566,11 +580,12 @@ public class ReservationService {
     }
 
     /**
-     * Un comprobante cargado o un estado de pago no prueban que el dinero haya sido
-     * validado. Sólo paymentVerified=true habilita una acreditación.
+     * Un comprobante o estado no prueban dinero externo. El saldo previamente
+     * debitado sí es valor realizado y debe poder restituirse.
      */
     public boolean isRefundEligible(Reservation reservation) {
-        return reservation != null && Boolean.TRUE.equals(reservation.getPaymentVerified());
+        return reservation != null && (Boolean.TRUE.equals(reservation.getPaymentVerified())
+                || usedBalance(reservation).signum() > 0);
     }
 
     private Passenger lockPassenger(Passenger passenger) {
@@ -586,6 +601,10 @@ public class ReservationService {
     private BigDecimal amountWithExtras(Reservation reservation) {
         return amount(reservation).add(reservation.getExtraAmount() == null
                 ? BigDecimal.ZERO : reservation.getExtraAmount());
+    }
+
+    private BigDecimal usedBalance(Reservation reservation) {
+        return reservation.getUsedBalance() == null ? BigDecimal.ZERO : reservation.getUsedBalance();
     }
 
     private boolean isUsed(Reservation reservation) {

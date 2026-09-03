@@ -65,10 +65,22 @@ public class MercadoPagoEmailParser {
         String normalized = value.replace(" ", "");
         int lastComma = normalized.lastIndexOf(',');
         int lastDot = normalized.lastIndexOf('.');
-        if (lastComma > lastDot) {
-            normalized = normalized.replace(".", "").replace(',', '.');
+        if (lastComma >= 0 && lastDot >= 0) {
+            if (lastComma > lastDot) {
+                normalized = normalized.replace(".", "").replace(',', '.');
+            } else {
+                normalized = normalized.replace(",", "");
+            }
+        } else if (lastComma >= 0) {
+            int decimals = normalized.length() - lastComma - 1;
+            normalized = decimals == 3
+                    ? normalized.replace(",", "")
+                    : normalized.replace(',', '.');
         } else if (lastDot >= 0) {
-            normalized = normalized.replace(",", "");
+            int decimals = normalized.length() - lastDot - 1;
+            if (decimals == 3) {
+                normalized = normalized.replace(".", "");
+            }
         }
         return new BigDecimal(normalized);
     }

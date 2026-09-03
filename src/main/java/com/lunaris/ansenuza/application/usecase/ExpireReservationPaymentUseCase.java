@@ -51,7 +51,6 @@ public class ExpireReservationPaymentUseCase {
                 && reservation.getPaymentExpiresAt() != null
                 && !reservation.getPaymentExpiresAt().isAfter(now)
                 && ("PENDING_PAYMENT".equalsIgnoreCase(reservation.getStatus())
-                    || "PENDING_VERIFICATION".equalsIgnoreCase(reservation.getStatus())
-                    || "PAYMENT_RECEIVED".equalsIgnoreCase(reservation.getStatus()));
+                    || "PENDING_VERIFICATION".equalsIgnoreCase(reservation.getStatus()));
     }
 }

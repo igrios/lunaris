@@ -35,4 +35,34 @@ class MercadoPagoEmailParserTest {
                 "message-124", "Recibiste dinero", "Monto: $ 10.500,00", Instant.EPOCH)
                 .isEmpty());
     }
+
+    @Test
+    void parsesDotAsThousandsSeparatorWhenEmailOmitsCents() {
+        String body = """
+                Recibiste un pago de Ada Lovelace
+                Monto: $ 15.000
+                Número de operación: MP-15000
+                Código de reserva: MOR-COR-002-IDA
+                """;
+
+        var result = parser.parse("message-125", "Recibiste dinero", body, Instant.EPOCH);
+
+        assertTrue(result.isPresent());
+        assertEquals(new BigDecimal("15000"), result.get().amount());
+    }
+
+    @Test
+    void preservesStandardDotDecimalWithTwoCents() {
+        String body = """
+                Recibiste un pago de Ada Lovelace
+                Monto: $ 15000.50
+                Número de operación: MP-1500050
+                Código de reserva: MOR-COR-003-IDA
+                """;
+
+        var result = parser.parse("message-126", "Recibiste dinero", body, Instant.EPOCH);
+
+        assertTrue(result.isPresent());
+        assertEquals(new BigDecimal("15000.50"), result.get().amount());
+    }
 }

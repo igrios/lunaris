@@ -82,6 +82,11 @@ public class Reservation {
     @Column(name = "amount")
     private BigDecimal amount;
 
+    /** Saldo histórico debitado al crear esta reserva; forma parte del valor pagado. */
+    @Builder.Default
+    @Column(name = "used_balance", nullable = false)
+    private BigDecimal usedBalance = BigDecimal.ZERO;
+
     @Column(name = "round_trip")
     private Boolean roundTrip;
 
@@ -198,8 +203,7 @@ public class Reservation {
         }
         if (paymentExpiresAt == null && !Boolean.TRUE.equals(paymentVerified)
                 && ("PENDING_PAYMENT".equalsIgnoreCase(status)
-                    || "PENDING_VERIFICATION".equalsIgnoreCase(status)
-                    || "PAYMENT_RECEIVED".equalsIgnoreCase(status))) {
+                    || "PENDING_VERIFICATION".equalsIgnoreCase(status))) {
             paymentExpiresAt = createdAt.plusMinutes(20);
         }
         if (travelStatus == null) {

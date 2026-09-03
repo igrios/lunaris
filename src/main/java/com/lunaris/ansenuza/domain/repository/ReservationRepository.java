@@ -37,7 +37,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            WHERE r.paymentVerified = false
              AND r.paymentExpiresAt IS NOT NULL
              AND r.paymentExpiresAt <= :now
-             AND UPPER(r.status) IN ('PENDING_PAYMENT', 'PENDING_VERIFICATION', 'PAYMENT_RECEIVED')
+             AND UPPER(r.status) IN ('PENDING_PAYMENT', 'PENDING_VERIFICATION')
            ORDER BY r.paymentExpiresAt
            """)
     List<UUID> findExpiredPaymentCandidateIds(

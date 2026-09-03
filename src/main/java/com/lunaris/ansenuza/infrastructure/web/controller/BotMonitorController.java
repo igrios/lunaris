@@ -343,7 +343,7 @@ public class BotMonitorController {
             ida.setAmount(montoIda.add(montoVuelta));
             ida.setDiscountAmount(java.math.BigDecimal.ZERO);
             ida.setStatus("CONFIRMED"); 
-            ida.setPaymentVerified(true);
+            ida.setPaymentVerified(false);
             ida.setRoundTrip(roundTrip);
             ida.setTripType(tripType(roundTrip, returnDate));
             ida.setReturnDate(returnDate);
