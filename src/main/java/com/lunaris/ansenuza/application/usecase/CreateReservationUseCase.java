@@ -130,6 +130,18 @@ public class CreateReservationUseCase {
         return savedReservations.get(0);
     }
 
+    public Reservation executePublic(CreateReservationRequest request) {
+        return executePublic(request, null);
+    }
+
+    public Reservation executePublic(CreateReservationRequest request, String paymentReceiptUrl) {
+        if (request != null && request.passengerId() != null) {
+            throw new DomainValidationException(
+                    "La creación pública no admite un identificador de pasajero.");
+        }
+        return execute(request, paymentReceiptUrl);
+    }
+
     private TripType resolveTripType(CreateReservationRequest request) {
         if (request.tripType() != null) {
             return request.tripType();

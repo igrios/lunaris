@@ -51,17 +51,18 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers(
                                 "/actuator/**",
-                                "/api/public/**",
-                                "/api/v1/reservations",
                                 "/api/schedules/**",
-                                "/api/reservations/**",
                                 "/api/auth/**",
                                 "/api/v1/portal/**",
-                                "/api/v1/reservations/**",
                                 "/api/v1/waiting-list/request-otp",
                                 "/api/v1/waiting-list/confirm",
                                 "/webhook/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/reservations").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/reservations/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/reservations/*/receipt")
+                        .hasRole("PASSENGER")
                         .requestMatchers(HttpMethod.GET, "/whatsapp/test")
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/whatsapp/webhook").permitAll()
@@ -82,6 +83,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/configurations/**")
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers(HttpMethod.POST, "/api/driver/confirm-assistance")
+                        .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
+                        .requestMatchers(
+                                HttpMethod.PUT, "/api/reservations/*/travel-status")
+                        .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
+                        .requestMatchers(
+                                HttpMethod.PATCH, "/api/reservations/*/travel-status")
                         .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
                         .requestMatchers("/api/agenda/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())

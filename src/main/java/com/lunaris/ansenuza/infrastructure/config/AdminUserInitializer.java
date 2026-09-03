@@ -30,7 +30,7 @@ public class AdminUserInitializer implements CommandLineRunner {
             PasswordEncoder passwordEncoder,
             Environment environment,
             @Value("${app.security.admin.username:admin}") String adminUsername,
-            @Value("${app.security.admin.password:admin123}") String adminPassword) {
+            @Value("${app.security.admin.password:}") String adminPassword) {
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.environment = environment;
@@ -41,13 +41,17 @@ public class AdminUserInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        if (isProduction() && !hasPassword()) {
+            throw new IllegalStateException(
+                    "ADMIN_INITIAL_PASSWORD es obligatoria en producción.");
+        }
         accountRepository.findByUsernameIgnoreCase(adminUsername)
                 .ifPresentOrElse(this::updateManagedAdmin, this::createAdmin);
     }
 
     private void updateManagedAdmin(Account account) {
-        if (account.getPasswordHash() == null
-                || environment.acceptsProfiles(Profiles.of("dev"))) {
+        if (hasPassword() && (account.getPasswordHash() == null
+                || environment.acceptsProfiles(Profiles.of("dev")))) {
             account.setPasswordHash(passwordEncoder.encode(adminPassword));
         }
         account.setActive(true);
@@ -61,9 +65,20 @@ public class AdminUserInitializer implements CommandLineRunner {
     }
 
     private void createAdmin() {
+        if (!hasPassword()) {
+            return;
+        }
         Account account = newAdminAccount();
         account.setPasswordHash(passwordEncoder.encode(adminPassword));
         accountRepository.save(account);
+    }
+
+    private boolean isProduction() {
+        return environment.acceptsProfiles(Profiles.of("prod", "production"));
+    }
+
+    private boolean hasPassword() {
+        return adminPassword != null && !adminPassword.isBlank();
     }
 
     private Account newAdminAccount() {

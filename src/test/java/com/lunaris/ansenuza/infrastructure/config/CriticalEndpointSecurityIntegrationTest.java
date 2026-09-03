@@ -4,6 +4,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.lunaris.ansenuza.application.port.MessagingPort;
@@ -86,6 +87,31 @@ class CriticalEndpointSecurityIntegrationTest {
                         .contentType("application/json")
                         .content("{\"code\":\"MOR-COR-001\"}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void travelStatusUpdateRequiresAuthentication() throws Exception {
+        mockMvc.perform(patch("/api/reservations/{id}/travel-status", UUID.randomUUID())
+                        .contentType("application/json")
+                        .content("{\"travelStatus\":\"ONBOARDED\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void driverCannotUpdateReservationAssignedToAnotherDriver() throws Exception {
+        UUID authenticatedId = UUID.randomUUID();
+        Driver authenticated = driver(authenticatedId, "5493511111111");
+        Driver assigned = driver(UUID.randomUUID(), "5493512222222");
+        UUID reservationId = UUID.randomUUID();
+        Reservation reservation = Reservation.builder().id(reservationId).driver(assigned).build();
+        when(drivers.findFirstByPhone("5493511111111")).thenReturn(Optional.of(authenticated));
+        when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
+
+        mockMvc.perform(patch("/api/reservations/{id}/travel-status", reservationId)
+                        .with(user("5493511111111").roles("CHOFER"))
+                        .contentType("application/json")
+                        .content("{\"travelStatus\":\"ONBOARDED\"}"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

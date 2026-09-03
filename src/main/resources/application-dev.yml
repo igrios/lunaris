@@ -2,7 +2,7 @@ app:
   security:
     admin:
       username: ${ADMIN_INITIAL_USERNAME:admin}
-      password: ${ADMIN_INITIAL_PASSWORD:admin123}
+      password: ${ADMIN_INITIAL_PASSWORD:}
 
 spring:
   datasource:

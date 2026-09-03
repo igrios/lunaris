@@ -11,7 +11,7 @@ package com.lunaris.ansenuza.application.conversation;
  * @param longitude longitud compartida (para LOCATION); puede ser null
  */
 public record IncomingMessage(
-        String from, MessageType type, String body, String mediaId,
+        String messageId, String from, MessageType type, String body, String mediaId,
         Double latitude, Double longitude) {
 
     public enum MessageType {
@@ -19,7 +19,12 @@ public record IncomingMessage(
     }
 
     public IncomingMessage(String from, MessageType type, String body, String mediaId) {
-        this(from, type, body, mediaId, null, null);
+        this(null, from, type, body, mediaId, null, null);
+    }
+
+    public IncomingMessage(String from, MessageType type, String body, String mediaId,
+            Double latitude, Double longitude) {
+        this(null, from, type, body, mediaId, latitude, longitude);
     }
 
     public boolean isImageWithMedia() {

@@ -47,7 +47,6 @@ public class WaitingListOtpService {
         } catch (RuntimeException exception) {
             logger.warn("No se pudo enviar OTP por WhatsApp para {}. Se conserva el desafío.", phone,
                     exception);
-            logger.info("OTP generated for {}: {}", phone, code);
         }
         return code;
     }

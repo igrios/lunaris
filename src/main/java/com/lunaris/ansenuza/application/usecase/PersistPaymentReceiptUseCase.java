@@ -13,6 +13,7 @@ import com.lunaris.ansenuza.domain.model.ReservationEvent;
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.lunaris.ansenuza.shared.PhoneUtils;
 
 /** Persiste el comprobante en una transacción corta, sin llamadas de red externas. */
 @Service
@@ -102,6 +103,21 @@ public class PersistPaymentReceiptUseCase {
                     .description("Comprobante recibido; pago pendiente de verificación.")
                     .triggeredBy(triggeredBy).build());
         }
+    }
+
+    @Transactional
+    public void executeByReservationCodeOwnedBy(String reservationCode, String receiptUrl,
+            String triggeredBy, String authenticatedPhone) {
+        Reservation selected = reservationRepository.findByReservationCodeForUpdate(reservationCode)
+                .orElseThrow(() -> new DomainValidationException("La reserva indicada no existe."));
+        String ownerPhone = selected.getPassenger() == null
+                ? null : selected.getPassenger().getPhone();
+        if (ownerPhone == null || !PhoneUtils.normalizeArgentinePhone(ownerPhone).equals(
+                PhoneUtils.normalizeArgentinePhone(authenticatedPhone))) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "La reserva no pertenece al pasajero autenticado.");
+        }
+        executeByReservationCode(reservationCode, receiptUrl, triggeredBy);
     }
 
     private String paymentGroupCode(String reservationCode) {

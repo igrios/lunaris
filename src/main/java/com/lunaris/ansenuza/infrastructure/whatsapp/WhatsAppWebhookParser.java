@@ -29,17 +29,18 @@ public class WhatsAppWebhookParser {
 
         String from = normalizeWhatsAppNumber(stringValue(message.get("from")));
         String type = stringValue(message.get("type"));
+        String messageId = stringValue(message.get("id"));
 
         if ("image".equals(type)) {
             Map<?, ?> imageData = mapValue(message.get("image"));
             String mediaId = imageData != null ? stringValue(imageData.get("id")) : null;
-            return new IncomingMessage(from, MessageType.IMAGE, null, mediaId);
+            return new IncomingMessage(messageId, from, MessageType.IMAGE, null, mediaId, null, null);
         }
 
         if ("text".equals(type)) {
             Map<?, ?> text = mapValue(message.get("text"));
             String body = text != null ? stringValue(text.get("body")) : null;
-            return new IncomingMessage(from, MessageType.TEXT, body, null);
+            return new IncomingMessage(messageId, from, MessageType.TEXT, body, null, null, null);
         }
 
         if ("location".equals(type)) {
@@ -47,11 +48,11 @@ public class WhatsAppWebhookParser {
             Double latitude = numberValue(location, "latitude");
             Double longitude = numberValue(location, "longitude");
             if (latitude == null || longitude == null) {
-                return new IncomingMessage(from, MessageType.OTHER, null, null);
+                return new IncomingMessage(messageId, from, MessageType.OTHER, null, null, null, null);
             }
             String mapsUrl = "https://maps.google.com/?q=" + latitude + "," + longitude;
             return new IncomingMessage(
-                    from, MessageType.LOCATION, mapsUrl, null, latitude, longitude);
+                    messageId, from, MessageType.LOCATION, mapsUrl, null, latitude, longitude);
         }
 
         if ("button".equals(type)) {
@@ -61,7 +62,7 @@ public class WhatsAppWebhookParser {
                 body = stringValue(buttonData.get("text"));
             }
             if (body == null || body.isBlank()) return null;
-            return new IncomingMessage(from, MessageType.INTERACTIVE, body, null);
+            return new IncomingMessage(messageId, from, MessageType.INTERACTIVE, body, null, null, null);
         }
 
         if ("interactive".equals(type)) {
@@ -81,10 +82,10 @@ public class WhatsAppWebhookParser {
                 log.warn("[WhatsApp Webhook] Respuesta interactiva descartada: falta un ID válido.");
                 return null;
             }
-            return new IncomingMessage(from, MessageType.INTERACTIVE, body, null);
+            return new IncomingMessage(messageId, from, MessageType.INTERACTIVE, body, null, null, null);
         }
 
-        return new IncomingMessage(from, MessageType.OTHER, null, null);
+        return new IncomingMessage(messageId, from, MessageType.OTHER, null, null, null, null);
     }
 
     private String normalizeWhatsAppNumber(String phone) {

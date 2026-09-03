@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.lunaris.ansenuza.application.conversation.ConversationOrchestrator;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.usecase.ProcessPaymentReceiptUseCase;
+import com.lunaris.ansenuza.application.usecase.WhatsAppWebhookInboxService;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppWebhookParser;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppMessageDispatcher;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class WhatsAppWebhookController {
     private final ConversationOrchestrator conversationOrchestrator;
     private final ProcessPaymentReceiptUseCase processPaymentReceiptUseCase;
     private final WhatsAppMessageDispatcher messageDispatcher;
+    private final WhatsAppWebhookInboxService inboxService;
     private final ObjectMapper objectMapper;
     private final Environment environment;
     private final String verifyToken;
@@ -54,6 +56,7 @@ public class WhatsAppWebhookController {
             ConversationOrchestrator conversationOrchestrator,
             ProcessPaymentReceiptUseCase processPaymentReceiptUseCase,
             WhatsAppMessageDispatcher messageDispatcher,
+            WhatsAppWebhookInboxService inboxService,
             ObjectMapper objectMapper,
             Environment environment,
             @Value("${whatsapp.verify-token:}") String verifyToken,
@@ -62,10 +65,20 @@ public class WhatsAppWebhookController {
         this.conversationOrchestrator = conversationOrchestrator;
         this.processPaymentReceiptUseCase = processPaymentReceiptUseCase;
         this.messageDispatcher = messageDispatcher;
+        this.inboxService = inboxService;
         this.objectMapper = objectMapper;
         this.environment = environment;
         this.verifyToken = verifyToken;
         this.appSecret = appSecret;
+    }
+
+    @jakarta.annotation.PostConstruct
+    void validateProductionConfiguration() {
+        if (environment.acceptsProfiles(Profiles.of("prod", "production"))
+                && (appSecret == null || appSecret.isBlank())) {
+            throw new IllegalStateException(
+                    "WHATSAPP_APP_SECRET es obligatoria en producción.");
+        }
     }
 
     @GetMapping("/webhook")
@@ -95,6 +108,14 @@ public class WhatsAppWebhookController {
             if (message == null) {
                 return ResponseEntity.ok().build();
             }
+            if (message.messageId() == null || message.messageId().isBlank()) {
+                log.warn("Webhook de WhatsApp descartado porque no contiene messageId.");
+                return ResponseEntity.ok().build();
+            }
+            if (!inboxService.claim(message.messageId())) {
+                log.debug("Webhook de WhatsApp duplicado ignorado: {}", message.messageId());
+                return ResponseEntity.ok().build();
+            }
 
             messageDispatcher.dispatch(message.from(), () -> {
                 if (message.isImageWithMedia()) {
@@ -112,9 +133,8 @@ public class WhatsAppWebhookController {
     }
 
     private boolean isValidSignature(byte[] payload, String signature) {
-        boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
         if (appSecret == null || appSecret.isBlank()) {
-            return !production;
+            return false;
         }
         if (signature == null || !signature.startsWith("sha256=")) {
             return false;

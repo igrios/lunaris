@@ -75,7 +75,8 @@ public class DriverController {
             method = {RequestMethod.PUT, RequestMethod.PATCH})
     public ResponseEntity<?> updateTravelStatus(
             @PathVariable UUID id,
-            @RequestBody(required = false) UpdateTravelStatusRequest request) {
+            @RequestBody(required = false) UpdateTravelStatusRequest request,
+            Authentication authentication) {
         String rawTravelStatus = request != null ? request.travelStatus() : null;
         log.info(
                 "[TravelStatus API] Incoming travelStatus={} for reservationId={}",
@@ -99,8 +100,12 @@ public class DriverController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Estado de viaje inválido: " + rawTravelStatus));
         }
-        Reservation saved =
-                onboardPassengerUseCase.updateTravelStatus(id, travelStatus);
+        Reservation reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + id));
+        UUID assignedDriverId = reservation.getDriver() == null
+                ? null : reservation.getDriver().getId();
+        driverAuthorizationService.assertCanAccessDriver(authentication, assignedDriverId);
+        Reservation saved = onboardPassengerUseCase.updateTravelStatus(id, travelStatus);
         return ResponseEntity.ok(Map.of(
                 "reservationId", saved.getId(),
                 "travelStatus", saved.getTravelStatus().name()));

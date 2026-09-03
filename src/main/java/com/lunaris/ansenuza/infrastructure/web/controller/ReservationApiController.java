@@ -6,6 +6,7 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.application.usecase.PersistPaymentReceiptUseCase;
 import java.util.Map;
+import java.security.Principal;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationRequest;
 import com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationResponse;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class ReservationApiController {
             @RequestPart(value = "paymentReceipt", required = false) MultipartFile receipt) {
         String receiptUrl = receipt != null && !receipt.isEmpty()
                 ? receiptStoragePort.uploadFile(receipt) : null;
-        Reservation reservation = createReservationUseCase.execute(
+        Reservation reservation = createReservationUseCase.executePublic(
                 request.withSource(ReservationSource.WEB), receiptUrl);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CreateReservationResponse.from(reservation));
@@ -42,14 +43,15 @@ public class ReservationApiController {
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> uploadReceipt(
             @org.springframework.web.bind.annotation.PathVariable String reservationCode,
-            @RequestPart("file") MultipartFile file) {
+            @RequestPart("file") MultipartFile file,
+            Principal principal) {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("success", false,
                     "message", "El comprobante es obligatorio."));
         }
         String url = receiptStoragePort.uploadFile(file);
-        persistPaymentReceiptUseCase.executeByReservationCode(
-                reservationCode, url, "PASSENGER_WEB");
+        persistPaymentReceiptUseCase.executeByReservationCodeOwnedBy(
+                reservationCode, url, "PASSENGER_WEB", principal.getName());
         return ResponseEntity.ok(Map.of("success", true, "reservationCode", reservationCode,
                 "paymentReceiptUrl", url));
     }

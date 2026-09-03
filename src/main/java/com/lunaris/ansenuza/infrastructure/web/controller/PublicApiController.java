@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.CreateReservationUseCase;
 import com.lunaris.ansenuza.application.usecase.SubmitDriverApplicationUseCase;
+import com.lunaris.ansenuza.application.usecase.GetPublicReservationStatusUseCase;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.ReservationSource;
 import com.lunaris.ansenuza.infrastructure.web.dto.DriverApplicationRequest;
@@ -16,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -25,13 +28,20 @@ public class PublicApiController {
 
     private final CreateReservationUseCase createReservationUseCase;
     private final SubmitDriverApplicationUseCase submitDriverApplicationUseCase;
+    private final GetPublicReservationStatusUseCase getPublicReservationStatusUseCase;
     @PostMapping({"/reservations", "/public/reservations", "/v1/reservations"})
     public ResponseEntity<CreateReservationResponse> createReservation(
             @RequestBody CreateReservationRequest request) {
-        Reservation reservation = createReservationUseCase.execute(
+        Reservation reservation = createReservationUseCase.executePublic(
                 request.withSource(ReservationSource.WEB));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(CreateReservationResponse.from(reservation));
+    }
+
+    @GetMapping("/v1/reservations/{code}")
+    public GetPublicReservationStatusUseCase.PublicReservationStatus status(
+            @PathVariable String code) {
+        return getPublicReservationStatusUseCase.execute(code);
     }
 
     @PostMapping(value = "/drivers/apply", consumes = MediaType.APPLICATION_JSON_VALUE)

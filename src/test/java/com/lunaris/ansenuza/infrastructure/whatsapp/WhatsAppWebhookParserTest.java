@@ -13,6 +13,7 @@ class WhatsAppWebhookParserTest {
     @Test
     void parsesViewRouteQuickReplyPayload() {
         IncomingMessage message = parser.parse(payload(Map.of(
+                "id", "wamid.123",
                 "from", "5493512282251",
                 "type", "interactive",
                 "interactive", Map.of(
@@ -22,6 +23,7 @@ class WhatsAppWebhookParserTest {
                                 "title", "🗺️ Ver Ruta")))));
 
         assertEquals(IncomingMessage.MessageType.INTERACTIVE, message.type());
+        assertEquals("wamid.123", message.messageId());
         assertEquals("VIEW_ROUTE", message.body());
     }
 
