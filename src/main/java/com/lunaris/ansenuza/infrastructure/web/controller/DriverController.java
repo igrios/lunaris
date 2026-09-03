@@ -6,11 +6,13 @@ import com.lunaris.ansenuza.domain.model.Reservation.TravelStatus;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.application.usecase.DriverManagementService;
+import com.lunaris.ansenuza.application.usecase.DriverAuthorizationService;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +27,7 @@ public class DriverController {
     private final ReservationRepository reservationRepository;
     private final OnboardPassengerUseCase onboardPassengerUseCase;
     private final DriverManagementService driverManagementService;
+    private final DriverAuthorizationService driverAuthorizationService;
 
     @GetMapping({"/drivers", "/api/drivers"})
     public List<Driver> findAll() {
@@ -39,7 +42,8 @@ public class DriverController {
     }
 
     @PostMapping("/api/driver/confirm-assistance")
-    public ResponseEntity<?> confirmAssistance(@RequestBody ConfirmAssistanceRequest request) {
+    public ResponseEntity<?> confirmAssistance(
+            @RequestBody ConfirmAssistanceRequest request, Authentication authentication) {
         String code = request != null && request.code() != null
                 ? request.code().trim().toUpperCase()
                 : "";
@@ -51,6 +55,10 @@ public class DriverController {
 
         return reservationRepository.findByReservationCode(code)
                 .map(reservation -> {
+                    UUID assignedDriverId = reservation.getDriver() == null
+                            ? null : reservation.getDriver().getId();
+                    driverAuthorizationService.assertCanAccessDriver(
+                            authentication, assignedDriverId);
                     Reservation saved = onboardPassengerUseCase.updateTravelStatus(
                             reservation.getId(), TravelStatus.REALIZED);
                     return ResponseEntity.ok(Map.of(

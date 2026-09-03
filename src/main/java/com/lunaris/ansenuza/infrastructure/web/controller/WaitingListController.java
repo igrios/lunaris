@@ -20,8 +20,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 
 @RestController
 @RequestMapping("/api/v1/waiting-list")
@@ -31,7 +29,6 @@ public class WaitingListController {
     private final WaitingListService service;
     private final WaitingListReengagementService reengagementService;
     private final WaitingListOtpService otpService;
-    private final Environment environment;
 
     @GetMapping
     public List<WaitingListResponse> find(
@@ -56,9 +53,8 @@ public class WaitingListController {
 
     @PostMapping("/request-otp")
     public OtpResponse requestOtp(@RequestBody OtpRequest request) {
-        String otp = otpService.request(request.phone(), request.fullName());
-        boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
-        return new OtpResponse("El código fue enviado por WhatsApp.", production ? null : otp);
+        otpService.request(request.phone(), request.fullName());
+        return new OtpResponse("El código fue enviado por WhatsApp.");
     }
 
     @PostMapping("/confirm")
@@ -98,7 +94,7 @@ public class WaitingListController {
             String notes) {
     }
 
-    public record OtpResponse(String message, String otp) {
+    public record OtpResponse(String message) {
     }
 
     public record ConfirmWaitingListRequest(

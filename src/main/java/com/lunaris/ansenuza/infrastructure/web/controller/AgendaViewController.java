@@ -30,6 +30,7 @@ import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
 import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
+import com.lunaris.ansenuza.application.usecase.DriverAuthorizationService;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
@@ -59,8 +60,9 @@ public class AgendaViewController {
     private final WaitingListRepository waitingListRepository;
     private final SystemConfigurationService systemConfigurationService;
     private final ResolveEffectiveTripOriginUseCase resolveEffectiveTripOriginUseCase;
+    private final DriverAuthorizationService driverAuthorizationService;
 
-    @Value("${whatsapp.api.token:EAAOpuc7IAZCYBRr2RWtWMKLtUU2sMYy0HEo2GxFiUPX2Uj70TOMysoptwJ6HQ7DJjT0eaQcarX8UC824cYb2rXwbdPaTZBT3sB5DLVyRiBD1Ihc2wznb1DukhjGZAFR5kG72ZCWi2YbBKMGVTXSz1cUuPBcfDYE61Eq9XgBK5wAZBQ6ZAue5g9iwstZAsyP9jMhwE89dzsP0TYzOPmZCgnt8n8W49rrt8m6Yo0fmLVjw0l5ZAf7gHeoY9UbUCMOtOYR6ggJD7yZC9cuNfbar7RHLASzAZDZD}")
+    @Value("${whatsapp.access-token}")
     private String whatsappToken;
 
     @Value("${lunaris.trips.capacity:12}")
@@ -570,7 +572,9 @@ public class AgendaViewController {
             @RequestParam UUID driverId,
             @RequestParam("date")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate travelDate,
+            org.springframework.security.core.Authentication authentication,
             Model model) {
+        driverAuthorizationService.assertCanAccessDriver(authentication, driverId);
         Driver driver = driverRepository.findById(driverId).orElse(null);
         if (driver == null) {
             model.addAttribute("routeError", "No se encontró el chofer indicado.");

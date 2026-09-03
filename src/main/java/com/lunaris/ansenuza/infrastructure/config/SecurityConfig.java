@@ -60,9 +60,11 @@ public class SecurityConfig {
                                 "/api/v1/reservations/**",
                                 "/api/v1/waiting-list/request-otp",
                                 "/api/v1/waiting-list/confirm",
-                                "/webhook/**",
-                                "/whatsapp/**")
+                                "/webhook/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/whatsapp/test")
+                        .hasRole(Role.ADMIN.name())
+                        .requestMatchers("/whatsapp/webhook").permitAll()
                         .requestMatchers("/api/drivers", "/api/drivers/**")
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/api/admin/driver-applications/**")
@@ -117,7 +119,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/public/invoices/*.pdf")
                         .permitAll()
                         .requestMatchers(HttpMethod.GET, "/hoja-ruta")
-                        .permitAll()
+                        .hasAnyRole(Role.ADMIN.name(), Role.CHOFER.name())
                         .requestMatchers(
                                 "/admin/usuarios/**",
                                 "/admin/configuraciones/**",
@@ -153,6 +155,10 @@ public class SecurityConfig {
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name())
                         .requestMatchers("/admin/**").hasRole(Role.ADMIN.name())
                         .anyRequest().authenticated())
+                .exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
+                        new org.springframework.security.web.authentication.HttpStatusEntryPoint(
+                                org.springframework.http.HttpStatus.UNAUTHORIZED),
+                        request -> "/hoja-ruta".equals(request.getServletPath())))
                 .formLogin(login -> login
                         .loginPage("/login")
                         .defaultSuccessUrl("/admin/dashboard", true)

@@ -89,10 +89,13 @@ class AgendaRouteSheetControllerTest {
                 mock(DriverRouteService.class),
                 mock(FleetCapacityService.class),
                 mock(com.lunaris.ansenuza.domain.repository.WaitingListRepository.class),
-                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class), originResolver);
+                mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class), originResolver,
+                mock(com.lunaris.ansenuza.application.usecase.DriverAuthorizationService.class));
         ConcurrentModel model = new ConcurrentModel();
 
-        String view = controller.showHojaRuta(driverId, travelDate, model);
+        var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin", "n/a", org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_ADMIN"));
+        String view = controller.showHojaRuta(driverId, travelDate, authentication, model);
 
         assertEquals("admin/hoja-ruta", view);
         assertEquals(List.of(passenger), model.getAttribute("reservas"));

@@ -23,7 +23,8 @@ class DriverControllerTest {
         DriverController controller = new DriverController(
                 mock(ReservationRepository.class),
                 onboard,
-                mock(DriverManagementService.class));
+                mock(DriverManagementService.class),
+                mock(com.lunaris.ansenuza.application.usecase.DriverAuthorizationService.class));
         UUID reservationId = UUID.randomUUID();
         Reservation saved = Reservation.builder()
                 .id(reservationId)
@@ -48,7 +49,8 @@ class DriverControllerTest {
         DriverController controller = new DriverController(
                 mock(ReservationRepository.class),
                 onboard,
-                mock(DriverManagementService.class));
+                mock(DriverManagementService.class),
+                mock(com.lunaris.ansenuza.application.usecase.DriverAuthorizationService.class));
 
         ResponseEntity<?> response = controller.updateTravelStatus(
                 UUID.randomUUID(),
