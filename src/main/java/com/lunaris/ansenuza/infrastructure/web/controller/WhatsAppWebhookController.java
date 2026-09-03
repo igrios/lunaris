@@ -76,8 +76,8 @@ public class WhatsAppWebhookController {
     void validateProductionConfiguration() {
         if (environment.acceptsProfiles(Profiles.of("prod", "production"))
                 && (appSecret == null || appSecret.isBlank())) {
-            throw new IllegalStateException(
-                    "WHATSAPP_APP_SECRET es obligatoria en producción.");
+            log.warn("WHATSAPP_APP_SECRET no está configurada en producción; "
+                    + "los webhooks entrantes serán rechazados hasta configurarla.");
         }
     }
 

@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lunaris.ansenuza.application.conversation.ConversationOrchestrator;
@@ -104,7 +104,7 @@ class WhatsAppWebhookControllerSecurityTest {
     }
 
     @Test
-    void productionConfigurationFailsWithoutAppSecret() {
+    void productionConfigurationWarnsAndContinuesWithoutAppSecret() {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles("production");
         WhatsAppWebhookController controller = new WhatsAppWebhookController(
@@ -113,7 +113,7 @@ class WhatsAppWebhookControllerSecurityTest {
                 mock(WhatsAppWebhookInboxService.class), new ObjectMapper(), environment,
                 "verify-token", "");
 
-        assertThrows(IllegalStateException.class, controller::validateProductionConfiguration);
+        assertDoesNotThrow(controller::validateProductionConfiguration);
     }
 
     private String sign(byte[] body) throws Exception {
