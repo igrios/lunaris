@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Map;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +39,7 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
     private final String apiKey;
     private final String apiSecret;
 
+    @Autowired
     public CloudinaryInvoiceStorageService(
             Cloudinary cloudinary,
             @Qualifier("localInvoiceStorageService") ObjectProvider<LocalInvoiceStorageService> localStorage,

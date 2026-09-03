@@ -376,6 +376,20 @@ public class ReservationService {
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     return new CancellationResult(credited.signum() > 0, credited);
                 }
+
+                if (isReturnLeg(reservation)) {
+                    List<Reservation> outbounds = associatedReservations(reservation);
+                    java.util.Optional<Reservation> consumedOutbound = outbounds.stream()
+                            .filter(this::isOutboundLeg)
+                            .filter(this::isUsed)
+                            .findFirst();
+                    if (consumedOutbound.isPresent()) {
+                        BigDecimal credited = cancelReturnOnly(
+                                reservation, reservation.getPassenger(), triggeredBy,
+                                consumedOutbound.get());
+                        return new CancellationResult(credited.signum() > 0, credited);
+                    }
+                }
                 
                 Passenger passenger = lockPassenger(reservation.getPassenger());
                 reservation.setPassenger(passenger);
