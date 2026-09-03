@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
@@ -18,6 +19,7 @@ import java.util.ArrayDeque;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.mock.env.MockEnvironment;
 
 class CloudinaryInvoiceStorageServiceTest {
 
@@ -124,5 +126,34 @@ class CloudinaryInvoiceStorageServiceTest {
 
         assertEquals("/facturas/factura.pdf", stored.webUrl());
         verify(local).store(any(byte[].class), any(String.class));
+    }
+
+    @Test
+    void productionNeverFallsBackToVolatileLocalStorage() {
+        MockEnvironment environment = new MockEnvironment();
+        environment.setActiveProfiles("production");
+        LocalInvoiceStorageService local = mock(LocalInvoiceStorageService.class);
+        CloudinaryInvoiceStorageService service = new CloudinaryInvoiceStorageService(
+                mock(Cloudinary.class), local, environment, "", "", "");
+
+        assertThrows(IllegalStateException.class,
+                () -> service.store(new byte[] {1}, "factura.pdf"));
+        org.mockito.Mockito.verifyNoInteractions(local);
+    }
+
+    @Test
+    void configuredCloudFailureNeverCreatesEphemeralFallback() throws Exception {
+        Cloudinary cloudinary = mock(Cloudinary.class);
+        Uploader uploader = mock(Uploader.class);
+        LocalInvoiceStorageService local = mock(LocalInvoiceStorageService.class);
+        when(cloudinary.uploader()).thenReturn(uploader);
+        when(uploader.upload(any(byte[].class), anyMap()))
+                .thenThrow(new IOException("cloud unavailable"));
+        CloudinaryInvoiceStorageService service = new CloudinaryInvoiceStorageService(
+                cloudinary, local, "demo", "key", "secret");
+
+        assertThrows(IllegalStateException.class,
+                () -> service.store(new byte[] {1}, "factura.pdf"));
+        org.mockito.Mockito.verifyNoInteractions(local);
     }
 }

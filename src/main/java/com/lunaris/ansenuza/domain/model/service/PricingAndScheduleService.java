@@ -140,6 +140,15 @@ public class PricingAndScheduleService {
         return finalPricePerPassenger.multiply(java.math.BigDecimal.valueOf(passengerCount));
     }
 
+    /** Diferencia a reliquidar cuando una tarifa ida/vuelta termina siendo solo ida. */
+    public java.math.BigDecimal calculateOneWaySurcharge(int passengerCount) {
+        if (passengerCount <= 0) {
+            return java.math.BigDecimal.ZERO;
+        }
+        return positiveBusinessParameter(ONE_WAY_EXTRA_AMOUNT, DEFAULT_ONE_WAY_EXTRA)
+                .multiply(java.math.BigDecimal.valueOf(Math.min(passengerCount, 4)));
+    }
+
     private java.math.BigDecimal resolveBaseFare(String localityName) {
         return fareRepository.findByLocalityNameIgnoreCase(localityName)
                 .map(fare -> fare.getAmount())

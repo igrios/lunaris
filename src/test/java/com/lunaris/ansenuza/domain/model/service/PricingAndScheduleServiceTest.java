@@ -157,6 +157,20 @@
                             "Morteros", "Córdoba", TripType.ONE_WAY, 1));
         }
 
+        @Test
+        void cancellationSurchargeUsesConfiguredAmountPerPassengerAndCapsSeats() {
+            BusinessParameterRepository parameters = mock(BusinessParameterRepository.class);
+            when(parameters.findByParameterKey("ONE_WAY_EXTRA_AMOUNT")).thenReturn(Optional.of(
+                    BusinessParameter.builder().parameterKey("ONE_WAY_EXTRA_AMOUNT")
+                            .parameterValue("7500").build()));
+            PricingAndScheduleService service = new PricingAndScheduleService(
+                    mock(FareRepository.class), mock(LocalityRepository.class), parameters,
+                    mock(ReservationRepository.class));
+
+            assertEquals(new BigDecimal("22500"), service.calculateOneWaySurcharge(3));
+            assertEquals(new BigDecimal("30000"), service.calculateOneWaySurcharge(99));
+        }
+
         @ParameterizedTest
         @CsvSource({
                 "San Guillermo, 07:20 hs",

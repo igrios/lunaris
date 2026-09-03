@@ -38,13 +38,23 @@ public class ReservationService {
     private final PassengerRepository passengerRepository;
     private final OnboardPassengerUseCase onboardPassengerUseCase;
     private final CapacityLockRepository capacityLockRepository;
+    private final PricingAndScheduleService pricingAndScheduleService;
 
     public ReservationService(ReservationRepository reservationRepository,
             ReservationEventRepository reservationEventRepository,
             PassengerRepository passengerRepository,
             OnboardPassengerUseCase onboardPassengerUseCase) {
         this(reservationRepository, reservationEventRepository, passengerRepository,
-                onboardPassengerUseCase, null);
+                onboardPassengerUseCase, null, null);
+    }
+
+    public ReservationService(ReservationRepository reservationRepository,
+            ReservationEventRepository reservationEventRepository,
+            PassengerRepository passengerRepository,
+            OnboardPassengerUseCase onboardPassengerUseCase,
+            CapacityLockRepository capacityLockRepository) {
+        this(reservationRepository, reservationEventRepository, passengerRepository,
+                onboardPassengerUseCase, capacityLockRepository, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -52,12 +62,14 @@ public class ReservationService {
             ReservationEventRepository reservationEventRepository,
             PassengerRepository passengerRepository,
             OnboardPassengerUseCase onboardPassengerUseCase,
-            CapacityLockRepository capacityLockRepository) {
+            CapacityLockRepository capacityLockRepository,
+            PricingAndScheduleService pricingAndScheduleService) {
         this.reservationRepository = reservationRepository;
         this.reservationEventRepository = reservationEventRepository;
         this.passengerRepository = passengerRepository;
         this.onboardPassengerUseCase = onboardPassengerUseCase;
         this.capacityLockRepository = capacityLockRepository;
+        this.pricingAndScheduleService = pricingAndScheduleService;
     }
 
     @Transactional
@@ -359,7 +371,8 @@ public class ReservationService {
                     }
                     BigDecimal credited = returnReservations.stream()
                             .map(returnReservation -> cancelReturnOnly(
-                                    returnReservation, reservation.getPassenger(), triggeredBy))
+                                    returnReservation, reservation.getPassenger(), triggeredBy,
+                                    reservation))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     return new CancellationResult(credited.signum() > 0, credited);
                 }
@@ -479,13 +492,19 @@ public class ReservationService {
     }
 
     private BigDecimal cancelReturnOnly(
-            Reservation returnReservation, Passenger passenger, String triggeredBy) {
+            Reservation returnReservation, Passenger passenger, String triggeredBy,
+            Reservation consumedOutbound) {
         assertNotCompleted(returnReservation);
         assertCancellationAllowed(returnReservation, triggeredBy);
         boolean refundable = isRefundEligible(returnReservation);
         BigDecimal refund = refundable
                 ? refundableAmount(returnReservation)
                 : BigDecimal.ZERO;
+        BigDecimal oneWayAdjustment = refundable && pricingAndScheduleService != null
+                ? pricingAndScheduleService.calculateOneWaySurcharge(
+                        consumedOutbound.getTotalSeats()).min(refund)
+                : BigDecimal.ZERO;
+        refund = refund.subtract(oneWayAdjustment).max(BigDecimal.ZERO);
         returnReservation.setStatus("CANCELLED");
         returnReservation.setTravelStatus(Reservation.TravelStatus.CANCELED);
         reservationRepository.saveAndFlush(returnReservation);
@@ -499,6 +518,19 @@ public class ReservationService {
                         : "La vuelta se canceló sin saldo a favor porque el pago no estaba verificado.")
                 .triggeredBy(triggeredBy)
                 .build());
+        if (oneWayAdjustment.signum() > 0) {
+            BigDecimal existingExtra = consumedOutbound.getExtraAmount() == null
+                    ? BigDecimal.ZERO : consumedOutbound.getExtraAmount();
+            consumedOutbound.setExtraAmount(existingExtra.add(oneWayAdjustment));
+            reservationRepository.saveAndFlush(consumedOutbound);
+            reservationEventRepository.save(ReservationEvent.builder()
+                    .reservationId(consumedOutbound.getId())
+                    .eventType("ONE_WAY_REPRICED_AFTER_RETURN_CANCELLATION")
+                    .description("Reliquidación de tarifa solo ida descontada del reintegro: "
+                            + oneWayAdjustment)
+                    .triggeredBy(triggeredBy)
+                    .build());
+        }
         if (refundable && refund.signum() > 0) {
             log.info("Saldo de {} acreditado al pasajero {}", refund, passenger.getPhone());
         } else if (!refundable) {

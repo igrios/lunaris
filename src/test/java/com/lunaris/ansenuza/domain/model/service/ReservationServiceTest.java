@@ -467,6 +467,42 @@ class ReservationServiceTest {
     }
 
     @Test
+    void cancellingReturnAfterConsumedOutboundDeductsOneWayRepricing() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        PassengerRepository passengers = mock(PassengerRepository.class);
+        PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
+        ReservationEventRepository events = mock(ReservationEventRepository.class);
+        ReservationService service = new ReservationService(reservations, events, passengers,
+                mock(OnboardPassengerUseCase.class), null, pricing);
+        UUID outboundId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder().currentBalance(BigDecimal.ZERO).build();
+        Reservation outbound = Reservation.builder().id(outboundId).passenger(passenger)
+                .amount(new BigDecimal("50000.00")).extraAmount(BigDecimal.ZERO)
+                .passengerCount(2).paymentVerified(true).status("CONFIRMED")
+                .travelDate(LocalDate.now().minusDays(1))
+                .reservationCode("SAN-COR-099-IDA").build();
+        Reservation returnLeg = Reservation.builder().id(UUID.randomUUID()).passenger(passenger)
+                .amount(new BigDecimal("50000.00")).passengerCount(2)
+                .paymentVerified(true).status("CONFIRMED")
+                .reservationCode("SAN-COR-099-VUELTA").build();
+        when(reservations.findByIdForUpdate(outboundId)).thenReturn(Optional.of(outbound));
+        when(reservations.findByReservationCode("SAN-COR-099-VUELTA"))
+                .thenReturn(Optional.of(returnLeg));
+        when(pricing.calculateOneWaySurcharge(2)).thenReturn(new BigDecimal("16000.00"));
+
+        ReservationService.CancellationResult result =
+                service.cancelReservation(outboundId, "PASSENGER");
+
+        assertEquals(new BigDecimal("34000.00"), result.creditedAmount());
+        assertEquals(new BigDecimal("34000.00"), passenger.getCurrentBalance());
+        assertEquals(new BigDecimal("16000.00"), outbound.getExtraAmount());
+        assertEquals("CONFIRMED", outbound.getStatus());
+        assertEquals("CANCELLED", returnLeg.getStatus());
+        verify(events).save(org.mockito.ArgumentMatchers.argThat(event ->
+                "ONE_WAY_REPRICED_AFTER_RETURN_CANCELLATION".equals(event.getEventType())));
+    }
+
+    @Test
     void partialReturnCancellationCreditsOnlyRemainingUnusedSeats() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         PassengerRepository passengers = mock(PassengerRepository.class);

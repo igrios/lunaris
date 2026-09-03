@@ -9,10 +9,14 @@ import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Map;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
 
 /** Almacenamiento principal de facturas, con compatibilidad local si Cloudinary no está configurado. */
@@ -29,21 +33,48 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
 
     private final Cloudinary cloudinary;
     private final LocalInvoiceStorageService localStorage;
+    private final Environment environment;
     private final String cloudName;
     private final String apiKey;
     private final String apiSecret;
 
     public CloudinaryInvoiceStorageService(
             Cloudinary cloudinary,
-            @Qualifier("localInvoiceStorageService") LocalInvoiceStorageService localStorage,
+            @Qualifier("localInvoiceStorageService") ObjectProvider<LocalInvoiceStorageService> localStorage,
+            Environment environment,
             @Value("${cloudinary.cloud-name:}") String cloudName,
             @Value("${cloudinary.api-key:}") String apiKey,
             @Value("${cloudinary.api-secret:}") String apiSecret) {
         this.cloudinary = cloudinary;
-        this.localStorage = localStorage;
+        this.localStorage = localStorage.getIfAvailable();
+        this.environment = environment;
         this.cloudName = cloudName;
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
+    }
+
+    CloudinaryInvoiceStorageService(Cloudinary cloudinary, LocalInvoiceStorageService localStorage,
+            String cloudName, String apiKey, String apiSecret) {
+        this(cloudinary, localStorage, new org.springframework.core.env.StandardEnvironment(),
+                cloudName, apiKey, apiSecret);
+    }
+
+    CloudinaryInvoiceStorageService(Cloudinary cloudinary, LocalInvoiceStorageService localStorage,
+            Environment environment, String cloudName, String apiKey, String apiSecret) {
+        this.cloudinary = cloudinary;
+        this.localStorage = localStorage;
+        this.environment = environment;
+        this.cloudName = cloudName;
+        this.apiKey = apiKey;
+        this.apiSecret = apiSecret;
+    }
+
+    @PostConstruct
+    void validateProductionConfiguration() {
+        if (isProduction() && !isConfigured()) {
+            throw new IllegalStateException(
+                    "Cloudinary debe estar configurado para almacenar facturas en producción.");
+        }
     }
 
     @Override
@@ -64,11 +95,15 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
                     log.info("Factura {} guardada en Cloudinary.", desiredFileName);
                     return new StoredInvoice(url, url);
                 }
-                log.warn("Cloudinary no devolvió secure_url para {}. Se usa almacenamiento local.", desiredFileName);
+                throw new IllegalStateException("Cloudinary no devolvió una URL persistente para la factura.");
             } catch (Exception exception) {
-                log.warn("No se pudo subir la factura {} a Cloudinary; se usa fallback local.",
-                        desiredFileName, exception);
+                throw new IllegalStateException(
+                        "No se pudo persistir la factura en Cloudinary.", exception);
             }
+        }
+        if (isProduction() || localStorage == null) {
+            throw new IllegalStateException(
+                    "Cloudinary es obligatorio para almacenar facturas en este entorno.");
         }
         return localStorage.store(content, desiredFileName);
     }
@@ -171,6 +206,10 @@ public class CloudinaryInvoiceStorageService implements InvoiceStoragePort {
 
     private boolean isConfigured() {
         return hasValue(cloudName) && hasValue(apiKey) && hasValue(cloudSecret());
+    }
+
+    private boolean isProduction() {
+        return environment.acceptsProfiles(Profiles.of("prod", "production"));
     }
 
     private String cloudSecret() {

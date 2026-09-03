@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @org.springframework.stereotype.Service("localInvoiceStorageService")
+@Profile("!prod & !production")
 public class LocalInvoiceStorageService implements InvoiceStoragePort {
 
     @Value("${storage.invoices-dir}")

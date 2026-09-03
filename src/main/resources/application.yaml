@@ -47,8 +47,8 @@ promotions:
 
 storage:
   local-dir: ${STORAGE_LOCAL_DIR:/tmp/comprobantes/}
-  invoices-dir: ${STORAGE_INVOICES_DIR:/tmp/facturas/}
-  driver-applications-dir: ${STORAGE_DRIVER_APPLICATIONS_DIR:/tmp/driver-applications/}
+  invoices-dir: ${STORAGE_INVOICES_DIR:./data/facturas/}
+  driver-applications-dir: ${STORAGE_DRIVER_APPLICATIONS_DIR:./data/driver-applications/}
 
 server:
   port: ${PORT:8080}
