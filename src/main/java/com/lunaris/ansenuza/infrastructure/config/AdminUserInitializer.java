@@ -14,9 +14,11 @@ import org.springframework.core.env.Profiles;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @Order(Ordered.LOWEST_PRECEDENCE)
+@Slf4j
 public class AdminUserInitializer implements CommandLineRunner {
 
     private final AccountRepository accountRepository;
@@ -42,8 +44,9 @@ public class AdminUserInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         if (isProduction() && !hasPassword()) {
-            throw new IllegalStateException(
-                    "ADMIN_INITIAL_PASSWORD es obligatoria en producción.");
+            log.warn("ADMIN_INITIAL_PASSWORD no está configurada en producción; "
+                    + "se omite la creación o actualización del usuario administrador.");
+            return;
         }
         accountRepository.findByUsernameIgnoreCase(adminUsername)
                 .ifPresentOrElse(this::updateManagedAdmin, this::createAdmin);

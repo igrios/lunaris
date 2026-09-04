@@ -3,10 +3,10 @@ package com.lunaris.ansenuza.infrastructure.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.lunaris.ansenuza.domain.model.Account;
@@ -101,15 +101,16 @@ class AdminUserInitializerTest {
     }
 
     @Test
-    void productionFailsClosedWhenInitialPasswordIsMissing() {
+    void productionSkipsAdminInitializationWhenInitialPasswordIsMissing() {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles("production");
+        AccountRepository accounts = mock(AccountRepository.class);
         AdminUserInitializer initializer = new AdminUserInitializer(
-                mock(AccountRepository.class), new BCryptPasswordEncoder(), environment,
+                accounts, new BCryptPasswordEncoder(), environment,
                 "admin", "");
 
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class, initializer::run);
-        assertTrue(exception.getMessage().contains("ADMIN_INITIAL_PASSWORD"));
+        initializer.run();
+
+        verifyNoInteractions(accounts);
     }
 }
