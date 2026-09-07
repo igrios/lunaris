@@ -192,7 +192,7 @@
                             <td class="fw-bold">
                                 <span th:text="${sesion.passengerName != null ? sesion.passengerName : 'Cliente Anónimo'}">Cliente</span>
                                 <br>
-                                <small class="text-muted" th:text="${sesion.id}">543512282251</small>
+                                <small class="text-muted" th:text="${sesion.phoneNumber}">543512282251</small>
                             </td>
                             <td>
                                 <span class="badge bg-secondary" th:text="${sesion.currentStep}">SELECT_ORIGIN</span>
@@ -202,9 +202,9 @@
                                 <span th:if="${sesion.isBotPaused()}" class="badge bg-danger">🛑 Muteado (Manual)</span>
                             </td>
                             <td class="d-flex align-items-center gap-2">
-                                <a th:href="@{'https://web.whatsapp.com/send'(phone=${sesion.id})}" target="_blank" class="btn btn-sm btn-primary fw-bold">
-                                    💬 Chatear en Vivo
-                                </a>
+                                <form th:action="@{/admin/chat/{phone}/takeover(phone=${sesion.phoneNumber})}" method="post" class="d-inline m-0">
+                                    <button type="submit" class="btn btn-sm btn-primary fw-bold">💬 Chatear en Vivo</button>
+                                </form>
 
                                 <form th:if="${!sesion.isBotPaused()}" th:action="@{/admin/bot/toggle-bot}" method="post" class="d-inline m-0">
                                     <input type="hidden" name="id" th:value="${sesion.id}" />

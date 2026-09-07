@@ -13,6 +13,7 @@ import com.lunaris.ansenuza.domain.model.Reservation; // 🚐 Importación de tu
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.application.usecase.LocalityService;
+import com.lunaris.ansenuza.application.usecase.TakeOverConversationUseCase;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.domain.model.service.WhatsAppConversationWindowService;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
@@ -29,6 +30,15 @@ public class ChatController {
     private final PassengerRepository passengerRepository;
     private final WhatsAppConversationWindowService conversationWindowService;
     private final WhatsAppService whatsAppService;
+    private final TakeOverConversationUseCase takeOverConversation;
+
+    @PostMapping("/{phoneNumber}/takeover")
+    public String takeOver(@PathVariable String phoneNumber, RedirectAttributes redirectAttributes) {
+        String phone = takeOverConversation.execute(phoneNumber);
+        redirectAttributes.addAttribute("phoneNumber", phone);
+        return "redirect:/admin/chat/{phoneNumber}";
+    }
+
 
     @GetMapping("/{phoneNumber}")
     public String openChat(@PathVariable String phoneNumber, Model model) {

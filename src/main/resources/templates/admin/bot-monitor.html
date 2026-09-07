@@ -91,9 +91,11 @@
                                 <i class="bi" th:classappend="${s.botPaused ? 'bi-play-fill' : 'bi-pause-fill'}"></i>
                                 <span th:text="${s.botPaused ? 'Activar Bot' : 'Pausar Bot'}"></span>
                             </button>
-                            <a th:href="@{/admin/chat/{phone}(phone=${s.phoneNumber})}" class="btn btn-primary btn-sm ms-1">
-                                <i class="bi bi-chat-text-fill"></i> Chatear
-                            </a>
+                            <form th:action="@{/admin/chat/{phone}/takeover(phone=${s.phoneNumber})}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-primary btn-sm ms-1">
+                                    <i class="bi bi-chat-text-fill"></i> Chatear
+                                </button>
+                            </form>
                         </td>
                     </tr>
                 </tbody>
