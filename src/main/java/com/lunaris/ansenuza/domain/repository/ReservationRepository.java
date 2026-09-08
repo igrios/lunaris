@@ -184,14 +184,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.REALIZED,
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW))
-           AND COALESCE(r.departureSchedule, '03:00 AM') LIKE CONCAT(:schedule, '%')
+           AND REPLACE(REPLACE(REPLACE(REPLACE(
+               UPPER(COALESCE(r.departureSchedule, '03:00 AM')), ' ', ''), 'AM', ''), 'PM', ''), 'HS', '')
+               = REPLACE(REPLACE(REPLACE(REPLACE(
+                   UPPER(:schedule), ' ', ''), 'AM', ''), 'PM', ''), 'HS', '')
            AND ((:returnDirection = true
                  AND (LOWER(r.pickupLocality) LIKE '%córdoba%'
                       OR LOWER(r.pickupLocality) LIKE '%cordoba%'
-                      OR LOWER(r.pickupLocality) LIKE '%aeropuerto%')
-                 AND LOWER(r.destination) NOT LIKE '%córdoba%'
-                 AND LOWER(r.destination) NOT LIKE '%cordoba%'
-                 AND LOWER(r.destination) NOT LIKE '%aeropuerto%')
+                      OR LOWER(r.pickupLocality) LIKE '%aeropuerto%'
+                      OR r.roundTrip = true
+                      OR UPPER(TRIM(r.routeDirection)) = 'VUELTA'
+                      OR UPPER(TRIM(r.reservationCode)) LIKE '%-VUELTA'))
                 OR (:returnDirection = false
                  AND LOWER(r.pickupLocality) NOT LIKE '%córdoba%'
                  AND LOWER(r.pickupLocality) NOT LIKE '%cordoba%'

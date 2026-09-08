@@ -122,6 +122,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     .travelDate(session.getTravelDate())
                     .returnDate(session.getReturnDate())
                     .pickupLocality(pickupLocality)
+                    .routeDirection(BotRoute.fromCordoba(pickupLocality) ? "VUELTA" : null)
                     .pickupAddress(session.getPickupAddress())
                     .destination(destination)
                     .roundTrip(session.getRoundTrip())

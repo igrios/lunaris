@@ -161,6 +161,7 @@ class ConfirmationHandlerCapacityTest {
         assertEquals("Córdoba", reservation.getValue().getPickupAddress());
         assertEquals("Morteros", reservation.getValue().getDestination());
         assertEquals("14:00", reservation.getValue().getDepartureSchedule());
+        assertEquals("VUELTA", reservation.getValue().getRouteDirection());
         assertEquals(new BigDecimal("50000.00"), reservation.getValue().getAmount());
         verify(fixture.pricing).calculateTripPrice("Morteros", Boolean.FALSE, 1);
     }
