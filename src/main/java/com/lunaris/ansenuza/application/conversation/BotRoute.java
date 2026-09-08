@@ -15,7 +15,7 @@ public final class BotRoute {
     }
 
     public static List<Locality> destinations(LocalityRepository repository) {
-        return repository.findAll().stream()
+        return repository.findAllWithActiveFare().stream()
                 .filter(locality -> !fromCordoba(locality.getName()))
                 .sorted(Comparator.comparing(Locality::getName))
                 .toList();

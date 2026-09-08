@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
+import com.lunaris.ansenuza.application.conversation.BotRoute;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.FechaParser;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -73,8 +74,10 @@ public class AskDateHandler implements ConversationStepHandler {
             return;
         }
 
-        // ⏱️ REGLA DE ORO LOGÍSTICA: Control de corte para el día siguiente (Deadline 19:00 Hs)
-        if (travelDate.equals(hoy.plusDays(1)) && operationControlService.isPastCutoffTime()) {
+        // El corte para mañana aplica a pueblos; las salidas desde Córdoba quedan exceptuadas.
+        if (travelDate.equals(hoy.plusDays(1))
+                && !BotRoute.fromCordoba(session.getPickupLocality())
+                && operationControlService.isPastCutoffTime()) {
             messaging.sendText(phoneNumber,
                     "⏱️ *Logística Cerrada para Mañana.*\n\nTe recordamos que las reservas para viajar al día siguiente cierran estrictamente a las *19:00 Hs* para poder asignar unidades y garantizar el descanso reglamentario de nuestros choferes. 🚐💤\n\nPor favor, ingresá una fecha alternativa a partir de pasados mañana:");
             return;

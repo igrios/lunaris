@@ -16,7 +16,7 @@ import com.lunaris.ansenuza.domain.repository.*;
 
 class CordobaOriginFlowTest {
     @Test
-    void selectsEveryNetworkTownAndKeepsDestinationThroughPassengerDetails() {
+    void selectsOnlyActiveFareTownsAndKeepsDestinationThroughPassengerDetails() {
         var localities = mock(LocalityRepository.class);
         var sessions = mock(ConversationSessionRepository.class);
         var pricing = mock(PricingAndScheduleService.class);
@@ -24,10 +24,9 @@ class CordobaOriginFlowTest {
         var passengers = mock(PassengerRepository.class);
         var session = ConversationSession.builder().phoneNumber("543511112222")
                 .currentStep("ASK_LOCALITY").build();
-        when(localities.findAllWithActiveFare()).thenReturn(List.of(Locality.builder().name("Morteros").build()));
-        when(localities.findAll()).thenReturn(List.of(Locality.builder().name("Morteros").build(),
+        when(localities.findAllWithActiveFare()).thenReturn(List.of(Locality.builder().name("Morteros").build(),
                 Locality.builder().name("Marull").build(), Locality.builder().name("Córdoba").build()));
-        new AskLocalityHandler(sessions, localities, pricing, messaging).handle(session, message("2"));
+        new AskLocalityHandler(sessions, localities, pricing, messaging).handle(session, message("3"));
         assertEquals("Córdoba", session.getPickupLocality());
         assertEquals("Córdoba", session.getPickupAddress());
         assertEquals("ASK_TOWN_DESTINATION", session.getCurrentStep());
@@ -47,6 +46,7 @@ class CordobaOriginFlowTest {
         assertEquals("ASK_TRIP_TYPE", session.getCurrentStep());
         assertEquals("Marull", session.getDestination());
         assertEquals("Córdoba", session.getPickupAddress());
+        verify(localities, never()).findAll();
     }
 
     private IncomingMessage message(String body) {

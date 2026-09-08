@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
+import com.lunaris.ansenuza.application.conversation.BotRoute;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
@@ -59,7 +60,8 @@ public class AskTripTypeHandler implements ConversationStepHandler {
                     "Hoy (" + today.format(payloadFormat) + ")"));
         }
         LocalDate candidate = today.plusDays(1);
-        if (operationControlService.isPastCutoffTime()) {
+        if (!BotRoute.fromCordoba(session.getPickupLocality())
+                && operationControlService.isPastCutoffTime()) {
             candidate = candidate.plusDays(1);
         }
         if (options.size() < 3) {
