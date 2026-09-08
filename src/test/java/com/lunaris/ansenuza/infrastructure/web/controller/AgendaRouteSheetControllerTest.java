@@ -90,7 +90,8 @@ class AgendaRouteSheetControllerTest {
                 mock(FleetCapacityService.class),
                 mock(com.lunaris.ansenuza.domain.repository.WaitingListRepository.class),
                 mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class), originResolver,
-                mock(com.lunaris.ansenuza.application.usecase.DriverAuthorizationService.class));
+                mock(com.lunaris.ansenuza.application.usecase.DriverAuthorizationService.class),
+                mock(com.lunaris.ansenuza.application.usecase.DailyPassengerManifestService.class));
         ConcurrentModel model = new ConcurrentModel();
 
         var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(

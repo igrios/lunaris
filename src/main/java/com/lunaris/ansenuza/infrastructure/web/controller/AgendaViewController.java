@@ -31,6 +31,7 @@ import com.lunaris.ansenuza.domain.model.WaitingListEntry;
 import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.application.usecase.ConfirmPaymentUseCase;
 import com.lunaris.ansenuza.application.usecase.DriverAuthorizationService;
+import com.lunaris.ansenuza.application.usecase.DailyPassengerManifestService;
 import com.lunaris.ansenuza.application.conversation.GoogleMapsParameterFormatter;
 import com.lunaris.ansenuza.domain.port.in.ResolveEffectiveTripOriginUseCase;
 import com.lunaris.ansenuza.domain.port.in.RouteOriginResolution;
@@ -61,6 +62,7 @@ public class AgendaViewController {
     private final SystemConfigurationService systemConfigurationService;
     private final ResolveEffectiveTripOriginUseCase resolveEffectiveTripOriginUseCase;
     private final DriverAuthorizationService driverAuthorizationService;
+    private final DailyPassengerManifestService dailyPassengerManifestService;
 
     @Value("${whatsapp.access-token}")
     private String whatsappToken;
@@ -295,6 +297,44 @@ public class AgendaViewController {
                 totalRevenue.subtract(fleetSummary.externalDriverExpense()));
 
         return "agenda-day";
+    }
+
+    @GetMapping("/admin/agenda/manifiesto")
+    public String dailyManifestView(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            Model model) {
+        LocalDate operationDate = date == null ? com.lunaris.ansenuza.shared.ArgentinaTime.today() : date;
+        List<Reservation> reservations = reservationRepository.findDailyManifest(operationDate);
+        model.addAttribute("date", operationDate);
+        model.addAttribute("reservations", reservations);
+        model.addAttribute("outboundReservations", reservations.stream()
+                .filter(reservation -> !isManifestReturn(reservation)).toList());
+        model.addAttribute("returnReservations", reservations.stream()
+                .filter(AgendaViewController::isManifestReturn).toList());
+        model.addAttribute("totalPassengers", reservations.stream().mapToInt(Reservation::getTotalSeats).sum());
+        return "admin/daily-passenger-manifest";
+    }
+
+    private static boolean isManifestReturn(Reservation reservation) {
+        return "VUELTA".equalsIgnoreCase(reservation.getRouteDirection())
+                || TripRouteCalculatorService.isCordoba(reservation.getPickupLocality());
+    }
+
+    @GetMapping(value = "/admin/agenda/manifiesto-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> dailyManifestPdf(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date) {
+        LocalDate operationDate = date == null ? com.lunaris.ansenuza.shared.ArgentinaTime.today() : date;
+        List<Reservation> reservations = reservationRepository.findDailyManifest(operationDate);
+        byte[] pdf = dailyPassengerManifestService.generatePdf(operationDate, reservations);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"manifiesto-pasajeros-" + operationDate + ".pdf\"")
+                .body(pdf);
     }
 
     static boolean isSpecialTrip(Reservation reservation) {

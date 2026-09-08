@@ -162,6 +162,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
            SELECT DISTINCT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
+           WHERE r.travelDate = :date
+             AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED')
+             AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN,
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.COMPLETED,
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.REALIZED,
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
+                 com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW))
+           ORDER BY r.routeDirection ASC, r.departureSchedule ASC, r.createdAt ASC
+           """)
+    List<Reservation> findDailyManifest(@Param("date") LocalDate date);
+
+    @Query("""
+           SELECT DISTINCT r FROM Reservation r
+           LEFT JOIN FETCH r.passenger
            LEFT JOIN FETCH r.driver
            WHERE r.travelDate BETWEEN :startDate AND :endDate
            ORDER BY r.travelDate ASC, r.departureSchedule ASC

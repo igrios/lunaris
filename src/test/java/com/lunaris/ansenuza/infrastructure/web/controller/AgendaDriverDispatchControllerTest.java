@@ -53,7 +53,8 @@ class AgendaDriverDispatchControllerTest {
                 mock(FleetCapacityService.class),
                 mock(com.lunaris.ansenuza.domain.repository.WaitingListRepository.class),
                 mock(com.lunaris.ansenuza.domain.model.service.SystemConfigurationService.class), originResolver,
-                mock(com.lunaris.ansenuza.application.usecase.DriverAuthorizationService.class));
+                mock(com.lunaris.ansenuza.application.usecase.DriverAuthorizationService.class),
+                mock(com.lunaris.ansenuza.application.usecase.DailyPassengerManifestService.class));
         UUID driverId = UUID.randomUUID();
         UUID reservationId = UUID.randomUUID();
         Driver driver = new Driver();

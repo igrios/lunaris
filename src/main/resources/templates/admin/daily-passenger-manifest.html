@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Manifiesto Diario · Lunaris Ansenuza</title>
+    <style>
+        @page { size: A4 landscape; margin: 12mm; }
+        body { font-family: Arial, sans-serif; color: #172033; margin: 0; font-size: 10px; }
+        header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #172033; margin-bottom: 14px; }
+        h1 { margin: 0; font-size: 22px; } h2 { margin: 16px 0 6px; font-size: 14px; }
+        .meta { text-align: right; font-size: 11px; } .actions { margin: 14px 0; }
+        button, a { border: 1px solid #172033; background: #172033; color: white; padding: 8px 12px; text-decoration: none; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        th, td { border: 1px solid #aab3c2; padding: 5px; text-align: left; vertical-align: top; }
+        th { background: #e3eaf3; font-weight: bold; } .empty { color: #667085; font-style: italic; }
+        @media print { .actions { display: none; } body { font-size: 9px; } }
+    </style>
+</head>
+<body>
+<header>
+    <div><h1>Lunaris Ansenuza</h1><div>Manifiesto Diario de Pasajeros</div></div>
+    <div class="meta">Fecha: <strong th:text="${date}">2026-01-01</strong><br>
+        Total pasajeros/asientos: <strong th:text="${totalPassengers}">0</strong></div>
+</header>
+<div class="actions">
+    <button type="button" onclick="window.print()">Descargar PDF / Imprimir Manifiesto</button>
+    <a th:href="@{/admin/agenda/manifiesto-pdf(date=${date})}">Abrir PDF</a>
+</div>
+<h2>TRAMOS DE IDA · Pueblos → Córdoba / destinos</h2>
+<table><thead><tr><th>Horario</th><th>Pasajero</th><th>Teléfono</th><th>Origen / Punto de ascenso</th><th>Destino</th><th>Asientos / acompañantes</th><th>Estado de pago</th></tr></thead>
+<tbody><tr th:each="r : ${outboundReservations}">
+    <td th:text="${r.departureSchedule != null ? r.departureSchedule : '03:00'}"></td>
+    <td th:text="${(r.passenger.firstName + ' ' + r.passenger.lastName).trim()}"></td><td th:text="${r.passenger.phone}"></td>
+    <td th:text="${r.pickupLocality + ' · ' + (r.pickupAddress != null ? r.pickupAddress : '')}"></td><td th:text="${r.destination}"></td>
+    <td th:text="${r.totalSeats}"></td><td th:text="${r.paymentVerified == true ? 'VERIFICADO' : 'PENDIENTE'}"></td>
+</tr><tr th:if="${#lists.isEmpty(outboundReservations)}"><td colspan="7" class="empty">Sin pasajeros en tramos de ida.</td></tr></tbody></table>
+<h2>TRAMOS DE VUELTA · Córdoba → Pueblos</h2>
+<table><thead><tr><th>Horario</th><th>Pasajero</th><th>Teléfono</th><th>Origen / Punto de ascenso</th><th>Destino</th><th>Asientos / acompañantes</th><th>Estado de pago</th></tr></thead>
+<tbody><tr th:each="r : ${returnReservations}">
+    <td th:text="${r.departureSchedule != null ? r.departureSchedule : '03:00'}"></td>
+    <td th:text="${(r.passenger.firstName + ' ' + r.passenger.lastName).trim()}"></td><td th:text="${r.passenger.phone}"></td>
+    <td th:text="${r.pickupLocality + ' · ' + (r.pickupAddress != null ? r.pickupAddress : '')}"></td><td th:text="${r.destination}"></td>
+    <td th:text="${r.totalSeats}"></td><td th:text="${r.paymentVerified == true ? 'VERIFICADO' : 'PENDIENTE'}"></td>
+</tr><tr th:if="${#lists.isEmpty(returnReservations)}"><td colspan="7" class="empty">Sin pasajeros en tramos de vuelta.</td></tr></tbody></table>
+</body>
+</html>
