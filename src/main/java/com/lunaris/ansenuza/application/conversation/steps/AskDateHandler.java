@@ -87,7 +87,7 @@ public class AskDateHandler implements ConversationStepHandler {
             conversationSessionRepository.saveAndFlush(session);
 
             messaging.sendButtons(phoneNumber, "Fecha de Regreso",
-                    "📅 *¿Cuándo programamos el regreso desde Córdoba?*\n\nSi todavía no sabés el día exacto, podés dejar la fecha abierta y coordinarla más adelante con Martín.",
+                    "📅 *¿Cuándo programamos el regreso?*\n\nSi todavía no sabés el día exacto, podés dejar la fecha abierta y coordinarla más adelante con Martín.",
                     List.of(new Button("return_same_day", "Vuelvo en el día"),
                             new Button("return_choose_date", "Otra fecha"),
                             new Button("return_open", "Fecha abierta")));

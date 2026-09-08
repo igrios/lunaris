@@ -220,7 +220,7 @@ public class PricingAndScheduleService {
             return pickupLocality;
         }
 
-        return pickupLocality.toLowerCase().contains("córdoba") ? destination : pickupLocality;
+        return normalizeLocality(pickupLocality).contains("cordoba") ? destination : pickupLocality;
     }
 
     public long countReservedSeats(LocalDate date, String schedule) {
@@ -254,6 +254,9 @@ public class PricingAndScheduleService {
      * ⏱️ REESCRITO COMPATIBILIDAD Y URGENCIA: Corrige el error que clavaba a las 03:00 AM el turno de las 08:00
      */
     public String calculateEstimatedPickupTime(String localityName, String baseTimeStr) {
+        if (localityName != null && "cordoba".equals(normalizeLocality(localityName))) {
+            return baseTimeStr + " hs";
+        }
         if ("08:00".equals(baseTimeStr.trim())) {
             // Redirige dinámicamente usando la fecha de hoy como fallback seguro para calcular el desvío de las 08:00 AM
             return calculateEstimatedPickupTime(

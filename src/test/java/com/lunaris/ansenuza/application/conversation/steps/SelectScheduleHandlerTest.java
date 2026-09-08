@@ -20,7 +20,8 @@ class SelectScheduleHandlerTest {
         ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         PassengerRepository passengers = mock(PassengerRepository.class);
         MessagingPort messaging = mock(MessagingPort.class);
-        SelectScheduleHandler handler = new SelectScheduleHandler(sessions, passengers, messaging);
+        SelectScheduleHandler handler = new SelectScheduleHandler(sessions, passengers, messaging,
+                mock(com.lunaris.ansenuza.application.usecase.ScheduleService.class));
         ConversationSession session = ConversationSession.builder()
                 .phoneNumber("543511112222")
                 .currentStep("SELECT_SCHEDULE")

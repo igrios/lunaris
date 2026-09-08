@@ -1,5 +1,7 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import com.lunaris.ansenuza.application.conversation.BotRoute;
+
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -45,7 +47,24 @@ public class AskLocalityHandler implements ConversationStepHandler {
         }
         try {
             int option = Integer.parseInt(body);
-            List<Locality> localities = localityRepository.findAllWithActiveFare();
+            List<Locality> localities = localityRepository.findAllWithActiveFare().stream()
+                .filter(locality -> !BotRoute.fromCordoba(locality.getName()))
+                .toList();
+
+            if (option == localities.size() + 1) {
+                session.setPickupLocality("Córdoba");
+                session.setPickupAddress("Córdoba");
+                session.setDestination(null);
+                session.setCurrentStep("ASK_TOWN_DESTINATION");
+                conversationSessionRepository.saveAndFlush(session);
+                StringBuilder menu = new StringBuilder("🎯 *¿A qué localidad viajás desde Córdoba?*\n\n");
+                List<Locality> destinations = BotRoute.destinations(localityRepository);
+                for (int i = 0; i < destinations.size(); i++) {
+                    menu.append(i + 1).append(") ").append(destinations.get(i).getName()).append("\n");
+                }
+                messaging.sendText(phoneNumber, menu.append("\nRespondé con el número del destino.").toString());
+                return;
+            }
 
             if (option < 1 || option > localities.size()) {
                 messaging.sendText(phoneNumber,

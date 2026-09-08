@@ -1,5 +1,7 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import com.lunaris.ansenuza.application.conversation.BotRoute;
+
 import java.time.LocalDate;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
@@ -52,7 +54,9 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
             conversationSessionRepository.saveAndFlush(session);
             messaging.sendText(phoneNumber,
                     "✍️ *Por favor, ingresá la fecha deseada* (ejemplo: 12/08 o 12 de agosto).\n\n"
-                            + "Ventanas desde Córdoba: 14:00 a 15:00 hs o 17:30 a 18:00 hs.");
+                            + (BotRoute.fromCordoba(session.getPickupLocality())
+                                    ? "El horario de regreso desde el pueblo se coordinará con un operador."
+                                    : "Ventanas desde Córdoba: 14:00 a 15:00 hs o 17:30 a 18:00 hs."));
             return;
         }
         if ("return_open".equals(body)) {

@@ -1,5 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
+import com.lunaris.ansenuza.application.conversation.BotRoute;
+
 import com.lunaris.ansenuza.application.dto.ScheduleDto;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import java.time.LocalDate;
@@ -53,6 +55,11 @@ public class ScheduleService {
 
     public List<String> getSchedulesForBot(
             String pickupLocality, String destination, LocalDate travelDate) {
+        if (BotRoute.fromCordoba(pickupLocality)) {
+            return travelDate == null ? RETURN_SCHEDULES : getReturnSchedulesForWeb(travelDate).stream()
+                    .filter(schedule -> schedule.availableSeats() > 0)
+                    .map(schedule -> schedule.id()).toList();
+        }
         if (!isActivePickupLocality(pickupLocality)) {
             return List.of();
         }

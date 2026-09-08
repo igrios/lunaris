@@ -1,5 +1,7 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import com.lunaris.ansenuza.application.conversation.BotRoute;
+
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -73,7 +75,8 @@ public class ConfirmationHandler implements ConversationStepHandler {
             BigDecimal price = airportTrip
                     ? BigDecimal.ZERO
                     : pricingAndScheduleService.calculateTripPrice(
-                            session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
+                            BotRoute.fromCordoba(session.getPickupLocality())
+                        ? session.getDestination() : session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
 
             BigDecimal discountAmount = BigDecimal.ZERO;
             boolean freePromotion = false;
@@ -157,7 +160,8 @@ public class ConfirmationHandler implements ConversationStepHandler {
                 return;
             }
 
-            if (Boolean.TRUE.equals(session.getRoundTrip())) {
+            if (Boolean.TRUE.equals(session.getRoundTrip())
+                    && !BotRoute.fromCordoba(session.getPickupLocality())) {
                 messaging.sendText(phoneNumber, "📌 Información importante sobre tu regreso: "
                         + "Las salidas de regreso desde Córdoba se realizan de 14:00 a 15:00 hs "
                         + "o de 17:30 a 18:00 hs. Podés responder a este mensaje indicándonos "

@@ -25,6 +25,14 @@ public class PassengerAddressResolver {
     private final MessagingPort messaging;
 
     public void resolve(String phoneNumber, ConversationSession session) {
+        if (BotRoute.fromCordoba(session.getPickupLocality())) {
+            session.setCurrentStep("ASK_TRIP_TYPE");
+            conversationSessionRepository.saveAndFlush(session);
+            messaging.sendButtons(phoneNumber, "Modalidad", "🔄 *¿Qué tipo de viaje vas a realizar?*",
+                    List.of(new Button("trip_ida", "Solo ida ➡️"),
+                            new Button("trip_completo", "Ida y vuelta 🔄")));
+            return;
+        }
         Optional<Passenger> passengerOpt = passengerRepository.findByPhone(phoneNumber);
         if (passengerOpt.isPresent() && passengerOpt.get().getAddress() != null
                 && passengerOpt.get().getLocality() != null) {

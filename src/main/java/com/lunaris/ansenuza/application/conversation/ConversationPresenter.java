@@ -28,7 +28,9 @@ public class ConversationPresenter {
     private final MessagingPort messaging;
 
     public void sendAllLocalitiesList(String phoneNumber, String saludo) {
-        List<Locality> localities = localityRepository.findAllWithActiveFare();
+        List<Locality> localities = localityRepository.findAllWithActiveFare().stream()
+                .filter(locality -> !BotRoute.fromCordoba(locality.getName()))
+                .toList();
         StringBuilder menu = new StringBuilder(saludo)
                 .append("📍 *¿Desde qué localidad salís?*\n\n");
         int index = 1;
@@ -36,7 +38,8 @@ public class ConversationPresenter {
             menu.append("*").append(index).append(")* ").append(locality.getName()).append("\n");
             index++;
         }
-        menu.append("\n*0)* Volver al Menú Principal\n\n_Respondé escribiendo únicamente el número que corresponda a tu pueblo de origen._");
+        menu.append("*").append(index).append(")* Córdoba\n");
+        menu.append("\n*0)* Volver al Menú Principal\n\n_Respondé escribiendo únicamente el número que corresponda a tu localidad de origen._");
         messaging.sendText(phoneNumber, menu.toString());
     }
 
@@ -66,7 +69,8 @@ public class ConversationPresenter {
 
         // 💰 Cálculo del precio bruto base del viaje
         BigDecimal priceBase = pricingAndScheduleService.calculateTripPrice(
-                session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
+                BotRoute.fromCordoba(session.getPickupLocality())
+                        ? session.getDestination() : session.getPickupLocality(), session.getRoundTrip(), totalAsientos);
 
         // 💳 Verificamos el saldo corriente a favor del pasajero
         BigDecimal saldoAplicado = BigDecimal.ZERO;

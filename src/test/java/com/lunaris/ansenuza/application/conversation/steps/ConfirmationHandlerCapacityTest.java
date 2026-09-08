@@ -144,6 +144,27 @@ class ConfirmationHandlerCapacityTest {
         assertEquals("08:00 AM", reservation.getValue().getDepartureSchedule());
     }
 
+    @Test
+    void cordobaOriginUsesDestinationFareAndPreservesReturnDeparture() {
+        Fixture fixture = new Fixture(BigDecimal.ZERO, new BigDecimal("50000.00"));
+        fixture.session.setPickupLocality("Cordoba");
+        fixture.session.setPickupAddress("Córdoba");
+        fixture.session.setDestination("Morteros");
+        fixture.session.setScheduleBlock("14:00");
+        ArgumentCaptor<Reservation> reservation = ArgumentCaptor.forClass(Reservation.class);
+        when(fixture.reservations.saveReservationFlow(reservation.capture()))
+                .thenAnswer(invocation -> List.of(invocation.getArgument(0, Reservation.class)));
+
+        fixture.handler.handle(fixture.session, fixture.confirmationMessage());
+
+        assertEquals("Córdoba", reservation.getValue().getPickupLocality());
+        assertEquals("Córdoba", reservation.getValue().getPickupAddress());
+        assertEquals("Morteros", reservation.getValue().getDestination());
+        assertEquals("14:00", reservation.getValue().getDepartureSchedule());
+        assertEquals(new BigDecimal("50000.00"), reservation.getValue().getAmount());
+        verify(fixture.pricing).calculateTripPrice("Morteros", Boolean.FALSE, 1);
+    }
+
     private static final class Fixture {
         private final ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
         private final PassengerRepository passengers = mock(PassengerRepository.class);

@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
 import java.util.List;
+import com.lunaris.ansenuza.application.conversation.BotRoute;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -55,8 +56,9 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
                     schedules.stream()
                             .map(schedule -> new Button(
                                     buttonPayload(schedule),
-                                    "03:00 AM".equals(schedule)
-                                            ? "Horario 1 🌙" : "Horario 2 ☀️"))
+                                    BotRoute.fromCordoba(session.getPickupLocality())
+                                            ? schedule : "03:00 AM".equals(schedule)
+                                                    ? "Horario 1 🌙" : "Horario 2 ☀️"))
                             .toList());
             return;
         }

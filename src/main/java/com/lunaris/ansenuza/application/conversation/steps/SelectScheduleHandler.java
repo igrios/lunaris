@@ -1,6 +1,9 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import com.lunaris.ansenuza.application.conversation.BotRoute;
+
 import java.util.Optional;
+import com.lunaris.ansenuza.application.usecase.ScheduleService;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -19,6 +22,7 @@ public class SelectScheduleHandler implements ConversationStepHandler {
     private final ConversationSessionRepository conversationSessionRepository;
     private final PassengerRepository passengerRepository;
     private final MessagingPort messaging;
+    private final ScheduleService scheduleService;
 
     @Override
     public String step() {
@@ -30,7 +34,16 @@ public class SelectScheduleHandler implements ConversationStepHandler {
         String phoneNumber = session.getPhoneNumber();
         String body = message.body().trim().toLowerCase();
 
-        if ("schedule_03_00".equals(body) || "time_0300".equals(body)) {
+        if (BotRoute.fromCordoba(session.getPickupLocality())) {
+            String selected = scheduleService.getSchedulesForBot(
+                    session.getPickupLocality(), session.getDestination(), session.getTravelDate()).stream()
+                    .filter(schedule -> ("schedule_" + schedule.substring(0, 5).replace(':', '_')).equals(body))
+                    .findFirst().orElse(null);
+            if (selected == null) {
+                return;
+            }
+            session.setScheduleBlock(selected);
+        } else if ("schedule_03_00".equals(body) || "time_0300".equals(body)) {
             session.setScheduleBlock("03:00 AM");
         } else if ("schedule_08_00".equals(body) || "time_0800".equals(body)) {
             session.setScheduleBlock("08:00 AM");

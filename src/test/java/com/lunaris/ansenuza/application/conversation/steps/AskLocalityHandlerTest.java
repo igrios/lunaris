@@ -35,7 +35,7 @@ class AskLocalityHandlerTest {
                 Locality.builder().name("Morteros").build()));
 
         handler.handle(session, new IncomingMessage(
-                session.getPhoneNumber(), IncomingMessage.MessageType.TEXT, "2", null));
+                session.getPhoneNumber(), IncomingMessage.MessageType.TEXT, "3", null));
 
         verify(localities).findAllWithActiveFare();
         verify(messaging).sendText(eq(session.getPhoneNumber()), contains("Selección inválida"));
