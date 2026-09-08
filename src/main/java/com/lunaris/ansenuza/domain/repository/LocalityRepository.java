@@ -13,11 +13,15 @@ public interface LocalityRepository extends JpaRepository<Locality, UUID> {
 
     Optional<Locality> findFirstByNameIgnoreCase(String name);
 
-    /** Devuelve exclusivamente localidades con una tarifa comercial activa y positiva. */
+    /**
+     * Localidades publicables en el bot: existe una tarifa positiva asociada.
+     * En el esquema actual una tarifa se considera activa mientras conserve un importe
+     * positivo; no se agrega una columna para no alterar el contrato de la tabla fares.
+     */
     @Query("""
             SELECT DISTINCT l
             FROM Locality l
-            INNER JOIN Fare f ON UPPER(l.name) = UPPER(f.localityName)
+            INNER JOIN Fare f ON TRIM(UPPER(l.name)) = TRIM(UPPER(f.localityName))
             WHERE f.amount IS NOT NULL AND f.amount > 0
             ORDER BY l.name ASC
             """)

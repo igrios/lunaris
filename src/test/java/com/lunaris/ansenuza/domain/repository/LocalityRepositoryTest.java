@@ -67,4 +67,14 @@ class LocalityRepositoryTest {
                 .extracting(Locality::getName)
                 .isEqualTo("San Guillermo");
     }
+
+    @Test
+    void activeFareJoinIgnoresCaseAndPaddingInFareLocalityName() {
+        Locality locality = localityRepository.save(Locality.builder().name("  Marull  ").build());
+        fareRepository.save(Fare.builder().localityName(" marull ").amount(new BigDecimal("12000")).build());
+
+        assertThat(localityRepository.findAllWithActiveFare())
+                .extracting(Locality::getId)
+                .containsExactly(locality.getId());
+    }
 }
