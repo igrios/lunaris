@@ -1,6 +1,9 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -116,5 +119,30 @@ class AskAddressTextHandlerTest {
                 session.getPhoneNumber(),
                 "⚠️ No pudimos guardar esa dirección. Enviá nuevamente calle y número, "
                         + "o compartí tu ubicación.");
+    }
+
+    @Test
+    void cordobaOriginStoresPickupPointAndAdvancesWithoutRequestingDestinationAgain() {
+        ConversationSessionRepository sessions = mock(ConversationSessionRepository.class);
+        UpdatePassengerAddressUseCase addressUpdater = mock(UpdatePassengerAddressUseCase.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        AskAddressTextHandler handler = new AskAddressTextHandler(sessions, addressUpdater, messaging);
+        ConversationSession session = ConversationSession.builder()
+                .phoneNumber("543512282251")
+                .currentStep("ASK_ADDRESS_TEXT")
+                .pickupLocality("Córdoba")
+                .destination("Morteros")
+                .build();
+
+        handler.handle(session, new IncomingMessage(
+                session.getPhoneNumber(), IncomingMessage.MessageType.TEXT,
+                " Terminal de Ómnibus ", null));
+
+        assertEquals("Terminal de Ómnibus", session.getPickupAddress());
+        assertEquals("ASK_TRIP_TYPE", session.getCurrentStep());
+        verify(addressUpdater).update(
+                session.getPhoneNumber(), "Terminal de Ómnibus", "Córdoba");
+        verify(messaging).sendButtons(eq(session.getPhoneNumber()),
+                eq("Dirección de ascenso registrada"), contains("Terminal de Ómnibus"), anyList());
     }
 }

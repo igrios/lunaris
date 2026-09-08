@@ -43,15 +43,25 @@ public class AskAddressTextHandler implements ConversationStepHandler {
                     phoneNumber, normalizedAddress, session.getPickupLocality());
 
             session.setPickupAddress(normalizedAddress);
-            session.setCurrentStep("ASK_DESTINATION");
+            boolean cordobaOrigin = com.lunaris.ansenuza.application.conversation.BotRoute
+                    .fromCordoba(session.getPickupLocality());
+            session.setCurrentStep(cordobaOrigin ? "ASK_TRIP_TYPE" : "ASK_DESTINATION");
             conversationSessionRepository.saveAndFlush(session);
 
-            messaging.sendButtons(phoneNumber, "Dirección actualizada",
-                    "✅ *Actualizamos tu dirección de retiro:*\n"
-                            + normalizedAddress + "\n\n"
-                            + "🎯 *¿Hacia dónde viajás en Córdoba?*",
-                    List.of(new Button("dest_aeropuerto", "Aeropuerto Cba ✈️"),
-                            new Button("dest_capital", "Córdoba Capital 🏢")));
+            if (cordobaOrigin) {
+                messaging.sendButtons(phoneNumber, "Dirección de ascenso registrada",
+                        "✅ *Registramos tu punto de ascenso:*\n" + normalizedAddress
+                                + "\n\n🔄 *¿Qué tipo de viaje vas a realizar?*",
+                        List.of(new Button("trip_ida", "Solo ida ➡️"),
+                                new Button("trip_completo", "Ida y vuelta 🔄")));
+            } else {
+                messaging.sendButtons(phoneNumber, "Dirección actualizada",
+                        "✅ *Actualizamos tu dirección de retiro:*\n"
+                                + normalizedAddress + "\n\n"
+                                + "🎯 *¿Hacia dónde viajás en Córdoba?*",
+                        List.of(new Button("dest_aeropuerto", "Aeropuerto Cba ✈️"),
+                                new Button("dest_capital", "Córdoba Capital 🏢")));
+            }
         } catch (RuntimeException exception) {
             log.warn("No se pudo actualizar la dirección del pasajero {}.", phoneNumber, exception);
             session.setCurrentStep("ASK_ADDRESS_TEXT");

@@ -53,7 +53,8 @@ public class AskLocalityHandler implements ConversationStepHandler {
 
             if (option == localities.size() + 1) {
                 session.setPickupLocality("Córdoba");
-                session.setPickupAddress("Córdoba");
+                // La dirección concreta se solicita en el paso común ASK_ADDRESS_TEXT.
+                session.setPickupAddress(null);
                 session.setDestination(null);
                 session.setCurrentStep("ASK_TOWN_DESTINATION");
                 conversationSessionRepository.saveAndFlush(session);

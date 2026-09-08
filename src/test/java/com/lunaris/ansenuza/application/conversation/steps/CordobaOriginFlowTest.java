@@ -28,7 +28,7 @@ class CordobaOriginFlowTest {
                 Locality.builder().name("Marull").build(), Locality.builder().name("Córdoba").build()));
         new AskLocalityHandler(sessions, localities, pricing, messaging).handle(session, message("3"));
         assertEquals("Córdoba", session.getPickupLocality());
-        assertEquals("Córdoba", session.getPickupAddress());
+        assertNull(session.getPickupAddress());
         assertEquals("ASK_TOWN_DESTINATION", session.getCurrentStep());
         verify(messaging).sendText(anyString(), contains("1) Marull"));
         when(pricing.calculateTripPrice("Marull", true, 1)).thenReturn(new BigDecimal("50000"));
@@ -43,9 +43,9 @@ class CordobaOriginFlowTest {
         selector.handle(session, message("schedule_17_30"));
         assertEquals("17:30", session.getScheduleBlock());
         new PassengerAddressResolver(passengers, sessions, messaging).resolve(session.getPhoneNumber(), session);
-        assertEquals("ASK_TRIP_TYPE", session.getCurrentStep());
+        assertEquals("ASK_ADDRESS_TEXT", session.getCurrentStep());
         assertEquals("Marull", session.getDestination());
-        assertEquals("Córdoba", session.getPickupAddress());
+        verify(messaging).requestLocation(eq(session.getPhoneNumber()), contains("Córdoba"));
         verify(localities, never()).findAll();
     }
 
