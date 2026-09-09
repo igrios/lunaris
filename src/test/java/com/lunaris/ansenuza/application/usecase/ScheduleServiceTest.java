@@ -71,8 +71,8 @@ class ScheduleServiceTest {
     void returnContractUsesCalculatedReturnWindowsWithoutGenericLabels() {
         PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
         LocalDate date = LocalDate.of(2026, 8, 22);
-        when(pricing.availableSeats(date, "14:00")).thenReturn(8);
-        when(pricing.availableSeats(date, "17:30")).thenReturn(4);
+        when(pricing.availableReturnSeats(date, "14:00")).thenReturn(8);
+        when(pricing.availableReturnSeats(date, "17:30")).thenReturn(4);
         when(pricing.calculateEstimatedPickupTime(null, "14:00", true, date))
                 .thenReturn("14:00 hs");
         when(pricing.calculateEstimatedPickupTime(null, "17:30", true, date))

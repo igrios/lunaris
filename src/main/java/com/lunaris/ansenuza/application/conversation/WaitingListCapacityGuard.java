@@ -7,6 +7,7 @@ import com.lunaris.ansenuza.domain.model.service.SystemConfigurationService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.CapacityLockRepository;
+import com.lunaris.ansenuza.domain.model.service.ReturnCapacityPolicy;
 import java.text.Normalizer;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
@@ -56,21 +57,25 @@ public class WaitingListCapacityGuard {
         // el comportamiento de conteo sin persistencia.
         if (capacityLockRepository != null && session.getTravelDate() != null) {
             String direction = isCordoba(session.getPickupLocality()) ? "RETURN" : "OUTBOUND";
-            String key = session.getTravelDate() + "|" + normalize(schedule) + "|" + direction;
+            String key = session.getTravelDate() + "|" + ("RETURN".equals(direction) ? "DAY" : normalize(schedule)) + "|" + direction;
             capacityLockRepository.ensureExists(key);
             if (capacityLockRepository.findForUpdate(key) == null) {
                 throw new IllegalStateException("No se pudo bloquear la capacidad del turno.");
             }
         }
-        int occupiedSeats = Math.toIntExact(reservationRepository.countReservedSeats(
-                session.getTravelDate(), schedule));
-        int maxCapacity = systemConfigurationService.getPrimaryVehicleCapacity();
+        boolean returning = isCordoba(session.getPickupLocality());
+        int maxCapacity = returning ? ReturnCapacityPolicy.CAPACITY
+                : systemConfigurationService.getPrimaryVehicleCapacity();
+        long available = returning
+                ? ReturnCapacityPolicy.availableSeats(reservationRepository, session.getTravelDate(), schedule)
+                : maxCapacity - reservationRepository.countReservedSeats(session.getTravelDate(), schedule);
 
-        if (occupiedSeats + requestedSeats <= maxCapacity) {
+        if (requestedSeats <= available) {
             return false;
         }
 
         waitingListService.join(session);
+        session.setCurrentStep("WAITING_LIST");
         messaging.sendText(session.getPhoneNumber(),
                 "⏳ La unidad principal de " + maxCapacity + " pasajeros para el " + schedule
                         + " está completa. Te agregamos a la Lista de Espera y te avisaremos "
@@ -81,7 +86,7 @@ public class WaitingListCapacityGuard {
     }
 
     private static boolean isCordoba(String locality) {
-        return locality != null && normalize(locality).contains("cordoba");
+        return com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService.isCordoba(locality);
     }
 
     private static String normalize(String value) {

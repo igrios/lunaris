@@ -13,11 +13,9 @@ import com.lunaris.ansenuza.domain.repository.FareRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.model.TripType;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class PricingAndScheduleService {
 
@@ -33,6 +31,24 @@ public class PricingAndScheduleService {
     private final LocalityRepository localityRepository;
     private final BusinessParameterRepository businessParameterRepository;
     private final ReservationRepository reservationRepository; 
+
+    private final java.time.Clock clock;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PricingAndScheduleService(FareRepository fares, LocalityRepository localities,
+            BusinessParameterRepository parameters, ReservationRepository reservations) {
+        this(fares, localities, parameters, reservations,
+                java.time.Clock.system(com.lunaris.ansenuza.shared.ArgentinaTime.ZONE_ID));
+    }
+
+    public PricingAndScheduleService(FareRepository fares, LocalityRepository localities,
+            BusinessParameterRepository parameters, ReservationRepository reservations, java.time.Clock clock) {
+        this.fareRepository = fares;
+        this.localityRepository = localities;
+        this.businessParameterRepository = parameters;
+        this.reservationRepository = reservations;
+        this.clock = clock;
+    }
 
     @Value("${lunaris.trips.capacity:12}")
     private int tripCapacity = 12;
@@ -229,6 +245,15 @@ public class PricingAndScheduleService {
 
     public List<String> departureSchedules() {
         return DEPARTURE_BLOCKS;
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public int availableReturnSeats(LocalDate date, String schedule) {
+        return ReturnCapacityPolicy.availableSeats(reservationRepository, date, schedule, java.time.LocalDateTime.now(clock));
+    }
+
+    public boolean hasReturnCapacity(LocalDate date, String schedule, int requestedSeats) {
+        return requestedSeats > 0 && availableReturnSeats(date, schedule) >= requestedSeats;
     }
 
     public int availableSeats(LocalDate date, String schedule) {

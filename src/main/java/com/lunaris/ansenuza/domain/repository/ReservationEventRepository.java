@@ -9,6 +9,9 @@ import com.lunaris.ansenuza.domain.model.ReservationEvent;
 @Repository
 public interface ReservationEventRepository extends JpaRepository<ReservationEvent, UUID> {
     
+    boolean existsByReservationIdAndEventTypeAndCreatedAtGreaterThanEqual(
+            UUID reservationId, String eventType, java.time.LocalDateTime since);
+
     // Método clave para cuando armemos la pantalla /timeline de Martín
     List<ReservationEvent> findByReservationIdOrderByCreatedAtAsc(UUID reservationId);
 }

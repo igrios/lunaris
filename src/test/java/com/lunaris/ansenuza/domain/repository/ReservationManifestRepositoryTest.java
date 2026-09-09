@@ -96,6 +96,24 @@ class ReservationManifestRepositoryTest {
                 .extracting(Reservation::getId).containsExactly(matching.getId());
     }
 
+    @Test
+    void returnCapacityIncludesLinkedUndatedReturnsWithoutCountingOutboundTwice() {
+        save("Morteros", "Córdoba", "03:00 AM", "IDA", true, "OPEN-IDA",
+                DATE, "CONFIRMED", Reservation.TravelStatus.REALIZED);
+        var open = save("Córdoba", "Morteros", null, "VUELTA", true, "OPEN-VUELTA",
+                null, "CONFIRMED", Reservation.TravelStatus.OPEN_RETURN);
+        var booked = save("Córdoba", "Morteros", "14:00", "VUELTA", true, "BOOKED-VUELTA",
+                DATE, "CONFIRMED", Reservation.TravelStatus.CONFIRMED);
+        save("Morteros", "Córdoba", "03:00 AM", "IDA", true, "OLD-IDA",
+                DATE.minusDays(1), "CONFIRMED", Reservation.TravelStatus.REALIZED);
+        save("Córdoba", "Morteros", null, "VUELTA", true, "OLD-VUELTA",
+                null, "CONFIRMED", Reservation.TravelStatus.OPEN_RETURN);
+        save("Córdoba", "Morteros", "14:00", "VUELTA", false, "CANCELLED-VUELTA",
+                DATE, "CANCELLED", Reservation.TravelStatus.CANCELED);
+        assertThat(reservations.findReturnCapacityCandidates(DATE))
+                .extracting(Reservation::getId).containsExactlyInAnyOrder(open.getId(), booked.getId());
+    }
+
     private Reservation save(String origin, String destination, String schedule, String direction,
             boolean roundTrip, String code, LocalDate date, String status, Reservation.TravelStatus travelStatus) {
         var passenger = passengers.save(Passenger.builder().firstName("Ana").lastName("Pérez")

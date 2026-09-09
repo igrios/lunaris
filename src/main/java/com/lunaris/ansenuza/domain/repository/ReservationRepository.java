@@ -267,6 +267,28 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
             @Param("date") LocalDate date,
             @Param("schedule") String schedule);
 
+    /** Return legs, including undated returns linked to today's outbound leg. */
+    @Query("""
+           SELECT r FROM Reservation r
+           LEFT JOIN FETCH r.passenger
+           WHERE (r.travelDate = :date OR
+               (r.travelStatus = com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
+                AND EXISTS (SELECT o.id FROM Reservation o
+                    WHERE o.travelDate = :date
+                    AND o.reservationCode = CONCAT(
+                        SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 7), '-IDA')
+                    AND UPPER(COALESCE(o.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'EXPIRED', 'REJECTED'))))
+           AND (UPPER(r.routeDirection) = 'VUELTA'
+                OR LOWER(r.pickupLocality) LIKE '%cordoba%'
+                OR LOWER(r.pickupLocality) LIKE '%córdoba%'
+                OR LOWER(r.pickupLocality) LIKE '%aeropuerto%')
+           AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'EXPIRED', 'REJECTED')
+           AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW))
+           """)
+    List<Reservation> findReturnCapacityCandidates(@Param("date") LocalDate date);
+
     // 📊 Suma pasajeros reales para las tarjetas del panel ignorando los 'CANCELLED'
     @Query("SELECT COALESCE(SUM(r.passengerCount), 0) FROM Reservation r " +
            "WHERE r.travelDate = :fecha " +

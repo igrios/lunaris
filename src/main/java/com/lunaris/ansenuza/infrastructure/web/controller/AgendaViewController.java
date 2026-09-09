@@ -62,7 +62,6 @@ public class AgendaViewController {
     private final SystemConfigurationService systemConfigurationService;
     private final ResolveEffectiveTripOriginUseCase resolveEffectiveTripOriginUseCase;
     private final DriverAuthorizationService driverAuthorizationService;
-    private final DailyPassengerManifestService dailyPassengerManifestService;
 
     @Value("${whatsapp.access-token}")
     private String whatsappToken;
@@ -329,7 +328,7 @@ public class AgendaViewController {
             LocalDate date) {
         LocalDate operationDate = date == null ? com.lunaris.ansenuza.shared.ArgentinaTime.today() : date;
         List<Reservation> reservations = reservationRepository.findDailyManifest(operationDate);
-        byte[] pdf = dailyPassengerManifestService.generatePdf(operationDate, reservations);
+        byte[] pdf = new DailyPassengerManifestService().generatePdf(operationDate, reservations);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION,

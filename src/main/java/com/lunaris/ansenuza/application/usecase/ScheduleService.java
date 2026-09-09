@@ -43,7 +43,7 @@ public class ScheduleService {
     public List<ScheduleDto> getReturnSchedulesForWeb(LocalDate travelDate) {
         return RETURN_SCHEDULES.stream()
                 .map(schedule -> {
-                    int availableSeats = pricingAndScheduleService.availableSeats(travelDate, schedule);
+                    int availableSeats = pricingAndScheduleService.availableReturnSeats(travelDate, schedule);
                     String label = pricingAndScheduleService.calculateEstimatedPickupTime(
                             null, schedule, true, travelDate);
                     return new ScheduleDto(

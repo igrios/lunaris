@@ -118,6 +118,10 @@
         }
 
         stomp.subscribe('/topic/system-alerts', (msg) => {
+            try {
+                const event = JSON.parse(msg.body);
+                if (event.action === 'OPEN_RETURN_CUTOFF') alert(event.message);
+            } catch (_) { /* Los avisos REFRESH anteriores son texto plano. */ }
             console.log("Alerta de sistema recibida, refrescando interfaz...");
             window.location.reload();
         });

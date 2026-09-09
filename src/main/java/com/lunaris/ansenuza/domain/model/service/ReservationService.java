@@ -89,6 +89,16 @@ public class ReservationService {
                     mainReservation.getDestination(), mainReservation.getTotalSeats());
         }
 
+        if (Boolean.TRUE.equals(mainReservation.getRoundTrip())
+                && (mainReservation.getTripType() == TripType.OPEN_RETURN || mainReservation.getReturnDate() == null)
+                && mainReservation.getTravelDate() != null
+                && com.lunaris.ansenuza.shared.ArgentinaTime.now().isBefore(mainReservation.getTravelDate().atTime(11, 0))) {
+            for (String block : List.of("14:00", "17:30")) {
+                lockAndValidateCapacity(mainReservation.getTravelDate(), block,
+                        mainReservation.getDestination(), mainReservation.getTotalSeats());
+            }
+        }
+
         normalizePassengerName(mainReservation.getPassenger());
         boolean requiresInvoice = Boolean.TRUE.equals(mainReservation.getRequiresInvoice());
         mainReservation.setRequiresInvoice(requiresInvoice);
@@ -275,19 +285,28 @@ public class ReservationService {
     private void lockAndValidateCapacity(LocalDate travelDate, String departureSchedule,
             String pickupLocality, int requestedSeats) {
         if (capacityLockRepository == null || travelDate == null) return;
+        if (TripRouteCalculatorService.isCordoba(pickupLocality)
+                && (departureSchedule == null || departureSchedule.isBlank())) {
+            for (String block : List.of("14:00", "17:30")) {
+                lockAndValidateCapacity(travelDate, block, pickupLocality, requestedSeats);
+            }
+            return;
+        }
         String schedule = departureSchedule == null
                 || departureSchedule.isBlank()
                 ? "03:00 AM" : departureSchedule.trim();
         String direction = TripRouteCalculatorService.isCordoba(pickupLocality)
                 ? "RETURN" : "OUTBOUND";
-        String key = travelDate + "|" + schedule.toLowerCase(java.util.Locale.ROOT)
+        String key = travelDate + "|" + ("RETURN".equals(direction) ? "DAY" : schedule.toLowerCase(java.util.Locale.ROOT))
                 + "|" + direction;
         capacityLockRepository.ensureExists(key);
         if (capacityLockRepository.findForUpdate(key) == null) {
             throw new DomainValidationException("No se pudo bloquear la capacidad del turno.");
         }
-        long occupied = reservationRepository.countReservedSeats(travelDate, schedule);
-        if (occupied + requestedSeats > 12) {
+        long available = "RETURN".equals(direction)
+                ? ReturnCapacityPolicy.availableSeats(reservationRepository, travelDate, schedule)
+                : 12 - reservationRepository.countReservedSeats(travelDate, schedule);
+        if (requestedSeats > available) {
             throw new com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException(
                     "No hay asientos suficientes para el turno seleccionado.");
         }
