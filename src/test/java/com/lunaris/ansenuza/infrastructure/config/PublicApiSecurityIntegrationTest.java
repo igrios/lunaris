@@ -29,6 +29,9 @@ import org.springframework.test.web.servlet.MockMvc;
         PublicInvoiceController.class})
 @Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class})
 class PublicApiSecurityIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.lunaris.ansenuza.application.usecase.InquiryService inquiryService;
+
 
     @Autowired
     private MockMvc mockMvc;

@@ -11,6 +11,8 @@ import jakarta.persistence.LockModeType;
 
 public interface PassengerRepository extends JpaRepository<Passenger, UUID> {
 
+    Optional<Passenger> findFirstByPhone(String phoneNumber);
+
     Optional<Passenger> findByPhone(String phoneNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

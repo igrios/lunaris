@@ -25,6 +25,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(PublicCatalogApiController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class LocalityControllerTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.lunaris.ansenuza.application.usecase.InquiryService inquiryService;
+
 
     @Autowired
     private MockMvc mockMvc;

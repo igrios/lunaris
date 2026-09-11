@@ -42,6 +42,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class,
         DriverAuthorizationService.class})
 class CriticalEndpointSecurityIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.lunaris.ansenuza.application.usecase.InquiryService inquiryService;
+
 
     @Autowired MockMvc mockMvc;
     @MockitoBean AccountRepository accounts;

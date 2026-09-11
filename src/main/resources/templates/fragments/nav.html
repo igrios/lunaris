@@ -27,6 +27,7 @@
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'facturacion'} ? 'active fw-bold'" th:href="@{/facturacion}">🧾 Facturación</a></li>
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'choferes'} ? 'active fw-bold'" th:href="@{/choferes}">🚗 Choferes</a></li>
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'postulaciones'} ? 'active fw-bold'" th:href="@{/admin/postulaciones}">📋 Postulaciones</a></li>
+          <li class="nav-item" th:if="${pendingInquiryCount != null}"><a class="nav-link" th:classappend="${active == 'consultas'} ? 'active fw-bold'" th:href="@{/admin/consultas}">💬 Consultas <span class="badge text-bg-warning" th:text="${pendingInquiryCount}">0</span></a></li>
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'novedades'} ? 'active fw-bold'" th:href="@{/admin/novedades}">📰 Novedades</a></li>
           <li class="nav-item"><a class="nav-link" th:classappend="${active == 'usuarios'} ? 'active fw-bold'" th:href="@{/admin/usuarios}">👤 Usuarios</a></li>
           <li class="nav-item"><a class="nav-link text-warning fw-semibold" th:href="@{/admin/bot/monitor}">🎛️ Bot</a></li>

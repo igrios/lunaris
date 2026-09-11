@@ -58,7 +58,12 @@ public class MainMenuHandler implements ConversationStepHandler {
             messaging.sendText(phoneNumber,
                     "Todos nuestros operadores están ocupados, en breve serás atendido.");
             return;
-        } else if ("4".equals(body) || body.contains("consultar")) {
+        } else if ("4".equals(body)) {
+            session.setCurrentStep(WaitingForInquiryMessageHandler.STEP);
+            conversationSessionRepository.saveAndFlush(session);
+            messaging.sendText(phoneNumber, WaitingForInquiryMessageHandler.PROMPT);
+            return;
+        } else if ("6".equals(body) || body.contains("consultar")) {
             List<Reservation> viajesActivos = reservationRepository.findByPassengerPhone(phoneNumber).stream()
                     .filter(r -> !"CANCELLED".equals(r.getStatus()))
                     .toList();
@@ -106,7 +111,7 @@ public class MainMenuHandler implements ConversationStepHandler {
             cancelReservationHandler.handle(session, message);
             return;
         } else {
-            messaging.sendText(phoneNumber, "⚠️ Opción inválida. Por favor, seleccioná una opción del menú (1 al 5) o escribí *Menú*.");
+            messaging.sendText(phoneNumber, "⚠️ Opción inválida. Por favor, seleccioná una opción del menú (1 al 6) o escribí *Menú*.");
         }
     }
 }

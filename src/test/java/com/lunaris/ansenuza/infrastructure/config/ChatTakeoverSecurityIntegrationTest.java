@@ -30,6 +30,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ChatController.class)
 @Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class, TakeOverConversationUseCase.class})
 class ChatTakeoverSecurityIntegrationTest {
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    com.lunaris.ansenuza.application.usecase.InquiryService inquiryService;
+
     private static final String PHONE = "5493562123456";
     private static final String ENDPOINT = "/admin/chat/" + PHONE + "/takeover";
 

@@ -152,6 +152,8 @@ public class SecurityConfig {
                                 "/reservas-panel/**",
                                 "/reservations/**",
                                 "/admin/reservations/**",
+                                "/admin/consultas",
+                                "/admin/consultas/**",
                                 "/admin/bot/monitor/**",
                                 "/admin/chat/**",
                                 "/chat-room",

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lunaris - Consultas</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>body {background:#f4f6f9;padding-top:90px} .inquiry-message {white-space:pre-wrap;overflow-wrap:anywhere;min-width:220px;max-width:600px}</style>
+</head>
+<body>
+<nav th:replace="~{fragments/nav :: bar('consultas')}"></nav>
+<main class="container-fluid px-4 my-4">
+  <h1>💬 Consultas <span class="badge text-bg-warning" th:text="${pendingInquiryCount}">0</span></h1>
+  <p class="text-muted">Consultas y solicitudes de viajes especiales. Contactá al pasajero por WhatsApp y actualizá el estado.</p>
+  <div class="table-responsive bg-white rounded shadow-sm">
+    <table class="table align-middle">
+      <thead><tr><th>Fecha/Hora</th><th>Pasajero</th><th>Teléfono</th><th>Mensaje</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        <tr th:if="${#lists.isEmpty(inquiries)}"><td colspan="6" class="text-center py-4">No hay consultas registradas.</td></tr>
+        <tr th:each="inquiry : ${inquiries}">
+          <td th:text="${#temporals.format(inquiry.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
+          <td th:text="${inquiry.passengerName != null ? inquiry.passengerName : 'Sin nombre registrado'}"></td>
+          <td><a th:href="${inquiry.whatsAppUrl}" th:text="${inquiry.phone}" target="_blank" rel="noopener noreferrer"></a></td>
+          <td class="inquiry-message" th:text="${inquiry.message}"></td>
+          <td th:switch="${inquiry.status.name()}"><span th:case="'PENDING'" class="badge text-bg-warning">Pendiente</span><span th:case="'IN_PROGRESS'" class="badge text-bg-primary">En atención</span><span th:case="'RESOLVED'" class="badge text-bg-success">Atendida</span><span th:case="'ARCHIVED'" class="badge text-bg-secondary">Archivada</span></td>
+          <td><form th:action="@{/admin/consultas/{id}/estado(id=${inquiry.id})}" method="post" class="d-flex gap-2 flex-wrap">
+            <button th:if="${inquiry.status.name() == 'PENDING'}" class="btn btn-sm btn-outline-primary" name="status" value="IN_PROGRESS">Tomar consulta</button>
+            <button th:if="${inquiry.status.name() == 'PENDING' or inquiry.status.name() == 'IN_PROGRESS'}" class="btn btn-sm btn-success" name="status" value="RESOLVED">Marcar como Atendida</button>
+            <button th:if="${inquiry.status.name() != 'ARCHIVED'}" class="btn btn-sm btn-outline-secondary" name="status" value="ARCHIVED">Archivar</button>
+          </form></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

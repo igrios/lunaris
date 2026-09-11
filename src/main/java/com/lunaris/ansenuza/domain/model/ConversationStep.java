@@ -4,6 +4,8 @@ public enum ConversationStep {
 
     MENU,
 
+    WAITING_FOR_INQUIRY_MESSAGE,
+
     ASK_PICKUP_LOCALITY,
 
     ASK_DESTINATION,

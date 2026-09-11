@@ -191,8 +191,9 @@ public class ConversationOrchestrator {
             return;
         }
 
-        boolean isGreeting = "hola".equals(body) || "buen dia".equals(body)
-                || "buenas".equals(body) || "menu".equals(body) || "reinicio".equals(body);
+        boolean isGreeting = !"WAITING_FOR_INQUIRY_MESSAGE".equals(session.getCurrentStep())
+                && ("hola".equals(body) || "buen dia".equals(body)
+                || "buenas".equals(body) || "menu".equals(body) || "reinicio".equals(body));
 
         String currentStep = session.getCurrentStep();
         String effectiveStep =

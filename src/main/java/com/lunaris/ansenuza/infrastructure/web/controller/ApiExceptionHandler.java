@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    @ExceptionHandler(com.lunaris.ansenuza.domain.exception.InquiryNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> inquiryNotFound(RuntimeException exception) {
+        return response(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
     @ExceptionHandler(FareLocalityInUseException.class)
     public ResponseEntity<Map<String, Object>> fareLocalityInUse(FareLocalityInUseException exception) {
         return response(HttpStatus.CONFLICT, exception.getMessage());
