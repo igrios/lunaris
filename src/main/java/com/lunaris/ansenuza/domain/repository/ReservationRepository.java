@@ -159,6 +159,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // 🔄 Métodos preexistentes del repositorio
     List<Reservation> findByTravelDate(LocalDate travelDate);
 
+    /** Conteos operativos por persona: una reserva de ida y vuelta no duplica al pasajero. */
+    @Query("SELECT COUNT(DISTINCT r.passenger.id) FROM Reservation r "
+            + "WHERE r.travelDate = :today AND r.status <> 'CANCELLED'")
+    long countDistinctPassengersByTravelDate(@Param("today") LocalDate today);
+
+    @Query("SELECT COUNT(DISTINCT r.passenger.id) FROM Reservation r "
+            + "WHERE r.travelDate = :today AND r.status <> 'CANCELLED' "
+            + "AND r.paymentVerified = true")
+    long countDistinctPaidPassengersByTravelDate(@Param("today") LocalDate today);
+
+    @Query("SELECT COUNT(DISTINCT r.passenger.id) FROM Reservation r "
+            + "WHERE r.travelDate = :today AND r.status <> 'CANCELLED' "
+            + "AND r.paymentVerified = false")
+    long countDistinctPendingPassengersByTravelDate(@Param("today") LocalDate today);
+
     @Query("""
            SELECT DISTINCT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
