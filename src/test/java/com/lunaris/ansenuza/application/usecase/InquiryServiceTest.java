@@ -20,7 +20,7 @@ class InquiryServiceTest {
         when(passengers.findFirstByPhone("5493515550101")).thenReturn(Optional.of(passenger));
         when(inquiries.save(any())).thenAnswer(i -> i.getArgument(0));
         Inquiry inquiry = service.register("5493515550101", null, " Viaje para 8 personas ");
-        assertNotNull(inquiry.getId());
+        assertNull(inquiry.getId(), "El servicio debe delegar la generación del ID a JPA");
         assertSame(passenger, inquiry.getPassenger());
         assertEquals("Ana Pérez", inquiry.getPassengerName());
         assertEquals("Viaje para 8 personas", inquiry.getMessage());

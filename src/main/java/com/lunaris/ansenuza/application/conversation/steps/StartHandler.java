@@ -66,7 +66,7 @@ public class StartHandler implements ConversationStepHandler {
             saludoBuilder.append("3️⃣ 👨‍💼 *Hablar con un operador* (Soporte humano)\n");
         }
 
-        saludoBuilder.append("4. Deja tu consulta / Viaje Especial\n");
+        saludoBuilder.append("4️⃣ 💬 *Deja tu consulta / Viaje Especial*\n");
         saludoBuilder.append("5️⃣ ❌ *Cancelar un viaje*\n");
         saludoBuilder.append("6️⃣ 📋 *Consultar mis reservas*\n");
 

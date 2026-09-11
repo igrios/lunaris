@@ -78,6 +78,6 @@ class BotInquiryFlowTest {
     void startMenuIncludesInquiryAndMovedReservationOption() {
         new StartHandler(sessions, mock(PassengerRepository.class), messaging, operations).handle(session, text("hola"));
         verify(messaging).sendText(eq(session.getPhoneNumber()), argThat(body ->
-                body.contains("4. Deja tu consulta / Viaje Especial") && body.contains("6️⃣ 📋 *Consultar mis reservas*")));
+                body.contains("4️⃣ 💬 *Deja tu consulta / Viaje Especial*") && body.contains("6️⃣ 📋 *Consultar mis reservas*")));
     }
 }

@@ -25,7 +25,8 @@ public class InquiryService {
         String name = passenger == null ? passengerName
                 : (passenger.getFirstName() + " " + passenger.getLastName()).trim();
         var now = ArgentinaTime.now();
-        Inquiry inquiry = Inquiry.builder().id(UUID.randomUUID()).passenger(passenger)
+        // El ID generado debe quedar nulo para que JPA persista una entidad nueva.
+        Inquiry inquiry = Inquiry.builder().passenger(passenger)
                 .phone(phone).passengerName(name).message(message.trim())
                 .status(InquiryStatus.PENDING).createdAt(now).updatedAt(now).build();
         return inquiries.save(inquiry);
