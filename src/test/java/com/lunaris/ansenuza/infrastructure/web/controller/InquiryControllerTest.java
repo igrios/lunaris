@@ -37,7 +37,7 @@ class InquiryControllerTest {
         mvc.perform(get("/admin/consultas").with(user("operator").roles("OPERADOR")))
                 .andExpect(status().isOk()).andExpect(view().name("inquiries"))
                 .andExpect(model().attribute("pendingInquiryCount", 1L))
-                .andExpect(content().string(containsString("https://wa.me/5493515550101")))
+                .andExpect(content().string(containsString("/admin/chat?phone=5493515550101")))
                 .andExpect(content().string(containsString("&lt;script&gt;")));
     }
 

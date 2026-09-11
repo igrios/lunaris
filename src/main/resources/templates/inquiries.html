@@ -19,7 +19,7 @@
         <tr th:each="inquiry : ${inquiries}">
           <td th:text="${#temporals.format(inquiry.createdAt, 'dd/MM/yyyy HH:mm')}"></td>
           <td th:text="${inquiry.passengerName != null ? inquiry.passengerName : 'Sin nombre registrado'}"></td>
-          <td><a th:href="${inquiry.whatsAppUrl}" th:text="${inquiry.phone}" target="_blank" rel="noopener noreferrer"></a></td>
+          <td><a th:href="@{/admin/chat(phone=${inquiry.phone})}" th:text="${inquiry.phone}"></a></td>
           <td class="inquiry-message" th:text="${inquiry.message}"></td>
           <td th:switch="${inquiry.status.name()}"><span th:case="'PENDING'" class="badge text-bg-warning">Pendiente</span><span th:case="'IN_PROGRESS'" class="badge text-bg-primary">En atención</span><span th:case="'RESOLVED'" class="badge text-bg-success">Atendida</span><span th:case="'ARCHIVED'" class="badge text-bg-secondary">Archivada</span></td>
           <td><form th:action="@{/admin/consultas/{id}/estado(id=${inquiry.id})}" method="post" class="d-flex gap-2 flex-wrap">

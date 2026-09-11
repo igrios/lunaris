@@ -6,6 +6,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.lunaris.ansenuza.domain.model.ChatMessage;
@@ -39,6 +40,12 @@ public class ChatController {
         return "redirect:/admin/chat/{phoneNumber}";
     }
 
+
+    @GetMapping
+    public String openChatByPhone(@RequestParam String phone, RedirectAttributes redirectAttributes) {
+        redirectAttributes.addAttribute("phoneNumber", phone);
+        return "redirect:/admin/chat/{phoneNumber}";
+    }
 
     @GetMapping("/{phoneNumber}")
     public String openChat(@PathVariable String phoneNumber, Model model) {

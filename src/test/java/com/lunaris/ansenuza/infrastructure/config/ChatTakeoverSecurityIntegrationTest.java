@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ChatController.class)
@@ -67,6 +68,22 @@ class ChatTakeoverSecurityIntegrationTest {
         mockMvc.perform(post(ENDPOINT).with(user("otro").roles(role)).with(csrf()))
                 .andExpect(status().isForbidden());
         verifyNoInteractions(sessions, whatsApp);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ADMIN", "OPERADOR"})
+    void inquiryPhoneLinkRedirectsToExistingChatRoom(String role) throws Exception {
+        mockMvc.perform(get("/admin/chat").param("phone", PHONE).with(user("operador").roles(role)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/chat/" + PHONE));
+        verifyNoInteractions(sessions, whatsApp);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"CHOFER", "FACTURACION"})
+    void otherRolesCannotOpenInquiryChatLink(String role) throws Exception {
+        mockMvc.perform(get("/admin/chat").param("phone", PHONE).with(user("otro").roles(role)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
