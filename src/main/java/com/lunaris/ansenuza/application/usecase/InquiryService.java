@@ -11,11 +11,24 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class InquiryService {
     private final InquiryRepository inquiries;
     private final PassengerRepository passengers;
+
+    private final org.springframework.context.ApplicationEventPublisher events;
+
+    public InquiryService(InquiryRepository inquiries, PassengerRepository passengers) {
+        this(inquiries, passengers, event -> {});
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public InquiryService(InquiryRepository inquiries, PassengerRepository passengers,
+            org.springframework.context.ApplicationEventPublisher events) {
+        this.inquiries = inquiries;
+        this.passengers = passengers;
+        this.events = events;
+    }
 
     public Inquiry register(String phone, String passengerName, String message) {
         if (phone == null || phone.isBlank() || message == null || message.isBlank()) {
@@ -29,7 +42,9 @@ public class InquiryService {
         Inquiry inquiry = Inquiry.builder().passenger(passenger)
                 .phone(phone).passengerName(name).message(message.trim())
                 .status(InquiryStatus.PENDING).createdAt(now).updatedAt(now).build();
-        return inquiries.save(inquiry);
+        Inquiry saved = inquiries.save(inquiry);
+        events.publishEvent(OperatorNotification.inquiry(saved));
+        return saved;
     }
 
     @Transactional(readOnly = true)

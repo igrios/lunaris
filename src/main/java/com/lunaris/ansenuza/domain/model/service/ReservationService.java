@@ -57,13 +57,25 @@ public class ReservationService {
                 onboardPassengerUseCase, capacityLockRepository, null);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
     public ReservationService(ReservationRepository reservationRepository,
             ReservationEventRepository reservationEventRepository,
             PassengerRepository passengerRepository,
             OnboardPassengerUseCase onboardPassengerUseCase,
             CapacityLockRepository capacityLockRepository,
             PricingAndScheduleService pricingAndScheduleService) {
+        this(reservationRepository, reservationEventRepository, passengerRepository,
+                onboardPassengerUseCase, capacityLockRepository, pricingAndScheduleService, event -> {});
+    }
+
+    private final org.springframework.context.ApplicationEventPublisher notificationEvents;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ReservationService(ReservationRepository reservationRepository,
+            ReservationEventRepository reservationEventRepository, PassengerRepository passengerRepository,
+            OnboardPassengerUseCase onboardPassengerUseCase, CapacityLockRepository capacityLockRepository,
+            PricingAndScheduleService pricingAndScheduleService,
+            org.springframework.context.ApplicationEventPublisher notificationEvents) {
+        this.notificationEvents = notificationEvents;
         this.reservationRepository = reservationRepository;
         this.reservationEventRepository = reservationEventRepository;
         this.passengerRepository = passengerRepository;
@@ -255,6 +267,7 @@ public class ReservationService {
                     reservationEventRepository.save(eventVuelta);
         }
 
+        notificationEvents.publishEvent(com.lunaris.ansenuza.domain.model.OperatorNotification.reservation(savedReservations));
         return savedReservations;
     }
 

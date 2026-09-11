@@ -15,6 +15,18 @@ class InquiryServiceTest {
     private final InquiryService service = new InquiryService(inquiries, passengers);
 
     @Test
+    void publishesOneAlertForNewInquiry() {
+        var events = mock(org.springframework.context.ApplicationEventPublisher.class);
+        when(inquiries.save(any())).thenAnswer(i -> i.getArgument(0));
+        new InquiryService(inquiries, passengers, events).register("5493512282251", "Ana", "Viaje para 8");
+        var notification = org.mockito.ArgumentCaptor.forClass(OperatorNotification.class);
+        verify(events).publishEvent(notification.capture());
+        assertTrue(notification.getValue().message().contains("Ana (5493512282251)"));
+        assertTrue(notification.getValue().message().contains("Viaje para 8"));
+        verifyNoMoreInteractions(events);
+    }
+
+    @Test
     void registersPendingInquiryLinkedToExistingPassenger() {
         Passenger passenger = Passenger.builder().id(UUID.randomUUID()).firstName("Ana").lastName("Pérez").build();
         when(passengers.findFirstByPhone("5493515550101")).thenReturn(Optional.of(passenger));

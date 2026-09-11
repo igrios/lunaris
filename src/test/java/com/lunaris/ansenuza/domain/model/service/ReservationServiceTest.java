@@ -40,9 +40,10 @@ class ReservationServiceTest {
         when(reservations.existsByReservationCode(any())).thenReturn(false);
         when(reservations.save(any(Reservation.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        var notifications = mock(org.springframework.context.ApplicationEventPublisher.class);
         ReservationService service = new ReservationService(
                 reservations, mock(ReservationEventRepository.class),
-                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class), null, null, notifications);
         Reservation reservation = Reservation.builder()
                 .passenger(Passenger.builder().currentBalance(BigDecimal.ZERO).build())
                 .pickupLocality("Morteros")
@@ -60,6 +61,11 @@ class ReservationServiceTest {
 
         List<Reservation> saved = service.saveReservationFlow(reservation, "17:30");
 
+        var alert = ArgumentCaptor.forClass(com.lunaris.ansenuza.domain.model.OperatorNotification.class);
+        verify(notifications).publishEvent(alert.capture());
+        assertTrue(alert.getValue().message().contains("105000.00"));
+        assertTrue(alert.getValue().message().contains("NUEVA RESERVA REGISTRADA"));
+        org.mockito.Mockito.verifyNoMoreInteractions(notifications);
         assertEquals(2, saved.size());
         assertEquals(new BigDecimal("52500.00"), saved.get(0).getAmount());
         assertEquals(new BigDecimal("52500.00"), saved.get(1).getAmount());

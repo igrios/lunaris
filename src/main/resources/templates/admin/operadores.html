@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Operadores - Lunaris</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>body {background:#f4f6f9;padding-top:90px}</style></head>
+<body><nav th:replace="~{fragments/nav :: bar('operadores')}"></nav>
+<main class="container my-4"><h1>Teléfonos de operadores</h1><p>Los teléfonos activos reciben alertas de nuevas reservas y consultas.</p>
+<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+<form th:action="@{/admin/operadores}" method="post" class="card card-body mb-4">
+<div class="row g-3"><div class="col-md-4"><label for="name" class="form-label">Nombre</label><input id="name" name="name" maxlength="255" required class="form-control"></div>
+<div class="col-md-5"><label for="phone" class="form-label">Teléfono internacional</label><input id="phone" name="phone" type="tel" placeholder="5493512282251" required class="form-control"></div>
+<div class="col-md-3 align-self-end"><button class="btn btn-primary">Agregar operador</button></div></div></form>
+<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Nombre</th><th>Teléfono</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+<tr th:if="${#lists.isEmpty(operators)}"><td colspan="4">No hay operadores registrados.</td></tr>
+<tr th:each="operator : ${operators}"><td th:text="${operator.name}"></td><td th:text="${operator.phone}"></td><td th:text="${operator.active ? 'Activo' : 'Inactivo'}"></td>
+<td class="d-flex gap-2"><form th:action="@{/admin/operadores/{id}/estado(id=${operator.id})}" method="post"><input type="hidden" name="active" th:value="${!operator.active}"><button class="btn btn-sm btn-outline-primary" th:text="${operator.active ? 'Desactivar' : 'Activar'}"></button></form>
+<form th:action="@{/admin/operadores/{id}/eliminar(id=${operator.id})}" method="post" onsubmit="return confirm('¿Eliminar este teléfono de las alertas?')"><button class="btn btn-sm btn-outline-danger">Eliminar</button></form></td></tr></tbody></table></div>
+</main><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script></body></html>
