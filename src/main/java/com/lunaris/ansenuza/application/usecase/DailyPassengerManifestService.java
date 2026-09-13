@@ -1,14 +1,14 @@
 package com.lunaris.ansenuza.application.usecase;
 
+import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 
 /** Manifiesto PDF operativo consolidado, generado sin alterar el esquema de datos. */
@@ -29,19 +29,24 @@ public class DailyPassengerManifestService {
 
     /** Personas físicas, deduplicadas entre los tramos de ida y vuelta del manifiesto. */
     public long uniquePassengers(List<Reservation> reservations) {
-        Set<Object> passengers = new HashSet<>();
-        for (Reservation reservation : reservations) {
-            if (reservation == null || reservation.getPassenger() == null) continue;
-            Object key = reservation.getPassenger().getId() != null
-                    ? reservation.getPassenger().getId()
-                    : reservation.getPassenger().getPhone();
-            if (key != null) passengers.add(key);
-        }
-        return passengers.size();
+        return reservations.stream()
+                .filter(Objects::nonNull)
+                .map(Reservation::getPassenger)
+                .filter(Objects::nonNull)
+                .map(Passenger::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
     }
 
+    /** Suma de butacas de todos los tramos, sin deduplicar pasajeros. */
     public int reservedSeats(List<Reservation> reservations) {
-        return reservations.stream().filter(r -> r != null).mapToInt(Reservation::getTotalSeats).sum();
+        return reservations.stream()
+                .filter(Objects::nonNull)
+                .map(Reservation::getPassengerCount)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
     }
 
     private void section(StringBuilder out, String title, List<Reservation> all, boolean returns) {
