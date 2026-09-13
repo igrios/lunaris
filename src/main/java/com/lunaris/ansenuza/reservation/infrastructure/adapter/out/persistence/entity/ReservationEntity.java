@@ -24,6 +24,9 @@ public class ReservationEntity {
     @Column(name = "pickup_address") private String pickupAddress;
     @Column(name = "destination", nullable = false) private String destination;
     @Column(name = "amount") private BigDecimal amount;
+    @Column(name = "amount_is_group_total", nullable = false) private boolean amountIsGroupTotal;
+    public boolean isAmountIsGroupTotal() { return amountIsGroupTotal; }
+    public void setAmountIsGroupTotal(boolean value) { amountIsGroupTotal = value; }
     @Column(name = "round_trip") private Boolean roundTrip;
     @Column(name = "trip_type", length = 50) private String tripType;
     @Column(name = "return_date") private LocalDate returnDate;

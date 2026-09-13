@@ -51,6 +51,18 @@ public class SelectScheduleHandler implements ConversationStepHandler {
             return;
         }
 
+        if (session.getTravelDate() != null && !scheduleService.getSchedulesForBot(
+                session.getPickupLocality(), session.getDestination(), session.getTravelDate(),
+                session.getPassengerCount() == null ? 1 : session.getPassengerCount())
+                .contains(session.getScheduleBlock())) {
+            session.setScheduleBlock(null);
+            session.setCurrentStep("WAITING_FOR_INQUIRY_MESSAGE");
+            conversationSessionRepository.saveAndFlush(session);
+            messaging.sendText(phoneNumber, "Ese turno ya no está disponible. Contanos qué viaje necesitás "
+                    + "y un operador revisará las alternativas.");
+            return;
+        }
+
         Optional<Passenger> existingPassenger = passengerRepository.findByPhone(phoneNumber);
         if (existingPassenger.isPresent()) {
             session.setPassengerName(existingPassenger.get().getFirstName() + " "

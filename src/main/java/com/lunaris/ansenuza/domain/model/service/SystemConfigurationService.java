@@ -15,7 +15,7 @@ public class SystemConfigurationService {
 
     private static final String SCHEDULE_MAX_CAPACITY = "schedule.max.capacity";
     private static final String PRIMARY_VEHICLE_CAPACITY = "primary.vehicle.capacity";
-    private static final int DEFAULT_SCHEDULE_MAX_CAPACITY = 12;
+    private static final int DEFAULT_SCHEDULE_MAX_CAPACITY = 19;
 
     private final SystemConfigurationRepository repository;
 

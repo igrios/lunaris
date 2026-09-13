@@ -72,6 +72,7 @@ public class ChatWebSocketController {
 
             conversationSessionRepository.findById(sessionId).ifPresent(session -> {
                 session.setBotPaused(!session.isBotPaused());
+                session.setManuallyPaused(session.isBotPaused());
                 conversationSessionRepository.saveAndFlush(session);
 
                 // 📢 Alerta global a la pantalla del monitor

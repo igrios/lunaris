@@ -29,6 +29,62 @@ import jakarta.persistence.EntityManager;
 class IssueInvoiceUseCaseTest {
 
     @Test
+    void issuingRepeatedGroupTotalBillsOnly89000() {
+        UUID outboundId = UUID.randomUUID();
+        UUID returnId = UUID.randomUUID();
+        Passenger passenger = Passenger.builder()
+                .firstName("Ana")
+                .lastName("Pérez")
+                .phone("543511112222")
+                .cuil("27123456789")
+                .build();
+        Reservation outbound = paidLeg(outboundId, "MOR-COR-001-IDA", passenger);
+        Reservation returnLeg = paidLeg(returnId, "MOR-COR-001-VUELTA", passenger);
+        outbound.setAmount(new BigDecimal("89000"));
+        returnLeg.setAmount(new BigDecimal("89000"));
+        outbound.setAmountIsGroupTotal(true);
+        returnLeg.setAmountIsGroupTotal(true);
+        outbound.setBookingGroupCode("EXPLICIT-GROUP");
+        returnLeg.setBookingGroupCode("EXPLICIT-GROUP");
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        InvoiceRepository invoices = mock(InvoiceRepository.class);
+        InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
+        MessagingPort messaging = mock(MessagingPort.class);
+        EntityManager entityManager = mock(EntityManager.class);
+        when(reservations.findById(returnId)).thenReturn(Optional.of(returnLeg));
+        when(reservations.findReservationGroup("EXPLICIT-GROUP"))
+                .thenReturn(List.of(outbound, returnLeg));
+        when(invoices.findByReservationId(outboundId)).thenReturn(Optional.empty());
+        when(invoices.findByReservationIdForUpdate(outboundId)).thenReturn(Optional.empty());
+        when(invoices.count()).thenReturn(0L);
+        when(storage.store(any(byte[].class), anyString()))
+                .thenReturn(new StoredInvoice("/invoices/factura.pdf", "/tmp/factura.pdf"));
+        AtomicReference<Invoice> persisted = new AtomicReference<>();
+        doAnswer(invocation -> {
+            Invoice invoice = invocation.getArgument(0);
+            invoice.setId(UUID.randomUUID());
+            persisted.set(invoice);
+            return null;
+        }).when(entityManager).persist(any(Invoice.class));
+        when(invoices.findByIdForUpdate(any(UUID.class)))
+                .thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
+
+        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging,
+                new InvoicePersistenceService(invoices, entityManager))
+                .issue(returnId, new byte[] {1});
+
+        assertEquals(outboundId, issued.getReservationId());
+        org.assertj.core.api.Assertions.assertThat(issued.getAmount()).isEqualByComparingTo("89000");
+        verify(invoices).findByReservationId(outboundId);
+        verify(messaging).sendDocumentUrl(
+                eq("543511112222"),
+                eq("https://lunaris-backend-nn6s.onrender.com/public/invoices/"
+                        + issued.getId() + ".pdf"),
+                eq("Factura-" + issued.getInvoiceNumber() + ".pdf"),
+                anyString());
+    }
+
+    @Test
     void issuingRoundTripInvoiceLinksFullAmountToOutboundReservation() {
         UUID outboundId = UUID.randomUUID();
         UUID returnId = UUID.randomUUID();

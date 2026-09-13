@@ -55,21 +55,23 @@ public class ScheduleService {
 
     public List<String> getSchedulesForBot(
             String pickupLocality, String destination, LocalDate travelDate) {
+        return getSchedulesForBot(pickupLocality, destination, travelDate, 1);
+    }
+
+    public List<String> getSchedulesForBot(
+            String pickupLocality, String destination, LocalDate travelDate, int requestedSeats) {
+        if (requestedSeats < 1) return List.of();
         if (BotRoute.fromCordoba(pickupLocality)) {
-            return travelDate == null ? RETURN_SCHEDULES : getReturnSchedulesForWeb(travelDate).stream()
-                    .filter(schedule -> schedule.availableSeats() > 0)
-                    .map(schedule -> schedule.id()).toList();
+            return travelDate == null ? RETURN_SCHEDULES : RETURN_SCHEDULES.stream()
+                    .filter(schedule -> pricingAndScheduleService.isWithinPlanningWindow(travelDate, schedule))
+                    .filter(schedule -> pricingAndScheduleService.availableReturnSeats(travelDate, schedule) >= requestedSeats)
+                    .toList();
         }
-        if (!isActivePickupLocality(pickupLocality)) {
-            return List.of();
-        }
-        // El bot selecciona el bloque antes de solicitar la fecha de viaje.
-        // Sin fecha todavía no corresponde evaluar ocupación.
-        if (travelDate == null) {
-            return pricingAndScheduleService.departureSchedules();
-        }
+        if (!isActivePickupLocality(pickupLocality)) return List.of();
+        // Se revalida disponibilidad al conocer fecha y cantidad definitiva.
+        if (travelDate == null) return pricingAndScheduleService.departureSchedules();
         return pricingAndScheduleService.availableDepartureSchedules(
-                pickupLocality, destination, travelDate);
+                pickupLocality, destination, travelDate, requestedSeats);
     }
 
     private boolean isActivePickupLocality(String pickupLocality) {

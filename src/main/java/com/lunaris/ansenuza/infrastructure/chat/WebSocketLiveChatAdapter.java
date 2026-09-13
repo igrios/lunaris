@@ -35,6 +35,11 @@ public class WebSocketLiveChatAdapter implements LiveChatPort {
     }
 
     @Override
+    public void conversationChanged() {
+        messagingTemplate.convertAndSend("/topic/bot-monitor", java.util.Map.of("action", "REFRESH"));
+    }
+
+    @Override
     public void recordIncomingMessage(String phoneNumber, String text) {
         String readableText = readableText(phoneNumber, text);
         ChatMessage msgCliente = chatMessageRepository.saveAndFlush(ChatMessage.builder()
@@ -45,6 +50,7 @@ public class WebSocketLiveChatAdapter implements LiveChatPort {
                 .build());
 
         messagingTemplate.convertAndSend("/topic/messages/" + phoneNumber, msgCliente);
+        conversationChanged();
     }
 
     String readableText(String phoneNumber, String text) {

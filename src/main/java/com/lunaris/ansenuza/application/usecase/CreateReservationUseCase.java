@@ -52,8 +52,8 @@ public class CreateReservationUseCase {
         this.promotionService = promotionService;
     }
 
-    @Value("${lunaris.trips.capacity:12}")
-    private int tripCapacity = 12;
+    @Value("${lunaris.trips.capacity:19}")
+    private int tripCapacity = 19;
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public Reservation execute(CreateReservationRequest request) {

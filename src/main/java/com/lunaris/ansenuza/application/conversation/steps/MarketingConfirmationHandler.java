@@ -35,10 +35,14 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
 
         if ("yes_reserve".equals(body)) {
             List<String> schedules = scheduleService.getSchedulesForBot(
-                    session.getPickupLocality(), session.getDestination(), session.getTravelDate());
+                    session.getPickupLocality(), session.getDestination(), session.getTravelDate(),
+                    session.getPassengerCount() == null ? 1 : session.getPassengerCount());
             if (schedules.isEmpty()) {
+                session.setCurrentStep("WAITING_FOR_INQUIRY_MESSAGE");
+                conversationSessionRepository.saveAndFlush(session);
                 messaging.sendText(phoneNumber,
-                        "No hay horarios con disponibilidad para la fecha seleccionada.");
+                        "No hay horarios con disponibilidad para esa cantidad de pasajeros y fecha. "
+                        + "Contanos qué viaje necesitás y un operador revisará las alternativas.");
                 return;
             }
             session.setCurrentStep("SELECT_SCHEDULE");

@@ -57,15 +57,14 @@ public class WaitingListCapacityGuard {
         // el comportamiento de conteo sin persistencia.
         if (capacityLockRepository != null && session.getTravelDate() != null) {
             String direction = isCordoba(session.getPickupLocality()) ? "RETURN" : "OUTBOUND";
-            String key = session.getTravelDate() + "|" + ("RETURN".equals(direction) ? "DAY" : normalize(schedule)) + "|" + direction;
+            String key = session.getTravelDate() + "|" + ("RETURN".equals(direction) ? "DAY" : ReturnCapacityPolicy.normalizeSchedule(schedule)) + "|" + direction;
             capacityLockRepository.ensureExists(key);
             if (capacityLockRepository.findForUpdate(key) == null) {
                 throw new IllegalStateException("No se pudo bloquear la capacidad del turno.");
             }
         }
         boolean returning = isCordoba(session.getPickupLocality());
-        int maxCapacity = returning ? ReturnCapacityPolicy.CAPACITY
-                : systemConfigurationService.getPrimaryVehicleCapacity();
+        int maxCapacity = ReturnCapacityPolicy.CAPACITY;
         long available = returning
                 ? ReturnCapacityPolicy.availableSeats(reservationRepository, session.getTravelDate(), schedule)
                 : maxCapacity - reservationRepository.countReservedSeats(session.getTravelDate(), schedule);

@@ -29,7 +29,7 @@ class PricingAndScheduleServiceCapacityTest {
 
     @Test
     void testCapacity_IncludesRoundTripAndOpenReturnsBeforeCutoff() {
-        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(4, "14:00", false), leg(3, null, true)));
+        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(15, "14:00", false), leg(3, null, true)));
         {
             var service = serviceAt(10, 59, 59);
             assertEquals(1, service.availableReturnSeats(date, "14:00"));
@@ -40,7 +40,7 @@ class PricingAndScheduleServiceCapacityTest {
     @ParameterizedTest
     @ValueSource(ints = {11, 12, 23})
     void testCapacity_ReleasesOpenReturnsAfterCutoff(int hour) {
-        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(4, "14:00", false), leg(3, null, true)));
+        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(15, "14:00", false), leg(3, null, true)));
         {
             var service = serviceAt(hour, 0, 0);
             assertEquals(4, service.availableReturnSeats(date, "14:00"));
@@ -49,7 +49,7 @@ class PricingAndScheduleServiceCapacityTest {
 
     @Test
     void testCapacity_ZeroOverbooking() {
-        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(4, "14:00", false), leg(3, null, true)));
+        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(15, "14:00", false), leg(3, null, true)));
         {
             var service = serviceAt(10, 0, 0);
             assertFalse(service.hasReturnCapacity(date, "14:00", 2));
@@ -60,7 +60,7 @@ class PricingAndScheduleServiceCapacityTest {
     @Test
     void countsSoldOneWaySeatsAndSeparatesBlocks() {
         when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(
-                leg(4, "14:00", false), leg(2, "02:00 PM", false), leg(8, "17:30", false)));
+                leg(15, "14:00", false), leg(2, "02:00 PM", false), leg(19, "17:30", false)));
         assertEquals(2, ReturnCapacityPolicy.availableSeats(repository, date, "14:00", date.atTime(12, 0)));
         assertEquals(0, ReturnCapacityPolicy.availableSeats(repository, date, "17:30", date.atTime(12, 0)));
     }
@@ -70,7 +70,7 @@ class PricingAndScheduleServiceCapacityTest {
         var locks = mock(CapacityLockRepository.class);
         String key = date + "|DAY|RETURN";
         when(locks.findForUpdate(key)).thenReturn(new com.lunaris.ansenuza.domain.model.CapacityLock(key));
-        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(7, "14:00", false)));
+        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(18, "14:00", false)));
         var writer = new ReservationService(repository, mock(ReservationEventRepository.class),
                 mock(PassengerRepository.class),
                 mock(com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase.class), locks);
@@ -87,13 +87,13 @@ class PricingAndScheduleServiceCapacityTest {
 
     @Test
     void neverReportsNegativeAvailability() {
-        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(10, "14:00", false)));
+        when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(20, "14:00", false)));
         assertEquals(0, ReturnCapacityPolicy.availableSeats(repository, date, "14:00", date.atTime(12, 0)));
     }
 
     @Test
     void futureDateRetainsSeatsEvenAfterTodaysCutoff() {
         when(repository.findReturnCapacityCandidates(date)).thenReturn(List.of(leg(3, null, true)));
-        assertEquals(5, ReturnCapacityPolicy.availableSeats(repository, date, "14:00", date.minusDays(1).atTime(15, 0)));
+        assertEquals(16, ReturnCapacityPolicy.availableSeats(repository, date, "14:00", date.minusDays(1).atTime(15, 0)));
     }
 }

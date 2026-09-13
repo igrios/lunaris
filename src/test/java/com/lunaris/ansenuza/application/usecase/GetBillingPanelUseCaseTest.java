@@ -19,6 +19,21 @@ import org.junit.jupiter.api.Test;
 class GetBillingPanelUseCaseTest {
 
     @Test
+    void pendingGroupWithRepeatedTotalShows89000OnlyOnce() {
+        var reservations = mock(ReservationRepository.class);
+        var invoices = mock(InvoiceRepository.class);
+        var outbound = Reservation.builder().reservationCode("A").bookingGroupCode("GROUP")
+                .amount(new BigDecimal("89000")).amountIsGroupTotal(true).build();
+        var returned = Reservation.builder().reservationCode("B").bookingGroupCode("GROUP")
+                .amount(new BigDecimal("89000")).amountIsGroupTotal(true).build();
+        when(reservations.findPendingInvoiceReservations()).thenReturn(List.of(outbound, returned));
+        var panel = new GetBillingPanelUseCase(reservations, invoices).execute();
+        assertEquals(1, panel.pendientes().size());
+        org.assertj.core.api.Assertions.assertThat(panel.pendientes().getFirst().amount())
+                .isEqualByComparingTo("89000");
+    }
+
+    @Test
     void pendingInvoicesComeFromPaidRequiredAndNotYetIssuedRepositoryQuery() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         InvoiceRepository invoices = mock(InvoiceRepository.class);

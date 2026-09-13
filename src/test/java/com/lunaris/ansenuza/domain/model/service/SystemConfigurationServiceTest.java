@@ -29,7 +29,7 @@ class SystemConfigurationServiceTest {
         assertEquals("default", service.getValue(" ", "default"));
         assertEquals("default", service.getValue("missing", "default"));
         assertEquals("default", service.getValue("driver.setting", "default"));
-        assertEquals(12, service.getScheduleMaxCapacity());
+        assertEquals(19, service.getScheduleMaxCapacity());
     }
 
     @Test
@@ -49,7 +49,7 @@ class SystemConfigurationServiceTest {
                         .key("schedule.max.capacity")
                         .value("invalid")
                         .build()));
-        assertEquals(12, service.getScheduleMaxCapacity());
+        assertEquals(19, service.getScheduleMaxCapacity());
     }
 
     @Test

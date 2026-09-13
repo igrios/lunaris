@@ -25,6 +25,7 @@ public class GetBillingPanelUseCase {
     private final ReservationRepository reservationRepository;
     private final InvoiceRepository invoiceRepository;
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public BillingPanelView execute() {
         LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalDateTime startOfDay = today.atStartOfDay();
@@ -124,16 +125,11 @@ public class GetBillingPanelUseCase {
     }
 
     private String baseCode(Reservation reservation) {
-        if (reservation.getReservationCode() == null) {
-            return "UUID:" + reservation.getId();
-        }
-        return reservation.getReservationCode().replaceFirst("-(IDA|VUELTA)$", "");
+        return com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(reservation);
     }
 
     private BigDecimal combinedAmount(List<Reservation> reservations) {
-        return reservations.stream()
-                .map(this::totalReservationAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.total(reservations);
     }
 
     private String fullName(Passenger passenger) {
@@ -141,12 +137,6 @@ public class GetBillingPanelUseCase {
         String lastName = passenger.getLastName() == null ? "" : passenger.getLastName().trim();
         String name = (firstName + " " + lastName).trim();
         return name.isBlank() ? "Pasajero sin nombre" : name;
-    }
-
-    private BigDecimal totalReservationAmount(Reservation reservation) {
-        BigDecimal amount = reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
-        BigDecimal extraAmount = reservation.getExtraAmount() == null ? BigDecimal.ZERO : reservation.getExtraAmount();
-        return amount.add(extraAmount);
     }
 
 }

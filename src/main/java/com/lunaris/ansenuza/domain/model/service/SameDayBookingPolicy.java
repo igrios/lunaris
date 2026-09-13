@@ -61,8 +61,8 @@ public class SameDayBookingPolicy {
     }
 
     boolean isShiftClosed(LocalTime shift, LocalTime now) {
-        LocalTime cutoff = shift.minusMinutes(cutoffBufferMinutes());
-        return !now.isBefore(cutoff);
+        return java.time.Duration.between(now, shift).compareTo(
+                java.time.Duration.ofMinutes(cutoffBufferMinutes())) < 0;
     }
 
     private LocalTime parseShift(String selectedShift) {
@@ -82,10 +82,10 @@ public class SameDayBookingPolicy {
 
     public int cutoffBufferMinutes() {
         try {
-            return Math.max(0, Integer.parseInt(configurationService.getValue(
+            return Math.max(60, Integer.parseInt(configurationService.getValue(
                     BUFFER_CONFIGURATION_KEY, "0").trim()));
         } catch (RuntimeException exception) {
-            return 0;
+            return 60;
         }
     }
 

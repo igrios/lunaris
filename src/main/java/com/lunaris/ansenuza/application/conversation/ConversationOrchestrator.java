@@ -100,6 +100,14 @@ public class ConversationOrchestrator {
     }
 
     public void process(IncomingMessage message) {
+        try {
+            processMessage(message);
+        } finally {
+            liveChat.conversationChanged();
+        }
+    }
+
+    private void processMessage(IncomingMessage message) {
         String raw = message.body();
         if (raw == null) {
             return;
@@ -172,7 +180,7 @@ public class ConversationOrchestrator {
 
         // 🌙 CONTROL DE JORNADA: Si la jornada humana terminó y el bot había quedado pausado,
         // lo despausamos automáticamente para que el cliente no quede hablando solo en la nada.
-        if (session.isBotPaused() && !operationControlService.isHumanActionEnabled()) {
+        if (session.isBotPaused() && !session.isManuallyPaused() && !operationControlService.isHumanActionEnabled()) {
             log.info("[Jornada Finalizada] Forzando despause de bot para {} por cierre de atención humana.", phoneNumber);
             session.setBotPaused(false);
         }

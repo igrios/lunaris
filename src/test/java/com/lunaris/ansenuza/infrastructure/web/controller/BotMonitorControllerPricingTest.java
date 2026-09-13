@@ -43,7 +43,7 @@ class BotMonitorControllerPricingTest {
                 pricing,
                 mock(ReceiptStoragePort.class),
                 mock(OperationControlService.class),
-                mock(ReservationService.class));
+                mock(ReservationService.class), mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class));
 
         var response = controller.cotizarFilaManual("Morteros", "Córdoba", 3, true);
 
@@ -59,13 +59,13 @@ class BotMonitorControllerPricingTest {
         when(passengers.findByPhone("3511111111")).thenReturn(Optional.empty());
         when(pricing.calculateReservationAmount("Morteros", "Córdoba", false, 1))
                 .thenReturn(new BigDecimal("48000.00"));
-        when(reservations.saveReservationFlow(any(Reservation.class), any()))
+        when(reservations.saveManualReservationFlow(any(Reservation.class), any()))
                 .thenReturn(List.of());
         BotMonitorController controller = new BotMonitorController(
                 mock(ConversationSessionRepository.class), mock(SimpMessagingTemplate.class),
                 passengers, mock(ChatMessageRepository.class), mock(LocalityRepository.class),
                 mock(WhatsAppService.class), pricing, mock(ReceiptStoragePort.class),
-                mock(OperationControlService.class), reservations);
+                mock(OperationControlService.class), reservations, mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class));
 
         controller.cargarReservaWebTradicional(
                 "3511111111", "Ada", "Lovelace", null, "Morteros", "Córdoba",
@@ -73,7 +73,7 @@ class BotMonitorControllerPricingTest {
                 null, false, false, null, mock(RedirectAttributes.class));
 
         ArgumentCaptor<Reservation> captor = ArgumentCaptor.forClass(Reservation.class);
-        verify(reservations).saveReservationFlow(captor.capture(), org.mockito.ArgumentMatchers.isNull());
+        verify(reservations).saveManualReservationFlow(captor.capture(), org.mockito.ArgumentMatchers.isNull());
         assertEquals("CONFIRMED", captor.getValue().getStatus());
         assertEquals(false, captor.getValue().getPaymentVerified());
     }

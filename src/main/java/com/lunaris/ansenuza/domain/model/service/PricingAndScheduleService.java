@@ -50,8 +50,8 @@ public class PricingAndScheduleService {
         this.clock = clock;
     }
 
-    @Value("${lunaris.trips.capacity:12}")
-    private int tripCapacity = 12;
+    @Value("${lunaris.trips.capacity:19}")
+    private int tripCapacity = 19;
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final Map<String, Integer> MINUTES_VUELTA_FROM_HUB = new HashMap<>();
@@ -267,11 +267,25 @@ public class PricingAndScheduleService {
      */
     public List<String> availableDepartureSchedules(
             String pickupLocality, String destination, LocalDate travelDate) {
-        if (pickupLocality == null || pickupLocality.isBlank() || travelDate == null) {
+        return availableDepartureSchedules(pickupLocality, destination, travelDate, 1);
+    }
+
+    public boolean isWithinPlanningWindow(LocalDate date, String schedule) {
+        if (date == null) return true;
+        var now = java.time.LocalDateTime.now(clock);
+        var departure = date.atTime(LocalTime.parse(ReturnCapacityPolicy.normalizeSchedule(schedule)));
+        return !departure.isBefore(now.plusMinutes(60));
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<String> availableDepartureSchedules(
+            String pickupLocality, String destination, LocalDate travelDate, int requestedSeats) {
+        if (pickupLocality == null || pickupLocality.isBlank() || travelDate == null || requestedSeats < 1) {
             return List.of();
         }
         return DEPARTURE_BLOCKS.stream()
-                .filter(schedule -> availableSeats(travelDate, schedule) > 0)
+                .filter(schedule -> isWithinPlanningWindow(travelDate, schedule))
+                .filter(schedule -> availableSeats(travelDate, schedule) >= requestedSeats)
                 .toList();
     }
 

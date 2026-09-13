@@ -2,6 +2,8 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="_csrf" th:if="${_csrf != null}" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:if="${_csrf != null}" th:content="${_csrf.headerName}">
     <title>Torre de Control - Lunaris</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" crossorigin="anonymous">
@@ -64,12 +66,12 @@
                     <tr>
                         <th class="ps-4 py-3">Teléfono</th>
                         <th class="py-3">Nombre</th>
-                        <th class="py-3">Paso</th>
+                        <th class="py-3">Paso</th><th class="py-3">Último mensaje</th>
                         <th class="py-3 text-center">Estado</th>
                         <th class="pe-4 py-3 text-end">Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="monitorBody">
+                <tbody id="monitorBody" th:fragment="monitorRows">
                     <tr th:each="s : ${sesiones}" th:id="'row-' + ${s.id}" th:classappend="${s.botPaused} ? 'alert-pulse table-danger' : ''">
                         <td class="ps-4 text-secondary fw-semibold">
                             <i class="bi bi-whatsapp text-success me-2"></i>
@@ -79,25 +81,23 @@
                         <td>
                             <span class="badge bg-info text-dark px-2 py-1" th:text="${s.currentStep ?: 'START'}"></span>
                         </td>
+                        <td th:text="${s.lastMessage ?: '—'}" style="max-width: 320px; overflow-wrap: anywhere;"></td>
                         <td class="text-center">
                             <span class="status-badge" 
                                   th:classappend="${s.botPaused} ? 'bg-danger text-white' : 'bg-success text-white'"
-                                  th:text="${s.botPaused} ? 'ATENCIÓN HUMANA' : 'AI Activa'"></span>
+                                  th:text="${s.botPaused} ? 'Muteado (Manual)' : 'Bot activo'"></span>
                         </td>
                         <td class="pe-4 text-end">
                             <button type="button" class="btn btn-sm px-3" 
                                     th:classappend="${s.botPaused ? 'btn-success' : 'btn-warning'}"
-                                    th:onclick="'conmutarEstadoBot(\'' + ${s.id} + '\')'">
+                                    th:attr="data-session-id=${s.id},data-paused=${!s.botPaused}">
                                 <i class="bi" th:classappend="${s.botPaused ? 'bi-play-fill' : 'bi-pause-fill'}"></i>
-                                <span th:text="${s.botPaused ? 'Activar Bot' : 'Pausar Bot'}"></span>
+                                <span th:text="${s.botPaused ? 'Reactivar Bot' : 'Pausar Bot'}"></span>
                             </button>
-                            <form th:action="@{/admin/chat/{phone}/takeover(phone=${s.phoneNumber})}" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-primary btn-sm ms-1">
-                                    <i class="bi bi-chat-text-fill"></i> Chatear
-                                </button>
-                            </form>
+                            <a th:href="@{/admin/chat(phone=${s.phoneNumber})}" class="btn btn-primary btn-sm ms-1">Chatear en Vivo</a>
                         </td>
                     </tr>
+                    <tr th:if="${#lists.isEmpty(sesiones)}"><td colspan="6">Sin sesiones registradas.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -106,36 +106,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-<script>
-    const socket = new SockJS('/chat-websocket');
-    const stomp = Stomp.over(socket);
-
-    stomp.connect({}, () => {
-        const connBadge = document.getElementById('connStatus');
-        if(connBadge) {
-            connBadge.className = "badge bg-success px-3 py-2";
-            connBadge.innerText = "Sistema en Vivo";
-        }
-
-        stomp.subscribe('/topic/system-alerts', (msg) => {
-            try {
-                const event = JSON.parse(msg.body);
-                if (event.action === 'OPEN_RETURN_CUTOFF') alert(event.message);
-            } catch (_) { /* Los avisos REFRESH anteriores son texto plano. */ }
-            console.log("Alerta de sistema recibida, refrescando interfaz...");
-            window.location.reload();
-        });
-    });
-
-    function conmutarEstadoBot(sessionId) {
-        if (!stomp || !stomp.connected) {
-            alert("El canal de control en tiempo real no está disponible ahora.");
-            return;
-        }
-
-        console.log("Solicitando cambio of estado del bot para sesión ID:", sessionId);
-        stomp.send('/app/bot.toggle', {}, JSON.stringify({ id: sessionId }));
-    }
-</script>
+<script src="/js/bot-monitor.js"></script>
 </body>
 </html>

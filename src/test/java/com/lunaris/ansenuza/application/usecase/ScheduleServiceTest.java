@@ -89,7 +89,7 @@ class ScheduleServiceTest {
     void testGetSchedulesForBot_WhenTravelDateIsPresent_AppliesCapacityAndCutoff() {
         PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
         LocalDate date = LocalDate.of(2026, 8, 20);
-        when(pricing.availableDepartureSchedules("Arrufó", "Córdoba", date))
+        when(pricing.availableDepartureSchedules("Arrufó", "Córdoba", date, 1))
                 .thenReturn(List.of("03:00 AM", "08:00 AM"));
         LocalityService localities = mock(LocalityService.class);
         when(localities.findAllWithActiveFare()).thenReturn(List.of(
@@ -98,7 +98,7 @@ class ScheduleServiceTest {
 
         assertEquals(List.of("03:00 AM", "08:00 AM"),
                 service.getSchedulesForBot("Arrufó", "Córdoba", date));
-        verify(pricing).availableDepartureSchedules("Arrufó", "Córdoba", date);
+        verify(pricing).availableDepartureSchedules("Arrufó", "Córdoba", date, 1);
     }
 
     @Test

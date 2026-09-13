@@ -33,6 +33,27 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 class ReservationServiceTest {
 
     @Test
+    void manualCreationClearsCanceledStateAndAppendsAuditWithoutDeletingHistory() {
+        var repository = mock(ReservationRepository.class);
+        var events = mock(ReservationEventRepository.class);
+        when(repository.save(any(Reservation.class))).thenAnswer(call -> call.getArgument(0));
+        var service = new ReservationService(repository, events, mock(PassengerRepository.class),
+                mock(OnboardPassengerUseCase.class));
+        var reservation = Reservation.builder().passenger(Passenger.builder().build())
+                .pickupLocality("Morteros").destination("Córdoba").travelDate(LocalDate.of(2030, 1, 1))
+                .amount(new BigDecimal("89000")).discountAmount(BigDecimal.ZERO)
+                .status("CANCELLED").travelStatus(Reservation.TravelStatus.CANCELED)
+                .returnedPassengerCount(2).paymentExpiresAt(java.time.LocalDateTime.now()).build();
+        var saved = service.saveManualReservationFlow(reservation, null).getFirst();
+        assertEquals("CONFIRMED", saved.getStatus());
+        assertEquals(Reservation.TravelStatus.SCHEDULED, saved.getTravelStatus());
+        assertEquals(0, saved.getReturnedPassengerCount());
+        assertNull(saved.getPaymentExpiresAt());
+        verify(events).save(any(ReservationEvent.class));
+        org.mockito.Mockito.verifyNoMoreInteractions(events);
+    }
+
+    @Test
     void roundTripLegsInheritInvoiceAndVerifiedPaymentFlags() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         when(reservations.countSequenceByRouteAndDate(

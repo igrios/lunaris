@@ -16,6 +16,8 @@ public final class Reservation {
     private String pickupAddress;
     private final String destination;
     private BigDecimal amount;
+    private boolean amountIsGroupTotal;
+    public boolean amountIsGroupTotal() { return amountIsGroupTotal; }
     private Boolean roundTrip;
     private String tripType;
     private LocalDate returnDate;
@@ -54,6 +56,7 @@ public final class Reservation {
         pickupAddress = builder.pickupAddress;
         destination = requireText(builder.destination, "destination");
         amount = nullSafe(builder.amount);
+        amountIsGroupTotal = builder.amountIsGroupTotal;
         roundTrip = builder.roundTrip;
         tripType = builder.tripType;
         returnDate = builder.returnDate;
@@ -152,6 +155,8 @@ public final class Reservation {
     public static final class Builder {
         private UUID id; private final UUID passengerId; private UUID driverId; private LocalDate travelDate;
         private final String pickupLocality; private String pickupAddress; private final String destination;
+        private boolean amountIsGroupTotal;
+        public Builder amountIsGroupTotal(boolean value) { amountIsGroupTotal = value; return this; }
         private BigDecimal amount; private Boolean roundTrip; private String tripType; private LocalDate returnDate;
         private BigDecimal extraAmount; private String promotionCode; private UUID promotionId;
         private Integer promotionDiscountPercentage; private BigDecimal discountAmount; private boolean paymentVerified;

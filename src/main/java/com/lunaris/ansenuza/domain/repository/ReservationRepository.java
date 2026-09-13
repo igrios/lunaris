@@ -101,7 +101,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     @Query("""
            SELECT r FROM Reservation r
-           WHERE r.reservationCode = CONCAT(:groupCode, '-IDA')
+           WHERE r.bookingGroupCode = :groupCode
+              OR r.reservationCode = CONCAT(:groupCode, '-IDA')
               OR r.reservationCode = CONCAT(:groupCode, '-VUELTA')
            """)
     List<Reservation> findReservationGroup(@Param("groupCode") String groupCode);
@@ -113,7 +114,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
            SELECT r FROM Reservation r
-           WHERE r.reservationCode = CONCAT(:groupCode, '-IDA')
+           WHERE r.bookingGroupCode = :groupCode
+              OR r.reservationCode = CONCAT(:groupCode, '-IDA')
               OR r.reservationCode = CONCAT(:groupCode, '-VUELTA')
            ORDER BY r.reservationCode
            """)
@@ -271,7 +273,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
                                    THEN 1 ELSE r.passengerCount END), 0)
            FROM Reservation r
            WHERE r.travelDate = :date
-           AND COALESCE(r.departureSchedule, '03:00 AM') = :schedule
+           AND SUBSTRING(COALESCE(r.departureSchedule, '03:00 AM'), 1, 5) = SUBSTRING(:schedule, 1, 5)
            AND (r.status IS NULL OR UPPER(r.status) NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED'))
            AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
@@ -323,7 +325,9 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            AND r.id NOT IN (SELECT i.reservation.id FROM Invoice i)
            AND NOT EXISTS (
                SELECT groupedInvoice.id FROM Invoice groupedInvoice
-               WHERE (r.reservationCode LIKE '%-IDA'
+               WHERE (r.bookingGroupCode IS NOT NULL
+                      AND r.bookingGroupCode = groupedInvoice.reservation.bookingGroupCode)
+                  OR (r.reservationCode LIKE '%-IDA'
                       AND groupedInvoice.reservation.reservationCode = CONCAT(
                           SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 4), '-VUELTA'))
                   OR (r.reservationCode LIKE '%-VUELTA'

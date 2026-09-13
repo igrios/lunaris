@@ -46,7 +46,7 @@ class BotReturnCapacityFlowTest {
                 .travelDate(LocalDate.of(2026, 9, 8)).scheduleBlock("14:00").passengerCount(2)
                 .roundTrip(false).currentStep("ASK_CONFIRMATION").build();
         when(reservations.findReturnCapacityCandidates(session.getTravelDate())).thenReturn(List.of(
-                Reservation.builder().passengerCount(7).departureSchedule("14:00")
+                Reservation.builder().passengerCount(18).departureSchedule("14:00")
                         .travelStatus(Reservation.TravelStatus.CONFIRMED).build()));
 
         handler.handle(session, new IncomingMessage(session.getPhoneNumber(),

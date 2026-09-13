@@ -54,29 +54,26 @@ public class BotMonitorController {
     private final OperationControlService operationControlService;
     private final ReservationService reservationService;
 
-    // 🖥️ Muestra la lista de conversaciones en el monitor filtrada por operador logueado
+    private final com.lunaris.ansenuza.application.usecase.BotMonitorService botMonitorService;
+
     @GetMapping("/monitor")
     public String getMonitor(Model model, Principal principal) {
-        List<ConversationSession> sesiones = sessionRepository.findAll();
-        
-        String username = (principal != null) ? principal.getName() : "anonimo";
-        
-        // ⚖️ FILTRO DE TORRE DE CONTROL: Ignacio ve todo, Martín solo lo suyo
-        if (!"ignacio".equalsIgnoreCase(username)) {
-            log.info("[Monitor] Filtrando chats en tiempo real para el operador: {}", username);
-            sesiones = sesiones.stream()
-                    .filter(s -> s != null && username.equalsIgnoreCase(s.getAssignedOperator()))
-                    .collect(Collectors.toList());
-        } else {
-            log.info("[Monitor] Administrador 'ignacio' accediendo a la vista global de la Torre de Control.");
-        }
-        
-        model.addAttribute("sesiones", sesiones);
-        
-        // 🕒 Pasamos el estado del interruptor a la vista HTML de Thymeleaf
+        model.addAttribute("sesiones", botMonitorService.rows());
         model.addAttribute("jornadaActiva", operationControlService.isHumanActionEnabled());
-        
         return "admin/bot-monitor";
+    }
+
+    @GetMapping("/monitor/rows")
+    public String monitorRows(Model model) {
+        model.addAttribute("sesiones", botMonitorService.rows());
+        return "admin/bot-monitor :: monitorRows";
+    }
+
+    @PostMapping("/monitor/pause")
+    @ResponseBody
+    public ResponseEntity<Void> pause(@RequestParam long id, @RequestParam boolean paused) {
+        botMonitorService.setPaused(id, paused);
+        return ResponseEntity.noContent().build();
     }
 
     // 🖥️ Abre el formulario tradicional de nueva reserva
@@ -123,6 +120,7 @@ public class BotMonitorController {
 
         boolean currentState = session.isBotPaused();
         session.setBotPaused(!currentState);
+        session.setManuallyPaused(!currentState);
 
         sessionRepository.saveAndFlush(session);
 
@@ -351,7 +349,7 @@ public class BotMonitorController {
             ida.setRequiresInvoice(requiresInvoice);
             ida.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
 
-            reservationService.saveReservationFlow(ida, returnDepartureSchedule);
+            reservationService.saveManualReservationFlow(ida, returnDepartureSchedule);
 
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva manual creada correctamente!");
 

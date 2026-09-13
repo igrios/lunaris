@@ -38,6 +38,7 @@ public class Reservation {
     private static final LocalDate OPEN_RETURN_SENTINEL_DATE = LocalDate.of(2099, 12, 31);
 
     public enum TravelStatus {
+        SCHEDULED,
         PENDING,
         REALIZED,
         OPEN_RETURN,
@@ -81,6 +82,10 @@ public class Reservation {
 
     @Column(name = "amount")
     private BigDecimal amount;
+
+    /** true únicamente cuando amount contiene el total del grupo repetido en cada tramo. */
+    @Column(name = "amount_is_group_total", nullable = false)
+    private boolean amountIsGroupTotal;
 
     /** Saldo histórico debitado al crear esta reserva; forma parte del valor pagado. */
     @Builder.Default

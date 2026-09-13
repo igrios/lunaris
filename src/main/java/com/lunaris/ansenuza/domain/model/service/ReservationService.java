@@ -85,6 +85,32 @@ public class ReservationService {
     }
 
     @Transactional
+    public List<Reservation> saveManualReservationFlow(Reservation reservation, String returnSchedule) {
+        if (reservation.getId() != null) {
+            throw new DomainValidationException("La creación manual requiere una reserva nueva.");
+        }
+        resetManualState(reservation);
+        reservation.setSource(com.lunaris.ansenuza.domain.model.ReservationSource.MANUAL);
+        List<Reservation> saved = saveReservationFlow(reservation, returnSchedule);
+        for (Reservation leg : saved) {
+            if (leg.getTravelStatus() != Reservation.TravelStatus.OPEN_RETURN) {
+                leg.setTravelStatus(Reservation.TravelStatus.SCHEDULED);
+            }
+        }
+        reservationRepository.saveAllAndFlush(saved);
+        return saved;
+    }
+
+    private void resetManualState(Reservation reservation) {
+        reservation.setStatus("CONFIRMED");
+        reservation.setTravelStatus(Reservation.TravelStatus.SCHEDULED);
+        reservation.setPaymentExpiresAt(null);
+        reservation.setReturnedPassengerCount(0);
+        reservation.setReturnAuditSentAt(null);
+        reservation.setRouteSequence(null);
+    }
+
+    @Transactional
     public List<Reservation> saveReservationFlow(Reservation mainReservation) {
         return saveReservationFlow(mainReservation, null);
     }
@@ -310,7 +336,7 @@ public class ReservationService {
                 ? "03:00 AM" : departureSchedule.trim();
         String direction = TripRouteCalculatorService.isCordoba(pickupLocality)
                 ? "RETURN" : "OUTBOUND";
-        String key = travelDate + "|" + ("RETURN".equals(direction) ? "DAY" : schedule.toLowerCase(java.util.Locale.ROOT))
+        String key = travelDate + "|" + ("RETURN".equals(direction) ? "DAY" : ReturnCapacityPolicy.normalizeSchedule(schedule))
                 + "|" + direction;
         capacityLockRepository.ensureExists(key);
         if (capacityLockRepository.findForUpdate(key) == null) {
@@ -318,7 +344,7 @@ public class ReservationService {
         }
         long available = "RETURN".equals(direction)
                 ? ReturnCapacityPolicy.availableSeats(reservationRepository, travelDate, schedule)
-                : 12 - reservationRepository.countReservedSeats(travelDate, schedule);
+                : 19 - reservationRepository.countReservedSeats(travelDate, schedule);
         if (requestedSeats > available) {
             throw new com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException(
                     "No hay asientos suficientes para el turno seleccionado.");
@@ -746,6 +772,18 @@ public class ReservationService {
     public Reservation updateReservation(UUID id, Reservation updatedData, String triggeredBy) {
         return reservationRepository.findById(id).map(reservation -> {
             assertNotCompleted(reservation);
+            boolean manualReactivation = "ADMIN_PANEL".equals(triggeredBy)
+                    && "CONFIRMED".equals(updatedData.getStatus())
+                    && ("CANCELLED".equalsIgnoreCase(reservation.getStatus())
+                        || reservation.getTravelStatus() == Reservation.TravelStatus.CANCELED
+                        || reservation.getTravelStatus() == Reservation.TravelStatus.NO_SHOW);
+            if (manualReactivation) {
+                lockAndValidateCapacity(
+                        updatedData.getTravelDate() != null ? updatedData.getTravelDate() : reservation.getTravelDate(),
+                        updatedData.getDepartureSchedule() != null ? updatedData.getDepartureSchedule() : reservation.getDepartureSchedule(),
+                        reservation.getPickupLocality(),
+                        updatedData.getPassengerCount() != null ? updatedData.getPassengerCount() : reservation.getTotalSeats());
+            }
             Reservation.TravelStatus requestedTravelStatus = updatedData.getTravelStatus();
             StringBuilder auditoriaDesc = new StringBuilder("Campos modificados: ");
             LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
@@ -785,6 +823,11 @@ public class ReservationService {
             if (requestedTravelStatus != null
                     && requestedTravelStatus != Reservation.TravelStatus.ONBOARD) {
                 reservation.setTravelStatus(requestedTravelStatus);
+            }
+
+            if (manualReactivation) {
+                resetManualState(reservation);
+                auditoriaDesc.append("[Reserva reactivada manualmente] ");
             }
 
             Reservation saved;

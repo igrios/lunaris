@@ -10,7 +10,7 @@ import java.util.Locale;
 
 /** Shared return inventory. Undated returns conservatively retain seats in each block. */
 public final class ReturnCapacityPolicy {
-    public static final int CAPACITY = 8;
+    public static final int CAPACITY = 19;
     private ReturnCapacityPolicy() {}
 
     public static String normalizeSchedule(String schedule) {

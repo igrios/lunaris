@@ -172,7 +172,8 @@ public class OnboardPassengerUseCase {
 
     private void assertValidTransition(Reservation.TravelStatus current,
             Reservation.TravelStatus next) {
-        boolean reserved = current == null || current == Reservation.TravelStatus.PENDING
+        boolean reserved = current == null || current == Reservation.TravelStatus.SCHEDULED
+                || current == Reservation.TravelStatus.PENDING
                 || current == Reservation.TravelStatus.CONFIRMED;
         boolean boarded = current == Reservation.TravelStatus.BOARDED
                 || current == Reservation.TravelStatus.ONBOARD
@@ -315,7 +316,8 @@ public class OnboardPassengerUseCase {
 
     private boolean isPendingCandidate(Reservation reservation) {
         return reservation.getTravelStatus() == null
-                || reservation.getTravelStatus() == Reservation.TravelStatus.PENDING;
+                || reservation.getTravelStatus() == Reservation.TravelStatus.PENDING
+                || reservation.getTravelStatus() == Reservation.TravelStatus.SCHEDULED;
     }
 
     private String expectedNextSequence(Reservation onboard) {

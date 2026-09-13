@@ -14,13 +14,14 @@ import org.junit.jupiter.api.Test;
 class SameDayBookingPolicyTest {
 
     @Test
-    void closesSelectedShiftAtExactDepartureTime() {
+    void closesSelectedShiftLessThanOneHourBeforeDeparture() {
         SystemConfigurationService configurations = mock(SystemConfigurationService.class);
         when(configurations.getValue(SameDayBookingPolicy.BUFFER_CONFIGURATION_KEY, "0"))
                 .thenReturn("0");
         SameDayBookingPolicy policy = new SameDayBookingPolicy(configurations);
 
-        assertFalse(policy.isShiftClosed("08:00 AM", java.time.LocalTime.of(7, 59)));
+        assertFalse(policy.isShiftClosed("08:00 AM", java.time.LocalTime.of(7, 0)));
+        assertTrue(policy.isShiftClosed("08:00 AM", java.time.LocalTime.of(7, 1)));
         assertTrue(policy.isShiftClosed("08:00 AM", java.time.LocalTime.of(8, 0)));
         assertTrue(policy.isShiftClosed("03:00 AM", java.time.LocalTime.of(7, 59)));
     }
@@ -40,10 +41,10 @@ class SameDayBookingPolicyTest {
     void appliesConfiguredBufferBeforeShiftDeparture() {
         SystemConfigurationService configurations = mock(SystemConfigurationService.class);
         when(configurations.getValue(SameDayBookingPolicy.BUFFER_CONFIGURATION_KEY, "0"))
-                .thenReturn("30");
+                .thenReturn("90");
         SameDayBookingPolicy policy = new SameDayBookingPolicy(configurations);
 
-        assertFalse(policy.isShiftClosed("08:00", java.time.LocalTime.of(7, 29)));
-        assertTrue(policy.isShiftClosed("08:00", java.time.LocalTime.of(7, 30)));
+        assertFalse(policy.isShiftClosed("08:00", java.time.LocalTime.of(6, 30)));
+        assertTrue(policy.isShiftClosed("08:00", java.time.LocalTime.of(6, 31)));
     }
 }

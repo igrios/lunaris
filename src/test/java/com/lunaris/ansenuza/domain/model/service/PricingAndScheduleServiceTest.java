@@ -23,8 +23,8 @@
         @Test
         void availableDepartureSchedulesUsesOutgoingDateAndFiltersFullBlocks() {
             ReservationRepository reservations = mock(ReservationRepository.class);
-            LocalDate travelDate = LocalDate.of(2026, 8, 20);
-            when(reservations.countReservedSeats(travelDate, "03:00 AM")).thenReturn(12L);
+            LocalDate travelDate = LocalDate.now().plusDays(1);
+            when(reservations.countReservedSeats(travelDate, "03:00 AM")).thenReturn(19L);
             when(reservations.countReservedSeats(travelDate, "08:00 AM")).thenReturn(4L);
             PricingAndScheduleService service = new PricingAndScheduleService(
                     mock(FareRepository.class), mock(LocalityRepository.class),
@@ -45,7 +45,7 @@
 
             assertEquals(java.util.List.of("03:00 AM", "08:00 AM"),
                     service.availableDepartureSchedules(
-                            "Morteros", "Córdoba", LocalDate.of(2026, 8, 20)));
+                            "Morteros", "Córdoba", LocalDate.now().plusDays(1)));
         }
   
         @Test

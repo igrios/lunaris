@@ -11,7 +11,7 @@ public class ReservationMapper {
         ReservationEntity e = new ReservationEntity();
         e.setId(d.id()); e.setPassengerId(d.passengerId()); e.setDriverId(d.driverId()); e.setTravelDate(d.travelDate());
         e.setPickupLocality(d.pickupLocality()); e.setPickupAddress(d.pickupAddress()); e.setDestination(d.destination());
-        e.setAmount(d.amount()); e.setRoundTrip(d.roundTrip()); e.setTripType(d.tripType()); e.setReturnDate(d.returnDate());
+        e.setAmount(d.amount()); e.setAmountIsGroupTotal(d.amountIsGroupTotal()); e.setRoundTrip(d.roundTrip()); e.setTripType(d.tripType()); e.setReturnDate(d.returnDate());
         e.setExtraAmount(d.extraAmount()); e.setPromotionCode(d.promotionCode()); e.setPromotionId(d.promotionId());
         e.setPromotionDiscountPercentage(d.promotionDiscountPercentage()); e.setDiscountAmount(d.discountAmount());
         e.setPaymentVerified(d.paymentVerified()); e.setStatus(d.status().name()); e.setSource(d.source());
@@ -28,7 +28,7 @@ public class ReservationMapper {
     public Reservation toDomain(ReservationEntity e) {
         return Reservation.builder(e.getPassengerId(), e.getPickupLocality(), e.getDestination())
                 .id(e.getId()).driverId(e.getDriverId()).travelDate(e.getTravelDate()).pickupAddress(e.getPickupAddress())
-                .amount(e.getAmount()).roundTrip(e.getRoundTrip()).tripType(e.getTripType()).returnDate(e.getReturnDate())
+                .amount(e.getAmount()).amountIsGroupTotal(e.isAmountIsGroupTotal()).roundTrip(e.getRoundTrip()).tripType(e.getTripType()).returnDate(e.getReturnDate())
                 .extraAmount(e.getExtraAmount()).promotionCode(e.getPromotionCode()).promotionId(e.getPromotionId())
                 .promotionDiscountPercentage(e.getPromotionDiscountPercentage()).discountAmount(e.getDiscountAmount())
                 .paymentVerified(Boolean.TRUE.equals(e.getPaymentVerified())).status(ReservationStatus.fromPersistenceValue(e.getStatus()))

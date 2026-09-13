@@ -56,9 +56,7 @@ public class IssueInvoiceUseCase {
                 || !"CONFIRMED".equals(item.getStatus()))) {
             throw new IllegalStateException("La factura solo puede emitirse después de confirmar el pago.");
         }
-        BigDecimal invoiceAmount = group.stream()
-                .map(this::totalReservationAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal invoiceAmount = com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.total(group);
         if (invoiceAmount.signum() <= 0) {
             throw new IllegalStateException("No se emiten facturas fiscales para reservas bonificadas al 100%.");
         }
@@ -155,18 +153,9 @@ public class IssueInvoiceUseCase {
         return String.format("F-%d-%05d", Year.now().getValue(), sequence);
     }
 
-    private BigDecimal totalReservationAmount(Reservation reservation) {
-        BigDecimal amount = reservation.getAmount() == null ? BigDecimal.ZERO : reservation.getAmount();
-        BigDecimal extraAmount = reservation.getExtraAmount() == null ? BigDecimal.ZERO : reservation.getExtraAmount();
-        return amount.add(extraAmount);
-    }
-
     private List<Reservation> invoiceGroup(Reservation reservation) {
-        String code = reservation.getReservationCode();
-        if (code == null || !(code.endsWith("-IDA") || code.endsWith("-VUELTA"))) {
-            return List.of(reservation);
-        }
-        String groupCode = code.replaceFirst("-(IDA|VUELTA)$", "");
+        String groupCode = com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(reservation);
+        if (groupCode.startsWith("UUID:")) return List.of(reservation);
         List<Reservation> group = reservationRepository.findReservationGroup(groupCode);
         return group.isEmpty() ? List.of(reservation) : group;
     }

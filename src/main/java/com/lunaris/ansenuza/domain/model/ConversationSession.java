@@ -72,6 +72,9 @@ public class ConversationSession {
     @Column(name = "schedule_block")
     private String scheduleBlock;
 
+    @Column(name = "manually_paused", nullable = false)
+    private boolean manuallyPaused;
+
     @Column(name = "reservation_code")
     private String reservationCode;
 

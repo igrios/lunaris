@@ -6,5 +6,7 @@ package com.lunaris.ansenuza.application.port;
  */
 public interface LiveChatPort {
 
+    default void conversationChanged() {}
+
     void recordIncomingMessage(String phoneNumber, String text);
 }

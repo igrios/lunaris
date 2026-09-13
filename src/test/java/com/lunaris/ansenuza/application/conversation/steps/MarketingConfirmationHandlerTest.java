@@ -35,7 +35,7 @@ class MarketingConfirmationHandlerTest {
                 .destination("Córdoba")
                 .currentStep("ASK_MARKETING_CONFIRMATION")
                 .build();
-        when(schedules.getSchedulesForBot("Arrufó", "Córdoba", null))
+        when(schedules.getSchedulesForBot("Arrufó", "Córdoba", null, 1))
                 .thenReturn(List.of("03:00 AM", "08:00 AM"));
         when(pricing.calculateEstimatedPickupTime(eq("Arrufó"), anyString()))
                 .thenReturn("03:00 hs", "08:00 hs");
