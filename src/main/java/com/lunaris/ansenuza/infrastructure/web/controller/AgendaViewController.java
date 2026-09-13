@@ -312,7 +312,8 @@ public class AgendaViewController {
                 .filter(reservation -> !isManifestReturn(reservation)).toList());
         model.addAttribute("returnReservations", reservations.stream()
                 .filter(AgendaViewController::isManifestReturn).toList());
-        model.addAttribute("totalPassengers", reservations.stream().mapToInt(Reservation::getTotalSeats).sum());
+        model.addAttribute("uniquePassengers", new DailyPassengerManifestService().uniquePassengers(reservations));
+        model.addAttribute("reservedSeats", new DailyPassengerManifestService().reservedSeats(reservations));
         return "admin/daily-passenger-manifest";
     }
 

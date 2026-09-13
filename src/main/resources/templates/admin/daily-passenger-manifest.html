@@ -20,7 +20,8 @@
 <header>
     <div><h1>Lunaris Ansenuza</h1><div>Manifiesto Diario de Pasajeros</div></div>
     <div class="meta">Fecha: <strong th:text="${date}">2026-01-01</strong><br>
-        Total pasajeros/asientos: <strong th:text="${totalPassengers}">0</strong></div>
+        Pasajeros únicos: <strong th:text="${uniquePassengers}">0</strong>
+        <span aria-hidden="true"> | </span>Butacas reservadas: <strong th:text="${reservedSeats}">0</strong></div>
 </header>
 <div class="actions">
     <button type="button" onclick="window.print()">Descargar PDF / Imprimir Manifiesto</button>

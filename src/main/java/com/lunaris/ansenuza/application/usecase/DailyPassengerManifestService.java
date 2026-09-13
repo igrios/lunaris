@@ -6,7 +6,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 /** Manifiesto PDF operativo consolidado, generado sin alterar el esquema de datos. */
@@ -17,12 +19,29 @@ public class DailyPassengerManifestService {
     public byte[] generatePdf(LocalDate date, List<Reservation> reservations) {
         StringBuilder stream = new StringBuilder("BT /F1 9 Tf 30 550 Td ");
         line(stream, "Lunaris Ansenuza - Manifiesto Diario de Pasajeros");
-        line(stream, "Fecha: " + DATE.format(date) + " | Total pasajeros/asientos: "
-                + reservations.stream().mapToInt(Reservation::getTotalSeats).sum());
+        line(stream, "Fecha: " + DATE.format(date) + " | Pasajeros únicos: "
+                + uniquePassengers(reservations) + " | Butacas reservadas: " + reservedSeats(reservations));
         section(stream, "TRAMOS DE IDA (Pueblos -> Cordoba)", reservations, false);
         section(stream, "TRAMOS DE VUELTA (Cordoba -> Pueblos)", reservations, true);
         stream.append("ET");
         return buildPdf(stream.toString());
+    }
+
+    /** Personas físicas, deduplicadas entre los tramos de ida y vuelta del manifiesto. */
+    public long uniquePassengers(List<Reservation> reservations) {
+        Set<Object> passengers = new HashSet<>();
+        for (Reservation reservation : reservations) {
+            if (reservation == null || reservation.getPassenger() == null) continue;
+            Object key = reservation.getPassenger().getId() != null
+                    ? reservation.getPassenger().getId()
+                    : reservation.getPassenger().getPhone();
+            if (key != null) passengers.add(key);
+        }
+        return passengers.size();
+    }
+
+    public int reservedSeats(List<Reservation> reservations) {
+        return reservations.stream().filter(r -> r != null).mapToInt(Reservation::getTotalSeats).sum();
     }
 
     private void section(StringBuilder out, String title, List<Reservation> all, boolean returns) {
