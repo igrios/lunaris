@@ -186,7 +186,7 @@ public class AgendaViewController {
 
     
     // 🚐 2. Vista detalle del día (Excluye Pasajeros Fantasma / Cancelados / Conteo <= 0)
-    @GetMapping("/agenda/view-detalle")
+    @GetMapping({"/agenda/view-detalle", "/admin/agenda/detalle"})
     public String dayAgenda(
             @RequestParam("date")
             @DateTimeFormat(
@@ -210,6 +210,11 @@ public class AgendaViewController {
 
         model.addAttribute("date", date);
         model.addAttribute("reservations", activeReservations);
+        List<Reservation> boardReservations = reservationRepository.findDailyManifest(date);
+        model.addAttribute("outboundReservations", boardReservations.stream()
+                .filter(reservation -> !isManifestReturn(reservation)).toList());
+        model.addAttribute("returnReservations", boardReservations.stream()
+                .filter(AgendaViewController::isManifestReturn).toList());
         model.addAttribute("choferes", choferes);
         model.addAttribute("selectedSchedule", schedule);
         model.addAttribute("selectedDirection", direction);

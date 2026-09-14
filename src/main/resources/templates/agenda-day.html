@@ -38,6 +38,14 @@
         .navbar-brand fw-bold {
             color: #f8fafc !important;
         }
+        .passenger-card { cursor: pointer; transition: transform 0.2s; }
+        .passenger-card:hover { transform: translateY(-3px); }
+        .passenger-card:focus-visible { outline: 3px solid #0d6efd; outline-offset: 3px; }
+        #detailNotes { white-space: pre-wrap; overflow-wrap: anywhere; }
+        @media (prefers-reduced-motion: reduce) {
+            .passenger-card { transition: none; }
+            .passenger-card:hover { transform: none; }
+        }
     </style>
 </head>
 
@@ -146,6 +154,41 @@
             </div>
         </div>
 
+        <div class="btn-group mb-3" role="group" aria-label="Vista de la agenda">
+            <button id="boardViewButton" type="button" class="btn btn-primary" aria-pressed="true">Modo tablero</button>
+            <button id="listViewButton" type="button" class="btn btn-outline-primary" aria-pressed="false">Modo detalle</button>
+        </div>
+        <section id="agendaBoard" aria-label="Pasajeros del día" class="mb-4">
+            <p class="text-muted">Todos los horarios del día. Los filtros de horario y sentido se aplican al modo detalle.</p>
+            <div class="row g-3">
+                <section th:each="leg : ${ {'IDA', 'VUELTA'} }" class="col-md-6">
+                    <h2 class="h5 fw-bold" th:text="${leg}"></h2>
+                    <div th:id="${leg == 'IDA' ? 'colIda' : 'colVuelta'}"
+                        th:with="passengers=${leg == 'IDA' ? outboundReservations : returnReservations}">
+                        <p th:if="${#lists.isEmpty(passengers)}" class="text-muted">Sin pasajeros para este tramo.</p>
+                        <div th:each="r : ${passengers}" class="passenger-card card shadow-sm p-3 mb-2"
+                            role="button" tabindex="0" aria-haspopup="dialog" aria-controls="passengerDetailModal"
+                            th:data-passenger-name="${r.passenger.firstName + ' ' + r.passenger.lastName}"
+                            th:data-phone="${r.passenger.phone}"
+                            th:data-origin="${r.pickupLocality}" th:data-address="${r.pickupAddress}"
+                            th:data-destination="${r.destination}" th:data-schedule="${r.departureSchedule}"
+                            th:data-seats="${r.passengerCount}" th:data-amount="${r.amount}"
+                            th:data-notes="${r.notes}" th:data-receipt="${r.paymentReceiptUrl}"
+                            th:data-companions="${r.companionNames}" th:data-reservation-id="${r.id}">
+                            <div class="d-flex justify-content-between gap-2 mb-2">
+                                <span class="badge bg-primary" th:text="${r.departureSchedule ?: 'Sin horario'}"></span>
+                                <span class="badge passenger-status" th:classappend="${r.paymentVerified == true ? 'bg-success' : (r.status == 'CONFIRMED' ? 'bg-primary' : 'bg-warning text-dark')}"
+                                    th:text="${r.paymentVerified == true ? 'Verificado' : (r.status == 'CONFIRMED' ? 'Confirmado' : 'Pendiente')}"></span>
+                            </div>
+                            <strong th:text="${r.passenger.firstName + ' ' + r.passenger.lastName}"></strong>
+                            <small class="text-muted" th:with="seats=${r.passengerCount ?: 1}"
+                                th:text="${seats + (seats == 1 ? ' asiento' : ' asientos')}"></small>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+        <div id="agendaList" hidden>
         <div class="mb-3 d-flex gap-2">
             <button type="button" class="btn btn-outline-primary flex-fill fw-semibold shadow-sm"
                 onclick="selectAllReservations()">
@@ -370,6 +413,8 @@
             </div>
         </div>
 
+        </div>
+
         <div class="mt-4 pt-3 border-top">
             <a href="/agenda" class="btn btn-secondary px-4 shadow-sm">
                 ← Volver a la Agenda
@@ -379,6 +424,34 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <div class="modal fade" id="passengerDetailModal" tabindex="-1" aria-labelledby="passengerDetailTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title fs-5" id="passengerDetailTitle">Detalle del pasajero</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <h3 id="detailName" class="h5"></h3>
+                    <p>WhatsApp: <span id="detailPhone"></span> <a id="detailWhatsapp" target="_blank" rel="noopener noreferrer" hidden>Abrir chat</a></p>
+                    <h4 class="h6">Trayecto completo</h4>
+                    <p><span id="detailOrigin"></span> (<span id="detailAddress"></span>) → <span id="detailDestination"></span></p>
+                    <p><strong>Salida:</strong> <span id="detailSchedule"></span></p>
+                    <p><strong>Asientos:</strong> <span id="detailSeats"></span></p>
+                    <p><strong>Acompañantes:</strong> <span id="detailCompanions"></span></p>
+                    <p><strong>Importe:</strong> <span id="detailAmount"></span></p>
+                    <h4 class="h6">Observaciones / Notas del operador</h4>
+                    <p id="detailNotes"></p>
+                </div>
+                <div class="modal-footer">
+                    <a id="detailReceipt" class="btn btn-primary" target="_blank" rel="noopener noreferrer" hidden>📄 Ver Comprobante</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script th:src="@{/js/agenda-passenger-detail.js}"></script>
 
     <script th:inline="javascript">
         const routeTravelDate = /*[[${date}]]*/ "";
@@ -450,6 +523,12 @@
                 })
                 .then(result => {
                     result.reservationIds.forEach(synchronizedId => {
+                        document.querySelectorAll('.passenger-card').forEach(passengerCard => {
+                            if (passengerCard.dataset.reservationId !== String(synchronizedId)) return;
+                            const status = passengerCard.querySelector('.passenger-status');
+                            status.textContent = 'Verificado';
+                            status.className = 'badge passenger-status bg-success';
+                        });
                         const card = document.getElementById(`reservation-card-${synchronizedId}`);
                         if (!card) return;
 
