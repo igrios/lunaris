@@ -32,6 +32,11 @@ public class Passenger {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @jakarta.persistence.PrePersist
+    void ensureId() {
+        if (id == null) id = UUID.randomUUID();
+    }
+
     @Column(name = "first_name", nullable = false)
     private String firstName;
 

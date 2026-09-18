@@ -55,6 +55,7 @@ public class BotMonitorController {
     private final ReservationService reservationService;
 
     private final com.lunaris.ansenuza.application.usecase.BotMonitorService botMonitorService;
+    private final com.lunaris.ansenuza.application.usecase.CreateManualReservationUseCase createManualReservation;
 
     @GetMapping("/monitor")
     public String getMonitor(Model model, Principal principal) {
@@ -205,27 +206,13 @@ public class BotMonitorController {
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
             @RequestParam(value = "chatReceiptUrl", required = false, defaultValue = "null") String chatReceiptUrl,
+            @org.springframework.web.bind.annotation.ModelAttribute
+            com.lunaris.ansenuza.infrastructure.web.dto.reservation.ManualReservationOptions options,
             RedirectAttributes redirectAttributes) {
 
         try {
-            Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
-                Passenger newP = new Passenger();
-                newP.setPhone(phone);
-                newP.setCurrentBalance(java.math.BigDecimal.ZERO);
-                return newP;
-            });
-            
-            passenger.setFirstName(firstName.trim());
-            passenger.setLastName(lastName.trim() + " (Manual)"); 
-            if (cuil != null && !cuil.isBlank()) {
-                passenger.setCuil(cuil.trim());
-            }
-            passengerRepository.save(passenger);
-
-            LegAmounts legAmounts = calculateLegAmounts(
-                    pickupLocality, destination, roundTrip, passengerCount);
-            java.math.BigDecimal montoIda = legAmounts.outbound();
-            java.math.BigDecimal montoVuelta = legAmounts.inbound();
+            Passenger passenger = Passenger.builder().firstName(firstName).lastName(lastName)
+                    .phone(phone).cuil(cuil).build();
 
             String urlComprobanteCruda = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
                     .filter(m -> m != null && !m.isFromOperator()) 
@@ -256,8 +243,11 @@ public class BotMonitorController {
             ida.setPickupAddress(pickupAddress);
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
-            ida.setAmount(montoIda.add(montoVuelta));
-            ida.setDiscountAmount(java.math.BigDecimal.ZERO);
+            ida.setAmount(options.getAmount());
+            ida.setExtraAmount(options.getExtraAmount());
+            ida.setCompanionNames(options.getCompanionNames());
+            ida.setRouteDirection(options.getRouteDirection());
+            ida.setDiscountAmount(options.getDiscountAmount());
             ida.setPaymentReceiptUrl(urlComprobantePermanente); 
             ida.setStatus("PENDING_VERIFICATION");
             ida.setPaymentVerified(false);
@@ -266,21 +256,10 @@ public class BotMonitorController {
             ida.setReturnDate(returnDate);
             ida.setDepartureSchedule(departureSchedule);
             ida.setRequiresInvoice(requiresInvoice);
-            ida.setNotes(notasAuditoria);
+            ida.setNotes(options.getNotes() == null || options.getNotes().isBlank() ? notasAuditoria : options.getNotes());
 
-            List<Reservation> savedReservations = reservationService.saveReservationFlow(ida);
-            String codigoBase = savedReservations.getFirst().getBookingGroupCode();
+            createManualReservation.execute(ida, options.getReturnDepartureSchedule());
 
-            String textoConfirmacion = "¡Ok, gracias por el comprobante! Verificamos y te aviso. 📝\n\n"
-                    + "*Detalles de tu viaje registrado:*\n"
-                    + "*Pasajero:* " + firstName + " " + lastName + "\n"
-                    + "*Código de Reserva:* " + codigoBase + "\n" 
-                    + "*Viaje:* " + pickupLocality + " ➡️ " + destination + "\n" 
-                    + "*Fecha:* " + travelDate.toString() + "\n" 
-                    + "*Asientos:* " + passengerCount + "\n\n"
-                    + "En cuanto validemos la transferencia en el homebanking, el sistema te enviará la confirmación definitiva.";
-
-            whatsAppService.sendMessage(phone, textoConfirmacion);
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito!");
 
         } catch (Exception e) {
@@ -309,27 +288,13 @@ public class BotMonitorController {
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
             @RequestParam(value = "notes", required = false) String notes,
+            @org.springframework.web.bind.annotation.ModelAttribute
+            com.lunaris.ansenuza.infrastructure.web.dto.reservation.ManualReservationOptions options,
             RedirectAttributes redirectAttributes) {
 
         try {
-            Passenger passenger = passengerRepository.findByPhone(phone).orElseGet(() -> {
-                Passenger newP = new Passenger();
-                newP.setPhone(phone);
-                newP.setCurrentBalance(java.math.BigDecimal.ZERO);
-                return newP;
-            });
-            
-            passenger.setFirstName(firstName.trim());
-            passenger.setLastName(lastName.trim()); 
-            if (cuil != null && !cuil.isBlank()) {
-                passenger.setCuil(cuil.trim());
-            }
-            passengerRepository.save(passenger);
-
-            LegAmounts legAmounts = calculateLegAmounts(
-                    pickupLocality, destination, roundTrip, passengerCount);
-            java.math.BigDecimal montoIda = legAmounts.outbound();
-            java.math.BigDecimal montoVuelta = legAmounts.inbound();
+            Passenger passenger = Passenger.builder().firstName(firstName).lastName(lastName)
+                    .phone(phone).cuil(cuil).build();
 
             Reservation ida = new Reservation();
             ida.setPassenger(passenger);
@@ -338,8 +303,11 @@ public class BotMonitorController {
             ida.setPickupAddress(pickupAddress);
             ida.setDestination(destination);
             ida.setPassengerCount(passengerCount);
-            ida.setAmount(montoIda.add(montoVuelta));
-            ida.setDiscountAmount(java.math.BigDecimal.ZERO);
+            ida.setAmount(options.getAmount());
+            ida.setExtraAmount(options.getExtraAmount());
+            ida.setCompanionNames(options.getCompanionNames());
+            ida.setRouteDirection(options.getRouteDirection());
+            ida.setDiscountAmount(options.getDiscountAmount());
             ida.setStatus("CONFIRMED"); 
             ida.setPaymentVerified(false);
             ida.setRoundTrip(roundTrip);
@@ -349,7 +317,7 @@ public class BotMonitorController {
             ida.setRequiresInvoice(requiresInvoice);
             ida.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
 
-            reservationService.saveManualReservationFlow(ida, returnDepartureSchedule);
+            createManualReservation.execute(ida, returnDepartureSchedule);
 
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva manual creada correctamente!");
 
@@ -361,25 +329,9 @@ public class BotMonitorController {
         return "redirect:/agenda?success=true";
     }
 
-    private LegAmounts calculateLegAmounts(
-            String pickupLocality, String destination, boolean roundTrip, int passengerCount) {
-        java.math.BigDecimal total = tarifaService.calculateReservationAmount(
-                pickupLocality, destination, roundTrip, passengerCount);
-        if (!roundTrip) {
-            return new LegAmounts(total, java.math.BigDecimal.ZERO);
-        }
-        java.math.BigDecimal outbound = total.divide(
-                java.math.BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
-        return new LegAmounts(outbound, total.subtract(outbound));
-    }
-
     private TripType tripType(boolean roundTrip, LocalDate returnDate) {
         if (!roundTrip) return TripType.ONE_WAY;
         return returnDate == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP;
-    }
-
-    private record LegAmounts(
-            java.math.BigDecimal outbound, java.math.BigDecimal inbound) {
     }
 
     private String persistirComprobanteEnCloudinary(String urlOrigen, String phone) {

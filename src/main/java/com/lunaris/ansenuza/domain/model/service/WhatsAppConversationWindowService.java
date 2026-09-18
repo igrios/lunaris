@@ -24,8 +24,8 @@ public class WhatsAppConversationWindowService {
     @Transactional(readOnly = true)
     public boolean isActive(String phoneNumber) {
         return expirationFor(phoneNumber)
-                .map(expiration -> !com.lunaris.ansenuza.shared.ArgentinaTime.now()
-                        .isAfter(expiration))
+                .map(expiration -> com.lunaris.ansenuza.shared.ArgentinaTime.now()
+                        .isBefore(expiration))
                 .orElse(false);
     }
 }

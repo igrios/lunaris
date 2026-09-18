@@ -153,6 +153,14 @@ public class WhatsAppService implements MessagingPort {
         sendImageMessage(to, imageUrl, caption);
     }
 
+    @Override
+    public void sendText(String phone, String message, java.util.function.Consumer<Boolean> outcome) {
+        Map<String, Object> body = Map.of("messaging_product", "whatsapp", "to", phone,
+                "type", "text", "text", Map.of("body", message));
+        executePostCall("https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages",
+                createHeaders(), body, "TEXTO", outcome);
+    }
+
     boolean trySendMessage(String phoneNumber, String message) {
         String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
         HttpHeaders headers = createHeaders();
@@ -402,6 +410,12 @@ public class WhatsAppService implements MessagingPort {
 
     @Override
     public void sendDocumentUrl(String phoneNumber, String documentUrl, String fileName, String caption) {
+        sendDocumentUrl(phoneNumber, documentUrl, fileName, caption, ignored -> {});
+    }
+
+    @Override
+    public void sendDocumentUrl(String phoneNumber, String documentUrl, String fileName, String caption,
+            java.util.function.Consumer<Boolean> outcome) {
         try {
             String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
             Map<String, Object> documentNode = new HashMap<>();
@@ -415,7 +429,7 @@ public class WhatsAppService implements MessagingPort {
                     "to", phoneNumber,
                     "type", "document",
                     "document", documentNode);
-            executePostCall(url, createHeaders(), body, "DOCUMENTO_URL");
+            executePostCall(url, createHeaders(), body, "DOCUMENTO_URL", outcome);
         } catch (Exception exception) {
             throw new IllegalStateException("No se pudo enviar el documento por URL.", exception);
         }
@@ -912,6 +926,12 @@ static String buildDriverRouteSheetUrl(
 
     @Override
     public void sendTemplate(String to, String templateName, List<String> values) {
+        sendTemplate(to, templateName, values, ignored -> {});
+    }
+
+    @Override
+    public void sendTemplate(String to, String templateName, List<String> values,
+            java.util.function.Consumer<Boolean> outcome) {
         String metaPhoneNumber = formatMetaPhoneNumber(to);
         List<Map<String, Object>> parameters = values.stream()
                 .map(value -> Map.<String, Object>of("type", "text", "text", value))
@@ -927,7 +947,7 @@ static String buildDriverRouteSheetUrl(
                 "type", "template",
                 "template", template);
         executePostCall("https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages",
-                createHeaders(), body, "TEMPLATE " + templateName.toUpperCase());
+                createHeaders(), body, "TEMPLATE " + templateName.toUpperCase(), outcome);
     }
 
     private static String safeTemplateValue(String value, String fallback) {

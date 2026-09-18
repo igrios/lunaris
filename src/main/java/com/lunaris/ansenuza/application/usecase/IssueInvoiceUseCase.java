@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort.StoredInvoice;
-import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.Invoice;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.repository.InvoiceRepository;
@@ -41,8 +40,8 @@ public class IssueInvoiceUseCase {
     private final ReservationRepository reservationRepository;
     private final InvoiceRepository invoiceRepository;
     private final InvoiceStoragePort invoiceStorage;
-    private final MessagingPort messaging;
     private final InvoicePersistenceService invoicePersistenceService;
+    private final ManualReservationNotificationService notifications;
 
     @Value("${lunaris.public-base-url:" + DEFAULT_PUBLIC_BASE_URL + "}")
     private String publicBaseUrl = DEFAULT_PUBLIC_BASE_URL;
@@ -76,7 +75,7 @@ public class IssueInvoiceUseCase {
                 invoiceAmount, stored.webUrl());
         Invoice invoice = persistWithConcurrentRetry(invoiceData);
 
-        boolean sent = sendByWhatsApp(reservation, invoice, publicInvoiceUrl(invoice));
+        boolean sent = sendByWhatsApp(reservation, publicInvoiceUrl(invoice));
         return invoicePersistenceService.updateDeliveryStatus(
                 invoice.getId(), sent,
                 sent ? com.lunaris.ansenuza.shared.ArgentinaTime.now() : null);
@@ -99,7 +98,7 @@ public class IssueInvoiceUseCase {
         Reservation reservation = reservationRepository.findById(invoice.getReservationId())
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada para la factura " + invoiceId));
 
-        boolean sent = sendByWhatsApp(reservation, invoice, publicInvoiceUrl(invoice));
+        boolean sent = sendByWhatsApp(reservation, publicInvoiceUrl(invoice));
         boolean delivered = sent || Boolean.TRUE.equals(invoice.getSentViaWhatsapp());
         LocalDateTime sentAt = sent
                 ? com.lunaris.ansenuza.shared.ArgentinaTime.now()
@@ -117,23 +116,11 @@ public class IssueInvoiceUseCase {
     }
 
     private boolean sendByWhatsApp(
-            Reservation reservation, Invoice invoice, String publicDocumentUrl) {
+            Reservation reservation, String publicDocumentUrl) {
         try {
-            String phone = reservation.getPassenger().getPhone();
-            String caption = """
-                    🧾 *Factura %s - Lunaris Ansenuza*
-
-                    Hola %s, te adjuntamos la factura correspondiente a tu reserva *%s*. \
-                    ¡Gracias por viajar con nosotros!"""
-                    .formatted(invoice.getInvoiceNumber(),
-                            reservation.getPassenger().getFirstName(),
-                            reservation.getReservationCode());
-            String fileName = "Factura-" + invoice.getInvoiceNumber() + ".pdf";
-            messaging.sendDocumentUrl(phone, publicDocumentUrl, fileName, caption);
-            return true;
-        } catch (Exception e) {
-            log.error("No se pudo enviar la factura {} por WhatsApp. Queda guardada para reenviar.",
-                    invoice.getInvoiceNumber(), e);
+            return notifications.invoiceReady(reservation.getId(), publicDocumentUrl);
+        } catch (RuntimeException exception) {
+            log.error("La factura de la reserva {} quedó guardada pero no se pudo programar el envío", reservation.getId(), exception);
             return false;
         }
     }

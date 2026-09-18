@@ -70,7 +70,7 @@
                                 <th>Pasajero</th>
                                 <th>Viaje</th>
                                 <th>CUIL (sugerido)</th>
-                                <th class="text-end">Monto</th>
+                                <th class="text-end">Monto a facturar</th>
                                 <th>Factura (PDF)</th>
                             </tr>
                         </thead>
@@ -93,7 +93,7 @@
                                     </small>
                                 </td>
                                 <td class="text-end fw-semibold"
-                                    th:text="${'$' + #numbers.formatInteger(row.amount, 0, 'POINT')}">$0</td>
+                                    th:text="${'$' + #numbers.formatDecimal(row.amount, 1, 'POINT', 2, 'COMMA')}">$0,00</td>
                                 <td>
                                     <form th:action="@{'/facturacion/emitir/' + ${row.reservationId}}"
                                           method="post" enctype="multipart/form-data" class="d-flex gap-2">

@@ -41,8 +41,9 @@ class ReservationServiceTest {
                 mock(OnboardPassengerUseCase.class));
         var reservation = Reservation.builder().passenger(Passenger.builder().build())
                 .pickupLocality("Morteros").destination("Córdoba").travelDate(LocalDate.of(2030, 1, 1))
+                .pickupAddress("Belgrano 100").departureSchedule("08:00")
                 .amount(new BigDecimal("89000")).discountAmount(BigDecimal.ZERO)
-                .status("CANCELLED").travelStatus(Reservation.TravelStatus.CANCELED)
+                .passengerCount(1).status("CANCELLED").travelStatus(Reservation.TravelStatus.CANCELED)
                 .returnedPassengerCount(2).paymentExpiresAt(java.time.LocalDateTime.now()).build();
         var saved = service.saveManualReservationFlow(reservation, null).getFirst();
         assertEquals("CONFIRMED", saved.getStatus());

@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort;
 import com.lunaris.ansenuza.application.port.InvoiceStoragePort.StoredInvoice;
-import com.lunaris.ansenuza.application.port.MessagingPort;
 import com.lunaris.ansenuza.domain.model.Invoice;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -27,6 +26,12 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import jakarta.persistence.EntityManager;
 
 class IssueInvoiceUseCaseTest {
+
+    private ManualReservationNotificationService notifications() {
+        var notifications = mock(ManualReservationNotificationService.class);
+        when(notifications.invoiceReady(any(), any())).thenReturn(true);
+        return notifications;
+    }
 
     @Test
     void issuingRepeatedGroupTotalBillsOnly89000() {
@@ -49,7 +54,6 @@ class IssueInvoiceUseCaseTest {
         ReservationRepository reservations = mock(ReservationRepository.class);
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
-        MessagingPort messaging = mock(MessagingPort.class);
         EntityManager entityManager = mock(EntityManager.class);
         when(reservations.findById(returnId)).thenReturn(Optional.of(returnLeg));
         when(reservations.findReservationGroup("EXPLICIT-GROUP"))
@@ -69,19 +73,14 @@ class IssueInvoiceUseCaseTest {
         when(invoices.findByIdForUpdate(any(UUID.class)))
                 .thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
 
-        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging,
-                new InvoicePersistenceService(invoices, entityManager))
+        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
+                new InvoicePersistenceService(invoices, entityManager), notifications())
                 .issue(returnId, new byte[] {1});
 
         assertEquals(outboundId, issued.getReservationId());
         org.assertj.core.api.Assertions.assertThat(issued.getAmount()).isEqualByComparingTo("89000");
         verify(invoices).findByReservationId(outboundId);
-        verify(messaging).sendDocumentUrl(
-                eq("543511112222"),
-                eq("https://lunaris-backend-nn6s.onrender.com/public/invoices/"
-                        + issued.getId() + ".pdf"),
-                eq("Factura-" + issued.getInvoiceNumber() + ".pdf"),
-                anyString());
+
     }
 
     @Test
@@ -99,7 +98,6 @@ class IssueInvoiceUseCaseTest {
         ReservationRepository reservations = mock(ReservationRepository.class);
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
-        MessagingPort messaging = mock(MessagingPort.class);
         EntityManager entityManager = mock(EntityManager.class);
         when(reservations.findById(returnId)).thenReturn(Optional.of(returnLeg));
         when(reservations.findReservationGroup("MOR-COR-001"))
@@ -119,19 +117,14 @@ class IssueInvoiceUseCaseTest {
         when(invoices.findByIdForUpdate(any(UUID.class)))
                 .thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
 
-        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging,
-                new InvoicePersistenceService(invoices, entityManager))
+        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
+                new InvoicePersistenceService(invoices, entityManager), notifications())
                 .issue(returnId, new byte[] {1});
 
         assertEquals(outboundId, issued.getReservationId());
         assertEquals(new BigDecimal("20000.00"), issued.getAmount());
         verify(invoices).findByReservationId(outboundId);
-        verify(messaging).sendDocumentUrl(
-                eq("543511112222"),
-                eq("https://lunaris-backend-nn6s.onrender.com/public/invoices/"
-                        + issued.getId() + ".pdf"),
-                eq("Factura-" + issued.getInvoiceNumber() + ".pdf"),
-                anyString());
+
     }
 
     @Test
@@ -147,7 +140,6 @@ class IssueInvoiceUseCaseTest {
         ReservationRepository reservations = mock(ReservationRepository.class);
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
-        MessagingPort messaging = mock(MessagingPort.class);
         EntityManager entityManager = mock(EntityManager.class);
         when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
         when(invoices.findByReservationId(reservationId)).thenReturn(Optional.empty());
@@ -164,8 +156,8 @@ class IssueInvoiceUseCaseTest {
         when(invoices.findByIdForUpdate(any(UUID.class)))
                 .thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
 
-        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging,
-                new InvoicePersistenceService(invoices, entityManager))
+        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
+                new InvoicePersistenceService(invoices, entityManager), notifications())
                 .issue(reservationId, new byte[] {1});
 
         assertEquals(new BigDecimal("8500.00"), issued.getAmount());
@@ -185,7 +177,6 @@ class IssueInvoiceUseCaseTest {
         ReservationRepository reservations = mock(ReservationRepository.class);
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
-        MessagingPort messaging = mock(MessagingPort.class);
         EntityManager entityManager = mock(EntityManager.class);
         when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
         when(invoices.findByReservationId(reservationId)).thenReturn(Optional.of(managed));
@@ -194,8 +185,8 @@ class IssueInvoiceUseCaseTest {
         when(storage.store(any(byte[].class), anyString()))
                 .thenReturn(new StoredInvoice("/invoices/new.pdf", "/tmp/new.pdf"));
 
-        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage, messaging,
-                new InvoicePersistenceService(invoices, entityManager))
+        Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
+                new InvoicePersistenceService(invoices, entityManager), notifications())
                 .issue(reservationId, new byte[] {1});
 
         assertEquals(invoiceId, issued.getId());

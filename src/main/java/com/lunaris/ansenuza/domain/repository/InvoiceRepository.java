@@ -16,6 +16,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     Optional<Invoice> findByReservationId(UUID reservationId);
 
+    Optional<Invoice> findFirstByReservationIdIn(java.util.List<UUID> reservationIds);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT i FROM Invoice i WHERE i.reservationId = :reservationId")
     Optional<Invoice> findByReservationIdForUpdate(@Param("reservationId") UUID reservationId);

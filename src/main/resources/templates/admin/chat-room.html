@@ -203,6 +203,8 @@
                                 <div id="sectionFechaVuelta" class="mt-2 d-none">
                                     <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
                                     <input type="date" name="returnDate" id="returnDateInput" class="form-control form-control-sm fw-bold border-primary">
+                                    <label class="form-label mt-2" for="manualReturnSchedule">Horario de regreso</label>
+                                    <input type="time" name="returnDepartureSchedule" id="manualReturnSchedule" class="form-control">
                                 </div>
                             </div>
 
@@ -213,6 +215,38 @@
                                 </label>
                             </div>
 
+                    <div class="mb-3">
+                        <label class="form-label" for="companionNames">Nombres de acompañantes</label>
+                        <textarea class="form-control" id="companionNames" name="companionNames" maxlength="500"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="routeDirection">Sentido</label>
+                        <select class="form-select" id="routeDirection" name="routeDirection">
+                            <option value="">Según origen y destino</option>
+                            <option value="IDA">Ida</option>
+                            <option value="VUELTA">Vuelta</option>
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label" for="manualAmount">Monto final del viaje ($)</label>
+                            <input class="form-control" id="manualAmount" name="amount" type="number" min="0" step="0.01" placeholder="Usar tarifa calculada">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="manualDiscount">Descuento incluido ($)</label>
+                            <input class="form-control" id="manualDiscount" name="discountAmount" type="number" min="0" step="0.01" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="manualExtra">Adicional ($)</label>
+                            <input class="form-control" id="manualExtra" name="extraAmount" type="number" min="0" step="0.01" value="0">
+                        </div>
+                        <p class="small text-muted">El monto ingresado reemplaza la tarifa y ya incluye el descuento. El adicional se suma. Para ida y vuelta, ingresá el total de ambos tramos. El alta manual conserva estos importes sin descontar saldo a favor.</p>
+                    </div>
+
+                            <div class="mb-3">
+                                <label class="form-label" for="manualNotes">Notas de oficina</label>
+                                <textarea class="form-control" id="manualNotes" name="notes" maxlength="255"></textarea>
+                            </div>
                             <div class="p-3 mb-3 rounded-3" style="background-color: #e8f0fe; border: 1px solid #b3cefb; font-size: 0.9rem;">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="text-secondary fw-semibold">Código de Operación Previsto:</span>

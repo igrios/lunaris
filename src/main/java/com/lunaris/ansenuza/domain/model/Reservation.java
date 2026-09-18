@@ -142,6 +142,18 @@ public class Reservation {
     @Column(name = "notes")
     private String notes;
 
+    @Column(name = "manual_notification_attempt_at")
+    private LocalDateTime manualNotificationAttemptAt;
+
+    @Column(name = "invoice_url", length = 2048)
+    private String invoiceUrl;
+
+    @Column(name = "manual_notification_pending", nullable = false)
+    private boolean manualNotificationPending;
+
+    @Column(name = "manual_notification_waiting_reply", nullable = false)
+    private boolean manualNotificationWaitingReply;
+
     @Column(name = "payment_receipt_url")
     private String paymentReceiptUrl;
 
@@ -195,7 +207,7 @@ public class Reservation {
 
     @Builder.Default
     @Column(name = "requires_invoice", nullable = false)
-    private Boolean requiresInvoice = true; // 🧾 Toda reserva confirmada debe facturarse
+    private Boolean requiresInvoice = true; // Valor legado; se respeta la selección explícita del operador.
 
     @PrePersist
     @PreUpdate
@@ -217,7 +229,7 @@ public class Reservation {
         if (source == null) {
             source = ReservationSource.MANUAL;
         }
-        requiresInvoice = true;
+        if (requiresInvoice == null) requiresInvoice = true;
         if (returnedPassengerCount == null || returnedPassengerCount < 0) {
             returnedPassengerCount = 0;
         }
@@ -226,7 +238,8 @@ public class Reservation {
                     ? (returnDate == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)
                     : TripType.ONE_WAY;
         }
-        if (pickupLocality != null && destination != null) {
+        if ((routeDirection == null || routeDirection.isBlank())
+                && pickupLocality != null && destination != null) {
             boolean fromCordoba = pickupLocality.toLowerCase(java.util.Locale.ROOT)
                     .replace("ó", "o").contains("cordoba");
             boolean toCordoba = destination.toLowerCase(java.util.Locale.ROOT)

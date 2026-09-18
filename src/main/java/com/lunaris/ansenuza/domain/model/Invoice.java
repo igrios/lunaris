@@ -44,6 +44,9 @@ public class Invoice {
     @JoinColumn(name = "reservation_id", nullable = false, insertable = false, updatable = false)
     private Reservation reservation;
 
+    @Column(name = "authorization_code", length = 40)
+    private String authorizationCode;
+
     @Column(name = "invoice_number", length = 40)
     private String invoiceNumber;
 

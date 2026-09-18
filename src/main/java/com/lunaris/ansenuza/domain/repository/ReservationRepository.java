@@ -19,6 +19,20 @@ import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
+    List<Reservation> findByPassengerPhoneAndManualNotificationWaitingReplyTrue(String phone);
+
+    @Query("""
+            select r from Reservation r where r.manualNotificationPending = true
+            and (r.manualNotificationAttemptAt is null or r.manualNotificationAttemptAt < :leaseExpired)
+            and (r.manualNotificationWaitingReply = false or exists (
+                select m.id from ChatMessage m where m.phoneNumber = r.passenger.phone
+                and m.fromOperator = false and m.timestamp > :windowStart))
+            order by r.createdAt
+            """)
+    List<Reservation> findRetryableManualNotifications(@Param("leaseExpired") LocalDateTime leaseExpired,
+            @Param("windowStart") LocalDateTime windowStart, org.springframework.data.domain.Pageable pageable);
+
+
     @Query("""
            SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
            FROM Reservation r

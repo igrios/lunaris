@@ -166,6 +166,34 @@
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label" for="companionNames">Nombres de acompañantes</label>
+                        <textarea class="form-control" id="companionNames" name="companionNames" maxlength="500"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="routeDirection">Sentido</label>
+                        <select class="form-select" id="routeDirection" name="routeDirection">
+                            <option value="">Según origen y destino</option>
+                            <option value="IDA">Ida</option>
+                            <option value="VUELTA">Vuelta</option>
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label" for="manualAmount">Monto final del viaje ($)</label>
+                            <input class="form-control" id="manualAmount" name="amount" type="number" min="0" step="0.01" placeholder="Usar tarifa calculada">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="manualDiscount">Descuento incluido ($)</label>
+                            <input class="form-control" id="manualDiscount" name="discountAmount" type="number" min="0" step="0.01" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="manualExtra">Adicional ($)</label>
+                            <input class="form-control" id="manualExtra" name="extraAmount" type="number" min="0" step="0.01" value="0">
+                        </div>
+                        <p class="small text-muted">El monto ingresado reemplaza la tarifa y ya incluye el descuento. El adicional se suma. Para ida y vuelta, ingresá el total de ambos tramos. El alta manual conserva estos importes sin descontar saldo a favor.</p>
+                    </div>
+
                     <div class="mb-4">
                         <label class="form-label small fw-bold text-dark">Notas u Observaciones de la Oficina</label>
                         <textarea class="form-control" name="notes" rows="3" placeholder="Ej: Viaja con equipaje grande, etc."></textarea>

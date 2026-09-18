@@ -11,6 +11,20 @@ public interface MessagingPort {
 
     void sendText(String to, String message);
 
+    default void sendText(String to, String message, java.util.function.Consumer<Boolean> outcome) {
+        sendText(to, message);
+    }
+
+    default void sendTemplate(String to, String template, List<String> parameters,
+            java.util.function.Consumer<Boolean> outcome) {
+        sendTemplate(to, template, parameters);
+    }
+
+    default void sendDocumentUrl(String to, String url, String fileName, String caption,
+            java.util.function.Consumer<Boolean> outcome) {
+        sendDocumentUrl(to, url, fileName, caption);
+    }
+
     void sendButtons(String to, String header, String body, List<Button> buttons);
 
     /** Result callback is invoked only when an adapter knows the actual send outcome. */

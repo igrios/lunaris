@@ -23,11 +23,20 @@ public class WebSocketLiveChatAdapter implements LiveChatPort {
     private final SimpMessagingTemplate messagingTemplate;
     private final ConversationSessionRepository sessionRepository;
     private final LocalityRepository localityRepository;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
+    public WebSocketLiveChatAdapter(ChatMessageRepository chatMessageRepository,
+            SimpMessagingTemplate messagingTemplate, ConversationSessionRepository sessionRepository,
+            LocalityRepository localityRepository) {
+        this(chatMessageRepository, messagingTemplate, sessionRepository, localityRepository, event -> {});
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public WebSocketLiveChatAdapter(ChatMessageRepository chatMessageRepository,
             SimpMessagingTemplate messagingTemplate,
             ConversationSessionRepository sessionRepository,
-            LocalityRepository localityRepository) {
+            LocalityRepository localityRepository, org.springframework.context.ApplicationEventPublisher events) {
+        this.events = events;
         this.chatMessageRepository = chatMessageRepository;
         this.messagingTemplate = messagingTemplate;
         this.sessionRepository = sessionRepository;
@@ -51,6 +60,7 @@ public class WebSocketLiveChatAdapter implements LiveChatPort {
 
         messagingTemplate.convertAndSend("/topic/messages/" + phoneNumber, msgCliente);
         conversationChanged();
+        events.publishEvent(new com.lunaris.ansenuza.domain.model.PassengerMessageReceived(phoneNumber));
     }
 
     String readableText(String phoneNumber, String text) {

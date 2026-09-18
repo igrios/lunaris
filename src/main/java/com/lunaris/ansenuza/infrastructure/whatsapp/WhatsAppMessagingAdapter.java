@@ -17,6 +17,21 @@ public class WhatsAppMessagingAdapter implements MessagingPort {
     private final WhatsAppService whatsAppService;
 
     @Override
+    public void sendText(String to, String text, java.util.function.Consumer<Boolean> outcome) {
+        whatsAppService.sendText(to, text, outcome);
+    }
+
+    @Override
+    public void sendTemplate(String to, String template, List<String> parameters, java.util.function.Consumer<Boolean> outcome) {
+        whatsAppService.sendTemplate(to, template, parameters, outcome);
+    }
+
+    @Override
+    public void sendDocumentUrl(String to, String url, String name, String caption, java.util.function.Consumer<Boolean> outcome) {
+        whatsAppService.sendDocumentUrl(to, url, name, caption, outcome);
+    }
+
+    @Override
     public void sendText(String to, String message) {
         whatsAppService.sendMessage(to, message);
     }

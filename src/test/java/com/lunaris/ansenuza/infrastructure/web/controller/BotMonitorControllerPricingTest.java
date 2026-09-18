@@ -43,7 +43,7 @@ class BotMonitorControllerPricingTest {
                 pricing,
                 mock(ReceiptStoragePort.class),
                 mock(OperationControlService.class),
-                mock(ReservationService.class), mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class));
+                mock(ReservationService.class), mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class), mock(com.lunaris.ansenuza.application.usecase.CreateManualReservationUseCase.class));
 
         var response = controller.cotizarFilaManual("Morteros", "Córdoba", 3, true);
 
@@ -56,7 +56,9 @@ class BotMonitorControllerPricingTest {
         PassengerRepository passengers = mock(PassengerRepository.class);
         PricingAndScheduleService pricing = mock(PricingAndScheduleService.class);
         ReservationService reservations = mock(ReservationService.class);
-        when(passengers.findByPhone("3511111111")).thenReturn(Optional.empty());
+        var manual = mock(com.lunaris.ansenuza.application.usecase.CreateManualReservationUseCase.class);
+        when(passengers.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(passengers.findByPhone("543511111111")).thenReturn(Optional.empty());
         when(pricing.calculateReservationAmount("Morteros", "Córdoba", false, 1))
                 .thenReturn(new BigDecimal("48000.00"));
         when(reservations.saveManualReservationFlow(any(Reservation.class), any()))
@@ -65,15 +67,15 @@ class BotMonitorControllerPricingTest {
                 mock(ConversationSessionRepository.class), mock(SimpMessagingTemplate.class),
                 passengers, mock(ChatMessageRepository.class), mock(LocalityRepository.class),
                 mock(WhatsAppService.class), pricing, mock(ReceiptStoragePort.class),
-                mock(OperationControlService.class), reservations, mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class));
+                mock(OperationControlService.class), reservations, mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class), manual);
 
         controller.cargarReservaWebTradicional(
                 "3511111111", "Ada", "Lovelace", null, "Morteros", "Córdoba",
                 "Belgrano 100", 1, LocalDate.of(2026, 9, 10), null, "08:00",
-                null, false, false, null, mock(RedirectAttributes.class));
+                null, false, false, null, new com.lunaris.ansenuza.infrastructure.web.dto.reservation.ManualReservationOptions(), mock(RedirectAttributes.class));
 
         ArgumentCaptor<Reservation> captor = ArgumentCaptor.forClass(Reservation.class);
-        verify(reservations).saveManualReservationFlow(captor.capture(), org.mockito.ArgumentMatchers.isNull());
+        verify(manual).execute(captor.capture(), org.mockito.ArgumentMatchers.isNull());
         assertEquals("CONFIRMED", captor.getValue().getStatus());
         assertEquals(false, captor.getValue().getPaymentVerified());
     }

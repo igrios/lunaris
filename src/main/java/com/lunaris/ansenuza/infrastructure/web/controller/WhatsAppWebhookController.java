@@ -51,6 +51,7 @@ public class WhatsAppWebhookController {
     private final String verifyToken;
     private final String appSecret;
     private final com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     @org.springframework.beans.factory.annotation.Autowired
     public WhatsAppWebhookController(
@@ -63,7 +64,9 @@ public class WhatsAppWebhookController {
             Environment environment,
             @Value("${whatsapp.verify-token:}") String verifyToken,
             @Value("${whatsapp.app-secret:}") String appSecret,
-            com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry) {
+            com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry,
+            org.springframework.context.ApplicationEventPublisher events) {
+        this.events = events;
         this.webhookParser = webhookParser;
         this.conversationOrchestrator = conversationOrchestrator;
         this.processPaymentReceiptUseCase = processPaymentReceiptUseCase;
@@ -81,7 +84,15 @@ public class WhatsAppWebhookController {
             WhatsAppWebhookInboxService inbox, ObjectMapper mapper, Environment environment,
             String verifyToken, String appSecret) {
         this(parser, orchestrator, receipts, dispatcher, inbox, mapper, environment, verifyToken, appSecret,
-                com.lunaris.ansenuza.application.port.ChatbotTelemetryPort.NOOP);
+                com.lunaris.ansenuza.application.port.ChatbotTelemetryPort.NOOP, event -> {});
+    }
+
+    public WhatsAppWebhookController(WhatsAppWebhookParser parser, ConversationOrchestrator orchestrator,
+            ProcessPaymentReceiptUseCase receipts, WhatsAppMessageDispatcher dispatcher,
+            WhatsAppWebhookInboxService inbox, ObjectMapper mapper, Environment environment,
+            String verifyToken, String appSecret, com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry) {
+        this(parser, orchestrator, receipts, dispatcher, inbox, mapper, environment, verifyToken, appSecret,
+                telemetry, event -> {});
     }
 
     @jakarta.annotation.PostConstruct
@@ -130,6 +141,7 @@ public class WhatsAppWebhookController {
             }
 
             messageDispatcher.dispatch(message.from(), () -> {
+                events.publishEvent(new com.lunaris.ansenuza.domain.model.PassengerMessageReceived(message.from()));
                 IncomingMessage tracked = message.withTelemetry(
                         telemetry.begin(message.from(), message.messageId(), false));
                 if (message.isImageWithMedia()) {

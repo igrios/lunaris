@@ -57,6 +57,24 @@ public class WhatsAppServiceDevMock extends WhatsAppService {
     }
 
     @Override
+    public void sendText(String to, String text, java.util.function.Consumer<Boolean> outcome) {
+        sendText(to, text);
+        outcome.accept(true);
+    }
+
+    @Override
+    public void sendTemplate(String to, String template, List<String> parameters, java.util.function.Consumer<Boolean> outcome) {
+        sendTemplate(to, template, parameters);
+        outcome.accept(true);
+    }
+
+    @Override
+    public void sendDocumentUrl(String to, String url, String name, String caption, java.util.function.Consumer<Boolean> outcome) {
+        sendDocumentUrl(to, url, name, caption);
+        outcome.accept(true);
+    }
+
+    @Override
     public void sendMessage(String phone, String message) {
         add(phone, Direction.BOT, MessageType.TEXT, message, null, null, null);
     }

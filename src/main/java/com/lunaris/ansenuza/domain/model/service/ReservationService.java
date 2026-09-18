@@ -89,16 +89,50 @@ public class ReservationService {
         if (reservation.getId() != null) {
             throw new DomainValidationException("La creación manual requiere una reserva nueva.");
         }
+        validateManualReservation(reservation);
         resetManualState(reservation);
         reservation.setSource(com.lunaris.ansenuza.domain.model.ReservationSource.MANUAL);
-        List<Reservation> saved = saveReservationFlow(reservation, returnSchedule);
+        List<Reservation> saved = saveReservationFlow(reservation, returnSchedule, false);
         for (Reservation leg : saved) {
             if (leg.getTravelStatus() != Reservation.TravelStatus.OPEN_RETURN) {
                 leg.setTravelStatus(Reservation.TravelStatus.SCHEDULED);
             }
         }
+        saved.getFirst().setManualNotificationPending(true);
         reservationRepository.saveAllAndFlush(saved);
+        notificationEvents.publishEvent(new com.lunaris.ansenuza.domain.model.ManualReservationCreated(saved.getFirst().getId()));
         return saved;
+    }
+
+    public void validateManualReservation(Reservation reservation) {
+        if (reservation.getId() != null) throw new DomainValidationException("La creación manual requiere una reserva nueva.");
+        if (reservation.getTravelDate() == null || reservation.getPickupLocality() == null
+                || reservation.getPickupLocality().isBlank() || reservation.getDestination() == null
+                || reservation.getDestination().isBlank()) {
+            throw new DomainValidationException("Origen, destino y fecha son obligatorios.");
+        }
+        if (reservation.getReturnDate() != null && reservation.getReturnDate().isBefore(reservation.getTravelDate())) {
+            throw new DomainValidationException("El regreso no puede ser anterior a la ida.");
+        }
+        if (reservation.getPassengerCount() == null || reservation.getPassengerCount() < 1) {
+            throw new DomainValidationException("La cantidad de pasajeros debe ser positiva.");
+        }
+        if (reservation.getAmount() == null) {
+            reservation.setAmount(pricingAndScheduleService.calculateReservationAmount(
+                    reservation.getPickupLocality(), reservation.getDestination(),
+                    Boolean.TRUE.equals(reservation.getRoundTrip()), reservation.getPassengerCount()));
+        }
+        if (reservation.getDiscountAmount() == null) reservation.setDiscountAmount(BigDecimal.ZERO);
+        if (reservation.getExtraAmount() == null) reservation.setExtraAmount(BigDecimal.ZERO);
+        for (BigDecimal value : List.of(reservation.getAmount(), reservation.getDiscountAmount(), reservation.getExtraAmount())) {
+            if (value.signum() < 0 || value.stripTrailingZeros().scale() > 2) {
+                throw new DomainValidationException("Los montos deben ser positivos o cero y tener hasta dos decimales.");
+            }
+        }
+        String direction = reservation.getRouteDirection();
+        if (direction != null && !direction.isBlank() && !List.of("IDA", "VUELTA").contains(direction)) {
+            throw new DomainValidationException("Sentido de viaje inválido.");
+        }
     }
 
     private void resetManualState(Reservation reservation) {
@@ -118,6 +152,11 @@ public class ReservationService {
     @Transactional
     public List<Reservation> saveReservationFlow(
             Reservation mainReservation, String returnDepartureSchedule) {
+        return saveReservationFlow(mainReservation, returnDepartureSchedule, true);
+    }
+
+    private List<Reservation> saveReservationFlow(Reservation mainReservation,
+            String returnDepartureSchedule, boolean applyBalance) {
         List<Reservation> savedReservations = new ArrayList<>();
 
         lockAndValidateCapacity(mainReservation);
@@ -145,7 +184,10 @@ public class ReservationService {
         // (web, panel y bot) compartan el mismo formato de código.
         String originClean = cleanLocality(mainReservation.getPickupLocality());
         String destClean = cleanLocality(mainReservation.getDestination());
-        String outboundDirection = routeDirection(originClean, destClean);
+        String outboundDirection = mainReservation.getRouteDirection();
+        if (outboundDirection == null || outboundDirection.isBlank()) {
+            outboundDirection = routeDirection(originClean, destClean);
+        }
         mainReservation.setRouteDirection(outboundDirection);
         String routePrefix = localityPrefix(originClean) + "-" + localityPrefix(destClean);
 
@@ -169,7 +211,7 @@ public class ReservationService {
         BigDecimal costoTotalFlujo = amountWithExtras(mainReservation);
         BigDecimal saldoAplicado = BigDecimal.ZERO;
 
-        if (saldoDisponible.compareTo(BigDecimal.ZERO) > 0
+        if (applyBalance && saldoDisponible.compareTo(BigDecimal.ZERO) > 0
                 && costoTotalFlujo.compareTo(BigDecimal.ZERO) > 0) {
             saldoAplicado = saldoDisponible.min(costoTotalFlujo);
             if (saldoDisponible.compareTo(costoTotalFlujo) >= 0) {
