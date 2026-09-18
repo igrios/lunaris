@@ -50,7 +50,9 @@ public class WhatsAppWebhookController {
     private final Environment environment;
     private final String verifyToken;
     private final String appSecret;
+    private final com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public WhatsAppWebhookController(
             WhatsAppWebhookParser webhookParser,
             ConversationOrchestrator conversationOrchestrator,
@@ -60,7 +62,8 @@ public class WhatsAppWebhookController {
             ObjectMapper objectMapper,
             Environment environment,
             @Value("${whatsapp.verify-token:}") String verifyToken,
-            @Value("${whatsapp.app-secret:}") String appSecret) {
+            @Value("${whatsapp.app-secret:}") String appSecret,
+            com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry) {
         this.webhookParser = webhookParser;
         this.conversationOrchestrator = conversationOrchestrator;
         this.processPaymentReceiptUseCase = processPaymentReceiptUseCase;
@@ -70,6 +73,15 @@ public class WhatsAppWebhookController {
         this.environment = environment;
         this.verifyToken = verifyToken;
         this.appSecret = appSecret;
+        this.telemetry = telemetry;
+    }
+
+    public WhatsAppWebhookController(WhatsAppWebhookParser parser, ConversationOrchestrator orchestrator,
+            ProcessPaymentReceiptUseCase receipts, WhatsAppMessageDispatcher dispatcher,
+            WhatsAppWebhookInboxService inbox, ObjectMapper mapper, Environment environment,
+            String verifyToken, String appSecret) {
+        this(parser, orchestrator, receipts, dispatcher, inbox, mapper, environment, verifyToken, appSecret,
+                com.lunaris.ansenuza.application.port.ChatbotTelemetryPort.NOOP);
     }
 
     @jakarta.annotation.PostConstruct
@@ -118,10 +130,16 @@ public class WhatsAppWebhookController {
             }
 
             messageDispatcher.dispatch(message.from(), () -> {
+                IncomingMessage tracked = message.withTelemetry(
+                        telemetry.begin(message.from(), message.messageId(), false));
                 if (message.isImageWithMedia()) {
                     processPaymentReceiptUseCase.execute(message.from(), message.mediaId());
                 } else if (message.body() != null) {
-                    conversationOrchestrator.process(message);
+                    conversationOrchestrator.process(tracked);
+                } else {
+                    tracked.telemetry().emit(
+                            com.lunaris.ansenuza.application.telemetry.ChatbotEventType.INPUT_REJECTED,
+                            null, com.lunaris.ansenuza.application.telemetry.ChatbotReason.UNSUPPORTED_MESSAGE);
                 }
             });
 

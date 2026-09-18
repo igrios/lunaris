@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
@@ -29,6 +32,7 @@ public class WaitingListConfirmationHandler implements ConversationStepHandler {
         String response = message.body().trim().toLowerCase();
         if ("waiting_list_yes".equals(response)) {
             waitingListService.join(session);
+            message.telemetry().emit(WAITLISTED, step(), NO_CAPACITY);
             conversationSessionRepository.delete(session);
             messaging.sendText(session.getPhoneNumber(), """
                     ✅ *Te sumamos a la LISTA DE ESPERA.*
@@ -38,6 +42,7 @@ public class WaitingListConfirmationHandler implements ConversationStepHandler {
             return;
         }
         if ("waiting_list_no".equals(response)) {
+            message.telemetry().emit(BOOKING_DECLINED, step(), USER_DECLINED);
             conversationSessionRepository.delete(session);
             messaging.sendText(session.getPhoneNumber(),
                     "Entendido. No te agregamos a la lista de espera. Escribí *Hola* cuando quieras consultar otra fecha.");

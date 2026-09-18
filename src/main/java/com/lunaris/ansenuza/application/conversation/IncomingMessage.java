@@ -12,7 +12,27 @@ package com.lunaris.ansenuza.application.conversation;
  */
 public record IncomingMessage(
         String messageId, String from, MessageType type, String body, String mediaId,
-        Double latitude, Double longitude) {
+        Double latitude, Double longitude,
+        com.lunaris.ansenuza.application.telemetry.ChatbotInteraction telemetry, boolean analyticsTest) {
+
+    public IncomingMessage {
+        if (telemetry == null) telemetry = com.lunaris.ansenuza.application.telemetry.ChatbotInteraction.NONE;
+    }
+
+    public IncomingMessage(String messageId, String from, MessageType type, String body, String mediaId,
+            Double latitude, Double longitude) {
+        this(messageId, from, type, body, mediaId, latitude, longitude,
+                com.lunaris.ansenuza.application.telemetry.ChatbotInteraction.NONE, false);
+    }
+
+    public IncomingMessage withTelemetry(com.lunaris.ansenuza.application.telemetry.ChatbotInteraction context) {
+        return context == null || !context.active() ? this
+                : new IncomingMessage(messageId, from, type, body, mediaId, latitude, longitude, context, analyticsTest);
+    }
+
+    public IncomingMessage asAnalyticsTest() {
+        return new IncomingMessage(messageId, from, type, body, mediaId, latitude, longitude, telemetry, true);
+    }
 
     public enum MessageType {
         TEXT, IMAGE, DOCUMENT, INTERACTIVE, LOCATION, OTHER

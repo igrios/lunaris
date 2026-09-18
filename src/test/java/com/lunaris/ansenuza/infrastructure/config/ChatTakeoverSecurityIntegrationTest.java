@@ -5,6 +5,7 @@ import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
 import com.lunaris.ansenuza.application.usecase.TakeOverConversationUseCase;
 import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.model.service.WhatsAppConversationWindowService;
+import com.lunaris.ansenuza.application.port.ChatbotTelemetryPort;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
@@ -46,6 +47,7 @@ class ChatTakeoverSecurityIntegrationTest {
     @MockitoBean PassengerRepository passengers;
     @MockitoBean WhatsAppConversationWindowService conversationWindow;
     @MockitoBean WhatsAppService whatsApp;
+    @MockitoBean ChatbotTelemetryPort telemetry;
 
     @ParameterizedTest
     @ValueSource(strings = {"ADMIN", "OPERADOR"})

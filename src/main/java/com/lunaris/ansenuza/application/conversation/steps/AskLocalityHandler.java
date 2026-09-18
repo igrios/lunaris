@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import com.lunaris.ansenuza.application.conversation.BotRoute;
 
 import java.math.BigDecimal;
@@ -68,6 +71,7 @@ public class AskLocalityHandler implements ConversationStepHandler {
             }
 
             if (option < 1 || option > localities.size()) {
+                message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
                 messaging.sendText(phoneNumber,
                         "❌ Selección inválida. Ingresá un número de la lista o *0* para volver.");
                 return;
@@ -79,6 +83,7 @@ public class AskLocalityHandler implements ConversationStepHandler {
             try {
                 baseFare = pricingAndScheduleService.calculateTripPrice(selected.getName(), true, 1);
             } catch (IllegalArgumentException ex) {
+                message.telemetry().emit(FLOW_BLOCKED, step(), NO_FARE);
                 log.warn("Falta tarifa en base para la localidad seleccionada: {}",
                         selected.getName());
                 messaging.sendText(phoneNumber,
@@ -114,15 +119,17 @@ public class AskLocalityHandler implements ConversationStepHandler {
                     .formatted(selected.getName(), baseFare, primerHorario, segundoHorario,
                             lugaresDisponibles);
 
-            messaging.sendButtons(phoneNumber, "LUNARIS - Cotización", text,
+            message.telemetry().sendButtons(messaging, phoneNumber, "LUNARIS - Cotización", text,
                     List.of(new Button("yes_reserve", "Reservar ✅"),
-                            new Button("no_cancel", "En otro momento ❌")));
+                            new Button("no_cancel", "En otro momento ❌")), PRICE_SENT, session.getCurrentStep());
             return;
         } catch (NumberFormatException e) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber,
                     "⚠️ Por favor, respondé únicamente con el número correlativo de tu localidad o *0* para volver.");
             return;
         } catch (Exception e) {
+            message.telemetry().emit(FLOW_BLOCKED, step(), PROCESSING_FAILED);
             log.error("Error en ASK_LOCALITY: ", e);
             return;
         }

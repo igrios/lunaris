@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import java.util.List;
 import com.lunaris.ansenuza.application.conversation.BotRoute;
 import org.springframework.stereotype.Component;
@@ -34,10 +37,13 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
         String body = message.body().trim().toLowerCase();
 
         if ("yes_reserve".equals(body)) {
+            message.telemetry().emit(BOOKING_STARTED, step());
             List<String> schedules = scheduleService.getSchedulesForBot(
                     session.getPickupLocality(), session.getDestination(), session.getTravelDate(),
                     session.getPassengerCount() == null ? 1 : session.getPassengerCount());
             if (schedules.isEmpty()) {
+                message.telemetry().emit(FLOW_BLOCKED, step(), NO_CAPACITY);
+                message.telemetry().emit(HUMAN_HANDOFF, step(), NO_CAPACITY);
                 session.setCurrentStep("WAITING_FOR_INQUIRY_MESSAGE");
                 conversationSessionRepository.saveAndFlush(session);
                 messaging.sendText(phoneNumber,
@@ -67,6 +73,7 @@ public class MarketingConfirmationHandler implements ConversationStepHandler {
             return;
         }
         if ("no_cancel".equals(body)) {
+            message.telemetry().emit(BOOKING_DECLINED, step(), USER_DECLINED);
             conversationSessionRepository.delete(session);
             messaging.sendText(phoneNumber,
                     "Entendido. Si cambiás de opinión, escribinos 'Hola' cuando quieras.");

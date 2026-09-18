@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -28,6 +31,7 @@ public class AskDniHandler implements ConversationStepHandler {
 
         String cleanDni = body.replaceAll("[^0-9]", "");
         if (cleanDni.length() < 7 || cleanDni.length() > 11) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber,
                     "❌ *DNI o CUIT inválido.* Verificá el número e ingresalo nuevamente sin guiones:");
             return;
@@ -35,6 +39,7 @@ public class AskDniHandler implements ConversationStepHandler {
         session.setCuil(cleanDni);
         session.setCurrentStep("ASK_PROMOTION_CODE");
         conversationSessionRepository.saveAndFlush(session);
+        message.telemetry().emit(PASSENGER_DATA_COMPLETED, step());
         messaging.sendText(phoneNumber,
                 "🎟️ Si tenés un código promocional de 4 dígitos, ingresalo ahora. Si no tenés, escribí *SIN PROMO*.");
     }

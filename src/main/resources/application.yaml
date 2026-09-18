@@ -75,3 +75,14 @@ cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}
   api-key: ${CLOUDINARY_API_KEY:}
   api-secret: ${CLOUDINARY_API_SECRET:}
+
+# No default secret: analytics stays inactive until a separate strong key is supplied.
+chatbot:
+  analytics:
+    enabled: ${CHATBOT_ANALYTICS_ENABLED:true}
+    hmac-secret: ${CHATBOT_ANALYTICS_HMAC_SECRET:}
+    subject-key-version: ${CHATBOT_ANALYTICS_KEY_VERSION:1}
+    environment: ${CHATBOT_ANALYTICS_ENVIRONMENT:local}
+    inactivity-timeout: ${CHATBOT_ANALYTICS_INACTIVITY_TIMEOUT:30m}
+    retention: ${CHATBOT_ANALYTICS_RETENTION:90d}
+    internal-phones: ${CHATBOT_ANALYTICS_INTERNAL_PHONES:}

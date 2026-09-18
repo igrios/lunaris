@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
 import com.lunaris.ansenuza.application.port.MessagingPort;
@@ -30,8 +33,12 @@ public class ConfirmWaitingListBookingHandler implements ConversationStepHandler
         String response = message.body().trim().toLowerCase();
         if ("confirm_waiting_list".equals(response)) {
             try {
-                conversionService.beginPayment(session.getWaitingListEntryId());
+                var reservation = conversionService.beginPayment(session.getWaitingListEntryId());
+                message.telemetry().emit(BOOKING_STARTED, step());
+                if (reservation != null) message.telemetry().bookingCreated(
+                        step(), reservation.getBookingGroupCode(), reservation.getId());
             } catch (SeatCapacityExceededException exception) {
+                message.telemetry().emit(FLOW_BLOCKED, step(), NO_CAPACITY);
                 messaging.sendText(session.getPhoneNumber(),
                         "Disculpá, en este momento el cupo sigue completo. "
                                 + "Te avisaremos apenas se confirme un nuevo coche de refuerzo.");
@@ -51,6 +58,7 @@ public class ConfirmWaitingListBookingHandler implements ConversationStepHandler
             return;
         }
         if ("reject_waiting_list".equals(response)) {
+            message.telemetry().emit(BOOKING_DECLINED, step(), USER_DECLINED);
             conversionService.cancel(session.getWaitingListEntryId());
             conversationSessionRepository.delete(session);
             messaging.sendText(session.getPhoneNumber(),

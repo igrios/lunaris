@@ -30,6 +30,12 @@ public class WhatsAppMessagingAdapter implements MessagingPort {
     }
 
     @Override
+    public void sendButtons(String to, String header, String body, List<Button> buttons,
+            java.util.function.Consumer<Boolean> outcome) {
+        whatsAppService.sendButtons(to, header, body, buttons, outcome);
+    }
+
+    @Override
     public void requestLocation(String to, String message) {
         whatsAppService.sendLocationRequest(to, message);
     }

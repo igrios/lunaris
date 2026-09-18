@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationPresenter;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
@@ -39,11 +42,13 @@ public class AskPromotionCodeHandler implements ConversationStepHandler {
                 session.setPromotionCode(promotion.getCode());
                 session.setPromotionDiscountPercentage(promotion.getDiscountPercentage());
             } catch (IllegalArgumentException exception) {
+                message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
                 messaging.sendText(session.getPhoneNumber(), "❌ " + exception.getMessage()
                         + ". Ingresá otro código de 4 dígitos o escribí *SIN PROMO*.");
                 return;
             }
         } else {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(session.getPhoneNumber(), "Ingresá un código promocional válido de 4 dígitos o escribí *SIN PROMO*.");
             return;
         }
@@ -53,6 +58,6 @@ public class AskPromotionCodeHandler implements ConversationStepHandler {
         if (capacityGuard.offerWaitingListWhenFull(session)) {
             return;
         }
-        presenter.sendReservationSummaryWithButtons(session.getPhoneNumber(), session);
+        presenter.sendReservationSummaryWithButtons(session.getPhoneNumber(), session, message.telemetry());
     }
 }

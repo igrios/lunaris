@@ -20,7 +20,7 @@ import lombok.Setter;
 public class SystemConfiguration {
 
     @Id
-    @Column(name = "key", nullable = false)
+    @Column(name = "\"key\"", nullable = false)
     private String key;
 
     @Column(name = "value", columnDefinition = "TEXT")

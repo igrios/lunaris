@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import java.util.List;
 import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
@@ -35,16 +38,24 @@ public class AskTownDestinationHandler implements ConversationStepHandler {
             index = -1;
         }
         if (index < 0 || index >= destinations.size()) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(session.getPhoneNumber(), "Ingresá un número válido de la lista de destinos.");
             return;
         }
         session.setDestination(destinations.get(index).getName());
         session.setCurrentStep("ASK_MARKETING_CONFIRMATION");
         sessions.saveAndFlush(session);
-        var fare = pricing.calculateTripPrice(session.getDestination(), true, 1);
-        messaging.sendButtons(session.getPhoneNumber(), "LUNARIS - Cotización",
+        java.math.BigDecimal fare;
+        try {
+            fare = pricing.calculateTripPrice(session.getDestination(), true, 1);
+        } catch (IllegalArgumentException exception) {
+            message.telemetry().emit(FLOW_BLOCKED, step(), NO_FARE);
+            throw exception;
+        }
+        message.telemetry().emit(ROUTE_SELECTED, step());
+        message.telemetry().sendButtons(messaging, session.getPhoneNumber(), "LUNARIS - Cotización",
                 "💰 Tarifa de referencia (ida y vuelta) a " + session.getDestination()
                         + ": $" + fare + ". ¿Deseás reservar?",
-                List.of(new Button("yes_reserve", "Reservar ✅"), new Button("no_cancel", "En otro momento ❌")));
+                List.of(new Button("yes_reserve", "Reservar ✅"), new Button("no_cancel", "En otro momento ❌")), PRICE_SENT, session.getCurrentStep());
     }
 }

@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
 import com.lunaris.ansenuza.application.conversation.IncomingMessage;
@@ -31,6 +34,7 @@ public class AskCompanionsCountHandler implements ConversationStepHandler {
         try {
             int count = Integer.parseInt(body);
             if (count < 0 || count > 3) {
+                message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
                 messaging.sendText(phoneNumber,
                         "❌ Podés registrar hasta un máximo de 3 acompañantes directos. Ingresá entre 0 y 3:");
                 return;
@@ -54,6 +58,7 @@ public class AskCompanionsCountHandler implements ConversationStepHandler {
                         "👤 *Ingresá Nombre y Apellido de tu acompañante 1:*");
             }
         } catch (Exception e) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber,
                     "⚠️ Respondé únicamente con el número digital (Ej: 2).");
         }

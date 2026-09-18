@@ -36,6 +36,7 @@ class WhatsAppSimulatorDevControllerTest {
         assertThat(captor.getValue().from()).isEqualTo("5493515551234");
         assertThat(captor.getValue().type()).isEqualTo(IncomingMessage.MessageType.INTERACTIVE);
         assertThat(captor.getValue().body()).isEqualTo("CONFIRM_TRIP");
+        assertThat(captor.getValue().analyticsTest()).isTrue();
         assertThat(whatsApp.messagesFor("3515551234").getFirst().direction())
                 .isEqualTo(WhatsAppServiceDevMock.Direction.USER);
     }

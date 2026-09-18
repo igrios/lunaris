@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import com.lunaris.ansenuza.application.conversation.BotRoute;
 
 import java.util.Optional;
@@ -40,6 +43,7 @@ public class SelectScheduleHandler implements ConversationStepHandler {
                     .filter(schedule -> ("schedule_" + schedule.substring(0, 5).replace(':', '_')).equals(body))
                     .findFirst().orElse(null);
             if (selected == null) {
+                message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
                 return;
             }
             session.setScheduleBlock(selected);
@@ -48,6 +52,7 @@ public class SelectScheduleHandler implements ConversationStepHandler {
         } else if ("schedule_08_00".equals(body) || "time_0800".equals(body)) {
             session.setScheduleBlock("08:00 AM");
         } else {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             return;
         }
 
@@ -55,6 +60,8 @@ public class SelectScheduleHandler implements ConversationStepHandler {
                 session.getPickupLocality(), session.getDestination(), session.getTravelDate(),
                 session.getPassengerCount() == null ? 1 : session.getPassengerCount())
                 .contains(session.getScheduleBlock())) {
+            message.telemetry().emit(FLOW_BLOCKED, step(), NO_CAPACITY);
+            message.telemetry().emit(HUMAN_HANDOFF, step(), NO_CAPACITY);
             session.setScheduleBlock(null);
             session.setCurrentStep("WAITING_FOR_INQUIRY_MESSAGE");
             conversationSessionRepository.saveAndFlush(session);

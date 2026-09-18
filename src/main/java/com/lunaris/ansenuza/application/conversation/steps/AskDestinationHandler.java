@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import java.util.List;
 import org.springframework.stereotype.Component;
 import com.lunaris.ansenuza.application.conversation.ConversationStepHandler;
@@ -31,10 +34,12 @@ public class AskDestinationHandler implements ConversationStepHandler {
         String dest = "dest_aeropuerto".equals(body) ? "Aeropuerto Córdoba"
                 : "dest_capital".equals(body) ? "Córdoba" : null;
         if (dest == null) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             return;
         }
 
         session.setDestination(dest);
+        message.telemetry().emit(ROUTE_SELECTED, step());
         session.setCurrentStep("ASK_TRIP_TYPE");
         conversationSessionRepository.saveAndFlush(session);
 

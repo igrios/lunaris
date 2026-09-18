@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import com.lunaris.ansenuza.application.conversation.BotRoute;
 
 import java.time.LocalDate;
@@ -31,6 +34,7 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
 
         if ("return_same_day".equals(body)) {
             session.setReturnDate(session.getTravelDate());
+            message.telemetry().emit(DATE_SELECTED, step());
             advanceToBilling(session, phoneNumber);
             return;
         }
@@ -40,11 +44,13 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
             LocalDate selected = com.lunaris.ansenuza.shared.ArgentinaTime.today()
                     .plusDays(tomorrow ? 1 : 0);
             if (session.getTravelDate() != null && selected.isBefore(session.getTravelDate())) {
+                message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
                 messaging.sendText(phoneNumber,
                         "❌ La fecha de regreso no puede ser anterior al viaje de ida. Elegí otra opción:");
                 return;
             }
             session.setReturnDate(selected);
+            message.telemetry().emit(DATE_SELECTED, step());
             advanceToBilling(session, phoneNumber);
             return;
         }
@@ -61,6 +67,7 @@ public class AskReturnDateTypeHandler implements ConversationStepHandler {
         }
         if ("return_open".equals(body)) {
             session.setReturnDate(null);
+            message.telemetry().emit(DATE_SELECTED, step());
             advanceToBilling(session, phoneNumber);
             return;
         }

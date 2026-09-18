@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import java.time.LocalDate;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
@@ -32,6 +35,7 @@ public class AskReturnDateHandler implements ConversationStepHandler {
         Optional<LocalDate> fechaParseada = FechaParser.parsear(message.body());
 
         if (fechaParseada.isEmpty()) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber,
                     "❌ *Formato erróneo.* Por favor, indicá la fecha de tu regreso "
                             + "(por ejemplo: 12/08/2026):");
@@ -42,12 +46,14 @@ public class AskReturnDateHandler implements ConversationStepHandler {
 
         // Mantenemos la validación temporal de tu regla de negocio
         if (returnDate.isBefore(session.getTravelDate())) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber,
                     "❌ El regreso no puede ser anterior al viaje de ida.");
             return;
         }
 
         session.setReturnDate(returnDate);
+        message.telemetry().emit(DATE_SELECTED, step());
         session.setCurrentStep("ASK_DNI_REQUIRED");
         conversationSessionRepository.saveAndFlush(session);
         

@@ -2,14 +2,24 @@ package com.lunaris.ansenuza.application.usecase;
 
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class TakeOverConversationUseCase {
     private final ConversationSessionRepository sessionRepository;
+    private final com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TakeOverConversationUseCase(ConversationSessionRepository sessionRepository,
+            com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry) {
+        this.sessionRepository = sessionRepository;
+        this.telemetry = telemetry;
+    }
+
+    public TakeOverConversationUseCase(ConversationSessionRepository sessionRepository) {
+        this(sessionRepository, com.lunaris.ansenuza.application.port.ChatbotTelemetryPort.NOOP);
+    }
 
     @Transactional
     public String execute(String phoneNumber) {
@@ -24,6 +34,7 @@ public class TakeOverConversationUseCase {
             session.setBotPaused(true);
             sessionRepository.saveAndFlush(session);
         }
+        telemetry.handoff(session.getPhoneNumber());
         return session.getPhoneNumber();
     }
 }

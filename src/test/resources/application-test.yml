@@ -1,0 +1,5 @@
+chatbot:
+  analytics:
+    enabled: true
+    hmac-secret: "test-hmac-secret-key-32-bytes-long-for-testing!!"
+    environment: "test"

@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -38,11 +41,13 @@ public class MainMenuHandler implements ConversationStepHandler {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         if ("1".equals(body)) {
+            message.telemetry().emit(BOOKING_STARTED, step());
             session.setCurrentStep("ASK_LOCALITY");
             conversationSessionRepository.saveAndFlush(session);
             presenter.sendAllLocalitiesList(phoneNumber, "📍 *Excelente elección.* ");
             return;
         } else if ("2".equals(body)) {
+            message.telemetry().emit(PRICE_REQUESTED, step());
             session.setCurrentStep("ASK_LOCALITY");
             conversationSessionRepository.saveAndFlush(session);
             String ganchoMarketing = "💰 *¡Viajá al mejor precio con Lunaris Ansenusa!*\\nContamos con las tarifas más competitivas del sector, descuentos especiales por tramos de ida y vuelta coordinados, y unidades premium climatizadas con total puntualidad.\\n\\n";
@@ -53,6 +58,7 @@ public class MainMenuHandler implements ConversationStepHandler {
                 messaging.sendText(phoneNumber, "🌙 *Atención Telefónica Finalizada.*\\n\\nNuestro equipo humano se encuentra descansando en este momento para iniciar las rutas temprano. 🚐💨\\n\\nTe sugerimos usar las opciones *1* o *2* para registrar tu viaje de forma **100% automática** en menos de un minuto. ¡El bot te guiará solo!");
                 return;
             }
+            message.telemetry().emit(HUMAN_HANDOFF, step(), OPERATOR);
             session.setBotPaused(true);
             conversationSessionRepository.saveAndFlush(session);
             messaging.sendText(phoneNumber,
@@ -111,6 +117,7 @@ public class MainMenuHandler implements ConversationStepHandler {
             cancelReservationHandler.handle(session, message);
             return;
         } else {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber, "⚠️ Opción inválida. Por favor, seleccioná una opción del menú (1 al 6) o escribí *Menú*.");
         }
     }

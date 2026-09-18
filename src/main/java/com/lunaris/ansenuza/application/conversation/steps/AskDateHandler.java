@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +54,7 @@ public class AskDateHandler implements ConversationStepHandler {
         Optional<LocalDate> fechaParseada = FechaParser.parsear(message.body());
 
         if (fechaParseada.isEmpty()) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber,
                     "❌ *Formato erróneo.* Por favor, indicá la fecha de tu viaje "
                             + "(por ejemplo: 12/08/2026):");
@@ -62,6 +66,7 @@ public class AskDateHandler implements ConversationStepHandler {
 
         // Mantenemos tu validación de negocio intacta
         if (travelDate.isBefore(hoy)) {
+            message.telemetry().emit(INPUT_REJECTED, step(), INVALID_INPUT);
             messaging.sendText(phoneNumber,
                     "❌ La fecha no puede ser anterior a hoy. Reingresá:");
             return;
@@ -70,6 +75,7 @@ public class AskDateHandler implements ConversationStepHandler {
         try {
             sameDayBookingPolicy.validate(travelDate, session.getScheduleBlock());
         } catch (SameDayBookingClosedException exception) {
+            message.telemetry().emit(FLOW_BLOCKED, step(), DATE_CUTOFF);
             messaging.sendText(phoneNumber, exception.getMessage());
             return;
         }
@@ -78,12 +84,14 @@ public class AskDateHandler implements ConversationStepHandler {
         if (travelDate.equals(hoy.plusDays(1))
                 && !BotRoute.fromCordoba(session.getPickupLocality())
                 && operationControlService.isPastCutoffTime()) {
+            message.telemetry().emit(FLOW_BLOCKED, step(), DATE_CUTOFF);
             messaging.sendText(phoneNumber,
                     "⏱️ *Logística Cerrada para Mañana.*\n\nTe recordamos que las reservas para viajar al día siguiente cierran estrictamente a las *19:00 Hs* para poder asignar unidades y garantizar el descanso reglamentario de nuestros choferes. 🚐💤\n\nPor favor, ingresá una fecha alternativa a partir de pasados mañana:");
             return;
         }
         
         session.setTravelDate(travelDate);
+        message.telemetry().emit(DATE_SELECTED, step());
 
         if (Boolean.TRUE.equals(session.getRoundTrip())) {
             session.setCurrentStep("ASK_RETURN_DATE_TYPE");

@@ -56,7 +56,7 @@ public class WhatsAppSimulatorDevController {
         whatsApp.recordUserMessage(phone, type, value, request.payload(), resourceUrl);
 
         IncomingMessage incoming = new IncomingMessage(
-                phone, type, value, request.isMedia() ? resourceUrl : null);
+                phone, type, value, request.isMedia() ? resourceUrl : null).asAnalyticsTest();
         orchestrator.process(incoming);
         if (incoming.isMediaWithResource()) {
             processPaymentReceiptUseCase.executeStoredReceipt(phone, resourceUrl);

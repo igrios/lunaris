@@ -13,6 +13,12 @@ public interface MessagingPort {
 
     void sendButtons(String to, String header, String body, List<Button> buttons);
 
+    /** Result callback is invoked only when an adapter knows the actual send outcome. */
+    default void sendButtons(String to, String header, String body, List<Button> buttons,
+            java.util.function.Consumer<Boolean> outcome) {
+        sendButtons(to, header, body, buttons);
+    }
+
     void requestLocation(String to, String message);
 
     void sendImage(String to, String imageUrl, String caption);

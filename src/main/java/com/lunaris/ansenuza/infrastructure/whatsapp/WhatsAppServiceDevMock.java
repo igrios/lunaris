@@ -79,6 +79,13 @@ public class WhatsAppServiceDevMock extends WhatsAppService {
     }
 
     @Override
+    public void sendButtons(String phone, String header, String body, List<Button> buttons,
+            java.util.function.Consumer<Boolean> outcome) {
+        sendButtons(phone, header, body, buttons);
+        reportOutcome(outcome, true);
+    }
+
+    @Override
     public void sendButtons(String phone, String header, String body, List<Button> buttons) {
         add(phone, Direction.BOT, MessageType.INTERACTIVE, body, header,
                 buttons.stream().map(button -> new SimulatorButton(button.id(), button.title())).toList(), null);

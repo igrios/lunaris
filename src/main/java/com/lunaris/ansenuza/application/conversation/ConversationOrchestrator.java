@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -60,6 +63,7 @@ public class ConversationOrchestrator {
     private final ProcessPromotionCommandUseCase processPromotionCommandUseCase;
     private final OnboardPassengerUseCase onboardPassengerUseCase;
     private final CompleteTripUseCase completeTripUseCase;
+    private final com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry;
 
     @Autowired
     public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
@@ -72,7 +76,8 @@ public class ConversationOrchestrator {
             WhatsAppService whatsAppService,
             ProcessPromotionCommandUseCase processPromotionCommandUseCase,
             OnboardPassengerUseCase onboardPassengerUseCase,
-            CompleteTripUseCase completeTripUseCase) {
+            CompleteTripUseCase completeTripUseCase,
+            com.lunaris.ansenuza.application.port.ChatbotTelemetryPort telemetry) {
         this.handlers = handlerList.stream()
                 .collect(Collectors.toMap(ConversationStepHandler::step, Function.identity()));
         this.conversationSessionRepository = conversationSessionRepository;
@@ -85,6 +90,18 @@ public class ConversationOrchestrator {
         this.processPromotionCommandUseCase = processPromotionCommandUseCase;
         this.onboardPassengerUseCase = onboardPassengerUseCase;
         this.completeTripUseCase = completeTripUseCase;
+        this.telemetry = telemetry;
+    }
+
+    public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
+            ConversationSessionRepository sessions, LiveChatPort liveChat,
+            OperationControlService operations, ReservationCancellationService cancellations,
+            DriverRepository drivers, ReservationRepository reservations, WhatsAppService whatsApp,
+            ProcessPromotionCommandUseCase promotions, OnboardPassengerUseCase onboarding,
+            CompleteTripUseCase completeTrip) {
+        this(handlerList, sessions, liveChat, operations, cancellations, drivers, reservations,
+                whatsApp, promotions, onboarding, completeTrip,
+                com.lunaris.ansenuza.application.port.ChatbotTelemetryPort.NOOP);
     }
 
     public ConversationOrchestrator(List<ConversationStepHandler> handlerList,
@@ -101,7 +118,14 @@ public class ConversationOrchestrator {
 
     public void process(IncomingMessage message) {
         try {
-            processMessage(message);
+            IncomingMessage tracked = message.telemetry().active() ? message
+                    : message.withTelemetry(telemetry.begin(message.from(), message.messageId(), message.analyticsTest()));
+            try {
+                processMessage(tracked);
+            } catch (RuntimeException exception) {
+                tracked.telemetry().emit(FLOW_BLOCKED, null, PROCESSING_FAILED);
+                throw exception;
+            }
         } finally {
             liveChat.conversationChanged();
         }
@@ -110,6 +134,7 @@ public class ConversationOrchestrator {
     private void processMessage(IncomingMessage message) {
         String raw = message.body();
         if (raw == null) {
+            message.telemetry().emit(INPUT_REJECTED, null, UNSUPPORTED_MESSAGE);
             return;
         }
         String phoneNumber = message.from();
@@ -120,6 +145,7 @@ public class ConversationOrchestrator {
         // debe consultar ni reutilizar una ConversationSession de pasajero.
         Optional<Driver> activeDriver = findActiveDriverByPhone(phoneNumber);
         if (activeDriver.isPresent()) {
+            message.telemetry().emit(DRIVER_IDENTIFIED, null);
             handleDriverFlow(phoneNumber, activeDriver.get(), message, rawTrimmed);
             return;
         }
@@ -134,6 +160,7 @@ public class ConversationOrchestrator {
         if (isDriverRouteCommand(rawTrimmed)) {
             Optional<Driver> routeDriver = findDriverByPhone(phoneNumber);
             if (routeDriver.isPresent()) {
+                message.telemetry().emit(DRIVER_IDENTIFIED, null);
                 handleVerRuta(phoneNumber, routeDriver.get());
                 return;
             }
@@ -172,6 +199,8 @@ public class ConversationOrchestrator {
                     return conversationSessionRepository.saveAndFlush(newSession);
                 });
 
+        message.telemetry().emit(PASSENGER_IDENTIFIED, session.getCurrentStep());
+
         // Reflejamos el mensaje del cliente en la sala de chat humana (persistencia + WebSocket)
         liveChat.recordIncomingMessage(phoneNumber, raw.trim());
 
@@ -194,6 +223,7 @@ public class ConversationOrchestrator {
         }
 
         if (session.isBotPaused()) {
+            message.telemetry().emit(HUMAN_HANDOFF, session.getCurrentStep(), OPERATOR);
             log.info("[Bypass] Bot muteado para {}. Derivando mensaje a la sala de chat humana.",
                     phoneNumber);
             return;
@@ -225,7 +255,13 @@ public class ConversationOrchestrator {
             }
         }
 
+        message.telemetry().emit(STEP_CHANGED, effectiveStep);
         handler.handle(session, message);
+        message.telemetry().emit(STEP_CHANGED, session.getCurrentStep());
+        if ("WAITING_LIST".equals(session.getCurrentStep())) {
+            message.telemetry().emit(FLOW_BLOCKED, effectiveStep, NO_CAPACITY);
+            message.telemetry().emit(WAITLISTED, effectiveStep, NO_CAPACITY);
+        }
     }
 
     private void resetToStart(ConversationSession session) {

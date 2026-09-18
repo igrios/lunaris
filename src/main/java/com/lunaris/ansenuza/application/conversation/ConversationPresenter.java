@@ -44,6 +44,12 @@ public class ConversationPresenter {
     }
 
     public void sendReservationSummaryWithButtons(String phoneNumber, ConversationSession session) {
+        sendReservationSummaryWithButtons(phoneNumber, session,
+                com.lunaris.ansenuza.application.telemetry.ChatbotInteraction.NONE);
+    }
+
+    public void sendReservationSummaryWithButtons(String phoneNumber, ConversationSession session,
+            com.lunaris.ansenuza.application.telemetry.ChatbotInteraction telemetry) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String dates = "*Ida:* " + session.getTravelDate().format(formatter);
 
@@ -126,8 +132,9 @@ public class ConversationPresenter {
                 Boolean.TRUE.equals(session.getRoundTrip()) ? "Ida y vuelta" : "Solo ida",
                 dates, session.getCuil(), priceBase, saldoAplicado, descuentoPromo, totalNeto);
 
-        messaging.sendButtons(phoneNumber, "Verificación del Itinerario", summary,
+        telemetry.sendButtons(messaging, phoneNumber, "Verificación del Itinerario", summary,
                 List.of(new Button("confirm_ok", "Confirmar 👍"),
-                        new Button("confirm_cancel", "Cancelar ❌")));
+                        new Button("confirm_cancel", "Cancelar ❌")),
+                com.lunaris.ansenuza.application.telemetry.ChatbotEventType.SUMMARY_SENT, session.getCurrentStep());
     }
 }

@@ -137,6 +137,13 @@ public class WhatsAppService implements MessagingPort {
     }
 
     @Override
+    public void sendButtons(String to, String header, String body, List<Button> buttons,
+            java.util.function.Consumer<Boolean> outcome) {
+        sendInteractiveButtons(to, header, body, buttons.stream()
+                .map(button -> Map.of("id", button.id(), "title", button.title())).toList(), outcome);
+    }
+
+    @Override
     public void requestLocation(String to, String message) {
         sendLocationRequest(to, message);
     }
@@ -165,6 +172,11 @@ public class WhatsAppService implements MessagingPort {
 
     // SOBRECARGA 2: BOTONES INTERACTIVOS PREMIUM CON TÍTULO DESTACADO (4 ARGUMENTOS)
     public boolean sendInteractiveButtons(String phoneNumber, String headerText, String bodyText, List<Map<String, String>> buttons) {
+        return sendInteractiveButtons(phoneNumber, headerText, bodyText, buttons, ignored -> {});
+    }
+
+    public boolean sendInteractiveButtons(String phoneNumber, String headerText, String bodyText,
+            List<Map<String, String>> buttons, java.util.function.Consumer<Boolean> outcome) {
         String url = "https://graph.facebook.com/v25.0/" + phoneNumberId + "/messages";
         HttpHeaders headers = createHeaders();
 
@@ -192,9 +204,10 @@ public class WhatsAppService implements MessagingPort {
                 )
             );
 
-            return executePostCall(url, headers, body, "BOTONES INTERACTIVOS");
+            return executePostCall(url, headers, body, "BOTONES INTERACTIVOS", outcome);
         } catch (Exception e) {
             log.error("Error en botones interactivos: ", e);
+            reportOutcome(outcome, false);
             return false;
         }
     }
@@ -416,6 +429,11 @@ public class WhatsAppService implements MessagingPort {
     }
 
     private boolean executePostCall(String url, HttpHeaders headers, Map<String, Object> body, String tipoMensaje) {
+        return executePostCall(url, headers, body, tipoMensaje, ignored -> {});
+    }
+
+    private boolean executePostCall(String url, HttpHeaders headers, Map<String, Object> body,
+            String tipoMensaje, java.util.function.Consumer<Boolean> outcome) {
         if (TransactionSynchronizationManager.isActualTransactionActive()
                 && TransactionSynchronizationManager.isSynchronizationActive()) {
             Map<String, Object> deferredBody = new HashMap<>(body);
@@ -425,12 +443,28 @@ public class WhatsAppService implements MessagingPort {
                 @Override
                 public void afterCommit() {
                     java.util.concurrent.CompletableFuture.runAsync(
-                            () -> executePostCall(url, deferredHeaders, deferredBody, tipoMensaje));
+                            () -> executePostCall(url, deferredHeaders, deferredBody, tipoMensaje, outcome));
                 }
             });
             log.debug("Envío Meta [{}] diferido hasta confirmar la transacción.", tipoMensaje);
             return true;
         }
+        boolean sent = executeImmediatePostCall(url, headers, body, tipoMensaje);
+        reportOutcome(outcome, sent);
+        return sent;
+    }
+
+    protected static void reportOutcome(java.util.function.Consumer<Boolean> outcome, boolean sent) {
+        try {
+            outcome.accept(sent);
+        } catch (RuntimeException exception) {
+            log.warn("No se pudo registrar el resultado analítico del envío; tipo={}",
+                    exception.getClass().getSimpleName());
+        }
+    }
+
+    private boolean executeImmediatePostCall(String url, HttpHeaders headers, Map<String, Object> body,
+            String tipoMensaje) {
         Map<String, Object> sanitizedBody = new HashMap<>(body);
         if (body.get("to") instanceof String destinationPhone) {
             sanitizedBody.put("to", formatMetaPhoneNumber(destinationPhone));

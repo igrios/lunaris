@@ -1,5 +1,8 @@
 package com.lunaris.ansenuza.application.conversation.steps;
 
+import static com.lunaris.ansenuza.application.telemetry.ChatbotEventType.*;
+import static com.lunaris.ansenuza.application.telemetry.ChatbotReason.*;
+
 import com.lunaris.ansenuza.application.conversation.BotRoute;
 
 import java.math.BigDecimal;
@@ -143,6 +146,10 @@ public class ConfirmationHandler implements ConversationStepHandler {
                     .build();
 
             List<Reservation> savedReservations = reservationService.saveReservationFlow(nuevaReserva);
+            if (!savedReservations.isEmpty()) {
+                Reservation saved = savedReservations.getFirst();
+                message.telemetry().bookingCreated(step(), saved.getBookingGroupCode(), saved.getId());
+            }
             boolean paymentConfirmed = savedReservations.stream()
                     .allMatch(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()));
             if (session.getPromotionCode() != null && paymentConfirmed) {
@@ -215,6 +222,7 @@ public class ConfirmationHandler implements ConversationStepHandler {
         }
 
         if ("confirm_cancel".equals(body)) {
+            message.telemetry().emit(BOOKING_DECLINED, step(), USER_DECLINED);
             session.setCurrentStep("FOLLOW_UP_RETENTION");
             conversationSessionRepository.saveAndFlush(session);
 
