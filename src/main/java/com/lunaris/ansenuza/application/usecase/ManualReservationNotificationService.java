@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import com.lunaris.ansenuza.application.port.MessagingPort;
+import com.lunaris.ansenuza.application.port.PassengerContactTemplate;
 import com.lunaris.ansenuza.domain.model.ManualReservationCreated;
 import com.lunaris.ansenuza.domain.model.PassengerMessageReceived;
 import com.lunaris.ansenuza.domain.model.Reservation;
@@ -10,7 +11,6 @@ import com.lunaris.ansenuza.shared.PhoneUtils;
 import java.util.List;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -28,19 +28,16 @@ public class ManualReservationNotificationService {
     private final MessagingPort messaging;
     private final com.lunaris.ansenuza.domain.repository.InvoiceRepository invoices;
     private final TransactionTemplate transaction;
-    private final String template;
     private final TransactionTemplate withoutTransaction;
 
     public ManualReservationNotificationService(ReservationRepository reservations,
             WhatsAppConversationWindowService window, MessagingPort messaging,
             PlatformTransactionManager manager,
-            com.lunaris.ansenuza.domain.repository.InvoiceRepository invoices,
-            @Value("${whatsapp.templates.reservation-and-bot-promo:reservation_and_bot_promo}") String template) {
+            com.lunaris.ansenuza.domain.repository.InvoiceRepository invoices) {
         this.reservations = reservations;
         this.window = window;
         this.messaging = messaging;
         this.invoices = invoices;
-        this.template = template;
         this.transaction = new TransactionTemplate(manager);
         transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         withoutTransaction = new TransactionTemplate(manager);
@@ -127,7 +124,8 @@ public class ManualReservationNotificationService {
         boolean active = replying || window.isActive(phone);
         List<String> parameters = parameters(reservation);
         if (!active) {
-            messaging.sendTemplate(phone, template, parameters,
+            messaging.sendTemplate(phone, PassengerContactTemplate.NAME,
+                    PassengerContactTemplate.parameters(reservation.getPassenger().getFirstName()),
                     sent -> complete(reservation, sent, true));
             return;
         }

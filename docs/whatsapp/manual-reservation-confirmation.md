@@ -20,29 +20,13 @@ Después de confirmar el pago, la persona puede cargar el PDF emitido y pulsar �
 
 El PDF se almacena mediante `InvoiceStoragePort`; el link público se asocia a todos los tramos en `invoice_url`. `payment_receipt_url` conserva la evidencia de pago. Configurar `lunaris.public-base-url` con la URL pública de la instalación.
 
-## Plantilla que debe existir aprobada en Meta
+## Plantilla compartida con Chat en Vivo
 
-Nombre predeterminado: `reservation_and_bot_promo`. Configurable con `whatsapp.templates.reservation-and-bot-promo`. Idioma utilizado por el adaptador: `es`. La aprobación en Meta es un requisito externo; agregar este código no registra ni aprueba la plantilla.
+El botón «Hablar con Pasajero» de `/admin/chat/{phone}` envía `POST /admin/chat/{phone}/contactar`. `ChatController.reopenConversation` llama a `WhatsAppService.sendContactoPasajeroTemplate`.
 
-```text
-¡Hola {{1}}! Tu reserva fue registrada con éxito 🚌✨
+Reservas y facturas manuales usan el mismo contrato `PassengerContactTemplate`: nombre `contacto_pasajero`, idioma `es` y un único parámetro de cuerpo, el nombre del pasajero (o «Pasajero» si falta). No se inyectan los seis campos del resumen en esta plantilla. No se necesita configurar una plantilla adicional.
 
-📍 Trayecto: {{2}} -> {{3}}
-📅 Fecha y hora: {{4}}
-🎟️ Código de reserva: {{5}}
-📄 Factura/Comprobante: {{6}}
-
-💡 Tip Lunaris: ¡La próxima vez podés pedir tu viaje directamente por acá en 1 minuto! Nuestro Bot automático está disponible las 24 hs para cotizar, reservar y confirmarte al instante sin esperas. ¡Probalo en tu próximo viaje!
-```
-
-| Parámetro | Contenido |
-| --- | --- |
-| 1 | Nombre del pasajero |
-| 2 | Localidad de retiro |
-| 3 | Destino |
-| 4 | Fecha y horario |
-| 5 | Código de reserva |
-| 6 | Link de factura, comprobante de pago o indicación de pendiente/no solicitado |
+El resumen completo de reserva, el enlace del comprobante y el mensaje promocional del bot se envían como texto al abrirse la ventana mediante una respuesta del pasajero.
 
 Con ventana abierta se envían texto completo y PDF, cuando existe. Con ventana cerrada se envía la plantilla y queda persistida la espera de respuesta. Un mensaje/interacción recibido por el webhook firmado activa el detalle y PDF; las notas de oficina no se envían al pasajero.
 

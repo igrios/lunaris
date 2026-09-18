@@ -877,7 +877,8 @@ static String buildDriverRouteSheetUrl(
 }
 
     public void sendContactoPasajeroTemplate(String to, String passengerName) {
-        sendTemplate(to, "contacto_pasajero", List.of(safeTemplateValue(passengerName, "Pasajero")));
+        sendTemplate(to, com.lunaris.ansenuza.application.port.PassengerContactTemplate.NAME,
+                com.lunaris.ansenuza.application.port.PassengerContactTemplate.parameters(passengerName));
     }
 
     public void sendChoferAsignadoTemplate(

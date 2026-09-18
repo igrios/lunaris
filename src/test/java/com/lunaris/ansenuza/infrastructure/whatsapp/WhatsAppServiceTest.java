@@ -26,6 +26,35 @@ class WhatsAppServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void manualNotificationAndLiveChatSendIdenticalContactPayloadAndAcceptHttp200() {
+        RestTemplate rest = mock(RestTemplate.class);
+        when(rest.postForEntity(anyString(), any(), eq(String.class)))
+                .thenReturn(new org.springframework.http.ResponseEntity<>(
+                        "{\"messages\":[{\"id\":\"wamid.contact\"}]}", HttpStatus.OK));
+        WhatsAppService service = new WhatsAppService(rest, () -> 0L, millis -> { });
+        ReflectionTestUtils.setField(service, "phoneNumberId", "phone-id");
+        ReflectionTestUtils.setField(service, "accessToken", "token");
+        service.sendContactoPasajeroTemplate("3515551234", "Ana");
+        var outcome = new java.util.concurrent.atomic.AtomicReference<Boolean>();
+        service.sendTemplate("3515551234",
+                com.lunaris.ansenuza.application.port.PassengerContactTemplate.NAME,
+                com.lunaris.ansenuza.application.port.PassengerContactTemplate.parameters("Ana"),
+                outcome::set);
+        ArgumentCaptor<HttpEntity<Map<String, Object>>> captor = ArgumentCaptor.forClass(HttpEntity.class);
+        verify(rest, org.mockito.Mockito.times(2)).postForEntity(
+                eq("https://graph.facebook.com/v25.0/phone-id/messages"), captor.capture(), eq(String.class));
+        var payload = captor.getAllValues().getFirst().getBody();
+        Assertions.assertEquals(payload, captor.getAllValues().getLast().getBody());
+        Map<String, Object> template = (Map<String, Object>) payload.get("template");
+        Assertions.assertEquals("contacto_pasajero", template.get("name"));
+        Assertions.assertEquals(Map.of("code", "es"), template.get("language"));
+        Assertions.assertEquals(List.of(Map.of("type", "body", "parameters",
+                List.of(Map.of("type", "text", "text", "Ana")))), template.get("components"));
+        Assertions.assertEquals(Boolean.TRUE, outcome.get());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void documentUrlPayloadContainsDirectPdfLinkFilenameAndCaption() {
         RestTemplate restTemplate = mock(RestTemplate.class);
         when(restTemplate.postForEntity(anyString(), any(), eq(String.class)))

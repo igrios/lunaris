@@ -85,12 +85,12 @@ class ManualReservationIntegrationTest {
     }
 
     @Test
-    void closedWindowSendsSixParameterHsmAndReplySendsDetailsOnlyOnce() {
+    void closedWindowUsesLiveChatContactTemplateAndReplySendsDetailsOnlyOnce() {
         Reservation saved = service.saveManualReservationFlow(booking(true), null).getFirst();
         commit();
         var parameters = ArgumentCaptor.forClass(List.class);
-        verify(messaging).sendTemplate(eq(saved.getPassenger().getPhone()), eq("reservation_and_bot_promo"), parameters.capture(), any());
-        assertThat(parameters.getValue()).hasSize(6);
+        verify(messaging).sendTemplate(eq(saved.getPassenger().getPhone()), eq("contacto_pasajero"), parameters.capture(), any());
+        assertThat(parameters.getValue()).containsExactly("Ana");
         verify(messaging, never()).sendText(anyString(), anyString(), any());
         var reply = new PassengerMessageReceived(saved.getPassenger().getPhone());
         events.publishEvent(reply);
@@ -144,15 +144,21 @@ class ManualReservationIntegrationTest {
         commit();
         assertThat(invoices.findByReservationId(saved.getId())).isEmpty();
         verifyNoInteractions(storage);
-        verify(messaging).sendTemplate(anyString(), anyString(),
-                argThat(p -> p.get(5).equals("Factura pendiente de emisión y envío por administración")), any());
+        verify(messaging).sendTemplate(anyString(), eq("contacto_pasajero"), eq(List.of("Ana")), any());
+        events.publishEvent(new PassengerMessageReceived(saved.getPassenger().getPhone()));
+        verify(messaging).sendText(anyString(),
+                contains("Factura pendiente de emisión y envío por administración"), any());
     }
 
     @Test
     void operatorUploadsInvoiceWithGroupAmountAndReplyDeliversPdf() {
         Reservation saved = service.saveManualReservationFlow(booking(true), null).getFirst();
         commit();
+        clearInvocations(messaging);
         Invoice invoice = uploadManually(saved);
+        verify(messaging).sendTemplate(eq(saved.getPassenger().getPhone()),
+                eq("contacto_pasajero"), eq(List.of("Ana")), any());
+        verify(messaging, never()).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
         assertThat(invoice.getAmount()).isEqualByComparingTo("12796.17");
         assertThat(reservations.findById(saved.getId()).orElseThrow().getInvoiceUrl())
                 .contains("/public/invoices/");
