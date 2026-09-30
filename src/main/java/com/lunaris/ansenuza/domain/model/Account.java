@@ -48,7 +48,7 @@ public class Account {
     private boolean active = true;
 
     @Builder.Default
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "account_roles", joinColumns = @JoinColumn(name = "account_id"))
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 30)
