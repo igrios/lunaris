@@ -1,6 +1,5 @@
 package com.lunaris.ansenuza.infrastructure.config;
 
-import com.lunaris.ansenuza.domain.model.Account;
 import com.lunaris.ansenuza.domain.model.Role;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import org.springframework.context.annotation.Bean;
@@ -9,9 +8,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -210,16 +207,7 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService(AccountRepository accountRepository) {
-        return username -> accountRepository.findByUsernameIgnoreCase(username)
-                .map(this::toUserDetails)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
-    }
-
-    private org.springframework.security.core.userdetails.UserDetails toUserDetails(Account account) {
-        var authorities = account.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name())).toList();
-        return new UserPrincipal(account.getId(), account.getUsername(), account.getPasswordHash(),
-                account.isActive(), authorities);
+        return new AccountUserDetailsService(accountRepository);
     }
 
     @Bean
