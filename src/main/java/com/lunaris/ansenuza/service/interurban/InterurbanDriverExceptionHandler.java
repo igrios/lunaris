@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(assignableTypes = InterurbanDriverController.class)
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.driver.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = "lunaris.interurban.enabled", havingValue = "true", matchIfMissing = false)
 public class InterurbanDriverExceptionHandler {
     @ExceptionHandler(QrExpiredException.class)
     public ResponseEntity<Map<String, String>> expired() { return error(410, "QR_EXPIRED"); }

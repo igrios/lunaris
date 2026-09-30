@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(assignableTypes = MercadoPagoWebhookController.class)
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.payments.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.payments.enabled"}, havingValue = "true", matchIfMissing = false)
 public class InterurbanPaymentExceptionHandler {
     @ExceptionHandler(InterurbanPaymentException.class)
     public ResponseEntity<Map<String, String>> domain(InterurbanPaymentException exception) {

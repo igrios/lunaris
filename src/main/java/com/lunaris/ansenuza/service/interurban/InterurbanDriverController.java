@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.driver.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = "lunaris.interurban.enabled", havingValue = "true", matchIfMissing = false)
 public class InterurbanDriverController {
     public record CheckInRequest(String token, UUID tripId) {
         @Override public String toString() { return "CheckInRequest[token=REDACTED,tripId=" + tripId + "]"; }

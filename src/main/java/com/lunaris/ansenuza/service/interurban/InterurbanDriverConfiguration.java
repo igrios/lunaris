@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.driver.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = "lunaris.interurban.enabled", havingValue = "true", matchIfMissing = false)
 public class InterurbanDriverConfiguration {
     @Bean public DriverOperationsRepository interurbanDriverRepository(NamedParameterJdbcTemplate jdbc) {
         return new JdbcDriverOperationsRepository(jdbc);

@@ -12,7 +12,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.payments.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.payments.enabled"}, havingValue = "true", matchIfMissing = false)
 public class InterurbanPaymentConfiguration {
     @Bean public InterurbanPaymentRepository interurbanPaymentRepository(NamedParameterJdbcTemplate jdbc) {
         return new JdbcInterurbanPaymentRepository(jdbc);

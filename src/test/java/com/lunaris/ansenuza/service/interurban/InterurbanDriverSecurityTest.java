@@ -23,7 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = InterurbanDriverController.class, properties = {
-        "lunaris.interurban.enabled=true", "lunaris.interurban.driver.enabled=true"})
+        "lunaris.interurban.enabled=true"})
 @Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class, InterurbanDriverSecurityConfiguration.class,
         InterurbanDriverExceptionHandler.class})
 class InterurbanDriverSecurityTest {

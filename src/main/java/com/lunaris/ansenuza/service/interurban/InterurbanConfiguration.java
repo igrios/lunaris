@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(prefix = "lunaris.interurban", name = "enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "lunaris.interurban.enabled", havingValue = "true", matchIfMissing = false)
 public class InterurbanConfiguration {
     @Bean
     public CapacityRepository interurbanCapacityRepository(NamedParameterJdbcTemplate jdbc) {

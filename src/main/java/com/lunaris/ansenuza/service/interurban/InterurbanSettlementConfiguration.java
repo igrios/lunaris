@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.settlement.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.settlement.enabled"}, havingValue = "true", matchIfMissing = false)
 public class InterurbanSettlementConfiguration {
     @Bean DriverSettlementService driverSettlementService(NamedParameterJdbcTemplate jdbc) {
         return new DriverSettlementService(jdbc, Clock.systemUTC());

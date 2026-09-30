@@ -17,7 +17,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 
 /** Cadena anterior a /api/**, limitada exactamente a los dos endpoints nuevos. */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(name = {"lunaris.interurban.enabled", "lunaris.interurban.driver.enabled"}, havingValue = "true")
+@ConditionalOnProperty(name = "lunaris.interurban.enabled", havingValue = "true", matchIfMissing = false)
 public class InterurbanDriverSecurityConfiguration {
     @Bean @Order(0)
     public SecurityFilterChain interurbanDriverSecurity(HttpSecurity http,
