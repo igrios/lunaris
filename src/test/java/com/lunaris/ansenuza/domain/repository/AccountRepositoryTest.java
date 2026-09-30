@@ -87,7 +87,8 @@ class AccountRepositoryTest {
     @CsvSource({
             "DRIVER, CHOFER", "driver, CHOFER", "' Driver ', CHOFER",
             "CHOFER, CHOFER", "chofer, CHOFER", "admin, ADMIN",
-            "operador, OPERADOR", "facturacion, FACTURACION"
+            "operador, OPERADOR", "facturacion, FACTURACION",
+            "ROLE_CHOFER, CHOFER", "ROLE_DRIVER, CHOFER", "' role_driver ', CHOFER"
     })
     void loadsLegacyAndCaseVariantRolesForPanelAndAuthentication(String stored, Role expected) {
         var account = save("legacy");

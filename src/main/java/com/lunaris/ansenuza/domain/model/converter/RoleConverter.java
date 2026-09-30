@@ -14,9 +14,15 @@ public class RoleConverter implements AttributeConverter<Role, String> {
     }
 
     @Override
-    public Role convertToEntityAttribute(String value) {
-        if (value == null) return null;
-        String normalized = value.strip().toUpperCase(Locale.ROOT);
-        return "DRIVER".equals(normalized) ? Role.CHOFER : Role.valueOf(normalized);
+    public Role convertToEntityAttribute(String dbData) {
+        if (dbData == null || dbData.isBlank()) return null;
+        String cleanedValue = dbData.trim().toUpperCase(Locale.ROOT);
+        if (cleanedValue.startsWith("ROLE_")) cleanedValue = cleanedValue.substring(5);
+        if ("DRIVER".equals(cleanedValue)) return Role.CHOFER;
+        try {
+            return Role.valueOf(cleanedValue);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Rol persistido no reconocido.");
+        }
     }
 }
