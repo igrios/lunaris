@@ -2,10 +2,9 @@ package com.lunaris.ansenuza.domain.model;
 
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -50,7 +49,7 @@ public class Account {
     @Builder.Default
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "account_roles", joinColumns = @JoinColumn(name = "account_id"))
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.lunaris.ansenuza.domain.model.converter.RoleConverter.class)
     @Column(name = "role", nullable = false, length = 30)
     private Set<Role> roles = new HashSet<>();
 }
