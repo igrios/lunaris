@@ -1,12 +1,12 @@
 package com.lunaris.ansenuza.service.interurban;
 
 import com.lunaris.ansenuza.domain.repository.DriverRepository;
-import com.lunaris.ansenuza.shared.PhoneUtils;
+import com.lunaris.ansenuza.infrastructure.config.UserPrincipal;
 import java.util.UUID;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 
-/** Lectura del catálogo existente, sin cambiar su esquema ni su autorización actual. */
+/** Resuelve el chofer activo mediante la vinculación explícita con su cuenta. */
 public class ExistingDriverIdentityAdapter implements DriverIdentityPort {
     private final DriverRepository drivers;
 
@@ -16,18 +16,10 @@ public class ExistingDriverIdentityAdapter implements DriverIdentityPort {
         if (authentication == null || !authentication.isAuthenticated()
                 || authentication.getAuthorities().stream().noneMatch(a -> "ROLE_CHOFER".equals(a.getAuthority())
                         || "ROLE_ADMIN".equals(a.getAuthority()))) throw denied();
-        String phone = normalize(authentication.getName());
-        if (phone == null) throw denied();
-        var matches = drivers.findByActiveTrue().stream()
-                .filter(driver -> phone.equals(normalize(driver.getPhone()))).toList();
-        // Nunca escoger arbitrariamente un chofer si dos teléfonos representan la misma identidad.
-        if (matches.size() != 1 || matches.getFirst().getId() == null) throw denied();
-        return matches.getFirst().getId();
-    }
-
-    private String normalize(String phone) {
-        try { return PhoneUtils.normalizeArgentinePhone(phone); }
-        catch (RuntimeException e) { return null; }
+        if (!(authentication.getPrincipal() instanceof UserPrincipal principal)) throw denied();
+        return drivers.findByAccountIdAndActiveTrue(principal.getAccountId())
+                .map(driver -> driver.getId())
+                .orElseThrow(this::denied);
     }
 
     private AccessDeniedException denied() { return new AccessDeniedException("No hay un chofer activo inequívoco para esta cuenta."); }

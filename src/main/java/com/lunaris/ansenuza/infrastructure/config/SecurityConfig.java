@@ -9,7 +9,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -216,13 +216,10 @@ public class SecurityConfig {
     }
 
     private org.springframework.security.core.userdetails.UserDetails toUserDetails(Account account) {
-        String[] roles = account.getRoles().stream().map(Role::name).toArray(String[]::new);
-        return User.builder()
-                .username(account.getUsername())
-                .password(account.getPasswordHash())
-                .roles(roles)
-                .disabled(!account.isActive())
-                .build();
+        var authorities = account.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name())).toList();
+        return new UserPrincipal(account.getId(), account.getUsername(), account.getPasswordHash(),
+                account.isActive(), authorities);
     }
 
     @Bean

@@ -24,6 +24,9 @@ public class Driver {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "account_id", unique = true)
+    private UUID accountId;
+
     @Column(name = "full_name", nullable = false)
     private String fullName;
 

@@ -12,6 +12,7 @@ import com.lunaris.ansenuza.domain.model.Role;
 import com.lunaris.ansenuza.domain.repository.AccountRepository;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
@@ -24,6 +25,7 @@ class SecurityConfigAuthenticationTest {
     void loadsStoredBcryptHashAndMapsAdminRoleForAuthentication() {
         AccountRepository accounts = mock(AccountRepository.class);
         Account ignacio = Account.builder()
+                .id(UUID.randomUUID())
                 .username("ignacio")
                 .displayName("Ignacio")
                 .passwordHash(ADMIN_HASH)
@@ -38,6 +40,7 @@ class SecurityConfigAuthenticationTest {
                 .loadUserByUsername("IGNACIO");
 
         assertEquals(ADMIN_HASH, user.getPassword());
+        assertEquals(ignacio.getId(), assertInstanceOf(UserPrincipal.class, user).getAccountId());
         assertTrue(user.isEnabled());
         assertTrue(user.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority())));
