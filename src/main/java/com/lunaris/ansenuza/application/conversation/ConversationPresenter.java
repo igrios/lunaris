@@ -12,25 +12,50 @@ import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
-import lombok.RequiredArgsConstructor;
 
 /**
  * Construye y envía los mensajes de presentation reutilizados por varios pasos del bot
  * (listado de localidades y resumen del itinerario), evitando duplicar lógica entre handlers.
  */
 @Component
-@RequiredArgsConstructor
 public class ConversationPresenter {
 
     private final LocalityRepository localityRepository;
     private final PassengerRepository passengerRepository; // 💳 Inyectamos el repositorio para leer la billetera virtual
     private final PricingAndScheduleService pricingAndScheduleService;
     private final MessagingPort messaging;
+    private final com.lunaris.ansenuza.service.interurban.InterurbanCatalog interurban;
+
+
+
+    public ConversationPresenter(LocalityRepository localityRepository, PassengerRepository passengerRepository, PricingAndScheduleService pricingAndScheduleService, MessagingPort messaging) {
+        this(localityRepository, passengerRepository, pricingAndScheduleService, messaging, java.util.Optional.empty());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ConversationPresenter(LocalityRepository localityRepository, PassengerRepository passengerRepository, PricingAndScheduleService pricingAndScheduleService, MessagingPort messaging,
+            java.util.Optional<com.lunaris.ansenuza.service.interurban.InterurbanCatalog> interurban) {
+        this.localityRepository = localityRepository;
+        this.passengerRepository = passengerRepository;
+        this.pricingAndScheduleService = pricingAndScheduleService;
+        this.messaging = messaging;
+        this.interurban = interurban.orElse(null);
+    }
 
     public void sendAllLocalitiesList(String phoneNumber, String saludo) {
         List<Locality> localities = localityRepository.findAllWithActiveFare().stream()
                 .filter(locality -> !BotRoute.fromCordoba(locality.getName()))
                 .toList();
+        if (interurban != null) {
+            var available = new java.util.ArrayList<>(localities);
+            for (String origin : interurban.origins()) {
+                if (available.stream().noneMatch(l -> l.getName().equalsIgnoreCase(origin))) {
+                    available.add(Locality.builder().name(origin).build());
+                }
+            }
+            localities = List.copyOf(available);
+        }
+
         StringBuilder menu = new StringBuilder(saludo)
                 .append("📍 *¿Desde qué localidad salís?*\n\n");
         int index = 1;

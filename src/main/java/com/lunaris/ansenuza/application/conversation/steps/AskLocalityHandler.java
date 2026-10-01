@@ -17,12 +17,10 @@ import com.lunaris.ansenuza.domain.model.Locality;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
 import com.lunaris.ansenuza.domain.repository.LocalityRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /** ASK_LOCALITY: el pasajero elige su localidad de origen y recibe la cotización base. */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class AskLocalityHandler implements ConversationStepHandler {
 
@@ -30,6 +28,23 @@ public class AskLocalityHandler implements ConversationStepHandler {
     private final LocalityRepository localityRepository;
     private final PricingAndScheduleService pricingAndScheduleService;
     private final MessagingPort messaging;
+    private final com.lunaris.ansenuza.service.interurban.InterurbanCatalog interurban;
+
+
+
+    public AskLocalityHandler(ConversationSessionRepository conversationSessionRepository, LocalityRepository localityRepository, PricingAndScheduleService pricingAndScheduleService, MessagingPort messaging) {
+        this(conversationSessionRepository, localityRepository, pricingAndScheduleService, messaging, java.util.Optional.empty());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AskLocalityHandler(ConversationSessionRepository conversationSessionRepository, LocalityRepository localityRepository, PricingAndScheduleService pricingAndScheduleService, MessagingPort messaging,
+            java.util.Optional<com.lunaris.ansenuza.service.interurban.InterurbanCatalog> interurban) {
+        this.conversationSessionRepository = conversationSessionRepository;
+        this.localityRepository = localityRepository;
+        this.pricingAndScheduleService = pricingAndScheduleService;
+        this.messaging = messaging;
+        this.interurban = interurban.orElse(null);
+    }
 
     @Override
     public String step() {
@@ -38,6 +53,14 @@ public class AskLocalityHandler implements ConversationStepHandler {
 
     @Override
     public void handle(ConversationSession session, IncomingMessage message) {
+        handle(session, message, true);
+    }
+
+    void handleConventional(ConversationSession session, IncomingMessage message) {
+        handle(session, message, false);
+    }
+
+    private void handle(ConversationSession session, IncomingMessage message, boolean routeInterurban) {
         String phoneNumber = session.getPhoneNumber();
         String body = message.body().trim().toLowerCase();
 
@@ -53,6 +76,16 @@ public class AskLocalityHandler implements ConversationStepHandler {
             List<Locality> localities = localityRepository.findAllWithActiveFare().stream()
                 .filter(locality -> !BotRoute.fromCordoba(locality.getName()))
                 .toList();
+        if (interurban != null) {
+            var available = new java.util.ArrayList<>(localities);
+            for (String origin : interurban.origins()) {
+                if (available.stream().noneMatch(l -> l.getName().equalsIgnoreCase(origin))) {
+                    available.add(Locality.builder().name(origin).build());
+                }
+            }
+            localities = List.copyOf(available);
+        }
+
 
             if (option == localities.size() + 1) {
                 session.setPickupLocality("Córdoba");
@@ -78,6 +111,22 @@ public class AskLocalityHandler implements ConversationStepHandler {
             }
 
             Locality selected = localities.get(option - 1);
+            var destinations = routeInterurban && interurban != null
+                    ? interurban.destinations(selected.getName()) : List.<com.lunaris.ansenuza.service.interurban.InterurbanCatalog.Destination>of();
+            if (!destinations.isEmpty()) {
+                session.setPickupLocality(selected.getName());
+                session.setDestination(null);
+                session.setPickupAddress(null);
+                session.setCurrentStep("ASK_INTERURBAN_DESTINATION");
+                conversationSessionRepository.saveAndFlush(session);
+                StringBuilder menu = new StringBuilder("🎯 *¿A dónde viajás?*\n\n");
+                for (var destination : destinations) {
+                    menu.append("i_").append(destination.stop()).append(") ").append(destination.name()).append("\n");
+                }
+                menu.append("c) Córdoba / Aeropuerto\n\nRespondé con el código del destino (por ejemplo i_3) o 0 para volver.");
+                messaging.sendText(phoneNumber, menu.toString());
+                return;
+            }
             BigDecimal baseFare;
 
             try {

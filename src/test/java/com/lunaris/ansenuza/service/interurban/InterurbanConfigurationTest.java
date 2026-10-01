@@ -8,19 +8,19 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 class InterurbanConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withUserConfiguration(InterurbanConfiguration.class);
+            .withUserConfiguration(InterurbanConfiguration.class, InterurbanCatalog.class);
 
     @Test void absentFlagRequiresNoJdbcAndRegistersNothing() {
         runner.run(context -> {
             assertThat(context).hasNotFailed().doesNotHaveBean(CapacityService.class)
-                    .doesNotHaveBean(CapacityRepository.class);
+                    .doesNotHaveBean(CapacityRepository.class).doesNotHaveBean(InterurbanCatalog.class);
         });
     }
 
     @Test void falseFlagRegistersNothing() {
         runner.withPropertyValues("lunaris.interurban.enabled=false").run(context -> {
             assertThat(context).hasNotFailed().doesNotHaveBean(CapacityService.class)
-                    .doesNotHaveBean(CapacityRepository.class);
+                    .doesNotHaveBean(CapacityRepository.class).doesNotHaveBean(InterurbanCatalog.class);
         });
     }
 
@@ -29,7 +29,7 @@ class InterurbanConfigurationTest {
         runner.withPropertyValues("lunaris.interurban.enabled=true")
                 .withBean(NamedParameterJdbcTemplate.class, () -> jdbc).run(context -> {
                     assertThat(context).hasNotFailed().hasSingleBean(CapacityService.class)
-                            .hasSingleBean(CapacityRepository.class);
+                            .hasSingleBean(CapacityRepository.class).hasSingleBean(InterurbanCatalog.class);
                     verifyNoInteractions(jdbc);
                 });
     }
