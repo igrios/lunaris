@@ -14,6 +14,19 @@ de pasajeros, horario libre y precio total acordado. El alta conserva el estado
 operativo `CONFIRMED` / `SCHEDULED` para aparecer en agenda, con pago `PENDING`,
 `payment_verified=false` e `invoice_issued=false`. No vence a los veinte minutos.
 
+La agenda semanal y diaria tienen accesos «Cargar viaje especial». Abren
+`/reservations/new?tripCategory=SPECIAL`; desde el detalle diario también se precarga
+`travelDate`. En modo especial el formulario Thymeleaf envía JSON autenticado a
+`POST /api/admin/trips`, usando el mismo contrato del componente React de referencia.
+Después del alta abre el detalle de la fecha seleccionada. Si la API rechaza los
+datos, muestra el motivo en el mismo formulario y conserva los valores ingresados.
+El botón se bloquea mientras se guarda para evitar envíos simultáneos.
+
+El modo regular conserva el envío tradicional al controlador del monitor. Las
+localidades, horarios y cotizaciones de Córdoba no se consultan al abrir el formulario
+especial. Los datos flexibles se validan mediante el caso de uso compartido; la
+confirmación WhatsApp conserva el envío posterior al commit y los reintentos existentes.
+
 El precio especial cubre todo el grupo: no se multiplica por pasajeros ni tramos,
 no descuenta saldo a favor y no incorpora descuentos/adicionales de rutas regulares.
 Para ida y vuelta el importe se distribuye entre ambos tramos para que la factura
