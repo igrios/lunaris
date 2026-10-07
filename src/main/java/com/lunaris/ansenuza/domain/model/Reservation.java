@@ -75,7 +75,7 @@ public class Reservation {
     @Column(name = "pickup_locality", nullable = false)
     private String pickupLocality;
 
-    @Column(name = "pickup_address")
+    @Column(name = "pickup_address", nullable = true)
     private String pickupAddress;
 
     @Column(name = "destination", nullable = false)

@@ -191,8 +191,10 @@ public class ManualReservationNotificationService {
 
     static String pendingDetails(Reservation reservation) {
         var pending = new java.util.ArrayList<String>();
+        String addressRequest = "";
         if (reservation.getPickupAddress() == null || reservation.getPickupAddress().isBlank()) {
             pending.add("la dirección exacta de retiro");
+            addressRequest = "\nPor favor, indicanos tu dirección exacta de retiro por este chat (calle, número y localidad).";
         }
         if (reservation.getPassengerCount() != null && reservation.getPassengerCount() > 1
                 && (reservation.getCompanionNames() == null || reservation.getCompanionNames().isBlank())) {
@@ -200,7 +202,7 @@ public class ManualReservationNotificationService {
         }
         if (!Boolean.TRUE.equals(reservation.getPaymentVerified())) pending.add("registrar el pago");
         String context = pending.isEmpty() ? "" : "\n\nNos queda pendiente confirmar: " + String.join(", ", pending) + ".";
-        return context + "\nPodés responder libremente por este chat con los detalles o el comprobante de pago. "
+        return context + addressRequest + "\nPodés responder libremente por este chat con los detalles o el comprobante de pago. "
                 + "Nuestros operadores podrán leer tu mensaje y dejarlo anotado; no necesitás completar un formulario.";
     }
 

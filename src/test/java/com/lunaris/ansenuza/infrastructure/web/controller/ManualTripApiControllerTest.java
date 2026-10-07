@@ -54,6 +54,19 @@ class ManualTripApiControllerTest {
     }
 
     @Test
+    void acceptsMissingOrBlankPickupAddress() throws Exception {
+        when(creation.execute(any(), isNull())).thenAnswer(call -> List.of(call.<Reservation>getArgument(0)));
+        for (String request : List.of(
+                SPECIAL.replace("\"pickupAddress\":\"Belgrano 100\",", ""),
+                SPECIAL.replace("Belgrano 100", ""))) {
+            mvc.perform(post("/api/admin/trips").with(user("op").roles("OPERADOR"))
+                            .contentType(MediaType.APPLICATION_JSON).content(request))
+                    .andExpect(status().isCreated());
+        }
+        verify(creation, times(2)).execute(any(), isNull());
+    }
+
+    @Test
     void acceptsNinePassengersAndOrderedCompanionNames() throws Exception {
         when(creation.execute(any(), isNull())).thenAnswer(call -> List.of(call.<Reservation>getArgument(0)));
         String companions = "Uno, Dos, Tres, Cuatro, Cinco, Seis, Siete, Ocho";

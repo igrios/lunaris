@@ -142,8 +142,9 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label small fw-bold text-dark">Dirección de Retiro / Domicilio</label>
-                        <input type="text" name="pickupAddress" class="form-control" placeholder="Ej: Bv. Belgrano 450" required>
+                        <label class="form-label small fw-bold text-dark">Dirección de Retiro / Domicilio (opcional)</label>
+                        <input type="text" name="pickupAddress" class="form-control" placeholder="Ej: Bv. Belgrano 450" aria-describedby="pickupAddressHelp">
+                        <p id="pickupAddressHelp" class="small text-muted mt-2">Si falta, solicitaremos la dirección exacta al pasajero por WhatsApp.</p>
                     </div>
 
                     <hr class="text-muted my-4">

@@ -111,6 +111,25 @@ class ManualReservationIntegrationTest {
     }
 
     @Test
+    void specialWithoutPickupAddressPersistsAndRequestsAddressAfterTemplateReply() {
+        var bookings = new java.util.ArrayList<Reservation>();
+        for (String address : new String[] {null, "", "   "}) {
+            Reservation input = specialBooking();
+            input.setPickupAddress(address);
+            Reservation saved = manual.execute(input, null).getFirst();
+            bookings.add(saved);
+            assertThat(reservations.findById(saved.getId()).orElseThrow().getPickupAddress()).isEqualTo(address);
+        }
+        verifyNoInteractions(messaging);
+        commit();
+        verify(messaging, times(3)).sendTemplate(anyString(), eq("contacto_pasajero"), eq(List.of("Ana")), any());
+        verify(messaging, never()).sendText(anyString(), anyString(), any());
+        bookings.forEach(r -> events.publishEvent(new PassengerMessageReceived(r.getPassenger().getPhone())));
+        verify(messaging, times(3)).sendText(anyString(), contains("Por favor, indicanos tu dirección exacta de retiro"), any());
+        verify(messaging, never()).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
     void pendingSpecialCannotIssueOrPersistInvoiceAndPaymentIsIdempotent() {
         Reservation saved = manual.execute(specialBooking(), null).getFirst();
         commit();

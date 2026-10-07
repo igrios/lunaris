@@ -99,7 +99,7 @@ function setup(category = 'SPECIAL', postResponse = async () => ({ ok: true, sta
     await form.listeners.submit(event);
     return event;
   }
-  return { get, requests, navigation, context, submit, fillSpecial };
+  return { get, requests, navigation, context, submit, fillSpecial, setField };
 }
 
 test('los botones visibles alternan el modo y sincronizan el valor enviado y el estado accesible', () => {
@@ -130,6 +130,19 @@ test('el acceso especial habilita los campos libres y evita consultar tarifas/tu
   assert.equal(page.get('specialTripStatus').classList.contains('d-none'), false);
   assert.equal(page.get('manualAmount').disabled, true);
   assert.equal(page.requests.length, 0);
+});
+
+test('la dirección es opcional y el envío especial acepta el domicilio vacío', async () => {
+  const page = setup();
+  page.fillSpecial();
+  const addressInput = [...template.matchAll(/<input\b([^>]*?)>/g)]
+    .find(match => match[1].includes('name="pickupAddress"'));
+  assert.ok(addressInput);
+  assert.equal(/\brequired\b/.test(addressInput[1]), false);
+  page.setField('pickupAddress', '');
+  await page.submit();
+  const payload = JSON.parse(page.requests.find(request => request.options?.method === 'POST').options.body);
+  assert.equal(payload.pickupAddress, '');
 });
 
 test('genera hasta ocho acompañantes, conserva nombres al cambiar cantidad y los envía en orden', async () => {

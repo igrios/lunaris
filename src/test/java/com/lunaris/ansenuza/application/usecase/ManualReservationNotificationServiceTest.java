@@ -15,6 +15,15 @@ class ManualReservationNotificationServiceTest {
     }
 
     @Test
+    void nullEmptyAndWhitespaceAddressesExplicitlyRequestExactPickupLocation() {
+        for (String address : new String[] {null, "", "   "}) {
+            var reservation = Reservation.builder().passengerCount(1).pickupAddress(address).paymentVerified(true).build();
+            assertThat(ManualReservationNotificationService.pendingDetails(reservation))
+                    .contains("Por favor, indicanos tu dirección exacta de retiro", "calle, número y localidad");
+        }
+    }
+
+    @Test
     void paidSoloPassengerDoesNotGetFalsePendingRequests() {
         var reservation = Reservation.builder().passengerCount(1).pickupAddress("Belgrano 100")
                 .paymentVerified(true).build();

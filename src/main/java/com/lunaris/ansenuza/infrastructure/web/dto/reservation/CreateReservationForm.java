@@ -31,7 +31,6 @@ public class CreateReservationForm extends ManualReservationOptions {
 
     private String pickupLocality;
 
-    @NotBlank(message = "La dirección de retiro es obligatoria")
     private String pickupAddress;
 
     private String destination;
