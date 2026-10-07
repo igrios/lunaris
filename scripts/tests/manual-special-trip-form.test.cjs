@@ -126,10 +126,44 @@ test('el acceso especial habilita los campos libres y evita consultar tarifas/tu
     assert.equal(page.get(id).disabled, false);
     assert.equal(page.get(id).required, true);
   }
-  assert.equal(page.get('inputAsientos').max, '4');
+  assert.equal(page.get('inputAsientos').max, '9');
   assert.equal(page.get('specialTripStatus').classList.contains('d-none'), false);
   assert.equal(page.get('manualAmount').disabled, true);
   assert.equal(page.requests.length, 0);
+});
+
+test('genera hasta ocho acompañantes, conserva nombres al cambiar cantidad y los envía en orden', async () => {
+  const page = setup();
+  assert.equal(page.get('companionFields').classList.contains('d-none'), true);
+  page.fillSpecial();
+  page.get('inputAsientos').value = '9';
+  page.get('inputAsientos').listeners.input();
+  assert.equal(vm.runInContext('companionControls.length', page.context), 8);
+  vm.runInContext("companionControls.forEach((input, i) => { input.value = ' Nombre ' + (i + 1) + ' '; });", page.context);
+  page.get('inputAsientos').value = '2';
+  page.get('inputAsientos').listeners.input();
+  assert.equal(page.get('companionNames').value, 'Nombre 1');
+  page.get('inputAsientos').value = '9';
+  page.get('inputAsientos').listeners.input();
+  assert.equal(page.get('previewMonto').innerText, '747.000,00');
+  await page.submit();
+  const payload = JSON.parse(page.requests.find(request => request.options?.method === 'POST').options.body);
+  assert.equal(payload.passengerCount, 9);
+  assert.equal(payload.companionNames, Array.from({length: 8}, (_, i) => `Nombre ${i + 1}`).join(', '));
+});
+
+test('un titular solo oculta acompañantes y limpia los nombres enviados en modo regular', async () => {
+  const page = setup('REGULAR');
+  page.get('inputAsientos').value = '2';
+  page.get('inputAsientos').listeners.input();
+  vm.runInContext("companionControls[0].value = 'Ana';", page.context);
+  await page.submit();
+  assert.equal(page.get('companionNames').value, 'Ana');
+  page.get('inputAsientos').value = '1';
+  page.get('inputAsientos').listeners.input();
+  assert.equal(page.get('companionFields').classList.contains('d-none'), true);
+  await page.submit();
+  assert.equal(page.get('companionNames').value, '');
 });
 
 test('multiplica el precio por pasajeros y mantiene el total cuando se agrega la vuelta', () => {
@@ -215,7 +249,7 @@ test('volver a regular restaura localidades y conserva el envío tradicional del
   assert.equal(page.get('inputOrigen').disabled, false);
   assert.equal(page.get('customPrice').disabled, true);
   assert.equal(page.get('manualAmount').disabled, false);
-  assert.equal(page.get('inputAsientos').max, '4');
+  assert.equal(page.get('inputAsientos').max, '9');
   assert.equal(page.get('inputAsientos').value, '4');
   assert.equal((await page.submit()).prevented, false);
   assert.equal(page.requests.filter(request => request.options?.method === 'POST').length, 0);

@@ -299,9 +299,9 @@ public class Reservation {
         if (!isSpecialTrip()) return;
         originCustom = requiredCustomLocation(originCustom, "origen");
         destinationCustom = requiredCustomLocation(destinationCustom, "destino");
-        if (passengerCount == null || passengerCount < 1 || passengerCount > 4) {
+        if (passengerCount == null || passengerCount < 1 || passengerCount > 9) {
             throw new DomainValidationException(
-                    "El viaje especial admite de 1 a 4 pasajeros (titular y hasta 3 acompañantes).");
+                    "El viaje especial admite de 1 a 9 pasajeros (titular y hasta 8 acompañantes).");
         }
         if (customPrice == null || customPrice.signum() <= 0
                 || customPrice.compareTo(new BigDecimal("99999999.99")) > 0

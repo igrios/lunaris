@@ -107,6 +107,9 @@ public class ReservationService {
     public void validateManualReservation(Reservation reservation) {
         if (reservation.getId() != null) throw new DomainValidationException("La creación manual requiere una reserva nueva.");
         reservation.prepareSpecialTripCreation();
+        if (reservation.getCompanionNames() != null && reservation.getCompanionNames().length() > 500) {
+            throw new DomainValidationException("Los nombres de acompañantes no pueden superar 500 caracteres.");
+        }
         if (reservation.getTravelDate() == null || reservation.getPickupLocality() == null
                 || reservation.getPickupLocality().isBlank() || reservation.getDestination() == null
                 || reservation.getDestination().isBlank()) {
@@ -115,8 +118,8 @@ public class ReservationService {
         if (reservation.getReturnDate() != null && reservation.getReturnDate().isBefore(reservation.getTravelDate())) {
             throw new DomainValidationException("El regreso no puede ser anterior a la ida.");
         }
-        if (reservation.getPassengerCount() == null || reservation.getPassengerCount() < 1) {
-            throw new DomainValidationException("La cantidad de pasajeros debe ser positiva.");
+        if (reservation.getPassengerCount() == null || reservation.getPassengerCount() < 1 || reservation.getPassengerCount() > 9) {
+            throw new DomainValidationException("La cantidad de pasajeros debe estar entre 1 y 9.");
         }
         if (reservation.getAmount() == null) {
             reservation.setAmount(pricingAndScheduleService.calculateReservationAmount(

@@ -10,7 +10,7 @@ en el catálogo promocional `special_trips`.
 
 El formulario existente `/reservations/new` (también accesible desde el monitor)
 usa Thymeleaf. Ahora permite elegir Especial, ingresar origen/destino libres, cantidad
-de pasajeros (1 a 4), horario libre y precio por persona. El alta conserva el estado
+de pasajeros (1 a 9), horario libre y precio por persona. El alta conserva el estado
 operativo `CONFIRMED` / `SCHEDULED` para aparecer en agenda, con pago `PENDING`,
 `payment_verified=false` e `invoice_issued=false`. No vence a los veinte minutos.
 
@@ -85,3 +85,5 @@ los horarios regulares y usa el mismo endpoint para ambos tipos. El backend y el
 formulario Thymeleaf también admiten ida y vuelta. No hay una app React ni un pipeline
 de frontend en este repositorio; el componente debe incorporarse en la app externa.
 Requiere la sesión autenticada del backend y un origen permitido por su CORS.
+
+El formulario manual admite de 1 a 9 pasajeros. Genera un campo por acompañante (hasta ocho), de hasta 60 caracteres cada uno, y envía los nombres no vacíos en orden separados por coma en `companionNames` (máximo 500 caracteres). Los nombres pendientes pueden completarse posteriormente por WhatsApp. La capacidad disponible de un turno regular continúa validándose por separado.

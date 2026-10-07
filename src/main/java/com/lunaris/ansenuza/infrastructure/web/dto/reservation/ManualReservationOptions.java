@@ -30,6 +30,7 @@ public class ManualReservationOptions {
     private BigDecimal amount;
     private BigDecimal discountAmount;
     private BigDecimal extraAmount;
+    @Size(max = 500)
     private String companionNames;
     private String routeDirection;
     private String notes;

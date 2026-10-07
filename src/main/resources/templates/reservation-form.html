@@ -154,7 +154,7 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label class="form-label small fw-bold text-dark" for="inputAsientos">Cantidad de Pasajeros</label>
-                            <input type="number" id="inputAsientos" name="passengerCount" class="form-control fw-bold text-center border-primary" value="1" min="1" max="4" required>
+                            <input type="number" id="inputAsientos" name="passengerCount" class="form-control fw-bold text-center border-primary" value="1" min="1" max="9" required>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold text-dark">Fecha de Viaje (Ida)</label>
@@ -213,8 +213,12 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label" for="companionNames">Nombres de acompañantes</label>
-                        <textarea class="form-control" id="companionNames" name="companionNames" maxlength="500"></textarea>
+                        <input type="hidden" id="companionNames" name="companionNames">
+                        <fieldset id="companionFields" class="d-none">
+                            <legend class="fs-6">Nombres de acompañantes</legend>
+                            <div id="companionInputs" class="row g-3"></div>
+                            <p class="small text-muted mt-2">Podés dejar nombres pendientes para completarlos después por WhatsApp.</p>
+                        </fieldset>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="routeDirection">Sentido</label>
@@ -228,7 +232,7 @@
                         <div id="specialPriceField" class="col-md-12 d-none">
                             <label class="form-label fw-bold" for="customPrice">Monto por Persona ($)</label>
                             <input id="customPrice" name="customPrice" type="number" class="form-control" min="0.01" max="99999999.99" step="0.01" placeholder="Ej: 83000" aria-describedby="specialPriceHelp" disabled>
-                            <p id="specialPriceHelp" class="small text-muted mt-2">Precio por persona para el recorrido completo, incluida la vuelta si corresponde. El total se multiplica por la cantidad de pasajeros (máximo 4). Ejemplo: $83.000 × 2 = $166.000.</p>
+                            <p id="specialPriceHelp" class="small text-muted mt-2">Precio por persona para el recorrido completo, incluida la vuelta si corresponde. El total se multiplica por la cantidad de pasajeros (máximo 9). Ejemplo: $83.000 × 2 = $166.000.</p>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualAmount">Monto final del viaje ($)</label>
@@ -317,6 +321,45 @@
         const isSpecialTrip = () => tripCategory.value === 'SPECIAL';
         const dest = document.getElementById('inputDestino');
         const asie = document.getElementById('inputAsientos');
+        const companionFields = document.getElementById('companionFields');
+        const companionInputs = document.getElementById('companionInputs');
+        const companionNames = document.getElementById('companionNames');
+        const companionValues = [];
+        let companionControls = [];
+
+        function recopilarAcompanantes() {
+            companionControls.forEach((input, index) => { companionValues[index] = input.value; });
+            companionNames.value = companionControls.map(input => input.value.trim()).filter(Boolean).join(', ');
+        }
+
+        function actualizarAcompanantes() {
+            recopilarAcompanantes();
+            const count = Number(asie.value);
+            const companions = Number.isInteger(count) && count >= 1 && count <= 9 ? count - 1 : 0;
+            companionInputs.innerHTML = '';
+            companionControls = [];
+            companionFields.classList.toggle('d-none', companions === 0);
+            for (let index = 0; index < companions; index++) {
+                const container = document.createElement('div');
+                container.className = 'col-md-6';
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.htmlFor = `companion-${index + 1}`;
+                label.textContent = `Acompañante ${index + 1}`;
+                const input = document.createElement('input');
+                input.id = label.htmlFor;
+                input.type = 'text';
+                input.className = 'form-control';
+                input.maxLength = 60;
+                input.value = companionValues[index] || '';
+                input.addEventListener('input', recopilarAcompanantes);
+                container.appendChild(label);
+                container.appendChild(input);
+                companionInputs.appendChild(container);
+                companionControls.push(input);
+            }
+            recopilarAcompanantes();
+        }
         const travelDateInput = document.getElementById('travelDateInput');
         const departureScheduleSelect = document.getElementById('departureScheduleSelect');
         const returnScheduleSelect = document.getElementById('returnScheduleSelect');
@@ -501,8 +544,8 @@
                 actualizarHorariosIda();
             });
             dest.addEventListener('change', actualizarCotizacion);
-            asie.addEventListener('input', actualizarCotizacion);
-            asie.addEventListener('change', actualizarCotizacion);
+            asie.addEventListener('input', () => { actualizarAcompanantes(); actualizarCotizacion(); });
+            asie.addEventListener('change', () => { actualizarAcompanantes(); actualizarCotizacion(); });
         }
 
         travelDateInput.addEventListener('change', actualizarHorariosIda);
@@ -531,7 +574,7 @@
                 input.parentElement.classList.toggle('d-none', special);
             });
             document.getElementById('regularPricingHelp').classList.toggle('d-none', special);
-            asie.max = '4';
+            asie.max = '9';
             departureScheduleSelect.classList.toggle('d-none', special);
             departureScheduleSelect.required = !special;
             departureScheduleSelect.disabled = special;
@@ -562,6 +605,7 @@
         let savingSpecialTrip = false;
 
         manualTripForm.addEventListener('submit', async event => {
+            recopilarAcompanantes();
             if (!isSpecialTrip() && !savingSpecialTrip) return;
             event.preventDefault();
             if (savingSpecialTrip) return;
@@ -620,7 +664,7 @@
             }
         });
 
-        window.addEventListener('DOMContentLoaded', alternarTipoDeViaje);
+        window.addEventListener('DOMContentLoaded', () => { actualizarAcompanantes(); alternarTipoDeViaje(); });
     </script>
 </body>
 </html>

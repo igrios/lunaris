@@ -46,11 +46,26 @@ class ManualTripApiControllerTest {
             """;
 
     @Test
-    void rejectsMoreThanFourPassengersBeforeCallingCreation() throws Exception {
+    void rejectsMoreThanNinePassengersBeforeCallingCreation() throws Exception {
         mvc.perform(post("/api/admin/trips").with(user("op").roles("OPERADOR"))
-                        .contentType(MediaType.APPLICATION_JSON).content(SPECIAL.replace("\"passengerCount\":4", "\"passengerCount\":5")))
+                        .contentType(MediaType.APPLICATION_JSON).content(SPECIAL.replace("\"passengerCount\":4", "\"passengerCount\":10")))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(creation);
+    }
+
+    @Test
+    void acceptsNinePassengersAndOrderedCompanionNames() throws Exception {
+        when(creation.execute(any(), isNull())).thenAnswer(call -> List.of(call.<Reservation>getArgument(0)));
+        String companions = "Uno, Dos, Tres, Cuatro, Cinco, Seis, Siete, Ocho";
+        String request = SPECIAL.replace("\"passengerCount\":4", "\"passengerCount\":9")
+                .replace("\"requiresInvoice\":true", "\"requiresInvoice\":true,\"companionNames\":\"" + companions + "\"");
+        mvc.perform(post("/api/admin/trips").with(user("op").roles("OPERADOR"))
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isCreated());
+        var captor = org.mockito.ArgumentCaptor.forClass(Reservation.class);
+        verify(creation).execute(captor.capture(), isNull());
+        assertThat(captor.getValue().getPassengerCount()).isEqualTo(9);
+        assertThat(captor.getValue().getCompanionNames()).isEqualTo(companions);
     }
 
     @Test

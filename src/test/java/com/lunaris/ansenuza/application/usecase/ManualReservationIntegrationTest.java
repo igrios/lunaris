@@ -92,12 +92,12 @@ class ManualReservationIntegrationTest {
 
     @Test
     void specialPassengerLimitAndPerPersonPriceAreEnforcedInDomain() {
-        for (int count : new int[] {0, 5}) {
+        for (int count : new int[] {0, 10}) {
             Reservation invalid = specialBooking();
             invalid.setPassengerCount(count);
             assertThatThrownBy(() -> manual.execute(invalid, null))
                     .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class)
-                    .hasMessageContaining("1 a 4");
+                    .hasMessageContaining("1 a 9");
         }
         Reservation solo = specialBooking();
         solo.setPassengerCount(1);
@@ -105,7 +105,8 @@ class ManualReservationIntegrationTest {
         assertThat(manual.execute(solo, null).getFirst().getAmount()).isEqualByComparingTo("83000.01");
         Reservation group = specialBooking();
         group.setCustomPrice(new BigDecimal("83000.01"));
-        assertThat(manual.execute(group, null).getFirst().getAmount()).isEqualByComparingTo("332000.04");
+        group.setPassengerCount(9);
+        assertThat(manual.execute(group, null).getFirst().getAmount()).isEqualByComparingTo("747000.09");
         verifyNoInteractions(messaging);
     }
 
