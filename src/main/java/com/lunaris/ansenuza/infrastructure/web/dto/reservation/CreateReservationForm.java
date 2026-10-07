@@ -48,6 +48,7 @@ public class CreateReservationForm extends ManualReservationOptions {
     // 🌟 NUEVOS CAMPOS AGREGADOS PARA LA GESTIÓN DE ASIENTOS Y ACOMPAÑANTES
     @NotNull(message = "La cantidad de pasajeros es obligatoria")
     @jakarta.validation.constraints.Positive
+    @jakarta.validation.constraints.Max(value = 4, message = "La cantidad de pasajeros no puede superar 4")
     private Integer passengerCount;
 
     private Boolean requiresInvoice = false;

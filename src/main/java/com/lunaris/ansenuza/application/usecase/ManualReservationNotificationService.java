@@ -183,7 +183,7 @@ public class ManualReservationNotificationService {
     private static String extendedDetails(Reservation r) {
         return "\n\nDomicilio: " + value(r.getPickupAddress()) + "\nPasajeros: " + r.getPassengerCount()
                 + "\nAcompañantes: " + value(r.getCompanionNames()) + "\nTipo de viaje: " + tripLabel(r)
-                + (r.isSpecialTrip() ? "\nViaje especial — Precio acordado: $" + r.getCustomPrice()
+                + (r.isSpecialTrip() ? "\nViaje especial — Precio por persona: $" + r.getCustomPrice()
                         + "\nPago: " + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "Pagado" : "Pendiente")
                         + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "" : "\nLa factura se habilita después de registrar el pago.")
                         : "") + pendingDetails(r);

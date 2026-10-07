@@ -91,7 +91,7 @@ function setup(category = 'SPECIAL', postResponse = async () => ({ ok: true, sta
       firstName: 'Ana', lastName: 'Pérez', phone: '+54 9 351 123 4567',
       travelDate: '2030-01-02', pickupAddress: 'Belgrano 100',
       originCustom: 'De Suardi', destinationCustom: 'Alta Gracia',
-      passengerCount: '12', customPrice: '83000.00', departureSchedule: '09:30',
+      passengerCount: '4', customPrice: '83000.00', departureSchedule: '09:30',
     })) setField(name, value);
   }
   async function submit() {
@@ -126,13 +126,26 @@ test('el acceso especial habilita los campos libres y evita consultar tarifas/tu
     assert.equal(page.get(id).disabled, false);
     assert.equal(page.get(id).required, true);
   }
-  assert.equal(page.get('inputAsientos').max, undefined);
+  assert.equal(page.get('inputAsientos').max, '4');
   assert.equal(page.get('specialTripStatus').classList.contains('d-none'), false);
   assert.equal(page.get('manualAmount').disabled, true);
   assert.equal(page.requests.length, 0);
 });
 
-test('envía $83.000 con ruta libre y pago pendiente al API y abre la agenda de ese día', async () => {
+test('multiplica el precio por pasajeros y mantiene el total cuando se agrega la vuelta', () => {
+  const page = setup();
+  page.fillSpecial();
+  page.get('customPrice').listeners.input();
+  assert.equal(page.get('previewMonto').innerText, '332.000,00');
+  page.get('inputAsientos').value = '2';
+  page.get('inputAsientos').listeners.input();
+  assert.equal(page.get('previewMonto').innerText, '166.000,00');
+  page.get('isRoundTripCheck').checked = true;
+  page.get('isRoundTripCheck').listeners.change();
+  assert.equal(page.get('previewMonto').innerText, '166.000,00');
+});
+
+test('envía $83.000 por persona con ruta libre y pago pendiente al API y abre la agenda de ese día', async () => {
   const page = setup();
   page.fillSpecial();
   assert.equal((await page.submit()).prevented, true);
@@ -143,7 +156,7 @@ test('envía $83.000 con ruta libre y pago pendiente al API y abre la agenda de 
   assert.deepEqual(JSON.parse(options.body), {
     tripCategory: 'SPECIAL', firstName: 'Ana', lastName: 'Pérez', phone: '5493511234567', cuil: null,
     travelDate: '2030-01-02', pickupAddress: 'Belgrano 100', originCustom: 'De Suardi', destinationCustom: 'Alta Gracia',
-    passengerCount: 12, customPrice: '83000.00', departureSchedule: '09:30', roundTrip: false,
+    passengerCount: 4, customPrice: '83000.00', departureSchedule: '09:30', roundTrip: false,
     returnDate: null, returnDepartureSchedule: null, requiresInvoice: false, companionNames: null,
     notes: null, paymentStatus: 'PENDING', paymentVerified: false,
   });
@@ -196,7 +209,7 @@ test('regreso programado especial envía fecha/horario libres y el pedido de fac
 
 test('volver a regular restaura localidades y conserva el envío tradicional del formulario', async () => {
   const page = setup();
-  page.get('inputAsientos').value = '12';
+  page.get('inputAsientos').value = '4';
   page.get('tripCategory').value = 'REGULAR';
   vm.runInContext('alternarTipoDeViaje()', page.context);
   assert.equal(page.get('inputOrigen').disabled, false);

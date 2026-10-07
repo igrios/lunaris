@@ -66,14 +66,14 @@ class ManualReservationIntegrationTest {
         Reservation stored = reservations.findById(saved.getId()).orElseThrow();
         assertThat(stored.getPickupLocality()).isEqualTo("De Suardi");
         assertThat(stored.getDestination()).isEqualTo("Alta Gracia");
-        assertThat(stored.getAmount()).isEqualByComparingTo("120000.50");
+        assertThat(stored.getAmount()).isEqualByComparingTo("480002.00");
         assertThat(stored.getCustomPrice()).isEqualByComparingTo("120000.50");
         assertThat(stored.getPaymentStatus()).isEqualTo(PaymentStatus.PENDING);
         assertThat(stored.getPaymentVerified()).isFalse();
         assertThat(stored.isInvoiceIssued()).isFalse();
         assertThat(stored.getInvoiceUrl()).isNull();
         assertThat(stored.getPaymentExpiresAt()).isNull();
-        assertThat(stored.getPassengerCount()).isEqualTo(20);
+        assertThat(stored.getPassengerCount()).isEqualTo(4);
         assertThat(reservations.findSpecialAgendaTrips(stored.getTravelDate()))
                 .extracting(Reservation::getId).contains(saved.getId());
         assertThat(reservations.countReservedSeats(stored.getTravelDate(), "08:00")).isZero();
@@ -88,6 +88,25 @@ class ManualReservationIntegrationTest {
         events.publishEvent(new PassengerMessageReceived(input.getPassenger().getPhone()));
         verify(messaging).sendText(eq(input.getPassenger().getPhone()), contains("Pago: Pendiente"), any());
         verify(messaging, never()).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void specialPassengerLimitAndPerPersonPriceAreEnforcedInDomain() {
+        for (int count : new int[] {0, 5}) {
+            Reservation invalid = specialBooking();
+            invalid.setPassengerCount(count);
+            assertThatThrownBy(() -> manual.execute(invalid, null))
+                    .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class)
+                    .hasMessageContaining("1 a 4");
+        }
+        Reservation solo = specialBooking();
+        solo.setPassengerCount(1);
+        solo.setCustomPrice(new BigDecimal("83000.01"));
+        assertThat(manual.execute(solo, null).getFirst().getAmount()).isEqualByComparingTo("83000.01");
+        Reservation group = specialBooking();
+        group.setCustomPrice(new BigDecimal("83000.01"));
+        assertThat(manual.execute(group, null).getFirst().getAmount()).isEqualByComparingTo("332000.04");
+        verifyNoInteractions(messaging);
     }
 
     @Test
@@ -108,7 +127,7 @@ class ManualReservationIntegrationTest {
         assertThat(payments.markTripAsPaid(saved.getId(), "operador-test").getPaymentConfirmedAt()).isEqualTo(paidAt);
         assertThat(audit.count()).isEqualTo(auditCount);
         Invoice invoice = invoicing.issue(saved.getId(), new byte[] {37, 80, 68, 70});
-        assertThat(invoice.getAmount()).isEqualByComparingTo("120000.50");
+        assertThat(invoice.getAmount()).isEqualByComparingTo("480002.00");
         assertThat(reservations.findById(saved.getId()).orElseThrow().isInvoiceIssued()).isTrue();
     }
 
@@ -123,14 +142,14 @@ class ManualReservationIntegrationTest {
         var legs = manual.execute(input, "19:15");
         commit();
         assertThat(legs).hasSize(2);
-        assertThat(BookingInvoiceAmount.total(legs)).isEqualByComparingTo("120000.50");
+        assertThat(BookingInvoiceAmount.total(legs)).isEqualByComparingTo("480002.00");
         assertThat(legs.getLast().getOriginCustom()).isEqualTo("Alta Gracia");
         assertThat(legs.getLast().getDestinationCustom()).isEqualTo("De Suardi");
         payments.markTripAsPaid(legs.getLast().getId(), "operador-test");
         var paid = reservations.findReservationGroup(legs.getFirst().getBookingGroupCode());
         assertThat(paid).allMatch(r -> r.getPaymentStatus() == PaymentStatus.PAID && !r.isInvoiceIssued());
         Invoice invoice = invoicing.issue(legs.getLast().getId(), new byte[] {37, 80, 68, 70});
-        assertThat(invoice.getAmount()).isEqualByComparingTo("120000.50");
+        assertThat(invoice.getAmount()).isEqualByComparingTo("480002.00");
         assertThat(reservations.findReservationGroup(legs.getFirst().getBookingGroupCode()))
                 .allMatch(Reservation::isInvoiceIssued);
         verifyNoInteractions(pricing, capacity);
@@ -203,7 +222,7 @@ class ManualReservationIntegrationTest {
         reservation.setOriginCustom(" De Suardi ");
         reservation.setDestinationCustom("Alta Gracia");
         reservation.setCustomPrice(new BigDecimal("120000.50"));
-        reservation.setPassengerCount(20);
+        reservation.setPassengerCount(4);
         reservation.setPaymentReceiptUrl(null);
         return reservation;
     }

@@ -299,9 +299,9 @@ public class Reservation {
         if (!isSpecialTrip()) return;
         originCustom = requiredCustomLocation(originCustom, "origen");
         destinationCustom = requiredCustomLocation(destinationCustom, "destino");
-        if (passengerCount == null || passengerCount < 1) {
+        if (passengerCount == null || passengerCount < 1 || passengerCount > 4) {
             throw new DomainValidationException(
-                    "La cantidad de pasajeros debe ser positiva.");
+                    "El viaje especial admite de 1 a 4 pasajeros (titular y hasta 3 acompañantes).");
         }
         if (customPrice == null || customPrice.signum() <= 0
                 || customPrice.compareTo(new BigDecimal("99999999.99")) > 0
@@ -320,8 +320,8 @@ public class Reservation {
         }
         pickupLocality = originCustom;
         destination = destinationCustom;
-        amount = customPrice;
-        // El precio especial ya es el total acordado; no incorpora ajustes de la tarifa regular.
+        amount = customPrice.multiply(BigDecimal.valueOf(passengerCount));
+        // Precio por persona para todo el recorrido; el servicio distribuye el total entre tramos.
         extraAmount = BigDecimal.ZERO;
         discountAmount = BigDecimal.ZERO;
         amountIsGroupTotal = false;

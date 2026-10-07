@@ -41,9 +41,17 @@ class ManualTripApiControllerTest {
     private static final String SPECIAL = """
             {"tripCategory":"SPECIAL","firstName":"Ana","lastName":"Pérez","phone":"3511234567",
              "travelDate":"2030-01-02","pickupAddress":"Belgrano 100","originCustom":"De Suardi",
-             "destinationCustom":"Alta Gracia","passengerCount":20,"customPrice":"120000.50",
+             "destinationCustom":"Alta Gracia","passengerCount":4,"customPrice":"120000.50",
              "departureSchedule":"09:30","paymentStatus":"PENDING","requiresInvoice":true}
             """;
+
+    @Test
+    void rejectsMoreThanFourPassengersBeforeCallingCreation() throws Exception {
+        mvc.perform(post("/api/admin/trips").with(user("op").roles("OPERADOR"))
+                        .contentType(MediaType.APPLICATION_JSON).content(SPECIAL.replace("\"passengerCount\":4", "\"passengerCount\":5")))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(creation);
+    }
 
     @Test
     void operatorCreatesSpecialUsingSharedDtoAndReceivesPaymentState() throws Exception {
@@ -62,7 +70,7 @@ class ManualTripApiControllerTest {
                 .andExpect(jsonPath("$[0].invoiceIssued").value(false));
         var captor = org.mockito.ArgumentCaptor.forClass(Reservation.class);
         verify(creation).execute(captor.capture(), isNull());
-        assertThat(captor.getValue().getPassengerCount()).isEqualTo(20);
+        assertThat(captor.getValue().getPassengerCount()).isEqualTo(4);
         assertThat(captor.getValue().getRequiresInvoice()).isTrue();
     }
 

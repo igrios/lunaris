@@ -226,9 +226,9 @@
                     </div>
                     <div class="row g-3 mb-4">
                         <div id="specialPriceField" class="col-md-12 d-none">
-                            <label class="form-label fw-bold" for="customPrice">Monto Final del Viaje ($)</label>
+                            <label class="form-label fw-bold" for="customPrice">Monto por Persona ($)</label>
                             <input id="customPrice" name="customPrice" type="number" class="form-control" min="0.01" max="99999999.99" step="0.01" placeholder="Ej: 83000" aria-describedby="specialPriceHelp" disabled>
-                            <p id="specialPriceHelp" class="small text-muted mt-2">Monto total acordado para todos los pasajeros y tramos. Ejemplo: $83.000.</p>
+                            <p id="specialPriceHelp" class="small text-muted mt-2">Precio por persona para el recorrido completo, incluida la vuelta si corresponde. El total se multiplica por la cantidad de pasajeros (máximo 4). Ejemplo: $83.000 × 2 = $166.000.</p>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualAmount">Monto final del viaje ($)</label>
@@ -395,7 +395,7 @@
                 const price = document.getElementById('customPrice').value;
                 document.getElementById('previewMonto').innerText = new Intl.NumberFormat('es-AR', {
                     minimumFractionDigits: 2, maximumFractionDigits: 2
-                }).format(Number(price || 0));
+                }).format(Number(price || 0) * Number(asie.value || 0));
                 document.getElementById('previewCodigo').innerText = 'ESP';
                 return;
             }
@@ -531,8 +531,7 @@
                 input.parentElement.classList.toggle('d-none', special);
             });
             document.getElementById('regularPricingHelp').classList.toggle('d-none', special);
-            if (special) asie.removeAttribute('max');
-            else { asie.max = '4'; if (Number(asie.value) > 4) asie.value = '4'; }
+            asie.max = '4';
             departureScheduleSelect.classList.toggle('d-none', special);
             departureScheduleSelect.required = !special;
             departureScheduleSelect.disabled = special;

@@ -10,7 +10,7 @@ en el catálogo promocional `special_trips`.
 
 El formulario existente `/reservations/new` (también accesible desde el monitor)
 usa Thymeleaf. Ahora permite elegir Especial, ingresar origen/destino libres, cantidad
-de pasajeros, horario libre y precio total acordado. El alta conserva el estado
+de pasajeros (1 a 4), horario libre y precio por persona. El alta conserva el estado
 operativo `CONFIRMED` / `SCHEDULED` para aparecer en agenda, con pago `PENDING`,
 `payment_verified=false` e `invoice_issued=false`. No vence a los veinte minutos.
 
@@ -27,8 +27,8 @@ localidades, horarios y cotizaciones de Córdoba no se consultan al abrir el for
 especial. Los datos flexibles se validan mediante el caso de uso compartido; la
 confirmación WhatsApp conserva el envío posterior al commit y los reintentos existentes.
 
-El precio especial cubre todo el grupo: no se multiplica por pasajeros ni tramos,
-no descuenta saldo a favor y no incorpora descuentos/adicionales de rutas regulares.
+El precio especial es por persona para todo el recorrido. El total es `customPrice × passengerCount`
+y no se vuelve a multiplicar por tramos. No descuenta saldo a favor ni incorpora descuentos/adicionales de rutas regulares.
 Para ida y vuelta el importe se distribuye entre ambos tramos para que la factura
 posterior cubra exactamente el total acordado. Estos servicios tienen una sección
 propia en la agenda diaria y no consumen cupos de los turnos regulares.
