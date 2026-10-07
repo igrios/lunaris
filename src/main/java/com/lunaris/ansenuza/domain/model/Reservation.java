@@ -1,5 +1,6 @@
 package com.lunaris.ansenuza.domain.model;
 
+import com.lunaris.ansenuza.domain.exception.DomainValidationException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -98,6 +99,29 @@ public class Reservation {
     @Enumerated(EnumType.STRING)
     @Column(name = "trip_type", length = 50)
     private TripType tripType;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trip_category", nullable = false, length = 16)
+    private TripCategory tripCategory = TripCategory.REGULAR;
+
+    @Column(name = "origin_custom", length = 100)
+    private String originCustom;
+
+    @Column(name = "destination_custom", length = 100)
+    private String destinationCustom;
+
+    /** Precio total del grupo, sin multiplicarlo por pasajeros ni tramos. */
+    @Column(name = "custom_price", precision = 10, scale = 2)
+    private BigDecimal customPrice;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", nullable = false, length = 16)
+    private PaymentStatus paymentStatus = PaymentStatus.PENDING;
+
+    @Column(name = "invoice_issued", nullable = false)
+    private boolean invoiceIssued;
 
     @Column(name = "return_date")
     private LocalDate returnDate;
@@ -212,6 +236,13 @@ public class Reservation {
     @PrePersist
     @PreUpdate
     void prePersist() {
+        if (tripCategory == null) tripCategory = TripCategory.REGULAR;
+        // payment_verified sigue siendo la fuente de verdad de los flujos existentes.
+        paymentStatus = Boolean.TRUE.equals(paymentVerified) ? PaymentStatus.PAID : PaymentStatus.PENDING;
+        if (isSpecialTrip() && invoiceIssued && paymentStatus != PaymentStatus.PAID) {
+            throw new DomainValidationException(
+                    "No se puede emitir una factura de un viaje especial con pago pendiente.");
+        }
         if (id == null) {
             id = UUID.randomUUID();
         }
@@ -257,6 +288,54 @@ public class Reservation {
             return 1;
         }
         return this.passengerCount;
+    }
+
+    public boolean isSpecialTrip() {
+        return tripCategory == TripCategory.SPECIAL;
+    }
+
+    /** Validación de dominio compartida por API y formulario, antes de escribir pasajeros. */
+    public void prepareSpecialTripCreation() {
+        if (!isSpecialTrip()) return;
+        originCustom = requiredCustomLocation(originCustom, "origen");
+        destinationCustom = requiredCustomLocation(destinationCustom, "destino");
+        if (passengerCount == null || passengerCount < 1) {
+            throw new DomainValidationException(
+                    "La cantidad de pasajeros debe ser positiva.");
+        }
+        if (customPrice == null || customPrice.signum() <= 0
+                || customPrice.compareTo(new BigDecimal("99999999.99")) > 0
+                || customPrice.stripTrailingZeros().scale() > 2) {
+            throw new DomainValidationException(
+                    "El precio personalizado debe ser positivo, con hasta ocho enteros y dos decimales.");
+        }
+        if (paymentStatus != PaymentStatus.PENDING || Boolean.TRUE.equals(paymentVerified)
+                || invoiceIssued || invoiceUrl != null) {
+            throw new DomainValidationException(
+                    "El viaje especial debe crearse con pago pendiente y sin factura.");
+        }
+        if (departureSchedule == null || !departureSchedule.matches("(?:[01]\\d|2[0-3]):[0-5]\\d")) {
+            throw new DomainValidationException(
+                    "El horario del viaje especial debe tener formato HH:mm.");
+        }
+        pickupLocality = originCustom;
+        destination = destinationCustom;
+        amount = customPrice;
+        // El precio especial ya es el total acordado; no incorpora ajustes de la tarifa regular.
+        extraAmount = BigDecimal.ZERO;
+        discountAmount = BigDecimal.ZERO;
+        amountIsGroupTotal = false;
+        paymentVerified = false;
+        paymentConfirmedAt = null;
+        paymentExpiresAt = null;
+    }
+
+    private static String requiredCustomLocation(String location, String label) {
+        if (location == null || location.isBlank() || location.trim().length() > 100) {
+            throw new DomainValidationException(
+                    "El " + label + " personalizado es obligatorio y admite hasta 100 caracteres.");
+        }
+        return location.trim();
     }
 
     public boolean isScheduledConfirmedTrip() {

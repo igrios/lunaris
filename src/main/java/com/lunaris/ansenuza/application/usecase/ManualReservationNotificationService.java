@@ -17,12 +17,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
 public class ManualReservationNotificationService {
-    public static final String PROMO = "💡 Tip Lunaris: ¡La próxima vez podés pedir tu viaje directamente por acá en 1 minuto! Nuestro Bot automático está disponible las 24 hs para cotizar, reservar y confirmarte al instante sin esperas. ¡Probalo en tu próximo viaje!";
+    public static final String PROMO = "Recordá que la próxima vez podés gestionar tus viajes directamente desde este número a través de nuestro bot.";
     private final ReservationRepository reservations;
     private final WhatsAppConversationWindowService window;
     private final MessagingPort messaging;
@@ -44,7 +45,7 @@ public class ManualReservationNotificationService {
         withoutTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_NOT_SUPPORTED);
     }
 
-    @TransactionalEventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void created(ManualReservationCreated event) {
         deliver(event.reservationId(), false);
     }
@@ -123,14 +124,17 @@ public class ManualReservationNotificationService {
         String phone = reservation.getPassenger().getPhone();
         boolean active = replying || window.isActive(phone);
         List<String> parameters = parameters(reservation);
-        if (!active) {
+        // El alta manual inicia siempre con el contrato aprobado, aun con ventana abierta.
+        // Las facturas ya solicitadas conservan su entrega dentro de la ventana activa.
+        if (!active || (!replying && reservation.getInvoiceUrl() == null)) {
             messaging.sendTemplate(phone, PassengerContactTemplate.NAME,
                     PassengerContactTemplate.parameters(reservation.getPassenger().getFirstName()),
                     sent -> complete(reservation, sent, true));
             return;
         }
         messaging.sendText(phone, confirmation(parameters) + extendedDetails(reservation), sent -> {
-            if (!sent || reservation.getInvoiceUrl() == null) {
+            if (!sent || reservation.getInvoiceUrl() == null
+                    || !Boolean.TRUE.equals(reservation.getPaymentVerified())) {
                 complete(reservation, sent, false);
             } else {
                 messaging.sendDocumentUrl(phone, reservation.getInvoiceUrl(), "Factura.pdf",
@@ -172,13 +176,32 @@ public class ManualReservationNotificationService {
     }
 
     public static String confirmation(List<String> p) {
-        return "¡Hola %s! Tu reserva fue registrada con éxito 🚌✨\n\n📍 Trayecto: %s -> %s\n📅 Fecha y hora: %s\n🎟️ Código de reserva: %s\n📄 Factura/Comprobante: %s\n\n%s"
+        return "¡Hola %s! Tu viaje fue registrado por la administración 🚌✨\n\n📍 Trayecto: %s -> %s\n📅 Fecha y hora: %s\n🎟️ Código de reserva: %s\n📄 Factura/Comprobante: %s\n\n%s"
                 .formatted(p.get(0), p.get(1), p.get(2), p.get(3), p.get(4), p.get(5), PROMO);
     }
 
     private static String extendedDetails(Reservation r) {
         return "\n\nDomicilio: " + value(r.getPickupAddress()) + "\nPasajeros: " + r.getPassengerCount()
-                + "\nAcompañantes: " + value(r.getCompanionNames()) + "\nTipo de viaje: " + tripLabel(r);
+                + "\nAcompañantes: " + value(r.getCompanionNames()) + "\nTipo de viaje: " + tripLabel(r)
+                + (r.isSpecialTrip() ? "\nViaje especial — Precio acordado: $" + r.getCustomPrice()
+                        + "\nPago: " + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "Pagado" : "Pendiente")
+                        + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "" : "\nLa factura se habilita después de registrar el pago.")
+                        : "") + pendingDetails(r);
+    }
+
+    static String pendingDetails(Reservation reservation) {
+        var pending = new java.util.ArrayList<String>();
+        if (reservation.getPickupAddress() == null || reservation.getPickupAddress().isBlank()) {
+            pending.add("la dirección exacta de retiro");
+        }
+        if (reservation.getPassengerCount() != null && reservation.getPassengerCount() > 1
+                && (reservation.getCompanionNames() == null || reservation.getCompanionNames().isBlank())) {
+            pending.add("los nombres de tus acompañantes");
+        }
+        if (!Boolean.TRUE.equals(reservation.getPaymentVerified())) pending.add("registrar el pago");
+        String context = pending.isEmpty() ? "" : "\n\nNos queda pendiente confirmar: " + String.join(", ", pending) + ".";
+        return context + "\nPodés responder libremente por este chat con los detalles o el comprobante de pago. "
+                + "Nuestros operadores podrán leer tu mensaje y dejarlo anotado; no necesitás completar un formulario.";
     }
 
     private static String tripLabel(Reservation reservation) {

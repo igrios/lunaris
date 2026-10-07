@@ -106,6 +106,7 @@ public class ReservationService {
 
     public void validateManualReservation(Reservation reservation) {
         if (reservation.getId() != null) throw new DomainValidationException("La creación manual requiere una reserva nueva.");
+        reservation.prepareSpecialTripCreation();
         if (reservation.getTravelDate() == null || reservation.getPickupLocality() == null
                 || reservation.getPickupLocality().isBlank() || reservation.getDestination() == null
                 || reservation.getDestination().isBlank()) {
@@ -159,14 +160,14 @@ public class ReservationService {
             String returnDepartureSchedule, boolean applyBalance) {
         List<Reservation> savedReservations = new ArrayList<>();
 
-        lockAndValidateCapacity(mainReservation);
-        if (Boolean.TRUE.equals(mainReservation.getRoundTrip())
+        if (!mainReservation.isSpecialTrip()) lockAndValidateCapacity(mainReservation);
+        if (!mainReservation.isSpecialTrip() && Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 && mainReservation.getReturnDate() != null) {
             lockAndValidateCapacity(mainReservation.getReturnDate(), returnDepartureSchedule,
                     mainReservation.getDestination(), mainReservation.getTotalSeats());
         }
 
-        if (Boolean.TRUE.equals(mainReservation.getRoundTrip())
+        if (!mainReservation.isSpecialTrip() && Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 && (mainReservation.getTripType() == TripType.OPEN_RETURN || mainReservation.getReturnDate() == null)
                 && mainReservation.getTravelDate() != null
                 && com.lunaris.ansenuza.shared.ArgentinaTime.now().isBefore(mainReservation.getTravelDate().atTime(11, 0))) {
@@ -192,16 +193,22 @@ public class ReservationService {
         String routePrefix = localityPrefix(originClean) + "-" + localityPrefix(destClean);
 
         // 2. Obtenemos la secuencia estimada para el Nexo de Grupo unificado
-        long currentCount = reservationRepository.countSequenceByRouteAndDate(originClean, destClean, mainReservation.getTravelDate());
+        long currentCount = mainReservation.isSpecialTrip() ? 0
+                : reservationRepository.countSequenceByRouteAndDate(originClean, destClean, mainReservation.getTravelDate());
         long nextSequence = currentCount + 1;
 
         // 3. 🛡️ BUCLE DEFENSIVO ANTI-COLISIÓN (Código base de grupo compartido)
         String codigoBase = String.format("%s-%03d", routePrefix, nextSequence);
+        if (mainReservation.isSpecialTrip()) {
+            codigoBase = newSpecialReservationCode();
+        }
         while (reservationRepository.existsByReservationCode(codigoBase)
                 || reservationRepository.existsByReservationCode(codigoBase + "-IDA")
                 || reservationRepository.existsByReservationCode(codigoBase + "-VUELTA")) {
             nextSequence++;
-            codigoBase = String.format("%s-%03d", routePrefix, nextSequence);
+            codigoBase = mainReservation.isSpecialTrip()
+                    ? newSpecialReservationCode()
+                    : String.format("%s-%03d", routePrefix, nextSequence);
         }
 
         // 💳 PASO CRÍTICO DE CUENTA CORRIENTE: Evaluar y aplicar saldo a favor del Pasajero Titular
@@ -315,6 +322,11 @@ public class ReservationService {
             returnReservation.setSource(mainReservation.getSource());
             returnReservation.setRoundTrip(true);
             returnReservation.setTripType(mainReservation.getTripType());
+            returnReservation.setTripCategory(mainReservation.getTripCategory());
+            returnReservation.setOriginCustom(mainReservation.getDestinationCustom());
+            returnReservation.setDestinationCustom(mainReservation.getOriginCustom());
+            returnReservation.setCustomPrice(mainReservation.getCustomPrice());
+            returnReservation.setPaymentStatus(mainReservation.getPaymentStatus());
             String returnDirection = oppositeDirection(outboundDirection);
             returnReservation.setRouteDirection(returnDirection);
             returnReservation.setReservationCode(codigoBase + "-" + returnDirection);
@@ -337,6 +349,11 @@ public class ReservationService {
 
         notificationEvents.publishEvent(com.lunaris.ansenuza.domain.model.OperatorNotification.reservation(savedReservations));
         return savedReservations;
+    }
+
+    private static String newSpecialReservationCode() {
+        // Base de 13 caracteres: incluso el sufijo -VUELTA cabe en VARCHAR(20).
+        return "ESP-" + UUID.randomUUID().toString().replace("-", "").substring(0, 9).toUpperCase(java.util.Locale.ROOT);
     }
 
     private String routeDirection(String pickupLocality, String destination) {

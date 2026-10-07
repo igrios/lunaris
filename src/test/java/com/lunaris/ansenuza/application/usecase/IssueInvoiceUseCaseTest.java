@@ -55,7 +55,16 @@ class IssueInvoiceUseCaseTest {
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
         EntityManager entityManager = mock(EntityManager.class);
+        when(reservations.findBillingGroupCodeById(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0))
+                        .map(r -> com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(r))
+                        .filter(code -> !code.startsWith("UUID:")));
+        when(reservations.findByIdForUpdate(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0)));
+        when(reservations.findReservationGroupForUpdate(anyString()))
+                .thenAnswer(call -> reservations.findReservationGroup(call.getArgument(0)));
         when(reservations.findById(returnId)).thenReturn(Optional.of(returnLeg));
+        when(reservations.findById(outboundId)).thenReturn(Optional.of(outbound));
         when(reservations.findReservationGroup("EXPLICIT-GROUP"))
                 .thenReturn(List.of(outbound, returnLeg));
         when(invoices.findByReservationId(outboundId)).thenReturn(Optional.empty());
@@ -74,7 +83,7 @@ class IssueInvoiceUseCaseTest {
                 .thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
 
         Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
-                new InvoicePersistenceService(invoices, entityManager), notifications())
+                new InvoicePersistenceService(invoices, entityManager, reservations), notifications())
                 .issue(returnId, new byte[] {1});
 
         assertEquals(outboundId, issued.getReservationId());
@@ -99,7 +108,16 @@ class IssueInvoiceUseCaseTest {
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
         EntityManager entityManager = mock(EntityManager.class);
+        when(reservations.findBillingGroupCodeById(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0))
+                        .map(r -> com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(r))
+                        .filter(code -> !code.startsWith("UUID:")));
+        when(reservations.findByIdForUpdate(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0)));
+        when(reservations.findReservationGroupForUpdate(anyString()))
+                .thenAnswer(call -> reservations.findReservationGroup(call.getArgument(0)));
         when(reservations.findById(returnId)).thenReturn(Optional.of(returnLeg));
+        when(reservations.findById(outboundId)).thenReturn(Optional.of(outbound));
         when(reservations.findReservationGroup("MOR-COR-001"))
                 .thenReturn(List.of(outbound, returnLeg));
         when(invoices.findByReservationId(outboundId)).thenReturn(Optional.empty());
@@ -118,7 +136,7 @@ class IssueInvoiceUseCaseTest {
                 .thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
 
         Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
-                new InvoicePersistenceService(invoices, entityManager), notifications())
+                new InvoicePersistenceService(invoices, entityManager, reservations), notifications())
                 .issue(returnId, new byte[] {1});
 
         assertEquals(outboundId, issued.getReservationId());
@@ -141,6 +159,14 @@ class IssueInvoiceUseCaseTest {
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
         EntityManager entityManager = mock(EntityManager.class);
+        when(reservations.findBillingGroupCodeById(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0))
+                        .map(r -> com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(r))
+                        .filter(code -> !code.startsWith("UUID:")));
+        when(reservations.findByIdForUpdate(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0)));
+        when(reservations.findReservationGroupForUpdate(anyString()))
+                .thenAnswer(call -> reservations.findReservationGroup(call.getArgument(0)));
         when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
         when(invoices.findByReservationId(reservationId)).thenReturn(Optional.empty());
         when(invoices.findByReservationIdForUpdate(reservationId)).thenReturn(Optional.empty());
@@ -157,7 +183,7 @@ class IssueInvoiceUseCaseTest {
                 .thenAnswer(invocation -> Optional.ofNullable(persisted.get()));
 
         Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
-                new InvoicePersistenceService(invoices, entityManager), notifications())
+                new InvoicePersistenceService(invoices, entityManager, reservations), notifications())
                 .issue(reservationId, new byte[] {1});
 
         assertEquals(new BigDecimal("8500.00"), issued.getAmount());
@@ -178,6 +204,14 @@ class IssueInvoiceUseCaseTest {
         InvoiceRepository invoices = mock(InvoiceRepository.class);
         InvoiceStoragePort storage = mock(InvoiceStoragePort.class);
         EntityManager entityManager = mock(EntityManager.class);
+        when(reservations.findBillingGroupCodeById(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0))
+                        .map(r -> com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(r))
+                        .filter(code -> !code.startsWith("UUID:")));
+        when(reservations.findByIdForUpdate(any(UUID.class)))
+                .thenAnswer(call -> reservations.findById(call.getArgument(0)));
+        when(reservations.findReservationGroupForUpdate(anyString()))
+                .thenAnswer(call -> reservations.findReservationGroup(call.getArgument(0)));
         when(reservations.findById(reservationId)).thenReturn(Optional.of(reservation));
         when(invoices.findByReservationId(reservationId)).thenReturn(Optional.of(managed));
         when(invoices.findByReservationIdForUpdate(reservationId)).thenReturn(Optional.of(managed));
@@ -186,7 +220,7 @@ class IssueInvoiceUseCaseTest {
                 .thenReturn(new StoredInvoice("/invoices/new.pdf", "/tmp/new.pdf"));
 
         Invoice issued = new IssueInvoiceUseCase(reservations, invoices, storage,
-                new InvoicePersistenceService(invoices, entityManager), notifications())
+                new InvoicePersistenceService(invoices, entityManager, reservations), notifications())
                 .issue(reservationId, new byte[] {1});
 
         assertEquals(invoiceId, issued.getId());

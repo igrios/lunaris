@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.TripCategory;
 import com.lunaris.ansenuza.domain.exception.ReservationAlreadyCompletedException;
 import com.lunaris.ansenuza.domain.model.service.PricingAndScheduleService;
 import com.lunaris.ansenuza.domain.model.service.ReservationService;
@@ -53,11 +54,20 @@ public class ReservationViewController {
     private final NewsBannerService newsBannerService;
 
     @GetMapping("/new")
-    public String newReservation(Model model) {
-        model.addAttribute("reservation", new CreateReservationForm());
+    public String newReservation(
+            @RequestParam(defaultValue = "REGULAR") TripCategory tripCategory,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
+            Model model) {
+        var form = new CreateReservationForm();
+        form.setTripCategory(tripCategory);
+        form.setTravelDate(travelDate);
+        model.addAttribute("reservation", form);
+        model.addAttribute("initialTripCategory", tripCategory.name());
+        model.addAttribute("initialTravelDate", travelDate);
         
         // 🎯 Usamos el método filtrado para traer solo los pueblos con tarifas comerciales activas
-        var localidadesConTarifa = localityRepository.findAllWithActiveFare();
+        var localidadesConTarifa = tripCategory == TripCategory.REGULAR
+                ? localityRepository.findAllWithActiveFare() : List.of();
         
         model.addAttribute("origenes", localidadesConTarifa);
         model.addAttribute("destinos", localidadesConTarifa);

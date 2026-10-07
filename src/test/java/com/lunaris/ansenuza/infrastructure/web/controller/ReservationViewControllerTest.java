@@ -29,6 +29,40 @@ import com.lunaris.ansenuza.application.usecase.WaitingListReengagementService;
 class ReservationViewControllerTest {
 
     @Test
+    void specialEntryPreselectsFreeTripAndDateWithoutDependingOnFixedFares() throws Exception {
+        LocalityRepository localities = mock(LocalityRepository.class);
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders
+                .standaloneSetup(formController(localities)).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/reservations/new")
+                        .param("tripCategory", "SPECIAL").param("travelDate", "2030-01-02"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.view().name("reservation-form"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.model().attribute("initialTripCategory", "SPECIAL"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.model().attribute("initialTravelDate", LocalDate.of(2030, 1, 2)));
+        org.mockito.Mockito.verifyNoInteractions(localities);
+    }
+
+    @Test
+    void standardEntryKeepsRegularMode() throws Exception {
+        LocalityRepository localities = mock(LocalityRepository.class);
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders
+                .standaloneSetup(formController(localities)).build();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/reservations/new"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.model().attribute("initialTripCategory", "REGULAR"));
+        verify(localities).findAllWithActiveFare();
+    }
+
+    private ReservationViewController formController(LocalityRepository localities) {
+        return new ReservationViewController(mock(PassengerRepository.class), localities,
+                mock(ReservationService.class), mock(ReservationRepository.class),
+                mock(PricingAndScheduleService.class), mock(DriverRepository.class), mock(WhatsAppService.class),
+                mock(WaitingListService.class), mock(WaitingListConversionService.class),
+                mock(WaitingListReengagementService.class),
+                mock(com.lunaris.ansenuza.application.usecase.NewsBannerService.class));
+    }
+
+    @Test
     void confirmingOpenReturnSendsWhatsAppConfirmation() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         DriverRepository drivers = mock(DriverRepository.class);

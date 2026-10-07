@@ -93,7 +93,13 @@ public class AdminReservationApiController {
             UUID passengerId,
             String passengerName,
             UUID driverId,
-            String driverName) {
+            String driverName,
+            com.lunaris.ansenuza.domain.model.TripCategory tripCategory,
+            String originCustom,
+            String destinationCustom,
+            BigDecimal customPrice,
+            com.lunaris.ansenuza.domain.model.PaymentStatus paymentStatus,
+            boolean invoiceIssued) {
 
         static AdminReservationResponse from(Reservation reservation) {
             var passenger = reservation.getPassenger();
@@ -122,7 +128,15 @@ public class AdminReservationApiController {
                     passenger != null ? passenger.getId() : null,
                     passengerName,
                     driver != null ? driver.getId() : null,
-                    driver != null ? driver.getFullName() : null);
+                    driver != null ? driver.getFullName() : null,
+                    reservation.getTripCategory(),
+                    reservation.getOriginCustom(),
+                    reservation.getDestinationCustom(),
+                    reservation.getCustomPrice(),
+                    Boolean.TRUE.equals(reservation.getPaymentVerified())
+                            ? com.lunaris.ansenuza.domain.model.PaymentStatus.PAID
+                            : com.lunaris.ansenuza.domain.model.PaymentStatus.PENDING,
+                    reservation.isInvoiceIssued());
         }
     }
 }

@@ -34,7 +34,7 @@ import static org.mockito.ArgumentMatchers.*;
 })
 @Import({CreateManualReservationUseCase.class, ReservationService.class, ManualReservationNotificationService.class,
         IssueInvoiceUseCase.class, InvoicePersistenceService.class,
-        WhatsAppConversationWindowService.class})
+        WhatsAppConversationWindowService.class, MarkTripAsPaidService.class})
 class ManualReservationIntegrationTest {
     @Autowired ReservationService service;
     @Autowired CreateManualReservationUseCase manual;
@@ -45,6 +45,8 @@ class ManualReservationIntegrationTest {
     @Autowired ManualReservationNotificationService notifications;
     @Autowired IssueInvoiceUseCase invoicing;
     @Autowired ApplicationEventPublisher events;
+    @Autowired MarkTripAsPaidService payments;
+    @Autowired ReservationEventRepository audit;
     @MockitoBean WhatsAppMessagingAdapter messaging;
     @MockitoBean InvoiceStoragePort storage;
     @MockitoBean OnboardPassengerUseCase onboarding;
@@ -52,10 +54,168 @@ class ManualReservationIntegrationTest {
     @MockitoBean PricingAndScheduleService pricing;
     private static int nextPhone;
 
+    @Test
+    void specialBookingUsesFreeRouteAndTotalPriceWithoutRegularCapacityOrFiscalDocument() {
+        Reservation input = specialBooking();
+        chats.saveAndFlush(ChatMessage.builder().phoneNumber(input.getPassenger().getPhone())
+                .messageText("Hola").fromOperator(false)
+                .timestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now()).build());
+        Reservation saved = manual.execute(input, null).getFirst();
+        verifyNoInteractions(messaging);
+        commit();
+        Reservation stored = reservations.findById(saved.getId()).orElseThrow();
+        assertThat(stored.getPickupLocality()).isEqualTo("De Suardi");
+        assertThat(stored.getDestination()).isEqualTo("Alta Gracia");
+        assertThat(stored.getAmount()).isEqualByComparingTo("120000.50");
+        assertThat(stored.getCustomPrice()).isEqualByComparingTo("120000.50");
+        assertThat(stored.getPaymentStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(stored.getPaymentVerified()).isFalse();
+        assertThat(stored.isInvoiceIssued()).isFalse();
+        assertThat(stored.getInvoiceUrl()).isNull();
+        assertThat(stored.getPaymentExpiresAt()).isNull();
+        assertThat(stored.getPassengerCount()).isEqualTo(20);
+        assertThat(reservations.findSpecialAgendaTrips(stored.getTravelDate()))
+                .extracting(Reservation::getId).contains(saved.getId());
+        assertThat(reservations.countReservedSeats(stored.getTravelDate(), "08:00")).isZero();
+        assertThat(reservations.findReturnCapacityCandidates(stored.getTravelDate()))
+                .extracting(Reservation::getId).doesNotContain(saved.getId());
+        assertThat(reservations.findActiveManifest(stored.getTravelDate(), "08:00", false))
+                .extracting(Reservation::getId).doesNotContain(saved.getId());
+        verifyNoInteractions(pricing, capacity, storage);
+        assertThat(invoices.findByReservationId(saved.getId())).isEmpty();
+        verify(messaging).sendTemplate(eq(input.getPassenger().getPhone()), eq("contacto_pasajero"), eq(List.of("Ana")), any());
+        verify(messaging, never()).sendText(anyString(), anyString(), any());
+        events.publishEvent(new PassengerMessageReceived(input.getPassenger().getPhone()));
+        verify(messaging).sendText(eq(input.getPassenger().getPhone()), contains("Pago: Pendiente"), any());
+        verify(messaging, never()).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void pendingSpecialCannotIssueOrPersistInvoiceAndPaymentIsIdempotent() {
+        Reservation saved = manual.execute(specialBooking(), null).getFirst();
+        commit();
+        assertThatThrownBy(() -> invoicing.issue(saved.getId(), new byte[] {1}))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> invoicePersistence.persistUploadedInvoice(new InvoicePersistenceService.InvoiceData(
+                saved.getId(), "F-SPECIAL", "Ana Pérez", "27123456789", saved.getCustomPrice(), "/test.pdf")))
+                .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class);
+        verifyNoInteractions(storage);
+        Reservation paid = payments.markTripAsPaid(saved.getId(), "operador-test");
+        var paidAt = paid.getPaymentConfirmedAt();
+        assertThat(paid.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(paid.isInvoiceIssued()).isFalse();
+        long auditCount = audit.count();
+        assertThat(payments.markTripAsPaid(saved.getId(), "operador-test").getPaymentConfirmedAt()).isEqualTo(paidAt);
+        assertThat(audit.count()).isEqualTo(auditCount);
+        Invoice invoice = invoicing.issue(saved.getId(), new byte[] {37, 80, 68, 70});
+        assertThat(invoice.getAmount()).isEqualByComparingTo("120000.50");
+        assertThat(reservations.findById(saved.getId()).orElseThrow().isInvoiceIssued()).isTrue();
+    }
+
+    @Autowired InvoicePersistenceService invoicePersistence;
+
+    @Test
+    void specialRoundTripPaysBothLegsAndBillsAgreedTotalOnce() {
+        Reservation input = specialBooking();
+        input.setRoundTrip(true);
+        input.setTripType(TripType.ROUND_TRIP);
+        input.setReturnDate(input.getTravelDate().plusDays(2));
+        var legs = manual.execute(input, "19:15");
+        commit();
+        assertThat(legs).hasSize(2);
+        assertThat(BookingInvoiceAmount.total(legs)).isEqualByComparingTo("120000.50");
+        assertThat(legs.getLast().getOriginCustom()).isEqualTo("Alta Gracia");
+        assertThat(legs.getLast().getDestinationCustom()).isEqualTo("De Suardi");
+        payments.markTripAsPaid(legs.getLast().getId(), "operador-test");
+        var paid = reservations.findReservationGroup(legs.getFirst().getBookingGroupCode());
+        assertThat(paid).allMatch(r -> r.getPaymentStatus() == PaymentStatus.PAID && !r.isInvoiceIssued());
+        Invoice invoice = invoicing.issue(legs.getLast().getId(), new byte[] {37, 80, 68, 70});
+        assertThat(invoice.getAmount()).isEqualByComparingTo("120000.50");
+        assertThat(reservations.findReservationGroup(legs.getFirst().getBookingGroupCode()))
+                .allMatch(Reservation::isInvoiceIssued);
+        verifyNoInteractions(pricing, capacity);
+    }
+
+    @Test
+    void invalidSpecialIsRejectedBeforeWritingPassengerOrSchedulingNotification() {
+        Reservation input = specialBooking();
+        input.setOriginCustom(" ");
+        long count = passengers.count();
+        assertThatThrownBy(() -> manual.execute(input, null))
+                .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class);
+        assertThat(passengers.count()).isEqualTo(count);
+        verifyNoInteractions(messaging, storage, pricing, capacity);
+    }
+
+    @Test
+    void specialCreationCannotClaimPaidStatus() {
+        Reservation input = specialBooking();
+        input.setPaymentStatus(PaymentStatus.PAID);
+        assertThatThrownBy(() -> manual.execute(input, null))
+                .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class);
+    }
+
+    @Test
+    void cancelledSpecialTripCannotBePaid() {
+        Reservation saved = manual.execute(specialBooking(), null).getFirst();
+        saved.setStatus("CANCELLED");
+        reservations.saveAndFlush(saved);
+        commit();
+        assertThatThrownBy(() -> payments.markTripAsPaid(saved.getId(), "operador-test"))
+                .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class);
+        assertThat(reservations.findById(saved.getId()).orElseThrow().getPaymentStatus()).isEqualTo(PaymentStatus.PENDING);
+    }
+
+    @Test
+    void specialRollbackDoesNotSendConfirmation() {
+        manual.execute(specialBooking(), null);
+        TestTransaction.flagForRollback();
+        TestTransaction.end();
+        verifyNoInteractions(messaging, storage);
+    }
+
+    @Test
+    void concurrentPaymentAttemptsCreateOneAuditEventAndPreserveOnePaymentDate() throws Exception {
+        Reservation saved = manual.execute(specialBooking(), null).getFirst();
+        commit();
+        long eventsBefore = audit.count();
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> {
+                start.await();
+                return payments.markTripAsPaid(saved.getId(), "operador-uno").getPaymentConfirmedAt();
+            });
+            var second = executor.submit(() -> {
+                start.await();
+                return payments.markTripAsPaid(saved.getId(), "operador-dos").getPaymentConfirmedAt();
+            });
+            start.countDown();
+            assertThat(first.get(15, java.util.concurrent.TimeUnit.SECONDS))
+                    .isEqualTo(second.get(15, java.util.concurrent.TimeUnit.SECONDS));
+        }
+        assertThat(audit.count()).isEqualTo(eventsBefore + 1);
+        assertThat(reservations.findById(saved.getId()).orElseThrow().getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+    }
+
+    private Reservation specialBooking() {
+        Reservation reservation = booking(true);
+        reservation.setTripCategory(TripCategory.SPECIAL);
+        reservation.setOriginCustom(" De Suardi ");
+        reservation.setDestinationCustom("Alta Gracia");
+        reservation.setCustomPrice(new BigDecimal("120000.50"));
+        reservation.setPassengerCount(20);
+        reservation.setPaymentReceiptUrl(null);
+        return reservation;
+    }
+
     @BeforeEach
     void successfulMessaging() {
         when(capacity.findForUpdate(anyString())).thenAnswer(call -> new CapacityLock(call.getArgument(0)));
-        doAnswer(call -> { call.<Consumer<Boolean>>getArgument(3).accept(true); return null; })
+        doAnswer(call -> {
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            call.<Consumer<Boolean>>getArgument(3).accept(true);
+            return null;
+        })
                 .when(messaging).sendTemplate(anyString(), anyString(), anyList(), any());
         doAnswer(call -> { call.<Consumer<Boolean>>getArgument(2).accept(true); return null; })
                 .when(messaging).sendText(anyString(), anyString(), any());
@@ -102,15 +262,19 @@ class ManualReservationIntegrationTest {
     }
 
     @Test
-    void openWindowSendsFullConfirmationWithoutTemplate() {
+    void openWindowStillStartsWithApprovedTemplateAndWaitsForReply() {
         Reservation input = booking(false);
         chats.saveAndFlush(ChatMessage.builder().phoneNumber(input.getPassenger().getPhone())
                 .messageText("Hola").fromOperator(false)
                 .timestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now().minusHours(23)).build());
         Reservation saved = service.saveManualReservationFlow(input, null).getFirst();
+        verifyNoInteractions(messaging);
         commit();
+        verify(messaging).sendTemplate(eq(input.getPassenger().getPhone()), eq("contacto_pasajero"), eq(List.of("Ana")), any());
+        verify(messaging, never()).sendText(anyString(), anyString(), any());
+        assertThat(reservations.findById(saved.getId()).orElseThrow().isManualNotificationWaitingReply()).isTrue();
+        events.publishEvent(new PassengerMessageReceived(input.getPassenger().getPhone()));
         verify(messaging).sendText(eq(input.getPassenger().getPhone()), contains(ManualReservationNotificationService.PROMO), any());
-        verify(messaging, never()).sendTemplate(anyString(), anyString(), anyList(), any());
         verifyNoInteractions(storage);
         assertThat(reservations.findById(saved.getId()).orElseThrow().isManualNotificationPending()).isFalse();
     }

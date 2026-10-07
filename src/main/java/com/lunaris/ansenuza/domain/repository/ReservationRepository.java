@@ -19,6 +19,27 @@ import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
+    /** Lee solo la clave: evita cargar un estado de pago obsoleto antes de adquirir el bloqueo. */
+    @Query("""
+            select case
+                when r.bookingGroupCode is not null and trim(r.bookingGroupCode) <> '' then r.bookingGroupCode
+                when r.reservationCode like '%-VUELTA' then substring(r.reservationCode, 1, length(r.reservationCode) - 7)
+                when r.reservationCode like '%-IDA' then substring(r.reservationCode, 1, length(r.reservationCode) - 4)
+                else r.reservationCode end
+            from Reservation r where r.id = :id
+            """)
+    Optional<String> findBillingGroupCodeById(@Param("id") UUID id);
+
+    @Query("""
+            select r from Reservation r
+            left join fetch r.passenger left join fetch r.driver
+            where r.travelDate = :date
+            and r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.SPECIAL
+            and upper(coalesce(r.status, '')) not in ('CANCELLED', 'CANCELED', 'EXPIRED', 'REJECTED')
+            order by r.departureSchedule, r.createdAt
+            """)
+    List<Reservation> findSpecialAgendaTrips(@Param("date") LocalDate date);
+
     List<Reservation> findByPassengerPhoneAndManualNotificationWaitingReplyTrue(String phone);
 
     @Query("""
@@ -163,6 +184,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            SELECT COALESCE(SUM(r.passengerCount), 0)
            FROM Reservation r
            WHERE r.pickupLocality = :pickupLocality
+           AND r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.REGULAR
            AND r.destination = :destination
            AND r.travelDate = :travelDate
            AND r.status = 'CONFIRMED'
@@ -193,7 +215,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
            SELECT DISTINCT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
-           WHERE r.travelDate = :date
+           WHERE r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.REGULAR
+           AND r.travelDate = :date
              AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED', 'EXPIRED')
              AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
                  com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN,
@@ -222,7 +245,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            SELECT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
            LEFT JOIN FETCH r.driver
-           WHERE r.travelDate = :travelDate
+           WHERE r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.REGULAR
+           AND r.travelDate = :travelDate
            AND (r.status IS NULL OR UPPER(r.status) <> 'CANCELLED')
            AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
                com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN,
@@ -286,7 +310,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            SELECT COALESCE(SUM(CASE WHEN r.passengerCount IS NULL OR r.passengerCount < 1
                                    THEN 1 ELSE r.passengerCount END), 0)
            FROM Reservation r
-           WHERE r.travelDate = :date
+           WHERE r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.REGULAR
+           AND r.travelDate = :date
            AND SUBSTRING(COALESCE(r.departureSchedule, '03:00 AM'), 1, 5) = SUBSTRING(:schedule, 1, 5)
            AND (r.status IS NULL OR UPPER(r.status) NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED'))
            AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
@@ -302,7 +327,8 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
            SELECT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
-           WHERE (r.travelDate = :date OR
+           WHERE r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.REGULAR
+           AND (r.travelDate = :date OR
                (r.travelStatus = com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
                 AND EXISTS (SELECT o.id FROM Reservation o
                     WHERE o.travelDate = :date

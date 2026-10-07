@@ -13,6 +13,32 @@ import com.lunaris.ansenuza.domain.model.Reservation;
 
 class AgendaPassengerBoardTemplateTest {
     @Test
+    void specialAgendaEscapesFreeTextAndEnablesInvoiceOnlyAfterPayment() throws Exception {
+        String template = Files.readString(Path.of("src/main/resources/templates/agenda-day.html"));
+        int start = template.indexOf("<section th:if=\"${specialTrips");
+        String section = template.substring(start, template.indexOf("</section>", start) + "</section>".length());
+        Reservation reservation = Reservation.builder().id(java.util.UUID.randomUUID())
+                .passenger(Passenger.builder().firstName("Ana").lastName("Pérez").build())
+                .originCustom("De <script>Suardi</script>").destinationCustom("Alta Gracia")
+                .passengerCount(20).customPrice(new java.math.BigDecimal("120000.50"))
+                .paymentVerified(false).build();
+        Context context = new Context();
+        context.setVariable("specialTrips", List.of(reservation));
+        SpringTemplateEngine engine = new SpringTemplateEngine();
+        String pending = engine.process(section, context);
+        assertTrue(pending.contains("&lt;script&gt;Suardi&lt;/script&gt;"));
+        assertTrue(pending.contains("Pendiente de pago"));
+        assertTrue(pending.contains("Registrar pago"));
+        reservation.setPaymentVerified(true);
+        String paid = engine.process(section, context);
+        assertTrue(paid.contains("Pagado"));
+        assertTrue(paid.contains("Habilitada"));
+        org.junit.jupiter.api.Assertions.assertFalse(paid.contains("Registrar pago"));
+        reservation.setInvoiceIssued(true);
+        assertTrue(engine.process(section, context).contains("Emitida"));
+    }
+
+    @Test
     void rendersBothLegsWithEscapedModalDataAndEmptyState() throws Exception {
         String template = Files.readString(Path.of("src/main/resources/templates/agenda-day.html"));
         String board = template.substring(template.indexOf("<section id=\"agendaBoard\""),

@@ -62,6 +62,41 @@ class BotMonitorWebTest {
         verifyNoInteractions(pricing);
     }
 
+    @Test void specialFormAcceptsFreeRouteWithoutFixedLocalityParameters() throws Exception {
+        mvc.perform(post("/admin/bot/monitor/cargar-reserva-web")
+                .with(csrf()).with(user("op").roles("OPERADOR"))
+                .param("phone", "3511234567").param("firstName", "Ana").param("lastName", "Pérez")
+                .param("pickupAddress", "Belgrano 100").param("travelDate", "2030-01-02")
+                .param("departureSchedule", "09:30").param("passengerCount", "20")
+                .param("tripCategory", "SPECIAL").param("originCustom", "De Suardi")
+                .param("destinationCustom", "Alta Gracia").param("customPrice", "120000.50")
+                .param("paymentStatus", "PENDING"))
+                .andExpect(status().is3xxRedirection());
+        var captor = org.mockito.ArgumentCaptor.forClass(com.lunaris.ansenuza.domain.model.Reservation.class);
+        verify(createManualReservation).execute(captor.capture(), isNull());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().isSpecialTrip()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getOriginCustom()).isEqualTo("De Suardi");
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getCustomPrice()).isEqualByComparingTo("120000.50");
+        verifyNoInteractions(pricing);
+    }
+
+    @Test void rejectedSpecialReturnsToFormWithDomainError() throws Exception {
+        org.mockito.Mockito.doThrow(new com.lunaris.ansenuza.domain.exception.DomainValidationException(
+                "El viaje especial debe crearse con pago pendiente y sin factura."))
+                .when(createManualReservation).execute(org.mockito.ArgumentMatchers.any(), isNull());
+        mvc.perform(post("/admin/bot/monitor/cargar-reserva-web")
+                .with(csrf()).with(user("op").roles("OPERADOR"))
+                .param("phone", "3511234567").param("firstName", "Ana").param("lastName", "Pérez")
+                .param("pickupAddress", "Belgrano 100").param("travelDate", "2030-01-02")
+                .param("departureSchedule", "09:30").param("passengerCount", "20")
+                .param("tripCategory", "SPECIAL").param("originCustom", "De Suardi")
+                .param("destinationCustom", "Alta Gracia").param("customPrice", "120000.50")
+                .param("paymentStatus", "PAID"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/reservations/new"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attribute(
+                        "errorMessage", "El viaje especial debe crearse con pago pendiente y sin factura."));
+    }
+
     @Test void operatorSeesUnassignedSessionWithSafeContentAndChatLink() throws Exception {
         var row = mock(ConversationSessionRepository.MonitorRow.class);
         when(row.getId()).thenReturn(1L);

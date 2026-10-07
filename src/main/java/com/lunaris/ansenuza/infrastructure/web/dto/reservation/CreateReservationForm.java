@@ -9,7 +9,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class CreateReservationForm {
+public class CreateReservationForm extends ManualReservationOptions {
 
     @NotBlank(message = "El nombre es obligatorio")
     private String firstName;
@@ -29,13 +29,11 @@ public class CreateReservationForm {
     @NotNull(message = "La fecha del viaje es obligatoria")
     private LocalDate travelDate;
 
-    @NotBlank(message = "La localidad de retiro es obligatoria")
     private String pickupLocality;
 
     @NotBlank(message = "La dirección de retiro es obligatoria")
     private String pickupAddress;
 
-    @NotBlank(message = "El destino es obligatorio")
     private String destination;
 
     private Boolean roundTrip = false;
@@ -47,10 +45,10 @@ public class CreateReservationForm {
 
     private Boolean paymentVerified;
 
-    private String notes;
-
     // 🌟 NUEVOS CAMPOS AGREGADOS PARA LA GESTIÓN DE ASIENTOS Y ACOMPAÑANTES
+    @NotNull(message = "La cantidad de pasajeros es obligatoria")
+    @jakarta.validation.constraints.Positive
     private Integer passengerCount;
 
-    private String companionNames;
+    private Boolean requiresInvoice = false;
 }

@@ -277,8 +277,8 @@ public class BotMonitorController {
             @RequestParam("firstName") String firstName, 
             @RequestParam("lastName") String lastName,   
             @RequestParam(value = "cuil", required = false) String cuil,
-            @RequestParam("pickupLocality") String pickupLocality,
-            @RequestParam("destination") String destination,
+            @RequestParam(value = "pickupLocality", defaultValue = "") String pickupLocality,
+            @RequestParam(value = "destination", defaultValue = "") String destination,
             @RequestParam("pickupAddress") String pickupAddress,
             @RequestParam("passengerCount") int passengerCount,
             @RequestParam("travelDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
@@ -288,6 +288,7 @@ public class BotMonitorController {
             @RequestParam(value = "roundTrip", defaultValue = "false") boolean roundTrip,
             @RequestParam(value = "requiresInvoice", defaultValue = "false") boolean requiresInvoice,
             @RequestParam(value = "notes", required = false) String notes,
+            @jakarta.validation.Valid
             @org.springframework.web.bind.annotation.ModelAttribute
             com.lunaris.ansenuza.infrastructure.web.dto.reservation.ManualReservationOptions options,
             RedirectAttributes redirectAttributes) {
@@ -317,16 +318,21 @@ public class BotMonitorController {
             ida.setRequiresInvoice(requiresInvoice);
             ida.setNotes(notes != null ? notes : "Cargado manualmente desde la administración web.");
 
+            com.lunaris.ansenuza.infrastructure.web.mapper.ManualTripWebMapper.applyOptions(ida, options);
             createManualReservation.execute(ida, returnDepartureSchedule);
 
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva manual creada correctamente!");
 
+        } catch (com.lunaris.ansenuza.domain.exception.DomainValidationException invalid) {
+            redirectAttributes.addFlashAttribute("errorMessage", invalid.getMessage());
+            return "redirect:/reservations/new";
         } catch (Exception e) {
             log.error("[Carga Web] Error al procesar reserva manual: ", e);
-            redirectAttributes.addFlashAttribute("errorMessage", "Error al procesar: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "No se pudo guardar el viaje. Volvé a intentar.");
+            return "redirect:/reservations/new";
         }
 
-        return "redirect:/agenda?success=true";
+        return "redirect:/agenda";
     }
 
     private TripType tripType(boolean roundTrip, LocalDate returnDate) {

@@ -110,9 +110,14 @@ public class AgendaViewController {
                             .filter(r -> !Boolean.TRUE.equals(r.getPaymentVerified())).toList());
 
                     int safeVehicleCapacity = Math.max(vehicleCapacity, 1);
-                    int estimatedVehicles = totalPassengers == 0
+                    int regularPassengers = countDistinctBookingSeats(activeReservations.stream()
+                            .filter(r -> !r.isSpecialTrip()).toList());
+                    int regularConfirmedPassengers = countDistinctBookingSeats(activeReservations.stream()
+                            .filter(r -> !r.isSpecialTrip() && Boolean.TRUE.equals(r.getPaymentVerified())
+                                    && "CONFIRMED".equals(r.getStatus())).toList());
+                    int estimatedVehicles = regularPassengers == 0
                             ? 0
-                            : (int) Math.ceil((double) totalPassengers / safeVehicleCapacity);
+                            : (int) Math.ceil((double) regularPassengers / safeVehicleCapacity);
                     int paidReservations = countDistinctBookings(activeReservations.stream()
                             .filter(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()))
                             .toList());
@@ -145,7 +150,7 @@ public class AgendaViewController {
                             totalPassengers,
                             confirmedPassengers,
                             waitingListPassengers,
-                            confirmedPassengers > maxCapacity,
+                            regularConfirmedPassengers > maxCapacity,
                             pendingPayments,
                             estimatedVehicles,
                             safeVehicleCapacity,
@@ -210,6 +215,7 @@ public class AgendaViewController {
 
         model.addAttribute("date", date);
         model.addAttribute("reservations", activeReservations);
+        model.addAttribute("specialTrips", reservationRepository.findSpecialAgendaTrips(date));
         List<Reservation> boardReservations = reservationRepository.findDailyManifest(date);
         model.addAttribute("outboundReservations", boardReservations.stream()
                 .filter(reservation -> !isManifestReturn(reservation)).toList());
@@ -348,6 +354,7 @@ public class AgendaViewController {
                 && "PENDING".equalsIgnoreCase(reservation.getStatus());
         return AirportTripDetector.isAirportTrip(
                 reservation.getPickupLocality(), reservation.getDestination())
+                || reservation.isSpecialTrip()
                 || pendingWithoutPrice;
     }
 

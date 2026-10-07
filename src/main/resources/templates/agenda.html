@@ -32,7 +32,13 @@
     <nav th:replace="~{fragments/nav :: bar('agenda')}"></nav>
 
     <div class="container mt-4 mb-5">
+        <div th:if="${successMessage}" class="alert alert-success" role="status" th:text="${successMessage}"></div>
         <h1 class="text-center mb-4 pt-2 fw-bold">📅 Operación de la Agenda</h1>
+        <div class="d-flex justify-content-end mb-3">
+            <a th:href="@{/reservations/new(tripCategory='SPECIAL')}" class="btn btn-outline-primary fw-bold">
+                Cargar viaje especial
+            </a>
+        </div>
         
         <div class="row mb-3">
             <div class="col-md-12">
