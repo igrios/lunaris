@@ -28,7 +28,9 @@ Reservas y facturas manuales usan el mismo contrato `PassengerContactTemplate`: 
 
 El resumen completo de reserva, el enlace del comprobante y el mensaje promocional del bot se envían como texto al abrirse la ventana mediante una respuesta del pasajero.
 
-Con ventana abierta se envían texto completo y PDF, cuando existe. Con ventana cerrada se envía la plantilla y queda persistida la espera de respuesta. Un mensaje/interacción recibido por el webhook firmado activa el detalle y PDF; las notas de oficina no se envían al pasajero.
+El alta manual, incluidos los viajes especiales, siempre inicia con la plantilla aprobada, aun con ventana abierta, y persiste la espera de respuesta. Su único placeholder sigue siendo el nombre: el backend no puede modificar el texto aprobado en Meta. Al responder el pasajero, se envía el detalle con dirección y acompañantes pendientes cuando corresponda, pago pendiente, invitación a responder libremente para que los operadores lo anoten y el recordatorio del bot. Para incluir ese contexto en el primer mensaje sería necesaria una plantilla aprobada que lo contemple.
+
+El evento de alta se procesa explícitamente en `AFTER_COMMIT`; las llamadas al adaptador se ejecutan sin una transacción de base de datos activa. Los envíos posteriores de facturas conservan la entrega directa con ventana abierta y usan plantilla con ventana cerrada. Un mensaje/interacción recibido por el webhook firmado activa el detalle y PDF; las notas de oficina no se envían al pasajero.
 
 Los resultados del adaptador registran aceptación/rechazo del envío por Meta, no lectura ni entrega final al dispositivo. Los envíos fallidos se reintentan cada 60 segundos (`lunaris.manual-notification.retry-ms`). Se usa un reclamo de cinco minutos para evitar envíos concurrentes y recuperar intentos interrumpidos. Como Meta no recibe una clave de idempotencia, un reinicio después de aceptar el mensaje y antes de guardar el resultado puede producir un reenvío.
 
