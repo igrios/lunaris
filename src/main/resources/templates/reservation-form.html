@@ -274,7 +274,9 @@
     </div>
 
     <!-- SCRIPTS INTERACTIVOS -->
-    <script th:inline="javascript">
+    <!-- Script literal: los datos del servidor se leen de los atributos del formulario.
+         Evita interpretar los arreglos JavaScript [[...]] como expresiones Thymeleaf. -->
+    <script th:inline="none">
         // ⚡ CARGA ASÍNCRONA DE LOCALIDADES DESDE LA API UNIFICADA
         let localidadesCargadas = false;
         function cargarLocalidadesDropdown() {
