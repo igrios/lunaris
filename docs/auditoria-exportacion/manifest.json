@@ -1,0 +1,2822 @@
+[
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/LunarisAnsenuzaApplication.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 23,
+    "sha256": "024899c2343e8dd9fa7234a2b1bddec6a63f98bd51463632701d0ee52c82d287"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/BotRoute.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 23,
+    "sha256": "e70746af1acbf9f3ffe89a8b310e1482d0f49cebb10f31dc2ab78e116c3ccc31"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/ConversationOrchestrator.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 582,
+    "sha256": "48a37b9c113af4c2fecaf0623efad63a3bb59a87a93114b73527b75d64261d51"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/ConversationPresenter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 165,
+    "sha256": "825c33dd326407b6e92a63aa1bb9cb63665857418521ea378b970969757cac18"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/ConversationSessionCleanupScheduler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 70,
+    "sha256": "4ceeca6b36580b56afb43f394f4bcfe5350c8b25c391d52e3ac0ceb726943564"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/ConversationStepHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 20,
+    "sha256": "bfadd4aa1fc75910c58ac022bc80de28cdc78b5c5e5aad7479d99c742c27a64a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/FechaParser.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 29,
+    "sha256": "74683991f14c8d2cff62d155c6c6f4a54bbfd84e8268e48d4e885f1c231ff06f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/GoogleMapsParameterFormatter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 80,
+    "sha256": "e015260d7622c936bd222f4f65fc4fae3c401466bfa68aa67fdd381ef4a3bad9"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/IncomingMessage.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 65,
+    "sha256": "f19dd491a9fe479692e6af71f3dab9b0ed48276460b864d3360cd9398f987c19"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/PassengerAddressResolver.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 52,
+    "sha256": "6743ef01ca13571bf6e4806e1d964a23bf34e3ab1b58133f90246e10045b805d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/WaitingListCapacityGuard.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 95,
+    "sha256": "d23828ce0f6c5187e2bf982fea2a60a6c16d88d4f1fc5cbdfb773f4cfb6fada3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskAddressTextHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 84,
+    "sha256": "9deb2c0a95a03a723df7fe956c03b361ca4d0495394697b42056022cc7905c22"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskCompanionsCountHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 66,
+    "sha256": "4d8053ddac6d80f7b2240abf47f137c47181ef58374e17d8d2792f263a1e3d4c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskDateHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 112,
+    "sha256": "09e890d993a2a7f20611fd47a794c6175a9951b96b325625be85c72e7387fc04"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskDestinationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 50,
+    "sha256": "00b7ec86d462d0b48d62070b1f9d8ee905ea3e53857217c9041bd16a4ff47299"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskDniHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 46,
+    "sha256": "66bbec2a45f9949454184976dd61ff8fad95eb43a51e916d105901668c9cdea5"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskIndividualCompanionHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 68,
+    "sha256": "821ced465ff3e28291562b11fb071f46b3f78093a7f50e8341e1840418311f00"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskInterurbanDestinationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 66,
+    "sha256": "59b16ba5ea27d4819e6f5d7d4d2a9edb9ec368136e80c6e7bb6a753c42227be3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskLocalityHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 186,
+    "sha256": "ce079edcc03b0d3c23273412935db6720283f1483be846b13b0bfb4a36c450b0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskNameHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 33,
+    "sha256": "4bbb467d61e56a88c514aa59422e7a0f28e867c3f625cd8d221fd5c5a5827a35"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskPromotionCodeHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 63,
+    "sha256": "8f88d1c852dd1dd6812a933ec55d0782dd597c7a6a001262db95a03a793d7db3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskReturnDateHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 63,
+    "sha256": "c16649033c0a99fe138b4e2e41c52bfc850eb952f6b0887527f13a493cc63353"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskReturnDateTypeHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 82,
+    "sha256": "0ec98d3a0a596b987d798f5fec48c38e4173f9f0830336428be0b0da0bfd9119"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskTownDestinationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 61,
+    "sha256": "24df07d5bd344b25530998f63210bad25a2a2a40ea273bad20203ccfc4ff723b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AskTripTypeHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 79,
+    "sha256": "462456612483820a38876be2e2c796d5e3c72548e03b3d4487b3ff69a032ac58"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/AwaitingPaymentHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 26,
+    "sha256": "16047eca24527b0f3e2f0511aed8cfea6085e18ad682b4b5e9fcda5e222bdd8c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/CancelReservationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 169,
+    "sha256": "196ebf2db5ae48635dc7e9a0b0cbf78f900026040b50ce7ecfdf623e2bf55cb1"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/ConfirmAddressHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 48,
+    "sha256": "85a500d91bd916ef5ae7ab1e408ac19f12ed2f5c5df234ae2bedfdb2453f26f1"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/ConfirmWaitingListBookingHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 68,
+    "sha256": "0730fc7ba1dc35c1f413f53f5e1193c277068dfb28f316fa4093fb5a0e3861ed"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/ConfirmationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 265,
+    "sha256": "071026217c12a3f0678bb9cc1c184ad556bf0f772300c95488ccacb3141fe7d0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/InterurbanConfirmationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 37,
+    "sha256": "3021aa49412b0b0682fe1ee8cfda8a9c61b3e44efb745ca36226ca013e46ea00"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/MainMenuHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 124,
+    "sha256": "1a9bfc60601e2b93af9adbf29eb2c3fbdb936f032bd76b6930bccb77d5f04590"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/MarketingConfirmationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 87,
+    "sha256": "92c3390b5c3ff415d37344b1d7df866cc0b295e272fd3d9d7392673fa740cacb"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/ReturnWindowSelectionHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 68,
+    "sha256": "77aa96595d3400472fd257d51eb0b74714fd14e4bd0ef1318dc1977c7fcb59c6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/SelectScheduleHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 88,
+    "sha256": "a2c5373360f89c9338d39fcdd437a07f26016b7ea97a010e3fab47d84214f5bf"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/StartHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 75,
+    "sha256": "82596f48a28f7eb23d948a5d1a681883182118be28b2f5774322ac858d92db24"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/WaitingForInquiryMessageHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 38,
+    "sha256": "13e6b2a15c36c956c2b17c531402058e2b3a7f610a13fd66ef39148213ee8d07"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/conversation/steps/WaitingListConfirmationHandler.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 51,
+    "sha256": "de50e4613b7434e385bf410cb62716cd4b4474932736ccd9a12779878a4fff62"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/dto/ScheduleDto.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 9,
+    "sha256": "381365b327faef1bcda4b2c9313f285a156c48046448c6d81e99c98d364b7076"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/BankEmailProcessingResult.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 11,
+    "sha256": "e2b28042a3aad07fcac624a77784e221a64bff419b2e8a503fc986b7a59093ca"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/BankPaymentReservationPort.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 9,
+    "sha256": "5842d0ba0e3bbe8e857e605e52d7ff8cfa2bc5041ba13660661a14b4893a7fb5"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/BankTransferNotification.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 35,
+    "sha256": "bcf26d7042d885073ce1b0865b4332252cb2c90bc5f36952b6f98e944b5a6144"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/PaymentAuditOutboxPort.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 7,
+    "sha256": "cc871d2d2740b8609679d03699f7129b980c866638db3c48deac4e1259dc4d99"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/PaymentConfirmedEvent.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 11,
+    "sha256": "13c9bffa080238ab813498e71512fc03483e06c477c06f185b9195c9cce88134"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/PaymentDetectedAuditRecord.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 15,
+    "sha256": "c6278c306243a1c8f218c10c50395101ea02d596715f7d6addc5aab190365a6a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/ProcessBankEmailService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 93,
+    "sha256": "3f4ecaa82cade211835aeab1732ad306fa6971e4440e2d08bc76cea7e7a68f11"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/ProcessBankEmailUseCase.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 5,
+    "sha256": "e14eaf063e0f5d04277955a4bd3168b1dfd6bf4eed6dd2efa058f8f427bc146a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/ProcessedTransactionLedgerPort.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 16,
+    "sha256": "c9392e1935041fd6816a97a9a64ae22444a1a6141f8b5ee75a5c00c089cff418"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/payment/ReservationPaymentCandidate.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 6,
+    "sha256": "799db06e04c118c46a0e50d433588904ada73551bb3c5effaa1b2ec22cdaa165"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/Button.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "52c21f1a36f1f53b4b01cecd47ac65fcd0de7ab8433ca35248c5dbb5f42db5fa"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/ChatbotTelemetryPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 18,
+    "sha256": "175f3b6f01ea51a3e3d988ca222e8e6a7a6212aad0bc67c85e02b924f24bd2cf"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/DriverDocumentStoragePort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "602100301ead8e573487075f08362c8b84669d0ad426b59b005865053c4b1520"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/InvoiceStoragePort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 20,
+    "sha256": "27b6a76b49f1afa7cb4cae14f2cb2bdad01dabb64c5e0e6a721bb8ac46e459c4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/LiveChatPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 12,
+    "sha256": "ce90335f4bb65d04781f60253115f7d33a9bbab8f59317d7815daf1b3c4eb1da"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/MessagingPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 54,
+    "sha256": "94119c62d9f255802b5209e983ede9c95f66b1d959ede5dbe2b3c7d96136479f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/NewsBannerStoragePort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "6827ad1bc92fc8262f2ad94ef26b45ee7e2ce4fb39eefc38cc23cde333f99a5d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/PassengerContactTemplate.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 15,
+    "sha256": "89f70e718cdc7ac59420d3e3f6016b0070c5f827e13dcb1ac68aad9aed39d928"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/port/ReceiptStoragePort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 17,
+    "sha256": "42e7917f6e827c10dd2667140f43089c9a8dd23a3c5efcde9f86adc2302f949b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/scheduler/DailyReturnScheduler.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 116,
+    "sha256": "d65030989c6cafe1c090a9460b3789c141af7a677b188f46bc8658eb5b1d28e0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/scheduler/OpenReturnCutoffScheduler.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 52,
+    "sha256": "0a30a02fe02cd28b117f0a8d6914f35aec1259dc896831ad8a889c8c87352352"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/scheduler/ReservationPaymentExpirationScheduler.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 30,
+    "sha256": "93a4c01993ce75a9cac57d2b81f44eacce7551073e03807972427900f4970b65"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/scheduler/ReturnScheduleAuditScheduler.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 100,
+    "sha256": "dcf3a015b4646cb84e5a2459d21be4b6e49c98c33bac449c0557d2d7fca9d359"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/telemetry/ChatbotEventType.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 9,
+    "sha256": "a66fb6209be60e7e923e7097718c53dbfb35ce991e6fa8b9cc357168bf5e1b35"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/telemetry/ChatbotInteraction.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 33,
+    "sha256": "70eebbaa60c01cf2ea5445f8cd4036248cd0884dd85dd182f6fff45bd6be3ec6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/telemetry/ChatbotReason.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "de9d0849d8da62a936bebb95199edef654eaa46f820858edaa3144b162dbeffd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/telemetry/ChatbotSignal.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "017e9fb1d5b1c8c092bdaab60c8b230a38d41112e16d17fbcba41632a6e51755"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/BookingVerificationData.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 15,
+    "sha256": "eaaf543683cba352438eb168cb5eb22ced977022bc3d5183096e9639fc93437c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/BotMonitorService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 37,
+    "sha256": "9435b611a1cfe535918771d8f77a1335512308985cd9e22bbe8a82bb1254d649"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/CompleteTripUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 64,
+    "sha256": "56da178fece886cb8bf9d0e9664868776aa0c48cc5f0afc29197b8763b4b3e48"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ConfirmPaymentUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 157,
+    "sha256": "18723ee9a0788df6a3178013ae12d009e6574a3ae56657ab5dca9cda78c86ede"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/CreateFareLocalityService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 47,
+    "sha256": "a77e4e12bfff0feb47768554fea82176d5d310db5ca2210a5b187c6665f9489a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/CreateManualReservationUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 37,
+    "sha256": "315111dc7bb7a2a07f2806a36d3b73b9c8c4a43599010936d1523a81e098a1aa"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/CreatePassengerUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 28,
+    "sha256": "857cb968183ad36137a6bf619d3331e753f23e7ffc5268dca1778525c5770296"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/CreateReservationUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 299,
+    "sha256": "4c252280ba522566410588f562968678f2ce8fd22578397d97a6ff0d88dfcb3f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/CreateSpecialTripService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 25,
+    "sha256": "b1338afe2a6b37664fddc63def82ae4c20391fb5a59025c19456233b79e90636"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/DailyPassengerManifestService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 92,
+    "sha256": "646ab9adbcbd586ff5420ab65906069f5e13850ae5e0e2b5ee9233a3663ac1ff"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/DeleteFareLocalityService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 36,
+    "sha256": "2606455d49d839c7a1449d3c4daf05e36496d5a0f56bfe8ef36a2b70d252ad90"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/DriverApplicationManagementService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 53,
+    "sha256": "6f863d2773ef52362c2ad1fbdaf121c9845fb790d869d4e7db038915c2fcc8ac"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/DriverAuthorizationService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 60,
+    "sha256": "63229db919cc368e35f0142e95843a7802a1e605ba5a595839c75298e29d562a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/DriverManagementService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 47,
+    "sha256": "54ac5c65ee3946fb6eda6dd477454d1a8c506a511fa53c9a9b9df8a568c1ca54"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ExpireReservationPaymentUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 56,
+    "sha256": "5f34bbd26cd0f14b628b5144dbd526d273ada8aaf452ba52ec0c6b9f3695d162"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/FareLocalityValidation.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 32,
+    "sha256": "b5d85c3a3dc105ef70aef982570a2b01a56eeba511afffa7cd1ad05003ab8304"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/GetBillingPanelUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 142,
+    "sha256": "2878f045d64326fadd6f74d440530b012e743502c3ff2634a66038479f5a233f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/GetDailyOperationSummaryUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 36,
+    "sha256": "d10d3065a986ec26ec08ba05080c8bbf0ba061d1b746d5f5ad8920c73abb7959"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/GetFaresService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 28,
+    "sha256": "4dd2fab8d209708a5b25924210d840061867ca2bc5de4a2f177b9ea19f973f3a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/GetHojaDeRutaUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 63,
+    "sha256": "32c3dec1ac868e9732016877a0afea91cddcc166e6981dd4560c1f30486bb273"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/GetPassengerProfileUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 75,
+    "sha256": "4277a6ea641fe2c6d1c24202646b18ac2e24b1efbda878671e67430431b739f3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/GetPublicReservationStatusUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 32,
+    "sha256": "3cf3b61f2dc004c89e3438ab4cf1f775355325a94f06eb73f932c40a30e184b5"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/GetSpecialTripsService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 26,
+    "sha256": "074e40364925c44e1570ee131bbc579fc62ec0b0abe17bd730e2d5015995549d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/InquiryService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 69,
+    "sha256": "66e4118194cd453ea9be638f937ae785da71e56bb6f2d55e34686d5e4988e375"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/InvoicePersistenceService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 69,
+    "sha256": "c3baa7f9dcb68fa6d679f835164c662f5b0e7913954d90d7d87eda99f86b7bf6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/IssueInvoiceUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 158,
+    "sha256": "f495e1e1974722ce3afdee4fc145e17ae5cdc80d9f0ba668cb4e5e7344a3c01e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/LocalityService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 20,
+    "sha256": "b0f74273a36a9087228665645c0024ff97d05fb8355a8845a5941de66bb51ca2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ManualReservationNotificationService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 194,
+    "sha256": "4103d22fac35e2454f7ac4d11faf78de799533cf8a341d71675c5486b4ab694d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/NewsBannerService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 133,
+    "sha256": "122a5cf96c2d76ce470fce3e7031827dfba9e1abedc49283de9444387bed3a3b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/OnboardPassengerUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 389,
+    "sha256": "4050415fe51d1278afdbc66e2347c80f18775ec94dc4b56f1ff261a88bb756e7"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/OperatorNotificationService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 48,
+    "sha256": "359f2ecf1286cfe02a9509f419170095f5049fc5758343488bb655093d946260"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/OperatorPhoneService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 48,
+    "sha256": "b9e11e2fbba105ddfe6a6eca0524329cd71fe710348a7b6225f351351ffb9257"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/PassengerOtpService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 152,
+    "sha256": "acd06f189195dc1fe6312d885df43327e20b7c2033cd9a751bdf413b5f0e746d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/PersistPaymentReceiptUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 128,
+    "sha256": "4b90de03fecb0e5c27e4369e0b7f6da51e8171195639d28ec4b247e95081bcb4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ProcessPaymentReceiptUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 158,
+    "sha256": "8bee701937222e63b17be5ea479c815c2599d616e8f963f60f8efc660e87cc09"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ProcessPromotionCommandUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 75,
+    "sha256": "6215f7164863a8135ee4dd3834b755a146e04e49e01e9d120bec6760f9a2ec1e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ReservationDriverAssignmentService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 77,
+    "sha256": "dc4bf112bce9d240811fe2a73c74bb5a58abed8261bbc3c20e13d9e4b54391de"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ResolveEffectiveTripOriginService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 81,
+    "sha256": "bb0127e0543e4f13463bc8f64bd534dd9712e9a12bf681180f4682e6dcf66615"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ScheduleService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 84,
+    "sha256": "f7c1be235c640a70f710a5c21381b43000f369b50265e885521617e4e8ccc3ef"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/SubmitDriverApplicationUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 101,
+    "sha256": "509934b44947c19ba996aa9bc3ae0b40b066e657009f7b303cc637208d343b8b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/TakeOverConversationUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 40,
+    "sha256": "e6a5dee35b0510376400078d592751efde81b4a3bc364b135a1f680b467bb874"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/ToggleSpecialTripStatusService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 24,
+    "sha256": "f0533b94136c38b76b0a43188bed1f247f497652d15902c5deb4c051906625b2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/UpdateFareService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 34,
+    "sha256": "c816c040bb020319559993a37f358528ba9d1f6ee345880fd256deaa7b4ec247"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/UpdateLocalityFareService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 53,
+    "sha256": "c7e15215b29fe1fff106b480756ce103b03e414f6cc61a8a78b7996b8f8b3715"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/UpdatePassengerAddressUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 22,
+    "sha256": "6bc008be984d25576f1acbf64a6c82b3f718a9bdcadc12f9e25a9e6d5e62edf7"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/UpdateSpecialTripService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 25,
+    "sha256": "d6a5ef32d1018def85849d6ce0e58e35f4206476446b17a41905af73e553940c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/WaitingListConversionService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 123,
+    "sha256": "7e0a8c8c0253884614db29fae1e97c6c6db4b6052e00f3e9971ef7bdc48f5f5b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/WaitingListOtpService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 79,
+    "sha256": "adc6a1012c3b9683ed4ebcf2f1defa00610df490a0ded3c2330eea85cfa3b7cd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/WaitingListReengagementService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 63,
+    "sha256": "a4ffeacdbc5cc979b084e61827a47780dddc7d8bbed50cd4d76a9d74c9b8422f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/WaitingListService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 130,
+    "sha256": "8d771517a3c3fa0d2ea1a6d2cbac57129e4ed0aaf1dc1a36cc6c73ed5f712d87"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/application/usecase/WhatsAppWebhookInboxService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 21,
+    "sha256": "43960f98fc6838d39085ffb32166b49c95fe3d75ad0d89cd71d74ec8bdb559fd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/DomainValidationException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "39f1a3ad8eb9f137aa17a6f1f8d273133dd8cd9ed7f63494b487b6c2c32a2096"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/DriverApplicationNotFoundException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 10,
+    "sha256": "42583341a76544a97318a8f67a0f0b39e1bfe6d9f5ca80c9239113dd37eaec39"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/FareLocalityInUseException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "c10031e0aa3706d1663de69c37ce9996ec9cd839dd2d437f5a4a9d9674b3cf1f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/InquiryNotFoundException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "056d35a47fe308d84b348df64c5b432de5770455f36cfe72cee1c8829eecb556"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/MassivePromotionAlreadyUsedException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "06158221ef7938de1a4a8e679aa71c92fcb3c917518d33f7998a353363dadb70"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/PromotionExpiredException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "555de507fc078dedb0648abdcf7eed6859ce8d1fced22818c7f60d59f9b37570"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/ReservationAlreadyCompletedException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "20090598a979b673ccdc02bb6ee67a0d58bd6f9c95af69f086be0bf25c162379"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/SameDayBookingClosedException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 13,
+    "sha256": "3fe308d810cc3a25de3367fe16368d4c0f3513906b5531057eb9de5adb670e47"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/SeatCapacityExceededException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "64baf4c2b64394fd822e7c737b588db277a5787bf71783e1a4e47caae6a55ea5"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/exception/SpecialTripNotFoundException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "faa4a6f25d8ec0ea2e6d879fc53f9ccfe37157166932ac578bca14778189d221"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Account.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 55,
+    "sha256": "2cff34dd69dc4ac76d30b0b6edcc2c1d6b6137a0446c9c0b5bbeed5eacd8f34a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/BusinessParameter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 22,
+    "sha256": "d5915b698ac22b9784630496f6eab846fce627ae76243d2405de9a222e69243e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/CapacityLock.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 22,
+    "sha256": "f86fda6e43f6c96b46504badfec202e4f4cfcbf200ceeb6d09eaafa0949b2783"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/ChatMessage.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 40,
+    "sha256": "5e996e36109bec04ebe0e326682cc086653b92ae32611acdef79dd313c7003c6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/ConversationSession.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 88,
+    "sha256": "78cfeef8210cbed99f0b10425ecd5893052eaa92836306dd5a69d67998546611"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/ConversationState.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 20,
+    "sha256": "012bd36a7389faf1882631c7cf91b3f0e2993317ced6a84b9ffda861c543801b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/ConversationStep.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 20,
+    "sha256": "7908a19013c6259df61379aa9e3be7ac8dde0ced6bde4c279e8c85c55677733c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Driver.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 54,
+    "sha256": "8b26df988da21dd49f4e6ef95faaf9f7ebd4547b18c64c65c888a81a348c2509"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/DriverApplication.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 140,
+    "sha256": "994f868bcdc26b76d3e98d3f253fe249b88b9fb880650b9ff5a967848e2b5128"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Fare.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 43,
+    "sha256": "02a89d70708e17e519f889cc6e096c1d75b425177ceba653bd2b0ca1910337b4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Inquiry.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 39,
+    "sha256": "3c9d2b787229c042a8e876944d99ba78cdd33ef9eeab164f7cc112d3afd38191"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/InquiryStatus.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "ce364fd50f9bc9d574cd5502cae29d095b4df8191c854ca391d59b0bbd3612b3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Invoice.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 81,
+    "sha256": "9992c9a84e7c16327af4ca16a96c55b2fe54a722e10724234317aa88c1007ed2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Locality.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 38,
+    "sha256": "1a1f4b609e9d4d5dd5a7b6e5087c4f0bf948d338862186db2bc38867d110c75c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/ManualReservationCreated.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "4fe7e4a0aa526479e925814293cda5703bca131f29e5cf2e1742192c09925e4a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/NewsBanner.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 62,
+    "sha256": "d2e9e4e6923b45cf80d8bed3203a94052ea2fa4a4cc1565b29eca04493f8f7c1"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/OperatorNotification.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 39,
+    "sha256": "34d20756776ebbc461bf6007f80e8a864c925ca3154ddc4d6b91b0dd63021379"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/OperatorNotificationPhone.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 22,
+    "sha256": "30dc87d5391a8c84a951027606b77376f635c2e96b1efab7e7197954e0be58ee"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Passenger.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 58,
+    "sha256": "457bd8d737a16756693474f45566b527bdf6231ce30f968ab0c19b989c0688ef"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/PassengerMessageReceived.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 3,
+    "sha256": "ab7dbf8f8f3a57c5c869c033d480c792301a4e6b1908b81091f334a28f0a1a8c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Promotion.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 54,
+    "sha256": "6bc74bdc64cecb13ee2206d540334f8e695b0ed699ec00ea3be71889a3c6fac6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/PromotionUsage.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 50,
+    "sha256": "90b56ccc548fd5d12d67ab7e12f91ce457973f3be9f480050d3ee190172dd5ac"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Reservation.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 283,
+    "sha256": "89294a63ed0f5143dc1774b25532a598562b5e50d8619fcdcde80e7264610ad8"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/ReservationEvent.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 58,
+    "sha256": "1fdf92b2b078f3c2fa67d6be8fa4be47167e3a8826e13a46ca70826f6816da8c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/ReservationSource.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "bd067899924927d14fa2b56b6844b69dc3d831ec7ef36dc78a88ba3183392f10"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Role.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 9,
+    "sha256": "c81fbcd2aad900bfb7b40b0c0f28a155d34165a44669ff0f26bec1e4fd9a0b51"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/SpecialTrip.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 78,
+    "sha256": "b8b624b754da84a48d30a87dd24ff7d56aa5ea019ee00e1a9e9617ad86603bea"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/SystemConfiguration.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 28,
+    "sha256": "7d21bda3248be1a92293360c3013396786673694baaf0cdecc0b524e2e3d11c6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/TripType.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "48d8d3e1cf9fb0e4d98f118dd854408faf17bb203ec2947a35bad29989c98670"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/Vehicle.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 45,
+    "sha256": "b2a7a6228ef48d4c5b14b1f8068dca9bff0e02dec7b744113baa476aec011dc4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/WaitingListEntry.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 76,
+    "sha256": "915b05f49f360269542bace9bbfb6c4e48b94e5dd7d21b839bce38ca7e4476ec"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/converter/ReservationStatusConverter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 46,
+    "sha256": "222ee8488b33d7c139f820ac47816953cd7d3b624df7ac717a616ccfa528ae2d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/converter/RoleConverter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 28,
+    "sha256": "fb698fca2d9bbb0f4a9c1f6e157447dc03704f6a4f2d3a099c188b49b63c4cb0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/converter/TravelStatusConverter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 29,
+    "sha256": "f5959475ae509f20b912b20914549e71c61741da7a359e47374e379d2eb5d487"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/AirportTripDetector.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 28,
+    "sha256": "65cde51ed8544711767441cc548c18682f8a6b9268e3d278a96f464883ebd7bd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/BookingInvoiceAmount.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 37,
+    "sha256": "8ae972a772747755b1c4e352a05c4896356466b3bccabcef2de4a8d7f3d42aab"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/CuilCalculator.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 65,
+    "sha256": "cdd9e3ae105a36401239c2f2e97b97be29c761692d9aab912fde71be8eb217ff"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/DriverRouteService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 176,
+    "sha256": "3d2a7a75a9ba688f577d5c189b51cf12d2a8a72d2c4ff78513fc6b323b5d44f1"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/FleetCapacityService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 50,
+    "sha256": "91f806b959b0179559d33e8351177566293da2a81621f95610ae800386b46527"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/OperationControlService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 68,
+    "sha256": "1aa191ed0d3b4c0eb8d7a2bbac87aa0f1a41fbb9c32db1b32bee3ba1d7a22941"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/PricingAndScheduleService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 311,
+    "sha256": "795ac485553489bc45a9eacf207bff3b7630517717d1749046ab9a0218c1b26f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/PromotionService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 167,
+    "sha256": "6c858b1fa1191a280dcc2f93c8806047111bbd75a194bc0d0bb4345f149a541b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/ReservationCancellationService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 98,
+    "sha256": "50f343161e50a3aaf547f31e0c060a37261a3e256cf26eb3b8b3a45f44cf668e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/ReservationService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 938,
+    "sha256": "322a4728e4570f8e9dcf0a34548ff0132305656899a6860e3b5836b2f56b194e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/ReturnCapacityPolicy.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 43,
+    "sha256": "6c3041030243a61984003863b218a2a3d1c77101b3b5bdfb43b6c1f0798b307a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/SameDayBookingPolicy.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 101,
+    "sha256": "ed14f0b712b6a4c0be14245628d56f375e15e6ae0b38ae9a90e20ad6c032df35"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/SystemConfigurationService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 81,
+    "sha256": "3b6dca962e77401715f748d896c29611d1cd19b0e5382c14fb81a5d8154230f3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/TripRouteCalculatorService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 95,
+    "sha256": "30cd059c9b810982146923b956ab90cbcb5d6fc0bc9db12307194c0a541ebfbd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/model/service/WhatsAppConversationWindowService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 31,
+    "sha256": "66c94590758693183fa6e7032d602521331a45973fa76ef48fb64fc4aec5eedb"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/CreateFareLocalityUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "35c5944c855181e7c19b65b68c52c13a2d59a83b8e2f25729506ae16c7db8201"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/CreateSpecialTripUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "ee139853523f601c660e9b739d266c94e61802b4aeffccf80240f3e183ccd0c7"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/DeleteFareLocalityUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "755e49f33d11f606f3cb819fd1e6291919a1b39431cc354e2b89c2a71f7a7cfd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/FareLocalityView.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 9,
+    "sha256": "5902d29876d26d138836000a60a41a419eab6e833b591bd0053169ad0e37fd0e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/GetFaresQuery.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "b2070b0f96d15dbb4091ebc0e26ccad55018050189e04a666eb7abc2d6f30286"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/GetSpecialTripsQuery.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 9,
+    "sha256": "31ae76167b4feea96f67cdcf6b19419904e6f4b06c71b3f4ba1a73754e877a18"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/ResolveEffectiveTripOriginUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "7f034cb2ca3293848f6fe15728e4a229c66b5773db1663c2e493fd2a80cdf181"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/RouteOriginResolution.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 14,
+    "sha256": "57707efb14831881fe051b210b1be45547fe81e4b1e7def8f4aa34fd4e92b86f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/SpecialTripCommand.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 10,
+    "sha256": "f0236177818c93274ae9322a3c98b7816927c87e4f71d9fdcaa4cde18daef4a3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/ToggleSpecialTripStatusUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "91b5a704a321a15c63c38c3bbfd4356235601433426569d8f464b7747b898a0a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/UpdateFareUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "7445efd2bcf1093aa261ce47f885db5f19d13378427af99fae7ab5e9d4ee51ce"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/UpdateLocalityFareUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 9,
+    "sha256": "fd5406e8ab2d0b29bfa1248bd0d1ffbe483eedc755fc366ea4387a8fde60a7ce"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/in/UpdateSpecialTripUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "df16b727b896415b1fb65302ee6595589a40ae718f31a3d304ff63e5eb0f4c73"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/port/out/SpecialTripRepositoryPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 12,
+    "sha256": "ad83786b9402f67ee07ebff618e4560588d1cb8a8ad8af49b1a3113bfb9e0607"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/AccountRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 21,
+    "sha256": "cde2c4c1bfe98f95ae5b2d03155494a4670f8f95642b5bd5171a9400a23ff62c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/BusinessParameterRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 13,
+    "sha256": "b1597bf45dfa6ce5d5db2997d2bb5a646bb8406fcc0c8ba6da6a7115a9e99634"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/CapacityLockRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 20,
+    "sha256": "4c318556a0ffc43557eb71a6521b09cae5663122050ae9237f680cc3b8465578"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/ChatMessageRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 14,
+    "sha256": "7dd0e41165bf411fa8fe12206fcb71d49cd44f4a284c97cae998ed27c23cecdd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/ConversationSessionRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 44,
+    "sha256": "ee34cb1693461b62063a4dc6aa3f2185c64eb4a2476897fb77fc6faf2ea1a348"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/DriverApplicationRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 13,
+    "sha256": "9799fc9ae26a8e6cb058e9ab7a2c3967c0872b0dc2a1cdb184e297d153246e58"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/DriverRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 25,
+    "sha256": "aa71d0ddb31eba4ef1ffb4400a7e28b933e7a3730936e42c37393f4d07c404e2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/FareRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 24,
+    "sha256": "e357dfc2efa910d5f0b367c104880f8f15a98a8a4865cefe412304b338c121ed"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/InquiryRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 12,
+    "sha256": "10005394eb83c2cec02e718df200af3b1370ab8ab50d1de8489dd8e3bba4208d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/InvoiceRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 35,
+    "sha256": "b64a283da9f7ef7b4939ea220fadd88fff2cda166841b2f7bd4b396f905f4b80"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/LocalityRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 30,
+    "sha256": "0f1014bfd4da1c0a9d61b6527179cf7d63e3a2b23530afe64364977db147ebfc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/NewsBannerRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 26,
+    "sha256": "48fa9805d14cac3ab2b1925a47a1a00739a996659c2a7ba789ebf168a8b3317d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/OperatorNotificationPhoneRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 12,
+    "sha256": "3a0ea80324815c0be03388135e65f2d5f5933844e8e7cb97ccd5104709a2ac1d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/PassengerRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 26,
+    "sha256": "392510c2d1aa73224a203f43086d6c4fa3f566487ee4d6cdbb69c6e1fb6cb5f4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/PromotionRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 21,
+    "sha256": "2ecf543ac7f4ed5355b77c186c5ff4bbdcd982fc4c64a1268b14eac65463265e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/PromotionUsageRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 19,
+    "sha256": "15c0421f941dfc36dc05c0ce65934208f5456a4eb0b10f9fdfb7619535d5a735"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/ReservationEventRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 17,
+    "sha256": "254e2ca671f16ff3669b01fdb33f9173d3a3853452029151282e399e2ebc9e19"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/ReservationRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 511,
+    "sha256": "73cc363ae88409587a9e51c3193889f9318396bba042cac15bd8227be2002a84"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/SystemConfigurationRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 9,
+    "sha256": "0ee82142764eae43a75cfa8ad694e74cb243fc07aa396dfe9289c2816b0e602f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/VehicleRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "9806b2b116d27afc3568bce47acd2dd8e0e07611dad37517854af26c45cf56d2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/domain/repository/WaitingListRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 100,
+    "sha256": "d067bb270c7918a352ba9dd2fd6538c5dae8af2aff6b973a7f8aff2d6a80cb04"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/adapter/mail/MercadoPagoImapAdapterConfig.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 179,
+    "sha256": "5fa4806b6e5b68779ad74eee762f04de95fdac765e542f7a9478f58218a95a1a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/adapter/mail/MercadoPagoImapProperties.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 13,
+    "sha256": "1322d187f45b2b7e2ce7f4ac37c2ab5fe2b8b2d1840cb884600a8672dac76a19"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/adapter/parser/MercadoPagoEmailParser.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 95,
+    "sha256": "c53845985180dbd62774d43869b426cf70eab97066cb7c3f1d808ba2c1dc2c97"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/chat/WebSocketLiveChatAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 94,
+    "sha256": "e46f3a29fbeb987bb65d99f4a18602ed459166c06445d4ef674ce24abbabc553"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/AccountUserDetailsService.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 49,
+    "sha256": "8d6352fc2b36a9cda0c62e79858d89f1a6b51973265d7bcd39adfe8d3b9fefef"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/AdminUserInitializer.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 95,
+    "sha256": "b1996bcc622613564fb6a80e933897c2b4804c307b4abf963760bbfdd22bc6e6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/AsyncConfig.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 15,
+    "sha256": "3a1627bb97c2b3fa6fbb0e3f0e7202395043f92abe61202a27833ec9c1471910"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/AuthenticationDiagnostics.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 29,
+    "sha256": "a4bd58de206a1ce35a1d4c7a275afb50642719bf087b4a244af6d97d5bf71429"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/ChatbotAnalyticsProperties.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 23,
+    "sha256": "fbc7a9f2d53d557559f4f9f473f41631b7a773d6004db4edc20891885e519c4c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/CloudinaryConfig.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 23,
+    "sha256": "8083686abe12345de4c7bf06d2097399c541a8e1b2c7e61b12137d40ce82cc72"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/DataInitializer.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 123,
+    "sha256": "f92519aa8ed0896863c3a2f1a6f40e4f96cfeed29dcd2047993af1b2fb2c729b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/OpenApiConfig.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 24,
+    "sha256": "81f7a488de5b0bbc6d14174707694c87ba71b58a51d15c4621c9443535a0762f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/PassengerBearerAuthenticationFilter.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 54,
+    "sha256": "b9b1085f055b6702dc4edcbf1e80a2fab33127ab9b991bd1a904d340fa55dd5c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/SecurityConfig.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 217,
+    "sha256": "f919917c2ad1c54bf308b81b97a0bc35de51fcfa6e769c197e22189a79904013"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/UserPrincipal.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 22,
+    "sha256": "f0e7df49bca7646cadc09d0b32adc48ab3fe7462a36e7b8af1c8931d20d2f9c0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/config/WebSocketConfig.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 27,
+    "sha256": "6506780790753b481ecf5cd9c5fcf184c0381c21caf77164346a220964e58e8c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/ChatbotTelemetryAdapter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 309,
+    "sha256": "43b3305bcb086697caf4534cbc192bc8f3b8d753a0cf5bb3aa4e2e3313b528e9"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/JpaBankPaymentReservationAdapter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 68,
+    "sha256": "5632147468c4194027397ed8fedfad4226a711880e6bcb7044b751c7d76c041d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/JpaPaymentAuditOutboxAdapter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 43,
+    "sha256": "273d941ba11ce2954138a95d2db061429ee11f880b4db3151ce4ada58890dcc2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/ProcessedTransactionLedgerAdapter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 44,
+    "sha256": "3a551518bc9849be75be0e9eccc4aaee2ee1fa160ed5e8537c7e047c164f952c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/SpecialTripPersistenceAdapter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 37,
+    "sha256": "6ac812103367175c48f262a2be3aaea503e1923a22147c8217da37266980fcb4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/entity/AssignedOrGeneratedUuid.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 37,
+    "sha256": "61a7874163fa8ab38447c256f234d2920db7fbb6522d1c73b2397ddbfc2014ae"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/entity/ChatbotAnalyticsEvent.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 28,
+    "sha256": "5d507a4615d0c4af5d8f927b13128e79f99c5f6d4c174b6a1784b1450ca89434"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/entity/ChatbotAnalyticsSession.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 40,
+    "sha256": "bd4557d11d2319215dfe9bce927d4d14a2abb4592f665b7dd958dbca621b9fd2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/entity/PaymentAuditOutboxEntity.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 53,
+    "sha256": "b2ac1ff971ab068abace99c8ad3683139eccb3200645df449fa6df25d4075a47"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/entity/ProcessedPaymentTransactionEntity.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 64,
+    "sha256": "9004977cfe102829287ab2d123666485516efc51994673abc530ba26ea929b3b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/entity/SpecialTripEntity.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 48,
+    "sha256": "d0214804c0d8b1b4f2820dfe26ee5947a0bc4e34f160f4d5d9788139759b2be3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/entity/WhatsAppWebhookInboxEntity.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 22,
+    "sha256": "ccef2c65bc3091a5fa2ba0307f0e4439fda78d0650c9c43ab2164c157b3f49d0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/mapper/SpecialTripPersistenceMapper.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 31,
+    "sha256": "f2dc46ab6bfac42f9584db5879dab75b1a29ad4a3978f7ed628c3fc59180104e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/repository/ChatbotAnalyticsEventRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 13,
+    "sha256": "a205a652c07aa205ad8641c9da5495bd32372899b2105e1c8cd2be5f0d1a8f95"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/repository/ChatbotAnalyticsSessionRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 28,
+    "sha256": "8f60111570fbd1b016949aa917896b5f2d67571313ba6e0b267cffe7e4ff7702"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/repository/PaymentAuditOutboxJpaRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 8,
+    "sha256": "5654664a350fdceb8bfc526ab8f6e42f21ef52911e1fa411cd031eaccbf5b520"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/repository/ProcessedPaymentTransactionJpaRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 54,
+    "sha256": "70a47cda753de4d326cddf76a0c8e6774f19c21390c9bf6b6287030c4f74184e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/repository/SpecialTripJpaRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "c3e1080e17a628fc820fd9b630d4674d39dbe29d6cc100bc29ffc80278d2da9b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/persistence/repository/WhatsAppWebhookInboxRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 20,
+    "sha256": "044d7ad7aec7f6ff3e54e9a5d1a509c144ad23f86317e6df0d93f2693b96e4f6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/storage/CloudinaryDriverDocumentStorageAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 97,
+    "sha256": "7fe4bf4d54b63e7d494d6174b40c33b8979297badbf9f341c9d70728c32ac423"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/storage/CloudinaryInvoiceStorageService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 243,
+    "sha256": "094a1f07d9914a39490f419b512452e0e2d229fca7b4dded59f378f4d2369de3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/storage/CloudinaryNewsBannerStorageAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 47,
+    "sha256": "8a8236608a3b4db8357ee78ab795855770bc2e5310a51cf58e55279864f41f48"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/storage/CloudinaryReceiptStorageAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 108,
+    "sha256": "e76c752b2b028e3768837537a3a6ae2e5b03733efef8f6f7a2cd8c0d55957761"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/storage/LocalDriverDocumentStorageAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 60,
+    "sha256": "69ad584c257140b86549845bb44272126c88e195c775127911fb4d6e39992c9b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/storage/LocalInvoiceStorageService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 56,
+    "sha256": "fa74aa4c902a85356ec83889ff5889a1a7c2239772fc5d90b878e72a524649ad"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/storage/LocalReceiptStorageService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 95,
+    "sha256": "8aefaec9ad7c2ed0b4b3b184e4e328022fdcc49bba6836b3733de0a16ad45dca"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/config/WebMvcConfig.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 27,
+    "sha256": "c127fa39d8a14bb817ea1dcfb6bbd9a6938fc33dbcaa04538383018bda607698"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/AccountAdminController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 104,
+    "sha256": "8662828578a834305e6f70138e02631d64568032b2069bbbb88a81a5b63737f6"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/AdminConfigController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 76,
+    "sha256": "d2f53e7f49c11318f13ddadd6bd3065739a932cea2425e95ae42413b8348ec02"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/AdminDashboardController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 102,
+    "sha256": "3ada127e8eb1f399b10d3f3795248393d61222d6577649798d22caf276deccf0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/AdminReservationApiController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 128,
+    "sha256": "0f6f3c174054385199105f5fbd68b441e9d33eef7f71586cc32238229b83ead0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/AgendaDayController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 117,
+    "sha256": "dcf2690f668fb706147c24fdc52a27f155fa96fcc0d0b5f8d9997fb10f3ab546"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/AgendaViewController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 677,
+    "sha256": "2c4dc37a10ce25707b917a90445f7da93bd1f14ce59ad2132fbf2adcc1670a3e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/ApiExceptionHandler.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 66,
+    "sha256": "d88e4fc9f63ebf64bf72456ca30a1e8304fef36cc4d358bfad106efac6d9c85d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/AuthController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 139,
+    "sha256": "bbd72eb0a226f03467f3a1587244abd22544f2971b599eb009753369d929bfdd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/BillingViewController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 97,
+    "sha256": "d53e9918679d85de162ed96993d836c0ad1dffec2bd8df1ef4d34b8136ddcd90"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/BotMonitorController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 393,
+    "sha256": "14d5aa8d6dc4b7af29d65be2facf73c4c2092ceb23008bee030e30ca92a8577b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/ChatController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 82,
+    "sha256": "e2d047f8296bd316c4f8e8c859ae99b55f0d4d24735e98e9a60de5e85b773619"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/ChatWebSocketController.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 92,
+    "sha256": "e45d122cb8ff7c87a987b5ea26fad140890cd7c789a3421a555ec029417185e9"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/ConfigurationController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 49,
+    "sha256": "178c13aec781734638315ea46173ccaaa4f95aaadd2f55861b087e96648b4e38"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/DashboardController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 23,
+    "sha256": "f7df954c750cfe187c47571ef17dac4c375b007929bb5bf0a7a260b7bd47e6d8"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/DashboardViewController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 212,
+    "sha256": "f846ba855c42d02de9fe71e58d863d9190c776b10fb48e057f132fddab5cb902"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/DriverApplicationApiController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 90,
+    "sha256": "c16ec51e357f7ee8773334782b539d939eba7aade7ef7b2edd42c44e719ce617"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/DriverApplicationController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 35,
+    "sha256": "fe2858f612387b707f4d80f71c2fa373672f03fc3c286e62dfdffc4c9db18dfb"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/DriverApplicationViewController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 55,
+    "sha256": "f730635c3258b38e0f4d54ceef17528b46b95d5985ac59545a896e7798fdef2f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/DriverController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 126,
+    "sha256": "e3cadc66a62790a4f68c4d9206eaf9eb1389c6b0c82f26ec993525bef60f84dd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/DriverViewController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 168,
+    "sha256": "052b66ef6b44a38cd0753cc9e5f5de5200c58c9e9c486c07abb8341a28964ae4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/FareAdminController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 79,
+    "sha256": "bce5d405f22ca17b800f825a873fa9a958d4f3fc0cec7c7877e3731c7ab2639e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/FareAdminViewController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 75,
+    "sha256": "e5eb483aeac51a2f50dd8678233a3c406e3a689b94d3c5b62bca8fdcece9f4bd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/HomeController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 18,
+    "sha256": "6c696503c0dffd28114dc2cb5480b1f8a4b3869a10b807064bcf54f17a925675"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/InquiryController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 28,
+    "sha256": "620c8ed16803674f42d851e534ad979bea4d4d6f703b18b3cd4cd8c505290f1a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/InquiryNavigationAdvice.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 23,
+    "sha256": "d16338d2c5fb533e539772789e2efef8e7d80b090be3311e8490eb966bfbf301"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/LocalityController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 21,
+    "sha256": "11be354638fbb092c52b917c0bd456b946c0fe7b08acb79be9fdd37979bd0020"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/NewsBannerAdminController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 160,
+    "sha256": "7c1d89e2f3516ab4fde88c8ec64e484c227c0e4f7cd1fe3afddfbdc070436c6f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/NewsBannerApiController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 43,
+    "sha256": "98d0dae1ee91c2df0a62f2170fed245af9adfbf1013eaf84ee1813f109e278de"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/OperatorPhoneController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 43,
+    "sha256": "f728229f156d245f533211f096e70d0289648c2a21607c8797704ee11a27101b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/PassengerController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 53,
+    "sha256": "f70efcd168b527ed8c0fc2c606257105eed917f86016fd09e5640a11ddc12308"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/PassengerProfileController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 21,
+    "sha256": "8c083ff5728979b607be85f077b777e6352aa4fcb226afcef987ca38ec413776"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/PortalController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 37,
+    "sha256": "84d26463e6e78e5c64f2c0a603bd96b6839f6783b7e688fd66f526601fbb1193"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/PublicApiController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 56,
+    "sha256": "2b37f196020ee5cc1c7929553549109b2093b80776af9693a7d7e0edea08cbba"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/PublicCatalogApiController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 52,
+    "sha256": "d609364cce2cb2a1e81df150fe7f22158e2b8b6019e736e60f03990dc8f0b026"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/PublicInvoiceController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 30,
+    "sha256": "1796c503ab56b70f0bf95593d587a7d3cd9418d707adcb49616dcdf6c41d42cc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/ReservationApiController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 58,
+    "sha256": "145c645dcdba8de2e02a96d5786c25c06bff05e6948f53b75376b432ca8d40e9"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/ReservationViewController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 430,
+    "sha256": "ced497d40422367758030f2ff9d8c4dcd620e83f1438b330de62b154641c1a15"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/SchedulesController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 42,
+    "sha256": "906fe01954a1467634ecaa13048b7c9a4070723e618c980525d43d3a2949e95b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/SpecialTripAdminController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 46,
+    "sha256": "232f007db21e13908b27d0f15c23b7e4fd25df3eda6adaa151c8df7f75d74335"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/SpecialTripPublicController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 23,
+    "sha256": "29f03b5eeb33f3cb63bf3e04cedefb2e9dd3ff7da8838a26359b6bef66380f63"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/VehicleController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 26,
+    "sha256": "70bf63abb13243b00a3e1f21e7924b7f933b3e70014144e4dcb5c2413214c79a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/WaitingListController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 119,
+    "sha256": "757e6722113f2c350d318de2fc83d70110ab8b2e99e84141e9309e2248a12f56"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/WhatsAppController.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 23,
+    "sha256": "3cf321fc8cd9e7e403e0b9c6b4b446eede1e76858b4957df24da9ebe67f7dbbc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/WhatsAppSimulatorDevController.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 118,
+    "sha256": "142779d4b16461bc62366845448e65f9631cc56262358deefc17e7f744ac141b"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/WhatsAppSimulatorDevViewController.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 15,
+    "sha256": "e2043b339982a6fb04929229b188484daf04f90e019d3652578a82d7c3a7afe7"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/controller/WhatsAppWebhookController.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 181,
+    "sha256": "16b00cea60e687227d2afc9056c1def0ca95827e3c0ce3491ae5c92d287faeb0"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/CreatePassengerRequest.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 21,
+    "sha256": "6fc39e02f76013f27a6642d1a269d8a2ed1eb4b19269e189d8e96ce25f8fdadd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/DriverApplicationRequest.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 26,
+    "sha256": "3857d294c0e2a131a004d79d0f3d1cf7fb2d8a32fbfd365b4da2b89e5c67024a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/NewsBannerDto.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 26,
+    "sha256": "0cceb5ba6e3bb6d6b4743bf61a2d09267aba0247e8010b7c203a43c4d12f6c88"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/ReservationCreateDTO.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 37,
+    "sha256": "11d8043ab4142f220319ecdf6c0b977353564724995351efad54af555692eb04"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/agenda/AgendaDayView.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 35,
+    "sha256": "271c1c8e852d9cba38eb5dea14c6072893a2c341c9e02af4bcfe2c966a18b87a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/agenda/EnviarHojaRutaRequest.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 10,
+    "sha256": "4138c3cdffa4fbe29adfbc438a892c890fad54abea0c46d1275c84e2282e3f73"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/billing/BillingPanelView.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 14,
+    "sha256": "ea37022151038f6bfa95153dc710055f75e15f6434e8009d234c2c12804dd8dc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/billing/IssuedInvoiceRow.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 18,
+    "sha256": "85f8bda336bf549bd73ff8971fd53d40dc368ba4e6265817e1a6a4156ae12ab3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/billing/PendingInvoiceRow.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 18,
+    "sha256": "fbf5ca3d44af5bf73a4d543e368197b245b18c96b912dfd9c2f13ed6c6ba2131"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/dashboard/DailyOperationSummaryResponse.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 12,
+    "sha256": "7966644e93e11c45fcd987fb5b873706417bf635b9521276d851c3df1164445a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/hojaruta/HojaRutaViewModel.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 18,
+    "sha256": "c38bbbf2237b3b544f8413676bea7311ed7df3d82eee32ed901ad065716ac264"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/reservation/CreateReservationForm.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 56,
+    "sha256": "88ca2daf1c850571101f3ebfe9a86e4cbbe2ced24daca0a80f14baf26182cab9"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/reservation/CreateReservationRequest.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 72,
+    "sha256": "73216bdc2717dad6ae4e6c596918b28b5b84ba77c344d4880a4437f8835c6f11"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/reservation/CreateReservationResponse.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 19,
+    "sha256": "94cb03d048499a139504da6e1b461d0ccf28849f7db825df21f4d2affb5c0be5"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/reservation/ManualReservationOptions.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 18,
+    "sha256": "2da76ea8438f811b7deed2e293988b09e03b6ee480440facdde17be96341fac3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/reservation/PassengerOption.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 11,
+    "sha256": "5eb76a901b7da52abbf4c2d4593779acf81f1bfb8d78ab0bc9b11f372ac3c6cb"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/specialtrip/SpecialTripRequest.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 22,
+    "sha256": "31285502755dee027727184ce5d53974a5aefb12f3205c31d4ed797db913e97d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/dto/specialtrip/SpecialTripResponse.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 11,
+    "sha256": "8745b2298e8a231d872e74965b2ed40ca0b48499d52d9553841965d292baa89e"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/json/StringOrStringListDeserializer.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 33,
+    "sha256": "ec70873c6f27c7aa17fecfea7ae6fa02640cce50e11e58c7cb068c6ffec3b181"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/web/mapper/SpecialTripWebMapper.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 22,
+    "sha256": "65e6ebadea7f67df5b04dc535aeb6aeb3e8679f098758e698bcc00ad4a710460"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/whatsapp/WhatsAppMessageDispatcher.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 44,
+    "sha256": "2c91a85a6fa53c4d9f29c4d2af0e697663ca383eacda304a442ea29f3d11c597"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/whatsapp/WhatsAppMessagingAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 82,
+    "sha256": "9a9c99e02825eb05c3dbf472977a6fbb6a7ddf76596aedadda5d7533aae1aea8"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/whatsapp/WhatsAppService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 997,
+    "sha256": "6c82d8ea10a58c77d12504f428a8d314c7898744bac05ea86d2d878737535185"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/whatsapp/WhatsAppServiceDevMock.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 219,
+    "sha256": "591170df0f67d770f8a6d7db5e57f3519a4471f66de05f345019b59a89afafd4"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/infrastructure/whatsapp/WhatsAppWebhookParser.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 123,
+    "sha256": "94488254d815cfc1767e93bad8216b7504796d1064fb86615a4ed7466fc680ec"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/application/port/in/ConfirmPaymentUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "71894442f37f35197c654f13d8f6f53bc9ee61e9b6db3ef465294436d8c0e289"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/application/port/in/CreateReservationUseCase.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "22ce28d2600c05cca749f21a2b19c5c95b9a47d53b2d33b0fab0d472455175df"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/application/port/out/PaymentGatewayPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 7,
+    "sha256": "a0e1cf46100ad0c4751e70a89160429329315ba14fc08dbefb53d78890a20969"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/application/port/out/ReservationRepositoryPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 12,
+    "sha256": "53aeaa6a2a3634d770178960282d76cb1eab7ab44b85a0cc3291d09c8062e22c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/application/service/ReservationApplicationService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 45,
+    "sha256": "a1e4192302baa83da29baeaa338ca5de8784d837b4e12ef406cd87e19ff2be5f"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/domain/exception/ReservationNotFoundException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 9,
+    "sha256": "d0e6e0c9e74965ddbb7b793e18a9088b2fc8b990565e5c471d3e3164e3d06825"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/domain/model/Reservation.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 188,
+    "sha256": "49d6d7b7057a66a950e6585f299856e542928667976d0dd8703cd970dc24e7ec"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/domain/model/ReservationStatus.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 19,
+    "sha256": "f3c9e2ec46256dba998994d391274f3a8e587311b2eb9b896bb38b73ea7a3864"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/infrastructure/adapter/in/web/ReservationController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 88,
+    "sha256": "2cd9873b18f4599b8c78d0a88ebcf28c1be2289764505806e3e7840d286a1dfc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/infrastructure/adapter/out/payment/ExistingBankPaymentGatewayAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 16,
+    "sha256": "b97be499011ce8f6d1bb64607653158453bb98114ca2b0b3e15413640e202a69"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/infrastructure/adapter/out/persistence/ReservationPersistenceAdapter.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 25,
+    "sha256": "c654f6fa161b31905fcd20fe258668b443286b8090bfd68fe4dec4cb7c813216"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/infrastructure/adapter/out/persistence/entity/ReservationEntity.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 112,
+    "sha256": "fc97072ee97e7349c01959f4eaf0df0015c6c87d84fcfa80d241428c8c58a7b7"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/infrastructure/adapter/out/persistence/mapper/ReservationMapper.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 44,
+    "sha256": "b15e6cc4e46ab3bf0d31b8377743882a44a07d6853d869921303b2670ad6df05"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/reservation/infrastructure/adapter/out/persistence/repository/SpringDataReservationRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "1d82053fd12a620d71994bdad03c42c1cc67f87ca4b1a9047199db1f15ddda0c"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/BookingClosedException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "1913ad259375843f0a38420921114cb357d5160950ecdcc81c0097b0d29d3d08"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/CapacityExceededException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "386a5667d177a6d6e936b168bd3f3c1a71c7146cfbd15e47389e1eeb16eb4691"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/CapacityRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 20,
+    "sha256": "a33d341af0e7a148d0080a368aeb8ac67dd40328e0a64a192a65205b5306e3bd"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/CapacityService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 99,
+    "sha256": "c90458f4364c7fc4e70d535874b5e50f5a920629318fae6510264bd08411ea94"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/CheckInService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 75,
+    "sha256": "3b04a09c2180833251142117e21cf1a4abcd2cc1297dda98d45cc986ae9722df"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/DailyDriverPayoutJob.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 21,
+    "sha256": "6e034f83afcb84239f39c2331356f66dbd7e511ab8492d8e6dcb210708472b95"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/DriverIdentityPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 8,
+    "sha256": "a1f17b2c7d171d40219187cfa34d201a841f4bf3d174e63adfab4c1b8c930a36"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/DriverOperationsRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 23,
+    "sha256": "b790dddb3f84401c2b61a6be3a2940f68502059ad0e0386f0943c35a4df61fdc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/DriverPayoutPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 14,
+    "sha256": "23363107d3d1ba3a385018d3b0979531a0d645b21cc26e38318d1d7b4d6a2dd2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/DriverPayoutReviewService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 35,
+    "sha256": "fac14c98191a11c06790a1c95b813caaa153cb4feb9a52a6b9763ca9eef13c95"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/DriverRouteSheetQuery.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 53,
+    "sha256": "a962878de83d2b885c88cbca3e2ab1078cf25d9363d76d458a5af8f5d99bb3bc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/DriverSettlementService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 73,
+    "sha256": "3d378cfa286d1a1ffa51c0d7f9e2f53e949a9d30482c8a49166d14b42506e849"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/ExistingDriverIdentityAdapter.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 26,
+    "sha256": "f10b348298a488f32588a2c593c2b31b7c04a219bb4a164327a3a6eee8e24dd5"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanCatalog.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 53,
+    "sha256": "de0fdf5961c3bb6f9f35f1409d0ddac0f27ead78d0f60dd34cc737ae5ea6012d"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanConfiguration.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 21,
+    "sha256": "b2625d36a983a2087dce9d2c887b8382409f0abb6822415b3c054ef91d8d5035"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanDriverConfiguration.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 29,
+    "sha256": "f4333ad97af1dbd07654ad67d17031db4a55fda484a1d12cef78bbb8f017b4ee"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanDriverController.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 45,
+    "sha256": "0dbb8112a23ebd4ede62cbbcb6d31125ef91a7da7d2b24bd3013ee799dd44acc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanDriverExceptionHandler.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 32,
+    "sha256": "780de273431e566271ef1e81bd78350913e9047f861900fe98e9e32b4b6ff305"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanDriverSecurityConfiguration.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 46,
+    "sha256": "89c4f76e16ad2a8c92626747d42748f33361dde06bb7d991f1428f8793874613"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanPaymentConfiguration.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 56,
+    "sha256": "475e9362fcb8a32867c083a981d41834517172cdcd0d58d98d49ae3424d9a4bb"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanPaymentException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 14,
+    "sha256": "3a266e070f76f4ee465798f011a383b425cc68a5f2116aef942feb7481021bb8"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanPaymentExceptionHandler.java",
+    "modulo": "03-web-controladores.md",
+    "lineas": 30,
+    "sha256": "d6a22d9337939943b1c4e53bf7e01f1cb3feb365b271bd4e03af7773ec6cf643"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanPaymentRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 29,
+    "sha256": "4623e85d0980e23793911f5bf1118346a9395138cbc2261a05da8110b4e27834"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InterurbanSettlementConfiguration.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 22,
+    "sha256": "3b95e8fdbc24fe4dbb09e58f7fd3645a0526f14b9a1563acec243ce795d46a32"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InvalidHoldException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "e78e4b5a84b4be6089ec236e6c8c8808a4bf07403913482c1dacdc075e677727"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InvalidQrException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "ffccc1e6a76ec7aa42eeb38eb19193d1bd6bf6daa41ec9b7d15efda646286d8a"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InvalidRouteException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "a22b50102e52be74b9c950745c087e1da3ec0c14a6cbbae3f07106bb570494a8"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/InvalidTripException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "6b1c4e16910fe3a2e63661cc25e389485765eb1991da578f91d6b0038052f166"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/JdbcCapacityRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 66,
+    "sha256": "770ba54f1f8f0412a5c3ee0d9afbd692a3810168338cbb47ac49493c65f78977"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/JdbcDriverOperationsRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 78,
+    "sha256": "0ef9401ec4ea975762af64b57c6af395c9293ba0361b550ebb9eb9fcee084bbc"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/JdbcInterurbanPaymentRepository.java",
+    "modulo": "01-persistencia.md",
+    "lineas": 147,
+    "sha256": "36cfeced3e1d1cb5cbbb8720b98cbedcf3ab0c282cbba8587f599225c94367cb"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/MercadoPagoPaymentClient.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 40,
+    "sha256": "4ef0a36b5719a62c5de3268f48bcddea9b18db306e469e1378ea3c2e55c3a6e7"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/MercadoPagoSignatureValidator.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 62,
+    "sha256": "1a0384ff18740e5bf3285341717e27e242c74e55b91adfcdae332771a2623549"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/MercadoPagoWebhookController.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 26,
+    "sha256": "72e60c22ec5ad7ef9335afba04db669db673f3e95b5a110fd58edc3049412576"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/MercadoPagoWebhookService.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 157,
+    "sha256": "af061dcffc7755f96fbd6a5fe15d8a25afca2f14a9668ac3cc673a7e88e547f7"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/PassengerHold.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 25,
+    "sha256": "8de537c72b980bd32c4dfe103029efbd0e6951253e35e6dfdddd5b8d49c78012"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/PaymentQueryPort.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 9,
+    "sha256": "3de811139f937113f6a80ade1a49b24e87bb159733455ee43f3db53835b14994"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/QrAlreadyConsumedException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "45160d447db51ef942959cbdf5f2944ac8d1da40eb98025a1aa882d64a3c0d58"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/QrArtifactCipher.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 42,
+    "sha256": "cce7785e68b0bd4c0f5c841f7c094c9bd07c12c118fb43c33e86d3689f878ba3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/QrExpiredException.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 5,
+    "sha256": "6f9a06f38aa14e7a6b9fa56c3a8fbe4a60e31842e0484450960ffdb21101f5a3"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/QrGeneratorService.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 56,
+    "sha256": "dae25aeac7f3bce9b6e77a54954b2a338a21dcc909fd66ab803128cb99f8bbff"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/Route.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 19,
+    "sha256": "9b276ba6fe2d75b350dc6bc1d8bdddc092f26cec3657d287eaf54de00a7fbaa2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/service/interurban/SimulatedDriverPayoutAdapter.java",
+    "modulo": "04-integraciones-bot.md",
+    "lineas": 19,
+    "sha256": "1d2adacda3f6e4b6b642f224bbc134421db7198d06f63640494cf37b2c872390"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/shared/ArgentinaTime.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 28,
+    "sha256": "de4952ecfdd7f8e5a2451c7cd9690767e8f8d6e9cce292ec0cd9168d2b6ca0b2"
+  },
+  {
+    "ruta": "src/main/java/com/lunaris/ansenuza/shared/PhoneUtils.java",
+    "modulo": "02-negocio-servicios.md",
+    "lineas": 47,
+    "sha256": "73bda51dfe4bc4b32031d8f4683ce19b0ed2d2ea4ea5d23d7474191643d8cab6"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V100__add_missing_foreign_keys_and_indexes.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 137,
+    "sha256": "d44b68b145c8ee94848c04e67d21cddd9e43d36ae1a0b9ecd85ea7ff30d3ebeb"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V101__extend_driver_applications.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 21,
+    "sha256": "a0b84dab9c96e8d77313010edd7be2b61d268fc52d627a36e2c9807225d83986"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V102__add_source_to_reservations_if_missing.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "39b8dab516dd6d33d8c32c931c052c3f0b8fa74ffa9ca681526ae4ec0d893e29"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V103__add_vehicle_year_to_driver_applications.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 9,
+    "sha256": "bc31eb8f1ef2073f1d8a3428918cf8e30fe99b8fedf93d6cf157a25030342b1b"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V104__add_trip_type_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 3,
+    "sha256": "6d2dbefc234bf4b877638612111f911f0c410c8c72fb5aa585c27173e8c32258"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V105__allow_company_vehicle_driver_applications.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 5,
+    "sha256": "590c4b6b6b84a067d8c1d822a7c7fc8d6df7398cde9a0dfbf3bdc8e51ef7c7ee"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V106__create_news_banners.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 11,
+    "sha256": "47e0227e0eb4a2418350e93b54046a2eae62162f96df60f9d9ea347b3612061e"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V107__create_waiting_list_entries.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 14,
+    "sha256": "02abb5ef6be09090642404dd9382409e616a88b6b89065da039e6f16833a4658"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V108__link_waiting_list_reengagement.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 12,
+    "sha256": "7a2e4607bf3faa5e01329b0863d6379ad84aa018d0dc59647d25dc20a1874fdd"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V109__add_return_completion_tracking.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 6,
+    "sha256": "f9d5bb0c13fb9a9f81379bcc62f36376993c664c8da0a93fc5c182987881b51b"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V10__insert_airport_locality.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 3,
+    "sha256": "ed3a0bd978ae8a36e914afe9be2a6f3b03d57747fdeb9787f559821b02df0b86"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V110__create_payment_email_audit.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 38,
+    "sha256": "3267050f93f0136ea10c345d245aec98afc3b7535abc963915b3249740491ead"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V111__create_special_trips_table.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 17,
+    "sha256": "163eed2ba33fc33129272d0f36b757461b65062bdea1e416d5a577770148dd0f"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V112__add_arrufo_locality_and_constraints.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 50,
+    "sha256": "021d9f711e93b5c9dde02ef194118f2966bbcac3234b8aa54ee71d36a38b824c"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V113__link_reservation_booking_groups.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "0c75a2f507fe5106457455414785aabd4f73711ff3edcbb3b682a6f2822d8bd7"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V114__capacity_locks_and_route_scope.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 24,
+    "sha256": "87a1eba4b923bafb449cc3ccba72a5b874b9af353c8f61fedbb409f4e47ada4f"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V115__extend_invoice_pdf_url.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "9c615157a1420c2b732d97ba7b6313b9fd12efd146fbf5912fca74c223ac8207"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V116__waiting_list_special_events.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 11,
+    "sha256": "c305b2d45fdef516a5d983071bc7bdbf5e08d705326a3d1c62ef215369df9174"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V117__extend_news_banners_for_waiting_lists.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 14,
+    "sha256": "4655eeeed84e4f197f0559d08452ae10569d7c6cdb54494e1cf4c222d9dcba74"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V118__optimize_fares_and_localities_indexes.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 8,
+    "sha256": "95f4b18585cbd00bc517b1fe185699dc3c66af928e00fea64c2002cc88a834c5"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V119__financial_hardening_and_immutable_events.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 85,
+    "sha256": "527959bd05708050af0e2a515934bd6023d51cc6fe7695084516330b51fc5de9"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V11__add_reservation_fields_to_conversation.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 11,
+    "sha256": "8fd07d69b368bab6a695ef157df26bf2d797c467e2273764a07c17ba05c0d498"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V120__enforce_single_invoice_per_reservation.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 17,
+    "sha256": "444337d58a7c5ed13f5f7dbf4babb1b520451c19cf9fda7a34a1516ab2116c1a"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V121__track_balance_used_by_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 8,
+    "sha256": "8ef2447fc80213aeaa1b12364ff5617c259a4335ad186d89a4bb62138a49faf6"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V122__create_whatsapp_webhook_inbox.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 7,
+    "sha256": "89e6b6f70a129c9439d341dd1bf81f08816c17d7a054c7f297f1e3b960f87a59"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V123__create_inquiries.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 14,
+    "sha256": "d64f0d45b6ae663278622ad6868ff136642cd7f49b7cac3505ac6c85bc3377aa"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V124__operator_notification_phones.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 9,
+    "sha256": "e3954d87b363d90f920b23173b93c29f18de6af8a443f9ab82aebe774c2e0650"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V125__manual_bot_pause.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "0a3fd7e02930c1a0b73c8a58bf5763423d876a5921477d48924ca11af6039a85"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V126__reservation_amount_scope.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 3,
+    "sha256": "70d0d5c6966fdd24cadd36fc38758da5be84c69c1792cd9cc1b72ea9c7f05020"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V127__chatbot_analytics.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 60,
+    "sha256": "d47a998206d3f829af818aca22008992408d5ac8de967226168c989e415c7b20"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V128__manual_reservation_notifications.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 8,
+    "sha256": "77d0671eff452c29dab33580ea78add1e9742e3540638bb130a626422b599cc1"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V129__add_interurban_corridor.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 169,
+    "sha256": "a4a84992a1e081f7fa163cb5d49892c87da6111c1c1bf129a1bfa0b977361ab8"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V12__add_passenger_name_to_conversation_sessions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 3,
+    "sha256": "256fd224fa9a1fcb385ca60a1290201765cf20bbdc97fc418aed7a90eb1fb3ec"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V130__interurban_encrypted_qr_artifacts.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "066dc718158b7244d8ffc496a01b648dfe91a1c15a7a08222356f6e8157082fc"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V131__interurban_settlement_breakdown.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "772d1dcec3eb64f669a3db055d327123b3caf29c37e5fd53ad06ec1f571f5f35"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V132__link_accounts_to_drivers_and_add_indexes.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 24,
+    "sha256": "66e670ada022c56fa28e1fec531560f047a16f1fccc381f38e00097040ffa01d"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V14__add_round_trip_to_conversation_sessions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "4c8f5eeba5588715af1b5676d9a55b98a6bf1d12accb6054989bb1d78af6f45c"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V15__add_invoice_fields_to_conversation_sessions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 5,
+    "sha256": "6e30aec001966b42485c217b2aa45586960a1f06ce7b9f5219ffa486f43e013e"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V16__make_passenger_cuil_nullable.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "d665ff8f12f9ae036dcf11bc9f767e3c27cd9c594707a1c49bb63a8cd80af21c"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V17__add_status_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 6,
+    "sha256": "97e5473ba2f50f8c25a5a736f41d5d71b164ca4b1d085be0bd961a4e384f9cba"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V18__business_parameters.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "731531a830763e040e436a8fd3a0840551312bc1f2d1e59576b9ff855edee9bb"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V19__INSERT_INTO_fares.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 12,
+    "sha256": "d40d66c4c1cff5d05aa2b540c632980cc4f98407be5dab978dbccd35475e9d7b"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V1__initial_schema.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 9,
+    "sha256": "d45e13ca9c297deb4209a823539dc0f787ff8ffae8041c914555c973e6cce086"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V20__conversation_sessions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "1f6a23bf614de723f06508885caa0fb8a467793438c3933f53edcf0fcca330a0"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V21__passenger_count.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "95777e521d83773aa5e2cbc6a43dfd79507bec850dbca7496a1532b0eca7b999"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V22__add_companions_and_return_date.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 8,
+    "sha256": "e4ad9f69fc96b1f6a53b1ea03873450a822c613ba5504bf1e84f69bd66f1ab5c"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V23__ALTER_TABLE_RESERVATION.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "a180f11fd93e8682ec742476d56e045176710b584abcaeba3b528dbdec22e49d"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V24__add_logistics_to_localities.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 15,
+    "sha256": "0c9bdcc81e88836ab9c0fcc7d3856e93874f0ac6224dce9b980198933558def3"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V25__companion_names.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "925621663d50de38e90d8437a0f4165e455792d3253b647c3daca161550c8f97"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V26__Reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "94af392364c2d28a3c4c2984bf1eff77c9840f49fdd8f51e3267dff5d29fdd85"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V27__add_bot_paused_to_conversation_sessions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "d5732a7446f4cc7bfb7a35e6dc17977c10a37c2cdad3d09dedf610ca4db597ea"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V28__create_chat_messages_table.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 7,
+    "sha256": "023c92565bcdca90acc070d35d77c9f1294fdf7f771b5189ef91587beb45f5cc"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V29__add_reservation_code_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "f5f50b7d36ecd7ceb382bcafd1b67c1b0bda74048d51a5634b462e8295ba05e9"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V2__drivers.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 7,
+    "sha256": "a7897a4022a76cd2a47e03a5a894344d20a57001c1bb3c420e37affc757fa81f"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V30__enterprise_trazability_and_timestamps.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 15,
+    "sha256": "d84803951410bcd45589a165769f7a1d5c61ea87c5e1f60473c03b882ffcfae3"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V31__Reservatoin_not_null_ALTER.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "1791e231eecf1b877eae0d873f1948210d5346fc4b7cd919f452e2dc3054af15"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V32__create_invoices_and_payment_timestamp.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 19,
+    "sha256": "5a0b71f50edf6e3adf4d2706fd3800f58240e380a2a61d8bab1946cc593b441d"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V33__remove_unique_reservation_code.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 13,
+    "sha256": "3fa08b85bdf72d52f010b7c2dfb6b94677babb86fcbbb73c7a76ab007680b57a"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V34__add_passenger_current_balance.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "51cb631178cbe156950d71b26b34e71cf407d17cf1bc99f297e870e7ecb2ef79"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V35__add_assigned_operator_to_conversation_sessions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "cca85f7822ca6826bb8f2d185effc56b9a9088e7d0e57a86f793f929ad2c6e32"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V36__add_departure_schedule_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "cbedea5fbb68de2d5b06ec86306e1f6d004fa491d8672cf2d3663100df46f01f"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V37__add_requires_invoice_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 1,
+    "sha256": "e737a5ffdd2a7e1e6ab8cc2d2b61dd084944a32d62b452248b75df2696ba07dd"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V38__add_travel_status_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "de57298f948c6fb7877b5756e4b02739c358e802d93693b4c4c7bf03a7ed4167"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V39__create_system_configurations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 15,
+    "sha256": "81db72c561838944aec24b591858ca678e6eef8a9529af5bdc275000055cad3b"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V3__vehicles.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 6,
+    "sha256": "59c2c5e7e57663b0c7a68241eec4196b20efed9b68dd456c8b6b32a16236afb4"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V40__add_driver_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 16,
+    "sha256": "55ea0ae1ae4c28e4a893ae5e11a926075d40ad4a706340a7f48df39be1fdb9a7"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V41__create_accounts.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 13,
+    "sha256": "5d42356610f38ebfdb84f62177166d325bfd0a6ece9ff3520ba3d8b2c24c0af4"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V42__create_promotions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 9,
+    "sha256": "89df8424aad5777ef8886ed1f5b58c3f28939e6f9cd2c40f3659800861ef7513"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V43__add_promotion_fields.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 5,
+    "sha256": "9886e5203e980314d1d17d130dd4f41b5c8a109f00815d8869cae839042a5b71"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V44__add_promotion_expiration.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 12,
+    "sha256": "0e1a72463c37e3a4c10c709d0f7c4cda1e170659f1622c0c2e66721a91c5c8c4"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V45__normalize_massive_promotion_usages.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 19,
+    "sha256": "673f16a3a47c63feaedf467da630996aa89861986f6a3b21483f437c3856d034"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V46__audit_promotions_on_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 27,
+    "sha256": "1fa12821f3a37ed9fe1d217c3a02ff01b880f1fd0c70c5c12fab7ca2df5d41db"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V47__add_dynamic_route_sequence.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 19,
+    "sha256": "140d79e2e5e2845957793f0c7b7c5c57a72094c2a6e6c1c80b32362a93bb1a6e"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V48__enforce_unique_route_sequence.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 45,
+    "sha256": "53c2d168df35b0fa1652a4ea3939d7e0a413626b2f431bc9531793c6fd612008"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V49__create_driver_applications.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 12,
+    "sha256": "f7cffc672d857c5e0922057e714889a1c9efe3a013368d9b22adfa4ce4122b5f"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V4__reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 22,
+    "sha256": "da2124886856827ca4ce8662c75612400d3111d2ea737b6e61fa7ad5305333bf"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V50__add_driver_current_location.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 3,
+    "sha256": "39571e5946ce9b902870c4f355d24eb36e5c4e267b10c0b047894c15c075073f"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V53__reset_admin_password.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 23,
+    "sha256": "4e018822be626ce27caea62c346d5c363fbb76af83527a422c4dea423840fb0a"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V54__add_reservation_source.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "e0bfbba2aa58de3cbed4851c8e86895245e5ef88efca5b045662b0326210e10b"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V55__add_trip_type_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 9,
+    "sha256": "1ee7ad416c77a39642ab1eff365675b1188863fd9201b3201e9f538df90106be"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V5__create_localities_and_fares.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 12,
+    "sha256": "1d5c0e5b242d8311eeb42a47901a45b508869d8302dc95ba205cc706535de798"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V6__add_amount_to_reservations.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 2,
+    "sha256": "973fead99509223aa89963a03ef10b3c445be168cca459d4c4df9e59650e8d73"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V7__add_round_trip_fields.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 8,
+    "sha256": "44cd1fc3a8d9f180bfaf4d879506024fdc1fde7209235b31bf3a9495573b33ed"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V8__insert_localities.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 25,
+    "sha256": "2023b677fb2067b34134e94c439263354d13bb3c37791d33ff2b9d8493e9131f"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V99__reset_admin_password_force.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 23,
+    "sha256": "13db6bbc65a13e204b24fbd47efc234e9ae738bbc89d2f29ce97f451fb099453"
+  },
+  {
+    "ruta": "src/main/resources/db/migration/V9__create_conversation_sessions.sql",
+    "modulo": "01-persistencia.md",
+    "lineas": 10,
+    "sha256": "22b0761d4f8aa2c52b884f4ee2528ee10584b8208c6426be45a879e737d0724c"
+  }
+]
