@@ -20,15 +20,18 @@ class AgendaPassengerBoardTemplateTest {
         Reservation reservation = Reservation.builder().id(java.util.UUID.randomUUID())
                 .passenger(Passenger.builder().firstName("Ana").lastName("Pérez").build())
                 .originCustom("De <script>Suardi</script>").destinationCustom("Alta Gracia")
-                .passengerCount(20).customPrice(new java.math.BigDecimal("120000.50"))
+                .passengerCount(3).customPrice(new java.math.BigDecimal("86000.00"))
+                .amount(new java.math.BigDecimal("258000.00"))
                 .paymentVerified(false).build();
         Context context = new Context();
-        context.setVariable("specialTrips", List.of(reservation));
+        context.setVariable("specialTrips", List.of(com.lunaris.ansenuza.infrastructure.web.dto.reservation.SpecialAgendaTripView.from(reservation)));
         SpringTemplateEngine engine = new SpringTemplateEngine();
         String pending = engine.process(section, context);
         assertTrue(pending.contains("&lt;script&gt;Suardi&lt;/script&gt;"));
         assertTrue(pending.contains("Pendiente de pago"));
         assertTrue(pending.contains("Registrar pago"));
+        assertTrue(pending.contains("$258.000,00"));
+        org.junit.jupiter.api.Assertions.assertFalse(pending.contains("$86.000,00"));
         reservation.setPaymentVerified(true);
         String paid = engine.process(section, context);
         assertTrue(paid.contains("Pagado"));

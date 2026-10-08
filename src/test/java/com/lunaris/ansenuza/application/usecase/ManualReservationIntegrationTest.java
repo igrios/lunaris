@@ -130,6 +130,31 @@ class ManualReservationIntegrationTest {
     }
 
     @Test
+    void agendaPaymentAndInvoiceUsePassengerTotalForSingleAndRoundTrip() {
+        var booking = specialBooking();
+        booking.setCustomPrice(new BigDecimal("86000.00"));
+        booking.setPassengerCount(3);
+        var single = manual.execute(booking, null).getFirst();
+        var returnBooking = specialBooking();
+        returnBooking.setCustomPrice(new BigDecimal("86000.00"));
+        returnBooking.setPassengerCount(3);
+        returnBooking.setRoundTrip(true);
+        returnBooking.setTripType(TripType.ROUND_TRIP);
+        returnBooking.setReturnDate(returnBooking.getTravelDate().plusDays(1));
+        var legs = manual.execute(returnBooking, "19:15");
+        commit();
+        assertThat(com.lunaris.ansenuza.infrastructure.web.dto.reservation.SpecialAgendaTripView.from(single).totalPrice())
+                .isEqualByComparingTo("258000.00");
+        assertThat(legs).allSatisfy(leg ->
+                assertThat(com.lunaris.ansenuza.infrastructure.web.dto.reservation.SpecialAgendaTripView.from(leg).totalPrice())
+                        .isEqualByComparingTo("129000.00"));
+        payments.markTripAsPaid(single.getId(), "operador-test");
+        payments.markTripAsPaid(legs.getLast().getId(), "operador-test");
+        assertThat(invoicing.issue(single.getId(), new byte[] {37, 80, 68, 70}).getAmount()).isEqualByComparingTo("258000.00");
+        assertThat(invoicing.issue(legs.getLast().getId(), new byte[] {37, 80, 68, 70}).getAmount()).isEqualByComparingTo("258000.00");
+    }
+
+    @Test
     void pendingSpecialCannotIssueOrPersistInvoiceAndPaymentIsIdempotent() {
         Reservation saved = manual.execute(specialBooking(), null).getFirst();
         commit();

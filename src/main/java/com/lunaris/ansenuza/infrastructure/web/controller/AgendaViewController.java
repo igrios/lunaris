@@ -215,7 +215,8 @@ public class AgendaViewController {
 
         model.addAttribute("date", date);
         model.addAttribute("reservations", activeReservations);
-        model.addAttribute("specialTrips", reservationRepository.findSpecialAgendaTrips(date));
+        model.addAttribute("specialTrips", reservationRepository.findSpecialAgendaTrips(date).stream()
+                .map(com.lunaris.ansenuza.infrastructure.web.dto.reservation.SpecialAgendaTripView::from).toList());
         List<Reservation> boardReservations = reservationRepository.findDailyManifest(date);
         model.addAttribute("outboundReservations", boardReservations.stream()
                 .filter(reservation -> !isManifestReturn(reservation)).toList());

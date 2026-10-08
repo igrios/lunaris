@@ -69,17 +69,17 @@
         <section th:if="${specialTrips != null and !#lists.isEmpty(specialTrips)}" class="card shadow-sm mb-4">
             <div class="card-body">
                 <h2 class="h4">Viajes especiales</h2>
-                <p>Servicios con recorrido y precio acordados. La factura se habilita al registrar el pago.</p>
+                <p>Importes totales por tramo, incluyendo todos los pasajeros. En ida y vuelta, el total acordado se reparte entre ambos tramos. Al registrar el pago se confirma el cobro de todo el viaje y se habilita la factura del grupo.</p>
                 <div class="table-responsive">
                     <table class="table align-middle">
                         <thead><tr><th>Horario / Código</th><th>Pasajero / Trayecto</th><th>Pasajeros</th><th>Precio total</th><th>Pago</th><th>Factura</th><th>Acción</th></tr></thead>
                         <tbody>
-                            <tr th:each="trip : ${specialTrips}">
+                            <tr th:each="specialTrip : ${specialTrips}" th:with="trip=${specialTrip.reservation}">
                                 <td><span th:text="${trip.departureSchedule}"></span><br><small th:text="${trip.reservationCode}"></small></td>
                                 <td><span th:text="${trip.passenger.firstName + ' ' + trip.passenger.lastName}"></span><br>
                                     <span th:text="${trip.originCustom + ' → ' + trip.destinationCustom}"></span></td>
                                 <td th:text="${trip.passengerCount}"></td>
-                                <td th:text="${'$' + trip.customPrice}"></td>
+                                <td th:text="${'$' + #numbers.formatDecimal(specialTrip.totalPrice, 1, 'POINT', 2, 'COMMA')}"></td>
                                 <td><span class="badge" th:classappend="${trip.paymentVerified == true ? 'bg-success' : 'bg-warning text-dark'}"
                                     th:text="${trip.paymentVerified == true ? 'Pagado' : 'Pendiente'}"></span></td>
                                 <td th:text="${trip.invoiceIssued ? 'Emitida' : (trip.paymentVerified == true ? 'Habilitada' : 'Pendiente de pago')}"></td>
