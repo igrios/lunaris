@@ -150,9 +150,24 @@ public class ConversationOrchestrator {
             return;
         }
 
-        Optional<ConversationSession> locationSession = Optional.empty();
-        if (message.type() == IncomingMessage.MessageType.LOCATION) {
-            locationSession = conversationSessionRepository.findByPhoneNumber(phoneNumber);
+        Optional<UUID> boardingReservationId =
+                extractBoardingReservationId(message, rawTrimmed);
+        if (boardingReservationId.isPresent()) {
+            log.info(
+                    "[Driver Flow] Boarding action received. phone={}, reservationId={}, type={}",
+                    phoneNumber, boardingReservationId.get(), message.type());
+            handleBoardPassenger(phoneNumber, boardingReservationId.get());
+            return;
+        }
+
+        Optional<ConversationSession> existingSession = conversationSessionRepository.findByPhoneNumber(phoneNumber);
+        if (existingSession.filter(s -> s.isBotPaused() && s.isManuallyPaused()).isPresent()) {
+            ConversationSession session = existingSession.orElseThrow();
+            liveChat.recordIncomingMessage(phoneNumber, rawTrimmed);
+            session.setLastInteraction(com.lunaris.ansenuza.shared.ArgentinaTime.now());
+            conversationSessionRepository.saveAndFlush(session);
+            message.telemetry().emit(HUMAN_HANDOFF, session.getCurrentStep(), OPERATOR);
+            return;
         }
 
         // Se conserva la consulta de agenda para choferes registrados temporalmente
@@ -172,20 +187,8 @@ public class ConversationOrchestrator {
             return;
         }
 
-        Optional<UUID> boardingReservationId =
-                extractBoardingReservationId(message, rawTrimmed);
-        if (boardingReservationId.isPresent()) {
-            log.info(
-                    "[Driver Flow] Boarding action received. phone={}, reservationId={}, type={}",
-                    phoneNumber, boardingReservationId.get(), message.type());
-            handleBoardPassenger(phoneNumber, boardingReservationId.get());
-            return;
-        }
-
         // ⚖️ LOAD BALANCER: Si la sesión es nueva, le asignamos el operador con menos carga activa
-        ConversationSession session = (message.type() == IncomingMessage.MessageType.LOCATION
-                ? locationSession
-                : conversationSessionRepository.findByPhoneNumber(phoneNumber)).orElseGet(() -> {
+        ConversationSession session = existingSession.orElseGet(() -> {
                     // Calculamos cuál operador está más libre mediante el balanceador
                     String operadorAsignado = operationControlService.getOperatorWithLeastLoad();
                     log.info("[Load Balancer] Asignando nuevo chat de {} al operador: {}", phoneNumber, operadorAsignado);

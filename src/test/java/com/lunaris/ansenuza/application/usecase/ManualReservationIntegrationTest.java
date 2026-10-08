@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.*;
         "lunaris.public-base-url=https://lunaris.test", "lunaris.manual-notification.retry-ms=3600000"
 })
 @Import({CreateManualReservationUseCase.class, ReservationService.class, ManualReservationNotificationService.class,
+        ManualReservationChatHandoffService.class,
         IssueInvoiceUseCase.class, InvoicePersistenceService.class,
         WhatsAppConversationWindowService.class, MarkTripAsPaidService.class})
 class ManualReservationIntegrationTest {
@@ -47,12 +48,74 @@ class ManualReservationIntegrationTest {
     @Autowired ApplicationEventPublisher events;
     @Autowired MarkTripAsPaidService payments;
     @Autowired ReservationEventRepository audit;
+    @Autowired ConversationSessionRepository sessions;
+    @MockitoBean com.lunaris.ansenuza.application.port.LiveChatPort liveChat;
     @MockitoBean WhatsAppMessagingAdapter messaging;
     @MockitoBean InvoiceStoragePort storage;
     @MockitoBean OnboardPassengerUseCase onboarding;
     @MockitoBean CapacityLockRepository capacity;
     @MockitoBean PricingAndScheduleService pricing;
     private static int nextPhone;
+
+    @Test
+    void mutedManualPassengerMessagesPersistAndBroadcastWithoutBotMenuEvenAfterHours() {
+        var input = specialBooking();
+        manual.execute(input, null);
+        commit();
+        var socket = mock(org.springframework.messaging.simp.SimpMessagingTemplate.class);
+        var adapter = new com.lunaris.ansenuza.infrastructure.chat.WebSocketLiveChatAdapter(chats, socket,
+                sessions, mock(LocalityRepository.class), events);
+        var whatsApp = mock(com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService.class);
+        var operation = mock(OperationControlService.class);
+        var promotion = mock(ProcessPromotionCommandUseCase.class);
+        var cancellation = mock(ReservationCancellationService.class);
+        var orchestrator = new com.lunaris.ansenuza.application.conversation.ConversationOrchestrator(
+                List.of(), sessions, adapter, operation, cancellation, mock(DriverRepository.class),
+                reservations, whatsApp, promotion, onboarding);
+        String phone = input.getPassenger().getPhone();
+        for (String text : List.of("hola", "Retiro: Belgrano 450, Suardi", "Acompañantes: Ana y Juan")) {
+            orchestrator.process(new com.lunaris.ansenuza.application.conversation.IncomingMessage(phone,
+                    com.lunaris.ansenuza.application.conversation.IncomingMessage.MessageType.TEXT, text, null));
+            assertThat(chats.findAll()).anyMatch(message -> phone.equals(message.getPhoneNumber())
+                    && text.equals(message.getMessageText()) && !message.isFromOperator());
+        }
+        verify(socket, times(3)).convertAndSend(eq("/topic/messages/" + phone), any(ChatMessage.class));
+        verifyNoInteractions(whatsApp, promotion, cancellation, operation);
+        assertThat(sessions.findByPhoneNumber(phone)).get().satisfies(s -> {
+            assertThat(s.isBotPaused()).isTrue();
+            assertThat(s.isManuallyPaused()).isTrue();
+        });
+    }
+
+    @Test
+    void manualCommitPausesChatAndPreservesExistingConversationAndHistory() {
+        var input = specialBooking();
+        var phone = input.getPassenger().getPhone();
+        sessions.saveAndFlush(ConversationSession.builder().phoneNumber(phone).currentStep("ASK_ADDRESS")
+                .assignedOperator("operador-test").build());
+        chats.saveAndFlush(ChatMessage.builder().phoneNumber(phone).messageText("Historial previo")
+                .fromOperator(false).timestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now()).build());
+        manual.execute(input, null);
+        commit();
+        var session = sessions.findByPhoneNumber(phone).orElseThrow();
+        assertThat(session.isBotPaused()).isTrue();
+        assertThat(session.isManuallyPaused()).isTrue();
+        assertThat(session.getCurrentStep()).isEqualTo("ASK_ADDRESS");
+        assertThat(session.getAssignedOperator()).isEqualTo("operador-test");
+        assertThat(chats.findAll()).anyMatch(message -> "Historial previo".equals(message.getMessageText()));
+        verify(liveChat).conversationChanged();
+    }
+
+    @Test
+    void newManualChatIsPausedAndRollbackDoesNotCreatePausedSession() {
+        var input = specialBooking();
+        var phone = input.getPassenger().getPhone();
+        manual.execute(input, null);
+        TestTransaction.flagForRollback();
+        TestTransaction.end();
+        assertThat(sessions.findByPhoneNumber(phone)).isEmpty();
+        verifyNoInteractions(liveChat, messaging);
+    }
 
     @Test
     void specialBookingUsesFreeRouteAndTotalPriceWithoutRegularCapacityOrFiscalDocument() {
@@ -63,6 +126,8 @@ class ManualReservationIntegrationTest {
         Reservation saved = manual.execute(input, null).getFirst();
         verifyNoInteractions(messaging);
         commit();
+        assertThat(sessions.findByPhoneNumber(input.getPassenger().getPhone())).get()
+                .satisfies(s -> { assertThat(s.isBotPaused()).isTrue(); assertThat(s.isManuallyPaused()).isTrue(); });
         Reservation stored = reservations.findById(saved.getId()).orElseThrow();
         assertThat(stored.getPickupLocality()).isEqualTo("De Suardi");
         assertThat(stored.getDestination()).isEqualTo("Alta Gracia");
