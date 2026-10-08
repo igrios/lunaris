@@ -30,8 +30,9 @@ public class TakeOverConversationUseCase {
         }
         var session = sessionRepository.findByPhoneNumber(phone)
                 .orElseThrow(() -> new DomainValidationException("No existe una conversación para ese teléfono."));
-        if (!session.isBotPaused()) {
+        if (!session.isBotPaused() || !session.isManuallyPaused()) {
             session.setBotPaused(true);
+            session.setManuallyPaused(true);
             sessionRepository.saveAndFlush(session);
         }
         telemetry.handoff(session.getPhoneNumber());

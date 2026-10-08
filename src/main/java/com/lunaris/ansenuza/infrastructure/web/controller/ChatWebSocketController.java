@@ -31,13 +31,14 @@ public class ChatWebSocketController {
                                                                                // Control
     private final SimpMessagingTemplate messagingTemplate; // 👈 Inyectado para refrescar el monitor
     private final WhatsAppConversationWindowService conversationWindowService;
+    private final com.lunaris.ansenuza.application.usecase.AssistedChatService assistedChat;
                                                            // en vivo
 
     @MessageMapping("/chat.send/{phoneNumber}")
     @SendTo("/topic/messages/{phoneNumber}")
     public ChatMessage sendMessage(@DestinationVariable String phoneNumber, ChatMessage message) {
 
-        if (!conversationWindowService.isActive(phoneNumber)) {
+        if (!assistedChat.canSend(phoneNumber)) {
             throw new IllegalStateException(
                     "La ventana de WhatsApp venció. Reenviá la plantilla contacto_pasajero.");
         }

@@ -54,7 +54,8 @@
                     Ventana de 24 h activa hasta
                     <strong th:text="${#temporals.format(chatWindowExpiresAt, 'dd/MM/yyyy HH:mm')}"></strong>.
                 </div>
-                <div th:unless="${chatWindowActive}" class="alert alert-warning py-2 mb-2 d-flex justify-content-between align-items-center">
+                <div th:if="${!chatWindowActive and chatCanSend}" class="alert alert-info py-2">Gestión manual activa. Podés enviar mensajes; WhatsApp puede requerir la respuesta del pasajero a la plantilla.</div>
+                <div th:unless="${chatCanSend}" class="alert alert-warning py-2 mb-2 d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-lock-fill me-1"></i>La ventana de 24 h venció. Esperá una respuesta para habilitar el chat libre.</span>
                     <form th:action="@{/admin/chat/{phone}/contactar(phone=${phone})}" method="post" class="ms-2">
                         <button type="submit" class="btn btn-success btn-sm text-nowrap">
@@ -82,10 +83,10 @@
                     <div class="card-footer bg-white border-top p-3">
                         <div class="input-group">
                             <input type="text" id="messageInput" class="form-control" placeholder="Escribí un mensaje..." autocomplete="off"
-                                   th:disabled="${!chatWindowActive}"
+                                   th:disabled="${!chatCanSend}"
                                    onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enviarMensajeHumano(); }">
                             <button type="button" id="btnEnviar" class="btn btn-primary px-4" onclick="enviarMensajeHumano()"
-                                    th:disabled="${!chatWindowActive}">
+                                    th:disabled="${!chatCanSend}">
                                 <i class="bi bi-send-fill"></i>
                             </button>
                         </div>
@@ -127,17 +128,17 @@
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Nombre</label>
-                                    <input type="text" name="firstName" id="firstNameInput" class="form-control form-control-sm" required>
+                                    <input type="text" name="firstName" id="firstNameInput" class="form-control form-control-sm" required th:value="${passenger != null ? passenger.firstName : assistedData.passengerName}">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Apellido</label>
-                                    <input type="text" name="lastName" id="lastNameInput" class="form-control form-control-sm" required>
+                                    <input type="text" name="lastName" id="lastNameInput" class="form-control form-control-sm" required th:value="${passenger != null ? passenger.lastName : null}">
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">DNI / CUIL (Facturación)</label>
-                                <input type="text" name="cuil" id="cuilInput" class="form-control form-control-sm" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                                <input type="text" name="cuil" id="cuilInput" class="form-control form-control-sm" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" th:value="${assistedData.cuil ?: (passenger != null ? passenger.cuil : null)}">
                             </div>
 
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">📍 Datos del Viaje</h4>
@@ -146,30 +147,36 @@
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
                                     <select class="form-select form-select-sm" id="inputOrigen" name="pickupLocality" required>
-                                        <option value="" disabled selected>Cargando pueblos...</option>
+                                        <option value="" disabled th:selected="${assistedData.pickupLocality == null}">Seleccione origen...</option>
+                                        <option th:if="${assistedData.pickupLocality != null}" th:value="${assistedData.pickupLocality}" th:text="${assistedData.pickupLocality}" selected></option>
+                                        <option value="Córdoba" th:if="${assistedData.pickupLocality != 'Córdoba'}">Córdoba</option>
+                                        <option th:each="locality : ${localities}" th:if="${locality.name != assistedData.pickupLocality and locality.name != 'Córdoba'}" th:value="${locality.name}" th:text="${locality.name}"></option>
                                     </select>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
                                     <select class="form-select form-select-sm" id="inputDestino" name="destination" required>
-                                        <option value="" disabled selected>Cargando pueblos...</option>
+                                        <option value="" disabled th:selected="${assistedData.destination == null}">Seleccione destino...</option>
+                                        <option th:if="${assistedData.destination != null}" th:value="${assistedData.destination}" th:text="${assistedData.destination}" selected></option>
+                                        <option value="Córdoba" th:if="${assistedData.destination != 'Córdoba'}">Córdoba</option>
+                                        <option th:each="locality : ${localities}" th:if="${locality.name != assistedData.destination and locality.name != 'Córdoba'}" th:value="${locality.name}" th:text="${locality.name}"></option>
                                     </select>
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">Dirección de Retiro</label>
-                                <input type="text" name="pickupAddress" class="form-control form-control-sm" required>
+                                <input type="text" name="pickupAddress" th:value="${assistedData.pickupAddress}" class="form-control form-control-sm" required>
                             </div>
 
                             <div class="row g-3 mb-3">
                                 <div class="col-5">
                                     <label class="form-label small fw-bold text-dark">Cantidad Asientos</label>
-                                    <input type="number" id="inputAsientos" name="passengerCount" class="form-control form-control-sm fw-bold text-center border-primary" value="1" min="1" max="4" required>
+                                    <input type="number" id="inputAsientos" name="passengerCount" class="form-control form-control-sm fw-bold text-center border-primary" min="1" max="9" required th:value="${assistedData.passengerCount}">
                                 </div>
                                 <div class="col-7">
                                     <label class="form-label small fw-bold text-dark">Fecha de Viaje (Ida)</label>
-                                    <input type="date" name="travelDate" class="form-control form-control-sm fw-bold" required>
+                                    <input type="date" name="travelDate" th:value="${assistedData.travelDate}" class="form-control form-control-sm fw-bold" required>
                                 </div>
                             </div>
 
@@ -182,7 +189,7 @@
                             </div>
 
                             <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="roundTrip" id="isRoundTripCheck" value="true">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="roundTrip" id="isRoundTripCheck" th:checked="${assistedData.roundTrip}" value="true">
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
                                     <i class="bi bi-arrow-left-right"></i> ¿Es pasaje de Ida y Vuelta?
                                 </label>
@@ -202,14 +209,14 @@
 
                                 <div id="sectionFechaVuelta" class="mt-2 d-none">
                                     <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
-                                    <input type="date" name="returnDate" id="returnDateInput" class="form-control form-control-sm fw-bold border-primary">
+                                    <input type="date" name="returnDate" id="returnDateInput" class="form-control form-control-sm fw-bold border-primary" th:value="${assistedData.returnDate}">
                                     <label class="form-label mt-2" for="manualReturnSchedule">Horario de regreso</label>
                                     <input type="time" name="returnDepartureSchedule" id="manualReturnSchedule" class="form-control">
                                 </div>
                             </div>
 
                             <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="requiresInvoice" id="requiresInvoice" value="true">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="requiresInvoice" id="requiresInvoice" th:checked="${assistedData.requiresInvoice}" value="true">
                                 <label class="form-check-label fw-bold text-info" for="requiresInvoice">
                                     <i class="bi bi-file-earmark-text"></i> ¿Requiere factura?
                                 </label>
@@ -217,7 +224,7 @@
 
                     <div class="mb-3">
                         <label class="form-label" for="companionNames">Nombres de acompañantes</label>
-                        <textarea class="form-control" id="companionNames" name="companionNames" maxlength="500"></textarea>
+                        <textarea class="form-control" id="companionNames" name="companionNames" maxlength="500" th:text="${assistedData.companionNames}"></textarea>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="routeDirection">Sentido</label>
@@ -276,8 +283,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script th:inline="javascript">
+        const assistedData = /*[[${assistedData}]]*/ {};
         const phone = /*[[${phone ?: sessionPhone}]]*/ null;
-        const chatWindowActive = /*[[${chatWindowActive}]]*/ false;
+        let chatCanSend = /*[[${chatCanSend}]]*/ false;
         const seguroPhone = phone || window.location.pathname.match(/\/chat\/(\d+)/)?.[1];
 
         const socket = new SockJS('/chat-websocket');
@@ -286,13 +294,19 @@
         stomp.connect({}, () => {
             if (seguroPhone) {
                 stomp.subscribe('/topic/messages/' + seguroPhone, (msg) => {
-                    dibujarBurbujaMensaje(JSON.parse(msg.body));
+                    const message = JSON.parse(msg.body);
+                    dibujarBurbujaMensaje(message);
+                    if (!message.fromOperator) {
+                        chatCanSend = true;
+                        document.getElementById('messageInput').disabled = false;
+                        document.getElementById('btnEnviar').disabled = false;
+                    }
                 });
             }
         });
 
         function enviarMensajeHumano() {
-            if (!chatWindowActive) return;
+            if (!chatCanSend) return;
             const input = document.getElementById('messageInput');
             if (!input) return;
             const texto = input.value.trim();
@@ -343,30 +357,6 @@
             if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
         };
 
-        // ⚡ CARGA ASÍNCRONA DE LOCALIDADES DESDE LA API UNIFICADA
-        function cargarLocalidadesDropdown() {
-            fetch('/admin/bot/monitor/localidades')
-                .then(res => res.json())
-                .then(localidades => {
-                    const origenSel = document.getElementById('inputOrigen');
-                    const destinoSel = document.getElementById('inputDestino');
-
-                    origenSel.innerHTML = '<option value="" disabled selected>Seleccione origen...</option><option value="Córdoba">Córdoba</option>';
-                    destinoSel.innerHTML = '<option value="" disabled selected>Seleccione destino...</option><option value="Córdoba">Córdoba</option>';
-
-                    localidades.forEach(loc => {
-                        const optO = document.createElement('option');
-                        optO.value = loc; optO.textContent = loc;
-                        origenSel.appendChild(optO);
-
-                        const optD = document.createElement('option');
-                        optD.value = loc; optD.textContent = loc;
-                        destinoSel.appendChild(optD);
-                    });
-                })
-                .catch(err => console.error("Error cargando pueblos:", err));
-        }
-
         const orig = document.getElementById('inputOrigen');
         const dest = document.getElementById('inputDestino');
         const asie = document.getElementById('inputAsientos');
@@ -396,7 +386,17 @@
 
         // 👤 AUTOCOMPLETADO INTERACTIVO Y SALDO
         window.addEventListener('DOMContentLoaded', () => {
-            cargarLocalidadesDropdown(); // Carga de localidades automática por API
+            if (assistedData.scheduleBlock) {
+                const schedule = document.querySelector('[name="departureSchedule"]');
+                if (!Array.from(schedule.options).some(o => o.value === assistedData.scheduleBlock)) schedule.add(new Option(assistedData.scheduleBlock, assistedData.scheduleBlock));
+                schedule.value = assistedData.scheduleBlock;
+            }
+            if (isRoundTripCheck.checked) {
+                sectionOpcionesRetorno.classList.remove('d-none');
+                if (returnDateInput.value) retornoProgramado.checked = true;
+                actualizarCalendarioVuelta();
+            }
+            actualizarCotizacion();
 
             const telefono = seguroPhone; 
             const firstNameInput = document.getElementById('firstNameInput');
@@ -410,9 +410,9 @@
                     .then(res => res.json())
                     .then(data => {
                         if (data.existe) {
-                            firstNameInput.value = data.firstName;
-                            lastNameInput.value = data.lastName;
-                            cuilInput.value = data.cuil;
+                            if (!firstNameInput.value) firstNameInput.value = data.firstName || "";
+                            if (!lastNameInput.value) lastNameInput.value = data.lastName || "";
+                            if (!cuilInput.value) cuilInput.value = data.cuil || "";
 
                             if (parseFloat(data.saldo) > 0) {
                                 saldoSpan.innerText = parseFloat(data.saldo).toFixed(2);

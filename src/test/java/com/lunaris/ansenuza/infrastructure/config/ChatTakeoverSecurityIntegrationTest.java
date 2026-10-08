@@ -46,6 +46,7 @@ class ChatTakeoverSecurityIntegrationTest {
     @MockitoBean LocalityService localities;
     @MockitoBean PassengerRepository passengers;
     @MockitoBean WhatsAppConversationWindowService conversationWindow;
+    @MockitoBean com.lunaris.ansenuza.application.usecase.AssistedChatService assistedChat;
     @MockitoBean WhatsAppService whatsApp;
     @MockitoBean ChatbotTelemetryPort telemetry;
 

@@ -32,6 +32,7 @@ public class ChatController {
     private final WhatsAppConversationWindowService conversationWindowService;
     private final WhatsAppService whatsAppService;
     private final TakeOverConversationUseCase takeOverConversation;
+    private final com.lunaris.ansenuza.application.usecase.AssistedChatService assistedChat;
 
     @PostMapping("/{phoneNumber}/takeover")
     public String takeOver(@PathVariable String phoneNumber, RedirectAttributes redirectAttributes) {
@@ -54,6 +55,9 @@ public class ChatController {
         // 1. Datos del chat originales (Intactos para tu WebSocket actual)
         sessionRepository.findByPhoneNumber(phoneNumber)
                 .ifPresent(session -> model.addAttribute("session", session));
+        model.addAttribute("assistedData", assistedChat.prefill(phoneNumber));
+        model.addAttribute("chatCanSend", assistedChat.canSend(phoneNumber));
+        model.addAttribute("passenger", passengerRepository.findByPhone(phoneNumber).orElse(null));
         model.addAttribute("historial", historial);
         model.addAttribute("phone", phoneNumber);
         model.addAttribute("chatWindowActive", conversationWindowService.isActive(phoneNumber));
@@ -75,8 +79,9 @@ public class ChatController {
                 .filter(name -> !name.isBlank())
                 .orElse("Pasajero");
         whatsAppService.sendContactoPasajeroTemplate(phoneNumber, passengerName);
+        takeOverConversation.execute(phoneNumber);
         redirectAttributes.addFlashAttribute("successMessage",
-                "Plantilla contacto_pasajero enviada. El chat se habilitará cuando el pasajero responda.");
+                "Plantilla contacto_pasajero enviada. Gestión manual activada para el operador.");
         return "redirect:/admin/chat/" + phoneNumber;
     }
 }

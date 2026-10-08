@@ -25,6 +25,20 @@ public class ManualReservationChatHandoffService {
         String phone = reservation.getPassenger().getPhone();
         var session = sessions.findByPhoneNumber(phone).orElseGet(() -> ConversationSession.builder()
                 .phoneNumber(phone).currentStep("START").build());
+        session.setPassengerName(reservation.getPassenger().getFirstName() + " "
+                + reservation.getPassenger().getLastName());
+        session.setCuil(reservation.getPassenger().getCuil());
+        session.setPickupLocality(reservation.getPickupLocality());
+        session.setDestination(reservation.getDestination());
+        session.setPickupAddress(reservation.getPickupAddress());
+        session.setPassengerCount(reservation.getTotalSeats());
+        session.setTravelDate(reservation.getTravelDate());
+        session.setReturnDate(reservation.getReturnDate());
+        session.setRoundTrip(reservation.getRoundTrip());
+        session.setRequiresInvoice(reservation.getRequiresInvoice());
+        session.setCompanionNames(reservation.getCompanionNames());
+        session.setScheduleBlock(reservation.getDepartureSchedule());
+        session.setReservationCode(reservation.getReservationCode());
         session.setBotPaused(true);
         session.setManuallyPaused(true);
         session.setLastInteraction(ArgentinaTime.now());

@@ -18,9 +18,11 @@ class TakeOverConversationUseCaseTest {
         when(repository.findByPhoneNumber("5493562123456")).thenReturn(Optional.of(session));
         assertEquals("5493562123456", useCase.execute("+54 9 (3562) 123-456"));
         assertTrue(session.isBotPaused());
+        assertTrue(session.isManuallyPaused());
         verify(repository).saveAndFlush(session);
         useCase.execute("5493562123456");
         assertTrue(session.isBotPaused());
+        assertTrue(session.isManuallyPaused());
         verify(repository, times(1)).saveAndFlush(session);
     }
 
