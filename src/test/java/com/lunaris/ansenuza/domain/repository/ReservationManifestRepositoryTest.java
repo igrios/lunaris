@@ -27,11 +27,37 @@ class ReservationManifestRepositoryTest {
     private static final LocalDate DATE = LocalDate.of(2026, 9, 10);
     private final ReservationRepository reservations;
     private final PassengerRepository passengers;
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     @Autowired
     ReservationManifestRepositoryTest(ReservationRepository reservations, PassengerRepository passengers) {
         this.reservations = reservations;
         this.passengers = passengers;
+    }
+
+    @Test
+    void specialAgendaQueryIncludesOnlyActiveSpecialTripsForSelectedDate() {
+        var active = save("Miramar", "Córdoba", "09:00", "IDA", false, "SPECIAL-ACTIVE",
+                DATE, "CONFIRMED", null);
+        active.setTripCategory(com.lunaris.ansenuza.domain.model.TripCategory.SPECIAL);
+        reservations.saveAndFlush(active);
+        for (String status : new String[] { "CANCELLED", "CANCELED", "EXPIRED", "REJECTED" }) {
+            var inactive = save("Miramar", "Córdoba", "09:00", "IDA", false, status,
+                    DATE, status, null);
+            inactive.setTripCategory(com.lunaris.ansenuza.domain.model.TripCategory.SPECIAL);
+            reservations.saveAndFlush(inactive);
+            // Exercise stored legacy statuses without normalization by the entity converter.
+            entityManager.createNativeQuery("update reservations set status = :status where id = :id")
+                    .setParameter("status", status).setParameter("id", inactive.getId()).executeUpdate();
+        }
+        var otherDate = save("Miramar", "Córdoba", "09:00", "IDA", false, "OTHER-DATE",
+                DATE.plusDays(1), "CONFIRMED", null);
+        otherDate.setTripCategory(com.lunaris.ansenuza.domain.model.TripCategory.SPECIAL);
+        reservations.saveAndFlush(otherDate);
+        save("Miramar", "Córdoba", "09:00", "IDA", false, "REGULAR", DATE, "CONFIRMED", null);
+        assertThat(reservations.findSpecialAgendaTrips(DATE))
+                .extracting(Reservation::getId).containsExactly(active.getId());
     }
 
     @ParameterizedTest

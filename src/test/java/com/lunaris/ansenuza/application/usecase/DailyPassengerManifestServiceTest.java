@@ -11,6 +11,36 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DailyPassengerManifestServiceTest {
     @Test
+    void includesSpecialTripsWithCustomRouteAndBothPaymentStates() {
+        var paid = Reservation.builder().reservationCode("ESP-001")
+                .passenger(Passenger.builder().firstName("Ana").lastName("Pérez").build())
+                .departureSchedule("09:00").originCustom("Hotel Central")
+                .destinationCustom("Aeropuerto").passengerCount(4).paymentVerified(true).build();
+        var pending = Reservation.builder().reservationCode("ESP-002")
+                .pickupLocality("Miramar").destination("Córdoba")
+                .passengerCount(2).paymentVerified(false).build();
+        String pdf = new String(new DailyPassengerManifestService().generatePdf(
+                LocalDate.of(2026, 9, 12), List.of(), List.of(paid, pending)),
+                java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(pdf.contains("Viajes Especiales"));
+        assertTrue(pdf.contains("09:00 | ESP-001 | Ana Pérez | Hotel Central -> Aeropuerto | 4 | VERIFICADO"));
+        assertTrue(pdf.contains("ESP-002 | Sin pasajero | Miramar -> Córdoba | 2 | PENDIENTE"));
+    }
+
+    @Test
+    void paginatesSoSpecialTripsRemainVisibleAfterLargeRegularManifest() {
+        var regular = java.util.stream.IntStream.range(0, 80)
+                .mapToObj(i -> Reservation.builder().pickupLocality("Morteros").build()).toList();
+        var special = Reservation.builder().reservationCode("LAST-SPECIAL").passengerCount(3).build();
+        String pdf = new String(new DailyPassengerManifestService().generatePdf(
+                LocalDate.of(2026, 9, 12), regular, List.of(special)),
+                java.nio.charset.StandardCharsets.ISO_8859_1);
+        assertTrue(pdf.contains("/Count 3"));
+        assertTrue(pdf.contains("LAST-SPECIAL"));
+        assertTrue(pdf.endsWith("%%EOF"));
+    }
+
+    @Test
     void separatesUniquePeopleFromSeatsAcrossOutboundAndReturnLegs() {
         Passenger passenger = Passenger.builder().id(UUID.randomUUID())
                 .firstName("Ana").lastName("Pérez").phone("5493515550101").build();

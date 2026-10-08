@@ -335,13 +335,15 @@ public class AgendaViewController {
     }
 
     @GetMapping(value = "/admin/agenda/manifiesto-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<byte[]> dailyManifestPdf(
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate date) {
         LocalDate operationDate = date == null ? com.lunaris.ansenuza.shared.ArgentinaTime.today() : date;
         List<Reservation> reservations = reservationRepository.findDailyManifest(operationDate);
-        byte[] pdf = new DailyPassengerManifestService().generatePdf(operationDate, reservations);
+        byte[] pdf = new DailyPassengerManifestService().generatePdf(operationDate, reservations,
+                reservationRepository.findSpecialAgendaTrips(operationDate));
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION,

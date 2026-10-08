@@ -6,6 +6,7 @@ import com.lunaris.ansenuza.domain.model.service.TripRouteCalculatorService;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -17,14 +18,30 @@ public class DailyPassengerManifestService {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public byte[] generatePdf(LocalDate date, List<Reservation> reservations) {
-        StringBuilder stream = new StringBuilder("BT /F1 9 Tf 30 550 Td ");
+        return generatePdf(date, reservations, List.of());
+    }
+
+    public byte[] generatePdf(LocalDate date, List<Reservation> reservations, List<Reservation> specialTrips) {
+        List<String> stream = new ArrayList<>();
         line(stream, "Lunaris Ansenuza - Manifiesto Diario de Pasajeros");
         line(stream, "Fecha: " + DATE.format(date) + " | Pasajeros únicos: "
                 + uniquePassengers(reservations) + " | Butacas reservadas: " + reservedSeats(reservations));
         section(stream, "TRAMOS DE IDA (Pueblos -> Cordoba)", reservations, false);
         section(stream, "TRAMOS DE VUELTA (Cordoba -> Pueblos)", reservations, true);
-        stream.append("ET");
-        return buildPdf(stream.toString());
+        line(stream, "");
+        line(stream, "Viajes Especiales");
+        line(stream, "Horario | Codigo | Pasajero principal | Trayecto | Pasajeros | Pago");
+        if (specialTrips.isEmpty()) {
+            line(stream, "Sin viajes especiales activos para la fecha.");
+        }
+        specialTrips.stream().sorted(Comparator.comparing(this::schedule).thenComparing(this::name))
+                .forEach(r -> line(stream, text(r.getDepartureSchedule()) + " | "
+                        + text(r.getReservationCode()) + " | " + name(r) + " | "
+                        + routeEndpoint(r.getOriginCustom(), r.getPickupLocality()) + " -> "
+                        + routeEndpoint(r.getDestinationCustom(), r.getDestination()) + " | "
+                        + r.getPassengerCount() + " | "
+                        + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "VERIFICADO" : "PENDIENTE")));
+        return buildPdf(stream);
     }
 
     /** Personas físicas, deduplicadas entre los tramos de ida y vuelta del manifiesto. */
@@ -49,7 +66,7 @@ public class DailyPassengerManifestService {
                 .sum();
     }
 
-    private void section(StringBuilder out, String title, List<Reservation> all, boolean returns) {
+    private void section(List<String> out, String title, List<Reservation> all, boolean returns) {
         line(out, "");
         line(out, title);
         line(out, "Horario | Pasajero | Telefono | Origen/Punto de ascenso | Destino | Asientos | Pago");
@@ -61,28 +78,58 @@ public class DailyPassengerManifestService {
                         + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "VERIFICADO" : "PENDIENTE")));
     }
 
-    private byte[] buildPdf(String stream) {
-        byte[] content = stream.getBytes(StandardCharsets.ISO_8859_1);
-        String objects = "1 0 obj<< /Type /Catalog /Pages 2 0 R>>endobj\n"
-                + "2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1>>endobj\n"
-                + "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources<< /Font<< /F1 4 0 R>>>> /Contents 5 0 R>>endobj\n"
-                + "4 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica>>endobj\n"
-                + "5 0 obj<< /Length " + content.length + ">>stream\n" + stream + "\nendstream endobj\n";
-        String header = "%PDF-1.4\n";
-        int start = header.length();
-        String xref = "xref\n0 6\n0000000000 65535 f \n"
-                + String.format("%010d 00000 n \n", start)
-                + String.format("%010d 00000 n \n", start + objects.indexOf("2 0 obj"))
-                + String.format("%010d 00000 n \n", start + objects.indexOf("3 0 obj"))
-                + String.format("%010d 00000 n \n", start + objects.indexOf("4 0 obj"))
-                + String.format("%010d 00000 n \n", start + objects.indexOf("5 0 obj"));
-        String trailer = "trailer<< /Size 6 /Root 1 0 R>>\nstartxref\n" + (start + objects.length()) + "\n%%EOF";
-        return (header + objects + xref + trailer).getBytes(StandardCharsets.ISO_8859_1);
+    private byte[] buildPdf(List<String> lines) {
+        int linesPerPage = 39;
+        int pageCount = (lines.size() + linesPerPage - 1) / linesPerPage;
+        List<String> objects = new ArrayList<>();
+        objects.add("<< /Type /Catalog /Pages 2 0 R>>");
+        StringBuilder kids = new StringBuilder();
+        for (int page = 0; page < pageCount; page++) {
+            kids.append(4 + page * 2).append(" 0 R ");
+        }
+        objects.add("<< /Type /Pages /Kids [" + kids + "] /Count " + pageCount + ">>");
+        objects.add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding>>");
+        for (int page = 0; page < pageCount; page++) {
+            StringBuilder stream = new StringBuilder("BT /F1 9 Tf 30 550 Td ");
+            for (String value : lines.subList(page * linesPerPage,
+                    Math.min(lines.size(), (page + 1) * linesPerPage))) {
+                stream.append('(').append(value.replace("\\", "\\\\")
+                        .replace("(", "\\(").replace(")", "\\)"))
+                        .append(") Tj 0 -13 Td ");
+            }
+            stream.append("ET");
+            objects.add("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] "
+                    + "/Resources<< /Font<< /F1 3 0 R>>>> /Contents " + (5 + page * 2) + " 0 R>>");
+            objects.add("<< /Length " + stream.toString().getBytes(StandardCharsets.ISO_8859_1).length
+                    + ">>stream\n" + stream + "\nendstream");
+        }
+        StringBuilder pdf = new StringBuilder("%PDF-1.4\n");
+        List<Integer> offsets = new ArrayList<>();
+        for (int i = 0; i < objects.size(); i++) {
+            offsets.add(pdf.length());
+            pdf.append(i + 1).append(" 0 obj").append(objects.get(i)).append("\nendobj\n");
+        }
+        int xref = pdf.length();
+        pdf.append("xref\n0 ").append(objects.size() + 1).append("\n0000000000 65535 f \n");
+        offsets.forEach(offset -> pdf.append(String.format("%010d 00000 n \n", offset)));
+        pdf.append("trailer<< /Size ").append(objects.size() + 1)
+                .append(" /Root 1 0 R>>\nstartxref\n").append(xref).append("\n%%EOF");
+        return pdf.toString().getBytes(StandardCharsets.ISO_8859_1);
     }
 
-    private void line(StringBuilder out, String value) {
-        out.append('(').append(value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)"))
-                .append(") Tj 0 -13 Td ");
+    private void line(List<String> out, String value) {
+        // Keep long custom routes inside the printable width without dropping information.
+        String normalized = new String(value.getBytes(StandardCharsets.ISO_8859_1),
+                StandardCharsets.ISO_8859_1).replace('\n', ' ').replace('\r', ' ');
+        while (normalized.length() > 140) {
+            out.add(normalized.substring(0, 140));
+            normalized = normalized.substring(140);
+        }
+        out.add(normalized);
+    }
+
+    private String routeEndpoint(String custom, String fallback) {
+        return text(custom).isBlank() ? text(fallback) : text(custom);
     }
     private boolean isReturn(Reservation r) { return "VUELTA".equalsIgnoreCase(r.getRouteDirection()) || TripRouteCalculatorService.isCordoba(r.getPickupLocality()); }
     private String schedule(Reservation r) { return text(r.getDepartureSchedule()).isBlank() ? "03:00" : text(r.getDepartureSchedule()); }
