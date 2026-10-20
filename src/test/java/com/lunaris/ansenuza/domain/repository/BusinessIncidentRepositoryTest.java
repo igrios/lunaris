@@ -21,6 +21,7 @@ class BusinessIncidentRepositoryTest {
     @Autowired ChatMessageRepository messages;
     @Autowired ReservationRepository reservations;
     @Autowired InvoiceRepository invoices;
+    @Autowired InquiryRepository inquiries;
     @Autowired ReservationEventRepository events;
 
     @Test
@@ -40,6 +41,34 @@ class BusinessIncidentRepositoryTest {
         assertThat(row.getPassengerName()).isEqualTo("Ana Pérez");
         assertThat(row.getLastMessage()).isEqualTo("nuevo");
         assertThat(row.getCurrentStep()).isEqualTo("ASK_DATE");
+    }
+
+    @Test
+    void monitorPersistsAndProjectsSpecialDetailsAndLatestPendingInquiry() {
+        var session = sessions.saveAndFlush(ConversationSession.builder().phoneNumber("789")
+                .passengerName("Ana Pérez").build());
+        var service = new BotMonitorService(sessions, mock(SimpMessagingTemplate.class));
+        service.updateSpecialTrip(session.getId(), new BotMonitorService.SpecialTripDetails(
+                " Suardi ", "Alta Gracia", LocalDate.of(2030, 1, 2), 4, new BigDecimal("83000.01")));
+        for (int index = 0; index < 2; index++) {
+            var now = LocalDateTime.now().plusSeconds(index);
+            inquiries.saveAndFlush(Inquiry.builder().phone("789").message("Consulta " + index)
+                    .status(InquiryStatus.PENDING).createdAt(now).updatedAt(now).build());
+        }
+        assertThat(sessions.findMonitorRows()).hasSize(1);
+        var row = sessions.findMonitorRows().getFirst();
+        assertThat(row.getInquiryMessage()).isEqualTo("Consulta 1");
+        assertThat(row.getTripCategory()).isEqualTo("SPECIAL");
+        assertThat(row.getOriginCustom()).isEqualTo("Suardi");
+        assertThat(row.getDestinationCustom()).isEqualTo("Alta Gracia");
+        assertThat(row.getPassengerCount()).isEqualTo(4);
+        assertThat(row.getTravelDate()).isEqualTo(LocalDate.of(2030, 1, 2));
+        assertThat(row.getCustomPrice()).isEqualByComparingTo("83000.01");
+        assertThat(service.specialTrip(session.getId()).getCustomPrice()).isEqualByComparingTo("83000.01");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.updateSpecialTrip(session.getId(),
+                new BotMonitorService.SpecialTripDetails("Suardi", "Alta Gracia", null, 10, BigDecimal.ONE)))
+                .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class);
+        assertThat(session.getPassengerCount()).isEqualTo(4);
     }
 
     @Test

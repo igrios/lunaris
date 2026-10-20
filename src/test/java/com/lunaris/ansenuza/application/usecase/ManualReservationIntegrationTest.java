@@ -156,6 +156,37 @@ class ManualReservationIntegrationTest {
     }
 
     @Test
+    void specialAgreedGroupTotalIsPersistedWithoutMultiplyingPassengers() {
+        Reservation input = specialBooking();
+        input.setCustomPrice(new BigDecimal("83000.01"));
+        input.setCustomPriceIsTotal(true);
+        input.setPassengerCount(9);
+        Reservation saved = manual.execute(input, null).getFirst();
+        reservations.flush();
+        Reservation stored = reservations.findById(saved.getId()).orElseThrow();
+        assertThat(stored.getAmount()).isEqualByComparingTo("83000.01");
+        assertThat(stored.isCustomPriceIsTotal()).isTrue();
+        assertThat(stored.getTripCategory()).isEqualTo(TripCategory.SPECIAL);
+        assertThat(stored.getPaymentStatus()).isEqualTo(PaymentStatus.PENDING);
+        assertThat(stored.getPickupLocality()).isEqualTo("De Suardi");
+        assertThat(stored.getDestination()).isEqualTo("Alta Gracia");
+        verifyNoInteractions(pricing, capacity, storage);
+    }
+
+    @Test
+    void specialAgreedTotalIsDistributedAcrossRoundTripLegsOnce() {
+        Reservation input = specialBooking();
+        input.setCustomPrice(new BigDecimal("83000.01"));
+        input.setCustomPriceIsTotal(true);
+        input.setRoundTrip(true);
+        input.setTripType(TripType.ROUND_TRIP);
+        input.setReturnDate(input.getTravelDate().plusDays(2));
+        var legs = manual.execute(input, "19:15");
+        assertThat(legs).hasSize(2).allMatch(Reservation::isCustomPriceIsTotal);
+        assertThat(BookingInvoiceAmount.total(legs)).isEqualByComparingTo("83000.01");
+    }
+
+    @Test
     void specialPassengerLimitAndPerPersonPriceAreEnforcedInDomain() {
         for (int count : new int[] {0, 10}) {
             Reservation invalid = specialBooking();

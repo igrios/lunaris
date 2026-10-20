@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import java.time.LocalDate;
+import com.lunaris.ansenuza.application.usecase.BotMonitorService;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -41,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j    
 public class ReservationViewController {
 
+    private final BotMonitorService botMonitorService;
     private final PassengerRepository passengerRepository;
     private final LocalityRepository localityRepository;
     private final ReservationService reservationService;
@@ -56,14 +58,38 @@ public class ReservationViewController {
     @GetMapping("/new")
     public String newReservation(
             @RequestParam(defaultValue = "REGULAR") TripCategory tripCategory,
+            @RequestParam(required = false) Long sessionId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             Model model) {
         var form = new CreateReservationForm();
         form.setTripCategory(tripCategory);
         form.setTravelDate(travelDate);
+        if (sessionId != null) {
+            var session = botMonitorService.specialTrip(sessionId);
+            tripCategory = TripCategory.SPECIAL;
+            form.setTripCategory(tripCategory);
+            form.setPhone(session.getPhoneNumber());
+            form.setOriginCustom(session.getOriginCustom());
+            form.setDestinationCustom(session.getDestinationCustom());
+            form.setCustomPrice(session.getCustomPrice());
+            form.setCustomPriceIsTotal(true);
+            form.setTravelDate(session.getTravelDate());
+            form.setPassengerCount(session.getPassengerCount());
+            form.setPickupAddress(session.getPickupAddress());
+            var passenger = passengerRepository.findFirstByPhone(session.getPhoneNumber()).orElse(null);
+            if (passenger != null) {
+                form.setFirstName(passenger.getFirstName());
+                form.setLastName(passenger.getLastName());
+                form.setCuil(passenger.getCuil());
+            } else if (session.getPassengerName() != null && !session.getPassengerName().isBlank()) {
+                String[] name = session.getPassengerName().trim().split("\\s+", 2);
+                form.setFirstName(name[0]);
+                form.setLastName(name.length > 1 ? name[1] : null);
+            }
+        }
         model.addAttribute("reservation", form);
         model.addAttribute("initialTripCategory", tripCategory.name());
-        model.addAttribute("initialTravelDate", travelDate);
+        model.addAttribute("initialTravelDate", form.getTravelDate());
         
         // 🎯 Usamos el método filtrado para traer solo los pueblos con tarifas comerciales activas
         var localidadesConTarifa = tripCategory == TripCategory.REGULAR

@@ -329,6 +329,7 @@ public class ReservationService {
             returnReservation.setOriginCustom(mainReservation.getDestinationCustom());
             returnReservation.setDestinationCustom(mainReservation.getOriginCustom());
             returnReservation.setCustomPrice(mainReservation.getCustomPrice());
+            returnReservation.setCustomPriceIsTotal(mainReservation.isCustomPriceIsTotal());
             returnReservation.setPaymentStatus(mainReservation.getPaymentStatus());
             String returnDirection = oppositeDirection(outboundDirection);
             returnReservation.setRouteDirection(returnDirection);

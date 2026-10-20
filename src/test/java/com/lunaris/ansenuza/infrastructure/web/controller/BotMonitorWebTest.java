@@ -124,4 +124,39 @@ class BotMonitorWebTest {
                 .with(csrf()).with(user("op").roles("OPERADOR"))).andExpect(status().isNoContent());
         verify(monitor).setPaused(1L, true);
     }
+    @Test void specialRequestDetailsAndPrefillLinkRenderInFullAndLiveViews() throws Exception {
+        var row = mock(ConversationSessionRepository.MonitorRow.class);
+        when(row.getId()).thenReturn(42L);
+        when(row.getPhoneNumber()).thenReturn("5493511234567");
+        when(row.getPassengerName()).thenReturn("Ana Pérez");
+        when(row.getTripCategory()).thenReturn("SPECIAL");
+        when(row.getOriginCustom()).thenReturn("Suardi <script>");
+        when(row.getDestinationCustom()).thenReturn("Alta Gracia");
+        when(row.getTravelDate()).thenReturn(java.time.LocalDate.of(2030, 1, 2));
+        when(row.getPassengerCount()).thenReturn(4);
+        when(row.getCustomPrice()).thenReturn(new java.math.BigDecimal("83000.01"));
+        when(monitor.rows()).thenReturn(List.of(row));
+        for (String url : List.of("/admin/bot/monitor", "/admin/bot/monitor/rows")) {
+            mvc.perform(get(url).with(user("op").roles("OPERADOR")))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Viaje Especial (Libre / Personalizado)")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Suardi &lt;script&gt;")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("Alta Gracia")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("02/01/2030")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("83.000,01")))
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString("/reservations/new?sessionId=42")));
+        }
+    }
+
+    @Test void operatorCanCaptureStructuredSpecialDetails() throws Exception {
+        mvc.perform(post("/admin/bot/monitor/special-trip").with(csrf()).with(user("op").roles("OPERADOR"))
+                .param("id", "42").param("originCustom", "Suardi").param("destinationCustom", "Alta Gracia")
+                .param("travelDate", "2030-01-02").param("passengerCount", "4").param("customPrice", "83000.01"))
+                .andExpect(redirectedUrl("/admin/bot/monitor"));
+        verify(monitor).updateSpecialTrip(42L, new BotMonitorService.SpecialTripDetails("Suardi", "Alta Gracia",
+                java.time.LocalDate.of(2030, 1, 2), 4, new java.math.BigDecimal("83000.01")));
+        mvc.perform(post("/admin/bot/monitor/special-trip").with(csrf()).with(user("driver").roles("CHOFER"))
+                .param("id", "42")).andExpect(status().isForbidden());
+    }
+
 }

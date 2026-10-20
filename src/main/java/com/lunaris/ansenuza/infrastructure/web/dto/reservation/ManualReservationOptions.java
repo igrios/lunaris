@@ -24,6 +24,7 @@ public class ManualReservationOptions {
     @Digits(integer = 8, fraction = 2)
     @DecimalMin(value = "0", inclusive = false)
     private BigDecimal customPrice;
+    private boolean customPriceIsTotal;
     @NotNull
     private PaymentStatus paymentStatus =
             PaymentStatus.PENDING;

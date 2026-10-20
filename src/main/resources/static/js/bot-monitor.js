@@ -15,7 +15,10 @@
                 html.innerHTML = await response.text();
                 const rows = html.querySelector('#monitorBody');
                 if (!rows) throw new Error('Respuesta inválida del monitor');
-                document.getElementById('monitorBody').replaceWith(rows);
+                // Conserva los datos que el operador está editando durante las actualizaciones en vivo.
+                if (!document.querySelector('.special-trip-editor[open]')) {
+                    document.getElementById('monitorBody').replaceWith(rows);
+                }
             }
         } catch (error) {
             badge.textContent = error.message;
@@ -39,6 +42,9 @@
         } catch (error) { alert(error.message); }
         finally { button.disabled = false; }
     });
+    document.addEventListener('toggle', event => {
+        if (event.target.matches?.('.special-trip-editor') && !event.target.open) refreshRows();
+    }, true);
     function connect() {
         const stomp = Stomp.over(new SockJS('/chat-websocket'));
         stomp.debug = null;

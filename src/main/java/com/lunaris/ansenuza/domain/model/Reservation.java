@@ -111,9 +111,12 @@ public class Reservation {
     @Column(name = "destination_custom", length = 100)
     private String destinationCustom;
 
-    /** Precio total del grupo, sin multiplicarlo por pasajeros ni tramos. */
+    /** Precio acordado: por persona salvo que customPriceIsTotal sea true. */
     @Column(name = "custom_price", precision = 10, scale = 2)
     private BigDecimal customPrice;
+
+    @Column(name = "custom_price_is_total", nullable = false)
+    private boolean customPriceIsTotal;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
@@ -320,8 +323,8 @@ public class Reservation {
         }
         pickupLocality = originCustom;
         destination = destinationCustom;
-        amount = customPrice.multiply(BigDecimal.valueOf(passengerCount));
-        // Precio por persona para todo el recorrido; el servicio distribuye el total entre tramos.
+        amount = customPriceIsTotal ? customPrice : customPrice.multiply(BigDecimal.valueOf(passengerCount));
+        // El servicio distribuye el total acordado entre tramos.
         extraAmount = BigDecimal.ZERO;
         discountAmount = BigDecimal.ZERO;
         amountIsGroupTotal = false;

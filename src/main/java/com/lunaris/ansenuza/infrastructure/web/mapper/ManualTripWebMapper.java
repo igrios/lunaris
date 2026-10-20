@@ -14,6 +14,7 @@ public final class ManualTripWebMapper {
         reservation.setOriginCustom(options.getOriginCustom());
         reservation.setDestinationCustom(options.getDestinationCustom());
         reservation.setCustomPrice(options.getCustomPrice());
+        reservation.setCustomPriceIsTotal(options.isCustomPriceIsTotal());
         reservation.setPaymentStatus(options.getPaymentStatus());
         reservation.setAmount(options.getAmount());
         reservation.setExtraAmount(options.getExtraAmount());

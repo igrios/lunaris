@@ -43,6 +43,50 @@ class ReservationViewControllerTest {
     }
 
     @Test
+    void sessionLinkPreloadsSpecialFormAndPassengerFromDatabase() throws Exception {
+        var monitor = mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class);
+        var passengers = mock(PassengerRepository.class);
+        var localities = mock(LocalityRepository.class);
+        var session = com.lunaris.ansenuza.domain.model.ConversationSession.builder()
+                .id(42L).phoneNumber("5493511234567").passengerName("Ana Pérez")
+                .tripCategory(com.lunaris.ansenuza.domain.model.TripCategory.SPECIAL)
+                .originCustom("Suardi").destinationCustom("Alta Gracia")
+                .travelDate(LocalDate.of(2030, 1, 2)).passengerCount(4)
+                .customPrice(new java.math.BigDecimal("83000.01")).build();
+        when(monitor.specialTrip(42L)).thenReturn(session);
+        when(passengers.findFirstByPhone(session.getPhoneNumber())).thenReturn(Optional.of(
+                Passenger.builder().firstName("Ana").lastName("Pérez").cuil("27123456789").build()));
+        var controller = new ReservationViewController(monitor, passengers, localities,
+                mock(ReservationService.class), mock(ReservationRepository.class),
+                mock(PricingAndScheduleService.class), mock(DriverRepository.class), mock(WhatsAppService.class),
+                mock(WaitingListService.class), mock(WaitingListConversionService.class),
+                mock(WaitingListReengagementService.class),
+                mock(com.lunaris.ansenuza.application.usecase.NewsBannerService.class));
+        var model = new org.springframework.ui.ExtendedModelMap();
+        assertEquals("reservation-form", controller.newReservation(
+                com.lunaris.ansenuza.domain.model.TripCategory.REGULAR, 42L, null, model));
+        var form = (com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm)
+                model.get("reservation");
+        assertEquals("SPECIAL", model.get("initialTripCategory"));
+        assertEquals("Ana", form.getFirstName());
+        assertEquals("Pérez", form.getLastName());
+        assertEquals(session.getPhoneNumber(), form.getPhone());
+        assertEquals("Suardi", form.getOriginCustom());
+        assertEquals("Alta Gracia", form.getDestinationCustom());
+        assertEquals(session.getTravelDate(), form.getTravelDate());
+        assertEquals(4, form.getPassengerCount());
+        assertEquals(session.getCustomPrice(), form.getCustomPrice());
+        org.assertj.core.api.Assertions.assertThat(form.isCustomPriceIsTotal()).isTrue();
+        assertEquals(com.lunaris.ansenuza.domain.model.PaymentStatus.PENDING, form.getPaymentStatus());
+        org.mockito.Mockito.verifyNoInteractions(localities);
+        when(passengers.findFirstByPhone(session.getPhoneNumber())).thenReturn(Optional.empty());
+        controller.newReservation(com.lunaris.ansenuza.domain.model.TripCategory.REGULAR, 42L, null, model);
+        form = (com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm) model.get("reservation");
+        assertEquals("Ana", form.getFirstName());
+        assertEquals("Pérez", form.getLastName());
+    }
+
+    @Test
     void standardEntryKeepsRegularMode() throws Exception {
         LocalityRepository localities = mock(LocalityRepository.class);
         var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -54,7 +98,7 @@ class ReservationViewControllerTest {
     }
 
     private ReservationViewController formController(LocalityRepository localities) {
-        return new ReservationViewController(mock(PassengerRepository.class), localities,
+        return new ReservationViewController(mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class), mock(PassengerRepository.class), localities,
                 mock(ReservationService.class), mock(ReservationRepository.class),
                 mock(PricingAndScheduleService.class), mock(DriverRepository.class), mock(WhatsAppService.class),
                 mock(WaitingListService.class), mock(WaitingListConversionService.class),
@@ -68,7 +112,7 @@ class ReservationViewControllerTest {
         DriverRepository drivers = mock(DriverRepository.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
         ReservationService reservationService = mock(ReservationService.class);
-        ReservationViewController controller = new ReservationViewController(
+        ReservationViewController controller = new ReservationViewController(mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class),
                 mock(PassengerRepository.class),
                 mock(LocalityRepository.class),
                 reservationService,

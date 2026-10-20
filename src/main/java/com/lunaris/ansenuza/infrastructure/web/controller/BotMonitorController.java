@@ -70,6 +70,20 @@ public class BotMonitorController {
         return "admin/bot-monitor :: monitorRows";
     }
 
+    @PostMapping("/monitor/special-trip")
+    public String updateSpecialTrip(@RequestParam long id,
+            @org.springframework.web.bind.annotation.ModelAttribute
+            com.lunaris.ansenuza.application.usecase.BotMonitorService.SpecialTripDetails details,
+            RedirectAttributes redirect) {
+        try {
+            botMonitorService.updateSpecialTrip(id, details);
+            redirect.addFlashAttribute("successMessage", "Datos del viaje especial guardados.");
+        } catch (com.lunaris.ansenuza.domain.exception.DomainValidationException exception) {
+            redirect.addFlashAttribute("errorMessage", exception.getMessage());
+        }
+        return "redirect:/admin/bot/monitor";
+    }
+
     @PostMapping("/monitor/pause")
     @ResponseBody
     public ResponseEntity<Void> pause(@RequestParam long id, @RequestParam boolean paused) {

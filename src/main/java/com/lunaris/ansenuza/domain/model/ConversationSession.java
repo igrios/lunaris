@@ -36,6 +36,20 @@ public class ConversationSession {
     @Column(name = "last_interaction")
     private LocalDateTime lastInteraction;
 
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "trip_category", length = 16)
+    private TripCategory tripCategory;
+
+    @Column(name = "origin_custom", length = 100)
+    private String originCustom;
+
+    @Column(name = "destination_custom", length = 100)
+    private String destinationCustom;
+
+    /** Total acordado para todos los pasajeros. */
+    @Column(name = "custom_price", precision = 10, scale = 2)
+    private java.math.BigDecimal customPrice;
+
     private String pickupLocality;
     private String passengerName;
     private String pickupAddress;

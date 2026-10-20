@@ -98,6 +98,7 @@ public class AdminReservationApiController {
             String originCustom,
             String destinationCustom,
             BigDecimal customPrice,
+            boolean customPriceIsTotal,
             com.lunaris.ansenuza.domain.model.PaymentStatus paymentStatus,
             boolean invoiceIssued) {
 
@@ -133,6 +134,7 @@ public class AdminReservationApiController {
                     reservation.getOriginCustom(),
                     reservation.getDestinationCustom(),
                     reservation.getCustomPrice(),
+                    reservation.isCustomPriceIsTotal(),
                     Boolean.TRUE.equals(reservation.getPaymentVerified())
                             ? com.lunaris.ansenuza.domain.model.PaymentStatus.PAID
                             : com.lunaris.ansenuza.domain.model.PaymentStatus.PENDING,

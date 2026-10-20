@@ -9,6 +9,7 @@ El panel de este repositorio es Thymeleaf/JavaScript (no contiene un frontend Re
 - En ida y vuelta, el importe y el descuento corresponden al grupo y se distribuyen entre tramos. El adicional se registra una sola vez.
 - El alta manual no consume automáticamente saldo a favor ni marca el pago como verificado.
 - La modalidad de regreso determina `tripType`: solo ida, ida y vuelta o vuelta abierta.
+- El formulario de viajes especiales envía `tripCategory=SPECIAL`, `originCustom`, `destinationCustom`, `customPrice` y `customPriceIsTotal=true`: el precio cubre todos los pasajeros y ambos tramos si hay regreso. El pago inicial es `PENDING`. Las cargas existentes que omiten `customPriceIsTotal` conservan el precio por persona. Flyway V134 agrega esta distinción sin modificar importes históricos.
 
 ## Facturación manual
 
@@ -35,3 +36,9 @@ El evento de alta se procesa explícitamente en `AFTER_COMMIT`; las llamadas al 
 Los resultados del adaptador registran aceptación/rechazo del envío por Meta, no lectura ni entrega final al dispositivo. Los envíos fallidos se reintentan cada 60 segundos (`lunaris.manual-notification.retry-ms`). Se usa un reclamo de cinco minutos para evitar envíos concurrentes y recuperar intentos interrumpidos. Como Meta no recibe una clave de idempotencia, un reinicio después de aceptar el mensaje y antes de guardar el resultado puede producir un reenvío.
 
 Aplicar Flyway V128 antes de ejecutar esta versión.
+
+## Solicitudes especiales desde el monitor
+
+El monitor muestra el detalle estructurado de las sesiones con `tripCategory=SPECIAL` y la última consulta pendiente de cada teléfono. Las consultas de la opción «Consulta / Viaje Especial» son texto libre y no se clasifican ni cotizan automáticamente. El operador puede usar «Registrar / editar solicitud especial» para confirmar origen, destino, fecha, pasajeros y precio total; los datos aún desconocidos quedan pendientes.
+
+«Crear reserva especial» abre `/reservations/new?sessionId=...` y carga los datos de la sesión y del pasajero desde el servidor. Abrir el formulario no crea la reserva ni confirma el pago. El operador revisa y completa los campos antes de guardar. Aplicar Flyway V135 para los campos de la sesión.
