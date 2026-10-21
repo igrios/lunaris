@@ -383,17 +383,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
                   OR UPPER(COALESCE(r.status, '')) = 'CONFIRMED'
                   OR (r.paymentReceiptUrl IS NOT NULL AND TRIM(r.paymentReceiptUrl) <> '' AND r.paymentReceiptUrl <> 'null'))
            AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED')
-           AND r.id NOT IN (SELECT i.reservation.id FROM Invoice i)
            AND NOT EXISTS (
-               SELECT groupedInvoice.id FROM Invoice groupedInvoice
-               WHERE (r.bookingGroupCode IS NOT NULL
-                      AND r.bookingGroupCode = groupedInvoice.reservation.bookingGroupCode)
-                  OR (r.reservationCode LIKE '%-IDA'
-                      AND groupedInvoice.reservation.reservationCode = CONCAT(
-                          SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 4), '-VUELTA'))
-                  OR (r.reservationCode LIKE '%-VUELTA'
-                      AND groupedInvoice.reservation.reservationCode = CONCAT(
-                          SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 7), '-IDA'))
+               SELECT billed.id FROM Reservation billed
+               WHERE (billed.id = r.id OR
+                   CASE
+                       WHEN TRIM(COALESCE(billed.bookingGroupCode, '')) <> '' THEN billed.bookingGroupCode
+                       WHEN billed.reservationCode LIKE '%-IDA' THEN SUBSTRING(billed.reservationCode, 1, LENGTH(billed.reservationCode) - 4)
+                       WHEN billed.reservationCode LIKE '%-VUELTA' THEN SUBSTRING(billed.reservationCode, 1, LENGTH(billed.reservationCode) - 7)
+                       ELSE billed.reservationCode
+                   END =
+                   CASE
+                       WHEN TRIM(COALESCE(r.bookingGroupCode, '')) <> '' THEN r.bookingGroupCode
+                       WHEN r.reservationCode LIKE '%-IDA' THEN SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 4)
+                       WHEN r.reservationCode LIKE '%-VUELTA' THEN SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 7)
+                       ELSE r.reservationCode
+                   END)
+               AND (billed.invoiceIssued = true OR EXISTS (
+                   SELECT invoice.id FROM Invoice invoice WHERE invoice.reservationId = billed.id
+               ))
            )
            """)
     List<Reservation> findPendingInvoiceReservations();

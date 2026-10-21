@@ -55,4 +55,49 @@ class BillingAuditPersistenceTest {
         persistence.persistUploadedInvoice(data(back));
         assertThat(invoices.count()).isEqualTo(2);
     }
+
+    @Test void issuedInvoiceExcludesLegacySpecialGroupEvenWithoutUpdatedFlags() {
+        var outbound = leg("ESP-C60C259A7-IDA", true);
+        outbound.setBookingGroupCode("ESP-C60C259A7");
+        var back = leg("ESP-C60C259A7-VUELTA", true);
+        back.setBookingGroupCode(null);
+        invoices.saveAndFlush(Invoice.builder().reservationId(back.getId())
+                .invoiceNumber("0001-123").amount(new BigDecimal("158000"))
+                .sentViaWhatsapp(false).build());
+        var pending = leg("ESP-C60C259A70", true);
+        pending.setBookingGroupCode("ESP-C60C259A70");
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(reservations.findPendingInvoiceReservations())
+                .extracting(Reservation::getId).containsExactly(pending.getId());
+        assertThat(panel.execute().pendientes()).extracting(row -> row.reservationCode())
+                .containsExactly("ESP-C60C259A70");
+        assertThat(panel.execute().emitidas()).hasSize(1);
+    }
+
+    @Test void issuedMarkerOnOneLegExcludesWholeGroupWithoutInvoiceRecord() {
+        var outbound = leg("AUDIT-IDA", true);
+        leg("AUDIT-VUELTA", true);
+        outbound.setInvoiceIssued(true);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(reservations.findPendingInvoiceReservations()).isEmpty();
+        assertThat(panel.execute().pendientes()).isEmpty();
+    }
+
+    @Test void individualWithIssuedInvoiceIsNotPendingRegardlessOfDelivery() {
+        var individual = leg("INDIVIDUAL", true);
+        individual.setBookingGroupCode(null);
+        invoices.saveAndFlush(Invoice.builder().reservationId(individual.getId())
+                .invoiceNumber("0001-124").amount(new BigDecimal("79000"))
+                .sentViaWhatsapp(false).build());
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(reservations.findPendingInvoiceReservations()).isEmpty();
+        assertThat(panel.execute().pendientes()).isEmpty();
+        assertThat(panel.execute().emitidas()).hasSize(1);
+    }
 }

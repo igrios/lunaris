@@ -91,6 +91,7 @@ public class GetBillingPanelUseCase {
             return complete.isEmpty() ? legs : complete;
         });
         return groups.values().stream()
+                .filter(legs -> legs.stream().noneMatch(Reservation::isInvoiceIssued))
                 .filter(legs -> combinedAmount(legs).signum() > 0)
                 .map(this::toRow)
                 .toList();
