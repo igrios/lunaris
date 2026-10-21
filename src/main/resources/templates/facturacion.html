@@ -52,14 +52,14 @@
         <!-- 📤 PENDIENTES DE FACTURAR -->
         <div class="card shadow-sm bg-white mb-4">
             <div class="card-body p-4">
-                <h4 class="fw-bold mb-3">📤 Pagos confirmados pendientes de factura</h4>
+                <h4 class="fw-bold mb-3">📤 Reservas pendientes de factura</h4>
                 <p class="text-muted small">
                     La factura se arma aparte. Acá tenés el CUIL (calculado desde el DNI si hace falta),
                     subís el PDF y se envía por WhatsApp al pasajero.
                 </p>
 
                 <div class="alert alert-light border" th:if="${panel.pendientes.isEmpty()}">
-                    ✅ No hay pagos confirmados pendientes de facturar.
+                    ✅ No hay reservas pendientes de facturar.
                 </div>
 
                 <div class="table-responsive" th:unless="${panel.pendientes.isEmpty()}">
@@ -78,7 +78,9 @@
                             <tr th:each="row : ${panel.pendientes}">
                                 <td>
                                     <span class="fw-semibold" th:text="${row.reservationCode}">COD</span><br>
-                                    <small class="text-muted" th:text="${row.travelDate}"></small>
+                                    <small class="text-muted" th:text="${row.travelDate}"></small><br>
+                                    <span class="badge" th:classappend="${row.paymentVerified ? 'bg-success' : 'bg-warning text-dark'}"
+                                          th:text="${row.paymentVerified ? 'Pago validado' : 'Pago pendiente de validar'}"></span>
                                 </td>
                                 <td>
                                     <span th:text="${row.passengerName}">Nombre</span><br>
@@ -95,7 +97,8 @@
                                 <td class="text-end fw-semibold"
                                     th:text="${'$' + #numbers.formatDecimal(row.amount, 1, 'POINT', 2, 'COMMA')}">$0,00</td>
                                 <td>
-                                    <form th:action="@{'/facturacion/emitir/' + ${row.reservationId}}"
+                                    <small th:unless="${row.paymentVerified}" class="text-muted">Validar el pago del grupo antes de emitir.</small>
+                                    <form th:if="${row.paymentVerified}" th:action="@{'/facturacion/emitir/' + ${row.reservationId}}"
                                           method="post" enctype="multipart/form-data" class="d-flex gap-2">
                                         <input type="file" name="pdf" accept="application/pdf"
                                                class="form-control form-control-sm" style="max-width: 220px;" required>

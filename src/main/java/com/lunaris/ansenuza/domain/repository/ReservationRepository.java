@@ -325,6 +325,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     /** Return legs, including undated returns linked to today's outbound leg. */
     @Query("""
+           SELECT COALESCE(SUM(CASE WHEN r.passengerCount IS NULL OR r.passengerCount < 1
+                                   THEN 1 ELSE r.passengerCount END), 0)
+           FROM Reservation r
+           WHERE r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.REGULAR
+           AND r.id NOT IN :excluded
+           AND r.travelDate = :date
+           AND SUBSTRING(COALESCE(r.departureSchedule, '03:00 AM'), 1, 5) = SUBSTRING(:schedule, 1, 5)
+           AND (r.status IS NULL OR UPPER(r.status) NOT IN ('CANCELLED', 'EXPIRED', 'REJECTED'))
+           AND (r.travelStatus IS NULL OR r.travelStatus NOT IN (
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.CANCELED,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.NO_SHOW,
+               com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.COMPLETED))
+           """)
+    long countReservedSeatsExcluding(
+            @Param("date") LocalDate date,
+            @Param("schedule") String schedule, @Param("excluded") java.util.Collection<UUID> excluded);
+
+    /** Return legs, including undated returns linked to today's outbound leg. */
+    @Query("""
            SELECT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
            WHERE r.tripCategory = com.lunaris.ansenuza.domain.model.TripCategory.REGULAR
@@ -359,9 +378,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
            SELECT r FROM Reservation r
            LEFT JOIN FETCH r.passenger
-           WHERE r.paymentVerified = true
-           AND r.requiresInvoice = true
-           AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED')
+           WHERE (r.paymentVerified = true
+                  OR r.paymentStatus = com.lunaris.ansenuza.domain.model.PaymentStatus.PAID
+                  OR UPPER(COALESCE(r.status, '')) = 'CONFIRMED'
+                  OR (r.paymentReceiptUrl IS NOT NULL AND TRIM(r.paymentReceiptUrl) <> '' AND r.paymentReceiptUrl <> 'null'))
+           AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED')
            AND r.id NOT IN (SELECT i.reservation.id FROM Invoice i)
            AND NOT EXISTS (
                SELECT groupedInvoice.id FROM Invoice groupedInvoice
@@ -381,12 +402,12 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // cada tramo lleva la mitad del importe neto, por lo que la suma es el total cobrado.
     @Query("SELECT COALESCE(SUM(COALESCE(r.amount, 0) + COALESCE(r.extraAmount, 0)), 0) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
-           "AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED')")
+           "AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED')")
     BigDecimal sumConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("SELECT COUNT(r) FROM Reservation r " +
            "WHERE r.paymentConfirmedAt >= :start AND r.paymentConfirmedAt < :end " +
-           "AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'REJECTED') " +
+           "AND UPPER(COALESCE(r.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED') " +
            "AND (r.reservationCode IS NULL OR r.reservationCode NOT LIKE '%-VUELTA')")
     long countConfirmedIncomeBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 

@@ -33,14 +33,15 @@ class BillingAuditPersistenceTest {
         return new InvoicePersistenceService.InvoiceData(reservation.getId(), "F-AUDIT", "Auditoria Local",
                 null, new BigDecimal("158000"), "/audit.pdf");
     }
-    @Test void paidGroupWithoutInvoiceRequestIsInvisible() {
+    @Test void paidGroupWithoutInvoiceRequestIsVisibleWithCompleteAmount() {
         leg("AUDIT-IDA", false); leg("AUDIT-VUELTA", false);
-        assertThat(panel.execute().pendientes()).isEmpty();
+        assertThat(panel.execute().pendientes()).hasSize(1);
+        assertThat(panel.execute().pendientes().getFirst().amount()).isEqualByComparingTo("158000");
         assertThat(invoices.count()).isZero();
     }
-    @Test void partiallyEligibleGroupShowsPartialAmountButPersistenceMarksWholeGroup() {
+    @Test void billingAlwaysShowsWholeGroupAndPersistenceMarksEveryLeg() {
         var outbound = leg("AUDIT-IDA", true); var back = leg("AUDIT-VUELTA", false);
-        assertThat(panel.execute().pendientes().getFirst().amount()).isEqualByComparingTo("79000");
+        assertThat(panel.execute().pendientes().getFirst().amount()).isEqualByComparingTo("158000");
         persistence.persistUploadedInvoice(data(outbound));
         assertThat(reservations.findById(back.getId()).orElseThrow().isInvoiceIssued()).isTrue();
         // La redirección del navegador abre un contexto de persistencia nuevo.

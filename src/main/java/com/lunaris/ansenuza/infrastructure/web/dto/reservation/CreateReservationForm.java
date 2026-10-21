@@ -27,6 +27,7 @@ public class CreateReservationForm extends ManualReservationOptions {
     private String phone;
 
     @NotNull(message = "La fecha del viaje es obligatoria")
+    @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
     private LocalDate travelDate;
 
     private String pickupLocality;
@@ -37,12 +38,12 @@ public class CreateReservationForm extends ManualReservationOptions {
 
     private Boolean roundTrip = false;
 
+    @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
     private LocalDate returnDate;
 
     // 🕒 Horario de salida (igual que el bot): "03:00 AM" (primer turno) u "08:00 AM" (segundo turno)
     private String departureSchedule;
 
-    private Boolean paymentVerified;
 
     // 🌟 NUEVOS CAMPOS AGREGADOS PARA LA GESTIÓN DE ASIENTOS Y ACOMPAÑANTES
     @NotNull(message = "La cantidad de pasajeros es obligatoria")

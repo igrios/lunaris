@@ -228,23 +228,13 @@ public class BotMonitorController {
             Passenger passenger = Passenger.builder().firstName(firstName).lastName(lastName)
                     .phone(phone).cuil(cuil).build();
 
-            String urlComprobanteCruda = messageRepository.findByPhoneNumberOrderByTimestampAsc(phone).stream()
-                    .filter(m -> m != null && !m.isFromOperator()) 
-                    .map(m -> m.getMessageText())
-                    .filter(text -> text != null && !text.isBlank())
-                    .filter(text -> !text.contains("ahí mando") && !text.contains("ahi mando") && !text.contains("gracias"))
-                    .filter(text -> text.startsWith("http://") 
-                                 || text.startsWith("https://") 
-                                 || text.contains("res.cloudinary.com")
-                                 || text.matches(".*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}.*"))
-                    .reduce((first, second) -> second) 
-                    .orElse("null");
-
-            if (chatReceiptUrl != null && !chatReceiptUrl.isBlank() && chatReceiptUrl.startsWith("http")) {
-                urlComprobanteCruda = chatReceiptUrl;
-            }
+            String urlComprobanteCruda = chatReceiptUrl != null && chatReceiptUrl.startsWith("http")
+                    ? chatReceiptUrl : options.getPaymentReceiptUrl();
 
             String urlComprobantePermanente = persistirComprobanteEnCloudinary(urlComprobanteCruda, phone);
+            if (urlComprobantePermanente == null && urlComprobanteCruda != null && urlComprobanteCruda.startsWith("http")) {
+                urlComprobantePermanente = urlComprobanteCruda;
+            }
 
             String notasAuditoria = urlComprobantePermanente != null
                     ? "Cargado por Operador desde Monitor. Comprobante enlazado y persistido en Cloudinary."
@@ -272,6 +262,7 @@ public class BotMonitorController {
             ida.setRequiresInvoice(requiresInvoice);
             ida.setNotes(options.getNotes() == null || options.getNotes().isBlank() ? notasAuditoria : options.getNotes());
 
+            com.lunaris.ansenuza.infrastructure.web.mapper.ManualTripWebMapper.applyOptions(ida, options);
             createManualReservation.execute(ida, options.getReturnDepartureSchedule());
 
             redirectAttributes.addFlashAttribute("successMessage", "¡Reserva registrada con éxito!");

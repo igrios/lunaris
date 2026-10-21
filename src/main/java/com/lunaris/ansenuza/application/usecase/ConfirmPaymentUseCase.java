@@ -78,6 +78,7 @@ public class ConfirmPaymentUseCase {
         String phoneNumber = selected.getPassenger() != null ? selected.getPassenger().getPhone() : null;
 
         if (group.stream().allMatch(reservation -> Boolean.TRUE.equals(reservation.getPaymentVerified()))) {
+            group.forEach(Reservation::synchronizePaymentAndBilling);
             // Repara reservas confirmadas por flujos anteriores que no consumieron la promoción.
             promotionService.consumeIfAvailable(promotionCode, phoneNumber);
             completeWaitingListEntries(group, phoneNumber);
@@ -91,6 +92,7 @@ public class ConfirmPaymentUseCase {
         LocalDateTime confirmedAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
         group.forEach(reservation -> {
             reservation.setPaymentVerified(true);
+            reservation.synchronizePaymentAndBilling();
             reservation.setStatus("CONFIRMED");
             reservation.setPaymentConfirmedAt(confirmedAt);
             reservation.setPaymentExpiresAt(null);
@@ -107,6 +109,10 @@ public class ConfirmPaymentUseCase {
     }
 
     private void notifyPaymentConfirmation(Reservation reservation) {
+        // El flujo manual tiene su propia confirmación consolidada y su secuencia de entrega del PDF.
+        if (reservation.getSource() == com.lunaris.ansenuza.domain.model.ReservationSource.MANUAL
+                || reservation.isManualNotificationPending() || reservation.isManualNotificationWaitingReply()
+                || reservation.getManualConfirmationSentAt() != null) return;
         if (messaging == null || reservation.getPassenger() == null
                 || reservation.getPassenger().getPhone() == null
                 || reservation.getPassenger().getPhone().isBlank()) {

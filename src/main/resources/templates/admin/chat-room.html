@@ -104,7 +104,7 @@
                                 <i class="bi bi-robot fs-4"></i>
                             </div>
                             <div>
-                                <h3 class="fw-bold text-dark mb-0">Nueva Reserva Asistida</h3>
+                                <h3 class="fw-bold text-dark mb-0" th:text="${assistedForm.reservationId != null ? 'Editar Reserva Asistida' : 'Nueva Reserva Asistida'}">Reserva Asistida</h3>
                                 <small class="text-muted">Mapeo de datos automático y asignación en caliente</small>
                             </div>
                         </div>
@@ -113,7 +113,27 @@
 
                         <form id="formReservaManual" th:action="@{/admin/bot/monitor/cargar-reserva}" method="post">
 
-                            <input type="hidden" name="phone" id="phoneInputHidden" th:value="${sessionPhone ?: phone}">
+                            <input type="hidden" name="reservationId" th:value="${assistedForm.reservationId}">
+                            <div th:if="${assistedForm.reservationId != null}" class="alert alert-info small">Edición de la reserva existente. Se conservarán sus códigos y tramos.</div>
+                            <label class="d-block small mb-2"><input type="checkbox" name="paymentVerified" value="true" th:checked="${assistedForm.paymentVerified}"> Pago validado por el operador</label>
+                            <label class="d-block small mb-2">Comprobante de pago seleccionado (URL)
+                                <input type="url" class="form-control form-control-sm" name="paymentReceiptUrl" th:value="${assistedForm.paymentReceiptUrl}">
+                            </label>
+                            <input type="hidden" name="sourcePhone" th:value="${phone}">
+                            <input type="hidden" name="tripCategory" th:value="${assistedForm.tripCategory}">
+                            <input type="hidden" name="originCustom" th:value="${assistedForm.originCustom}">
+                            <input type="hidden" name="destinationCustom" th:value="${assistedForm.destinationCustom}">
+                            <input type="hidden" name="customPrice" th:value="${assistedForm.customPrice}">
+                            <input type="hidden" name="returnDepartureSchedule" th:value="${assistedForm.returnDepartureSchedule}">
+                            <input type="hidden" name="customPriceIsTotal" th:value="${assistedForm.customPriceIsTotal}">
+                            <label class="form-label small">Teléfono del pasajero
+                                <input class="form-control form-control-sm" name="phone" id="phoneInputHidden" th:value="${assistedForm.phone}">
+                            </label>
+                            <div id="assistedSource" class="alert alert-info small" th:classappend="${sourceMessage == null} ? 'd-none'">
+                                <strong>Último mensaje recibido — revisar datos sugeridos</strong>
+                                <p id="assistedSourceText" class="mb-1" style="white-space: pre-wrap" th:text="${sourceMessage}"></p>
+                                <span id="assistedDetectedPhone" th:text="${detectedPhone != null ? 'Teléfono mencionado: ' + detectedPhone : ''}"></span>
+                            </div>
                             <input type="hidden" id="chatReceiptUrl" name="chatReceiptUrl" value="null">
 
                             <!-- ALERTA DE CC -->
@@ -128,17 +148,17 @@
                             <div class="row g-3 mb-3">
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Nombre</label>
-                                    <input type="text" name="firstName" id="firstNameInput" class="form-control form-control-sm" required th:value="${passenger != null ? passenger.firstName : assistedData.passengerName}">
+                                    <input type="text" name="firstName" id="firstNameInput" class="form-control form-control-sm" required th:value="${assistedForm.firstName}">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Apellido</label>
-                                    <input type="text" name="lastName" id="lastNameInput" class="form-control form-control-sm" required th:value="${passenger != null ? passenger.lastName : null}">
+                                    <input type="text" name="lastName" id="lastNameInput" class="form-control form-control-sm" required th:value="${assistedForm.lastName}">
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">DNI / CUIL (Facturación)</label>
-                                <input type="text" name="cuil" id="cuilInput" class="form-control form-control-sm" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" th:value="${assistedData.cuil ?: (passenger != null ? passenger.cuil : null)}">
+                                <input type="text" name="cuil" id="cuilInput" class="form-control form-control-sm" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')" th:value="${assistedForm.cuil ?: (passenger != null ? passenger.cuil : null)}">
                             </div>
 
                             <h4 class="mb-3 text-secondary" style="font-size: 1.1rem; font-weight: 600;">📍 Datos del Viaje</h4>
@@ -147,49 +167,49 @@
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
                                     <select class="form-select form-select-sm" id="inputOrigen" name="pickupLocality" required>
-                                        <option value="" disabled th:selected="${assistedData.pickupLocality == null}">Seleccione origen...</option>
-                                        <option th:if="${assistedData.pickupLocality != null}" th:value="${assistedData.pickupLocality}" th:text="${assistedData.pickupLocality}" selected></option>
-                                        <option value="Córdoba" th:if="${assistedData.pickupLocality != 'Córdoba'}">Córdoba</option>
-                                        <option th:each="locality : ${localities}" th:if="${locality.name != assistedData.pickupLocality and locality.name != 'Córdoba'}" th:value="${locality.name}" th:text="${locality.name}"></option>
+                                        <option value="" disabled th:selected="${assistedForm.pickupLocality == null}">Seleccione origen...</option>
+                                        <option th:if="${assistedForm.pickupLocality != null}" th:value="${assistedForm.pickupLocality}" th:text="${assistedForm.pickupLocality}" selected></option>
+                                        <option value="Córdoba" th:if="${assistedForm.pickupLocality != 'Córdoba'}">Córdoba</option>
+                                        <option th:each="locality : ${localities}" th:if="${locality.name != assistedForm.pickupLocality and locality.name != 'Córdoba'}" th:value="${locality.name}" th:text="${locality.name}"></option>
                                     </select>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
                                     <select class="form-select form-select-sm" id="inputDestino" name="destination" required>
-                                        <option value="" disabled th:selected="${assistedData.destination == null}">Seleccione destino...</option>
-                                        <option th:if="${assistedData.destination != null}" th:value="${assistedData.destination}" th:text="${assistedData.destination}" selected></option>
-                                        <option value="Córdoba" th:if="${assistedData.destination != 'Córdoba'}">Córdoba</option>
-                                        <option th:each="locality : ${localities}" th:if="${locality.name != assistedData.destination and locality.name != 'Córdoba'}" th:value="${locality.name}" th:text="${locality.name}"></option>
+                                        <option value="" disabled th:selected="${assistedForm.destination == null}">Seleccione destino...</option>
+                                        <option th:if="${assistedForm.destination != null}" th:value="${assistedForm.destination}" th:text="${assistedForm.destination}" selected></option>
+                                        <option value="Córdoba" th:if="${assistedForm.destination != 'Córdoba'}">Córdoba</option>
+                                        <option th:each="locality : ${localities}" th:if="${locality.name != assistedForm.destination and locality.name != 'Córdoba'}" th:value="${locality.name}" th:text="${locality.name}"></option>
                                     </select>
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">Dirección de Retiro</label>
-                                <input type="text" name="pickupAddress" th:value="${assistedData.pickupAddress}" class="form-control form-control-sm" required>
+                                <input type="text" name="pickupAddress" th:value="${assistedForm.pickupAddress}" class="form-control form-control-sm" required>
                             </div>
 
                             <div class="row g-3 mb-3">
                                 <div class="col-5">
                                     <label class="form-label small fw-bold text-dark">Cantidad Asientos</label>
-                                    <input type="number" id="inputAsientos" name="passengerCount" class="form-control form-control-sm fw-bold text-center border-primary" min="1" max="9" required th:value="${assistedData.passengerCount}">
+                                    <input type="number" id="inputAsientos" name="passengerCount" class="form-control form-control-sm fw-bold text-center border-primary" min="1" max="9" required th:value="${assistedForm.passengerCount}">
                                 </div>
                                 <div class="col-7">
                                     <label class="form-label small fw-bold text-dark">Fecha de Viaje (Ida)</label>
-                                    <input type="date" name="travelDate" th:value="${assistedData.travelDate}" class="form-control form-control-sm fw-bold" required>
+                                    <input type="date" name="travelDate" th:value="${assistedForm.travelDate}" class="form-control form-control-sm fw-bold" required>
                                 </div>
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label small fw-bold text-dark">Horario de Salida</label>
                                 <select class="form-select form-select-sm" name="departureSchedule" required>
-                                    <option value="03:00 AM">🌙 Primer Horario (03:00 AM)</option>
-                                    <option value="08:00 AM" selected>☀️ Segundo Horario (08:00 AM)</option>
+                                    <option value="" th:selected="${assistedForm.departureSchedule == null}">Horario pendiente</option><option th:if="${assistedForm.departureSchedule != null}" th:value="${assistedForm.departureSchedule}" th:text="${assistedForm.departureSchedule}" selected></option><option value="03:00 AM">🌙 Primer Horario (03:00 AM)</option>
+                                    <option value="08:00 AM">☀️ Segundo Horario (08:00 AM)</option>
                                 </select>
                             </div>
 
                             <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="roundTrip" id="isRoundTripCheck" th:checked="${assistedData.roundTrip}" value="true">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="roundTrip" id="isRoundTripCheck" th:checked="${assistedForm.roundTrip}" value="true">
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
                                     <i class="bi bi-arrow-left-right"></i> ¿Es pasaje de Ida y Vuelta?
                                 </label>
@@ -209,14 +229,14 @@
 
                                 <div id="sectionFechaVuelta" class="mt-2 d-none">
                                     <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
-                                    <input type="date" name="returnDate" id="returnDateInput" class="form-control form-control-sm fw-bold border-primary" th:value="${assistedData.returnDate}">
+                                    <input type="date" name="returnDate" id="returnDateInput" class="form-control form-control-sm fw-bold border-primary" th:value="${assistedForm.returnDate}">
                                     <label class="form-label mt-2" for="manualReturnSchedule">Horario de regreso</label>
                                     <input type="time" name="returnDepartureSchedule" id="manualReturnSchedule" class="form-control">
                                 </div>
                             </div>
 
                             <div class="form-check form-switch p-3 bg-light rounded-3 mb-3 border border-dashed" style="font-size: 0.9rem;">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="requiresInvoice" id="requiresInvoice" th:checked="${assistedData.requiresInvoice}" value="true">
+                                <input type="hidden" name="requiresInvoice" id="requiresInvoice" value="true">
                                 <label class="form-check-label fw-bold text-info" for="requiresInvoice">
                                     <i class="bi bi-file-earmark-text"></i> ¿Requiere factura?
                                 </label>
@@ -224,35 +244,35 @@
 
                     <div class="mb-3">
                         <label class="form-label" for="companionNames">Nombres de acompañantes</label>
-                        <textarea class="form-control" id="companionNames" name="companionNames" maxlength="500" th:text="${assistedData.companionNames}"></textarea>
+                        <textarea class="form-control" id="companionNames" name="companionNames" maxlength="500" th:text="${assistedForm.companionNames}"></textarea>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="routeDirection">Sentido</label>
                         <select class="form-select" id="routeDirection" name="routeDirection">
                             <option value="">Según origen y destino</option>
-                            <option value="IDA">Ida</option>
-                            <option value="VUELTA">Vuelta</option>
+                            <option value="IDA" th:selected="${assistedForm.routeDirection == 'IDA'}">Ida</option>
+                            <option value="VUELTA" th:selected="${assistedForm.routeDirection == 'VUELTA'}">Vuelta</option>
                         </select>
                     </div>
                     <div class="row g-3 mb-4">
                         <div class="col-md-4">
                             <label class="form-label" for="manualAmount">Monto final del viaje ($)</label>
-                            <input class="form-control" id="manualAmount" name="amount" type="number" min="0" step="0.01" placeholder="Usar tarifa calculada">
+                            <input class="form-control" id="manualAmount" name="amount" th:value="${assistedForm.amount}" type="number" min="0" step="0.01" placeholder="Usar tarifa calculada">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualDiscount">Descuento incluido ($)</label>
-                            <input class="form-control" id="manualDiscount" name="discountAmount" type="number" min="0" step="0.01" value="0">
+                            <input class="form-control" id="manualDiscount" name="discountAmount" th:value="${assistedForm.discountAmount}" type="number" min="0" step="0.01" value="0">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualExtra">Adicional ($)</label>
-                            <input class="form-control" id="manualExtra" name="extraAmount" type="number" min="0" step="0.01" value="0">
+                            <input class="form-control" id="manualExtra" name="extraAmount" th:value="${assistedForm.extraAmount}" type="number" min="0" step="0.01" value="0">
                         </div>
                         <p class="small text-muted">El monto ingresado reemplaza la tarifa y ya incluye el descuento. El adicional se suma. Para ida y vuelta, ingresá el total de ambos tramos. El alta manual conserva estos importes sin descontar saldo a favor.</p>
                     </div>
 
                             <div class="mb-3">
                                 <label class="form-label" for="manualNotes">Notas de oficina</label>
-                                <textarea class="form-control" id="manualNotes" name="notes" maxlength="255"></textarea>
+                                <textarea class="form-control" id="manualNotes" name="notes" maxlength="255" th:text="${assistedForm.notes}"></textarea>
                             </div>
                             <div class="p-3 mb-3 rounded-3" style="background-color: #e8f0fe; border: 1px solid #b3cefb; font-size: 0.9rem;">
                                 <div class="d-flex justify-content-between mb-1">
@@ -265,9 +285,11 @@
                                 </div>
                             </div>
 
-                            <div class="d-flex justify-content-end pt-2 border-top">
-                                <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
-                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Guardar Reserva e Impactar Chat ✅
+                            <div class="d-flex flex-wrap gap-2 justify-content-end pt-2 border-top">
+                                <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" name="returnToChat" value="true" class="btn btn-outline-secondary">Guardar borrador</button>
+                                <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" class="btn btn-outline-primary">Guardar y abrir formulario completo</button>
+                                <button th:if="${assistedForm.tripCategory.name() != 'SPECIAL'}" type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm">
+                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> <span th:text="${assistedForm.reservationId != null ? 'Guardar cambios y confirmar' : 'Crear reserva y confirmar'}">Guardar</span>
                                 </button>
                             </div>
 
@@ -283,7 +305,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script th:inline="javascript">
-        const assistedData = /*[[${assistedData}]]*/ {};
+        const assistedForm = /*[[${assistedForm}]]*/ {};
         const phone = /*[[${phone ?: sessionPhone}]]*/ null;
         let chatCanSend = /*[[${chatCanSend}]]*/ false;
         const seguroPhone = phone || window.location.pathname.match(/\/chat\/(\d+)/)?.[1];
@@ -297,6 +319,7 @@
                     const message = JSON.parse(msg.body);
                     dibujarBurbujaMensaje(message);
                     if (!message.fromOperator) {
+                        actualizarSugerenciasAsistidas();
                         chatCanSend = true;
                         document.getElementById('messageInput').disabled = false;
                         document.getElementById('btnEnviar').disabled = false;
@@ -304,6 +327,30 @@
                 });
             }
         });
+
+        document.getElementById('formReservaManual').addEventListener('input', event => {
+            event.target.dataset.edited = 'true';
+        });
+
+        async function actualizarSugerenciasAsistidas() {
+            try {
+                const response = await fetch(`/admin/chat/${encodeURIComponent(seguroPhone)}/assisted-prefill`);
+                if (!response.ok || response.redirected) return;
+                const result = await response.json();
+                for (const name of ['pickupAddress', 'notes']) {
+                    const input = document.querySelector(`#formReservaManual [name="${name}"]`);
+                    if (input && !input.value.trim() && !input.dataset.edited && result.form[name]) {
+                        input.value = result.form[name];
+                    }
+                }
+                document.getElementById('assistedSource').classList.toggle('d-none', !result.sourceMessage);
+                document.getElementById('assistedSourceText').textContent = result.sourceMessage || '';
+                document.getElementById('assistedDetectedPhone').textContent = result.detectedPhone
+                        ? `Teléfono mencionado: ${result.detectedPhone}` : '';
+            } catch (error) {
+                console.warn('No se pudieron actualizar las sugerencias de reserva.');
+            }
+        }
 
         function enviarMensajeHumano() {
             if (!chatCanSend) return;
@@ -386,10 +433,10 @@
 
         // 👤 AUTOCOMPLETADO INTERACTIVO Y SALDO
         window.addEventListener('DOMContentLoaded', () => {
-            if (assistedData.scheduleBlock) {
+            if (assistedForm.departureSchedule) {
                 const schedule = document.querySelector('[name="departureSchedule"]');
-                if (!Array.from(schedule.options).some(o => o.value === assistedData.scheduleBlock)) schedule.add(new Option(assistedData.scheduleBlock, assistedData.scheduleBlock));
-                schedule.value = assistedData.scheduleBlock;
+                if (!Array.from(schedule.options).some(o => o.value === assistedForm.departureSchedule)) schedule.add(new Option(assistedForm.departureSchedule, assistedForm.departureSchedule));
+                schedule.value = assistedForm.departureSchedule;
             }
             if (isRoundTripCheck.checked) {
                 sectionOpcionesRetorno.classList.remove('d-none');

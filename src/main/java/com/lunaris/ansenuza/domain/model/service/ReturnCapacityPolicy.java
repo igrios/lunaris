@@ -31,8 +31,14 @@ public final class ReturnCapacityPolicy {
 
     public static int availableSeats(ReservationRepository repository, LocalDate date,
             String schedule, LocalDateTime now) {
+        return availableSeats(repository, date, schedule, now, java.util.Set.of());
+    }
+
+    public static int availableSeats(ReservationRepository repository, LocalDate date, String schedule,
+            LocalDateTime now, java.util.Set<java.util.UUID> excluded) {
         boolean retain = now.isBefore(date.atTime(11, 0));
         long occupied = repository.findReturnCapacityCandidates(date).stream()
+                .filter(r -> r.getId() == null || !excluded.contains(r.getId()))
                 .filter(r -> r.getTravelStatus() == Reservation.TravelStatus.OPEN_RETURN
                         ? retain : r.getDepartureSchedule() == null || r.getDepartureSchedule().isBlank()
                                 || normalizeSchedule(r.getDepartureSchedule()).equals(normalizeSchedule(schedule)))

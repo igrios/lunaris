@@ -77,20 +77,33 @@ public class ManualReservationNotificationService {
 
     /** Asociar la factura nunca reemplaza la evidencia de pago del pasajero. */
     public boolean invoiceReady(UUID id, String url) {
-        transaction.executeWithoutResult(status -> {
+        return invoiceReady(id, url, false);
+    }
+
+    public boolean invoiceReady(UUID id, String url, boolean resend) {
+        UUID anchor = transaction.execute(status -> {
             Reservation reservation = reservations.findById(id).orElseThrow();
             String groupCode = com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(reservation);
-            var group = groupCode.startsWith("UUID:") ? List.of(reservation) : reservations.findReservationGroup(groupCode);
+            var group = groupCode.startsWith("UUID:") ? reservations.findAllByIdForUpdate(List.of(id))
+                    : reservations.findReservationGroupForUpdate(groupCode);
             if (group.isEmpty()) group = List.of(reservation);
-            for (Reservation leg : group) leg.setInvoiceUrl(url);
-            reservation.setInvoiceUrl(url);
-            reservation.setManualNotificationPending(true);
-            reservation.setManualNotificationWaitingReply(false);
-            reservation.setManualNotificationAttemptAt(null);
+            var target = group.stream().filter(r -> r.isManualNotificationPending()
+                    || r.isManualNotificationWaitingReply() || r.getManualConfirmationSentAt() != null)
+                    .findFirst().orElse(group.getFirst());
+            for (Reservation leg : group) {
+                leg.setInvoiceUrl(url);
+                if (!leg.getId().equals(target.getId())) {
+                    leg.setManualNotificationPending(false);
+                    leg.setManualNotificationWaitingReply(false);
+                }
+            }
+            if (resend) target.setManualInvoiceDeliveredUrl(null);
+            if (!url.equals(target.getManualInvoiceDeliveredUrl())) target.setManualNotificationPending(true);
+            return target.getId();
         });
-        deliver(id, false);
-        return Boolean.TRUE.equals(transaction.execute(status -> reservations.findById(id)
-                .map(r -> !r.isManualNotificationPending()).orElse(false)));
+        deliver(anchor, false);
+        return Boolean.TRUE.equals(transaction.execute(status -> reservations.findById(anchor)
+                .map(r -> url.equals(r.getManualInvoiceDeliveredUrl())).orElse(false)));
     }
 
     public void deliver(UUID id, boolean replying) {
@@ -124,36 +137,68 @@ public class ManualReservationNotificationService {
         String phone = reservation.getPassenger().getPhone();
         boolean active = replying || window.isActive(phone);
         List<String> parameters = parameters(reservation);
-        // El alta manual inicia siempre con el contrato aprobado, aun con ventana abierta.
-        // Las facturas ya solicitadas conservan su entrega dentro de la ventana activa.
-        if (!active || (!replying && reservation.getInvoiceUrl() == null)) {
+        if (!active) {
             messaging.sendTemplate(phone, PassengerContactTemplate.NAME,
                     PassengerContactTemplate.parameters(reservation.getPassenger().getFirstName()),
                     sent -> complete(reservation, sent, true));
             return;
         }
+        if (reservation.getManualConfirmationSentAt() != null) {
+            sendInvoiceOrComplete(reservation);
+            return;
+        }
         messaging.sendText(phone, confirmation(parameters) + extendedDetails(reservation), sent -> {
-            if (!sent || reservation.getInvoiceUrl() == null
-                    || !Boolean.TRUE.equals(reservation.getPaymentVerified())) {
-                complete(reservation, sent, false);
-            } else {
-                messaging.sendDocumentUrl(phone, reservation.getInvoiceUrl(), "Factura.pdf",
-                        "Factura de tu reserva " + reservation.getReservationCode(),
-                        documentSent -> complete(reservation, documentSent, false));
+            if (!sent) {
+                complete(reservation, false, false);
+                return;
             }
+            var confirmedAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
+            transaction.executeWithoutResult(status -> reservations.findById(reservation.getId())
+                    .ifPresent(r -> r.setManualConfirmationSentAt(confirmedAt)));
+            reservation.setManualConfirmationSentAt(confirmedAt);
+            sendInvoiceOrComplete(reservation);
         });
     }
 
+    private record InvoiceDelivery(String url, boolean paid, String deliveredUrl) {}
+
+    private void sendInvoiceOrComplete(Reservation reservation) {
+        var current = transaction.execute(status -> reservations.findById(reservation.getId())
+                .map(r -> new InvoiceDelivery(r.getInvoiceUrl(), r.isPaymentValidatedForBilling(), r.getManualInvoiceDeliveredUrl()))
+                .orElse(null));
+        if (current == null) return;
+        reservation.setInvoiceUrl(current.url());
+        reservation.setPaymentVerified(current.paid());
+        reservation.setManualInvoiceDeliveredUrl(current.deliveredUrl());
+        if (reservation.getInvoiceUrl() == null || !Boolean.TRUE.equals(reservation.getPaymentVerified())
+                || reservation.getInvoiceUrl().equals(reservation.getManualInvoiceDeliveredUrl())) {
+            complete(reservation, true, false);
+            return;
+        }
+        messaging.sendDocumentUrl(reservation.getPassenger().getPhone(), reservation.getInvoiceUrl(), "Factura.pdf",
+                "Factura de tu reserva " + reservation.getReservationCode(), sent -> {
+                    if (sent) {
+                        transaction.executeWithoutResult(status -> reservations.findById(reservation.getId())
+                                .ifPresent(r -> r.setManualInvoiceDeliveredUrl(reservation.getInvoiceUrl())));
+                        reservation.setManualInvoiceDeliveredUrl(reservation.getInvoiceUrl());
+                    }
+                    complete(reservation, sent, false);
+                });
+    }
+
     private void complete(Reservation attempt, boolean sent, boolean hsm) {
-        transaction.executeWithoutResult(status -> {
+        Boolean sendQueuedInvoice = transaction.execute(status -> {
             var locked = reservations.findAllByIdForUpdate(List.of(attempt.getId()));
-            if (locked.isEmpty()) return;
+            if (locked.isEmpty()) return false;
             Reservation reservation = locked.getFirst();
-            if (!java.util.Objects.equals(reservation.getManualNotificationAttemptAt(), attempt.getManualNotificationAttemptAt())) return;
+            if (!java.util.Objects.equals(reservation.getManualNotificationAttemptAt(), attempt.getManualNotificationAttemptAt())) return false;
             reservation.setManualNotificationAttemptAt(null);
-            reservation.setManualNotificationPending(!sent || hsm);
+            boolean queuedInvoice = reservation.getInvoiceUrl() != null && reservation.isPaymentValidatedForBilling()
+                    && !reservation.getInvoiceUrl().equals(reservation.getManualInvoiceDeliveredUrl());
+            reservation.setManualNotificationPending(!sent || hsm || queuedInvoice);
             reservation.setManualNotificationWaitingReply(sent && hsm);
-            if (sent && !hsm && reservation.getInvoiceUrl() != null) {
+            if (sent && !hsm && reservation.getInvoiceUrl() != null
+                    && reservation.getInvoiceUrl().equals(reservation.getManualInvoiceDeliveredUrl())) {
                 String code = com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(reservation);
                 var group = code.startsWith("UUID:") ? List.of(reservation) : reservations.findReservationGroup(code);
                 var ids = group.isEmpty() ? List.of(reservation.getId()) : group.stream().map(Reservation::getId).toList();
@@ -162,7 +207,9 @@ public class ManualReservationNotificationService {
                     invoice.setSentAt(com.lunaris.ansenuza.shared.ArgentinaTime.now());
                 });
             }
+            return sent && !hsm && queuedInvoice;
         });
+        if (Boolean.TRUE.equals(sendQueuedInvoice)) deliver(attempt.getId(), true);
     }
 
     public static List<String> parameters(Reservation reservation) {
@@ -185,9 +232,10 @@ public class ManualReservationNotificationService {
                 + "\nAcompañantes: " + value(r.getCompanionNames()) + "\nTipo de viaje: " + tripLabel(r)
                 + (r.isSpecialTrip() ? (r.isCustomPriceIsTotal() ? "\nViaje especial — Precio total acordado: $"
                         : "\nViaje especial — Precio por persona: $") + r.getCustomPrice()
-                        + "\nPago: " + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "Pagado" : "Pendiente")
-                        + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "" : "\nLa factura se habilita después de registrar el pago.")
-                        : "") + pendingDetails(r);
+                        : "")
+                + "\nPago: " + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "Pagado" : "Pendiente")
+                + (Boolean.TRUE.equals(r.getPaymentVerified()) ? "" : "\nLa factura se habilita después de registrar el pago.")
+                + pendingDetails(r);
     }
 
     static String pendingDetails(Reservation reservation) {

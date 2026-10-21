@@ -43,8 +43,7 @@ public class InvoicePersistenceService {
         // OpenEntityManagerInView puede haber cargado las reservas antes del bloqueo.
         // Refrescar con las filas ya bloqueadas evita facturar un estado de pago anterior.
         group.forEach(entityManager::refresh);
-        if (group.stream().anyMatch(r -> !Boolean.TRUE.equals(r.getPaymentVerified())
-                || !"CONFIRMED".equals(r.getStatus()))) {
+        if (group.stream().anyMatch(r -> !r.isPaymentValidatedForBilling())) {
             throw new DomainValidationException(
                     "La factura solo puede registrarse después de confirmar el pago de todos los tramos.");
         }

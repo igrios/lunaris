@@ -47,6 +47,7 @@ class ChatTakeoverSecurityIntegrationTest {
     @MockitoBean PassengerRepository passengers;
     @MockitoBean WhatsAppConversationWindowService conversationWindow;
     @MockitoBean com.lunaris.ansenuza.application.usecase.AssistedChatService assistedChat;
+    @MockitoBean com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService drafts;
     @MockitoBean WhatsAppService whatsApp;
     @MockitoBean ChatbotTelemetryPort telemetry;
 

@@ -51,8 +51,7 @@ public class IssueInvoiceUseCase {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
         List<Reservation> group = invoiceGroup(reservation);
-        if (group.stream().anyMatch(item -> !Boolean.TRUE.equals(item.getPaymentVerified())
-                || !"CONFIRMED".equals(item.getStatus()))) {
+        if (group.stream().anyMatch(item -> !item.isPaymentValidatedForBilling())) {
             throw new IllegalStateException("La factura solo puede emitirse después de confirmar el pago.");
         }
         BigDecimal invoiceAmount = com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.total(group);
@@ -75,7 +74,7 @@ public class IssueInvoiceUseCase {
                 invoiceAmount, stored.webUrl());
         Invoice invoice = persistWithConcurrentRetry(invoiceData);
 
-        boolean sent = sendByWhatsApp(reservation, publicInvoiceUrl(invoice));
+        boolean sent = notifications.invoiceReady(reservation.getId(), publicInvoiceUrl(invoice), true);
         return invoicePersistenceService.updateDeliveryStatus(
                 invoice.getId(), sent,
                 sent ? com.lunaris.ansenuza.shared.ArgentinaTime.now() : null);
@@ -98,7 +97,7 @@ public class IssueInvoiceUseCase {
         Reservation reservation = reservationRepository.findById(invoice.getReservationId())
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada para la factura " + invoiceId));
 
-        boolean sent = sendByWhatsApp(reservation, publicInvoiceUrl(invoice));
+        boolean sent = notifications.invoiceReady(reservation.getId(), publicInvoiceUrl(invoice), true);
         boolean delivered = sent || Boolean.TRUE.equals(invoice.getSentViaWhatsapp());
         LocalDateTime sentAt = sent
                 ? com.lunaris.ansenuza.shared.ArgentinaTime.now()

@@ -53,10 +53,10 @@ class ReservationViewControllerTest {
                 .originCustom("Suardi").destinationCustom("Alta Gracia")
                 .travelDate(LocalDate.of(2030, 1, 2)).passengerCount(4)
                 .customPrice(new java.math.BigDecimal("83000.01")).build();
-        when(monitor.specialTrip(42L)).thenReturn(session);
+        when(monitor.session(42L)).thenReturn(session);
         when(passengers.findFirstByPhone(session.getPhoneNumber())).thenReturn(Optional.of(
                 Passenger.builder().firstName("Ana").lastName("Pérez").cuil("27123456789").build()));
-        var controller = new ReservationViewController(monitor, passengers, localities,
+        var controller = new ReservationViewController(monitor, mock(com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService.class), passengers, localities,
                 mock(ReservationService.class), mock(ReservationRepository.class),
                 mock(PricingAndScheduleService.class), mock(DriverRepository.class), mock(WhatsAppService.class),
                 mock(WaitingListService.class), mock(WaitingListConversionService.class),
@@ -64,7 +64,7 @@ class ReservationViewControllerTest {
                 mock(com.lunaris.ansenuza.application.usecase.NewsBannerService.class));
         var model = new org.springframework.ui.ExtendedModelMap();
         assertEquals("reservation-form", controller.newReservation(
-                com.lunaris.ansenuza.domain.model.TripCategory.REGULAR, 42L, null, model));
+                null, 42L, null, null, model));
         var form = (com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm)
                 model.get("reservation");
         assertEquals("SPECIAL", model.get("initialTripCategory"));
@@ -80,7 +80,7 @@ class ReservationViewControllerTest {
         assertEquals(com.lunaris.ansenuza.domain.model.PaymentStatus.PENDING, form.getPaymentStatus());
         org.mockito.Mockito.verifyNoInteractions(localities);
         when(passengers.findFirstByPhone(session.getPhoneNumber())).thenReturn(Optional.empty());
-        controller.newReservation(com.lunaris.ansenuza.domain.model.TripCategory.REGULAR, 42L, null, model);
+        controller.newReservation(null, 42L, null, null, model);
         form = (com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm) model.get("reservation");
         assertEquals("Ana", form.getFirstName());
         assertEquals("Pérez", form.getLastName());
@@ -98,7 +98,7 @@ class ReservationViewControllerTest {
     }
 
     private ReservationViewController formController(LocalityRepository localities) {
-        return new ReservationViewController(mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class), mock(PassengerRepository.class), localities,
+        return new ReservationViewController(mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class), mock(com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService.class), mock(PassengerRepository.class), localities,
                 mock(ReservationService.class), mock(ReservationRepository.class),
                 mock(PricingAndScheduleService.class), mock(DriverRepository.class), mock(WhatsAppService.class),
                 mock(WaitingListService.class), mock(WaitingListConversionService.class),
@@ -112,7 +112,7 @@ class ReservationViewControllerTest {
         DriverRepository drivers = mock(DriverRepository.class);
         WhatsAppService whatsApp = mock(WhatsAppService.class);
         ReservationService reservationService = mock(ReservationService.class);
-        ReservationViewController controller = new ReservationViewController(mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class),
+        ReservationViewController controller = new ReservationViewController(mock(com.lunaris.ansenuza.application.usecase.BotMonitorService.class), mock(com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService.class),
                 mock(PassengerRepository.class),
                 mock(LocalityRepository.class),
                 reservationService,

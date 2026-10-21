@@ -33,16 +33,17 @@ public class MarkTripAsPaidService {
         }
         Reservation selected = group.stream().filter(r -> id.equals(r.getId())).findFirst()
                 .orElseThrow(() -> new AgendaTripNotFoundException(id));
-        if (group.stream().anyMatch(r -> !r.isSpecialTrip())) {
-            throw new DomainValidationException("Esta operación corresponde a viajes especiales de agenda.");
-        }
         if (group.stream().anyMatch(r -> Set.of("CANCELLED", "CANCELED", "EXPIRED", "REJECTED")
                 .contains(r.getStatus() == null ? "" : r.getStatus().toUpperCase(java.util.Locale.ROOT)))) {
             throw new DomainValidationException("No se puede registrar el pago de un viaje cancelado o vencido.");
         }
         var paidAt = ArgentinaTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         for (Reservation leg : group) {
-            if (Boolean.TRUE.equals(leg.getPaymentVerified())) continue;
+            leg.setRequiresInvoice(true);
+            if (Boolean.TRUE.equals(leg.getPaymentVerified())) {
+                leg.synchronizePaymentAndBilling();
+                continue;
+            }
             leg.setPaymentVerified(true);
             leg.setPaymentStatus(PaymentStatus.PAID);
             leg.setPaymentConfirmedAt(paidAt);

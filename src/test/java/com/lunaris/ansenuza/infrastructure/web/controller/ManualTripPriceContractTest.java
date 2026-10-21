@@ -26,4 +26,23 @@ class ManualTripPriceContractTest {
         assertThat(AdminReservationApiController.AdminReservationResponse.from(reservation)
                 .customPriceIsTotal()).isTrue();
     }
+    @Test
+    void apiEditPreservesIdentityAndRegularCategoryAndReturnsOk() {
+        var create = org.mockito.Mockito.mock(com.lunaris.ansenuza.application.usecase.CreateManualReservationUseCase.class);
+        var payments = org.mockito.Mockito.mock(com.lunaris.ansenuza.application.usecase.MarkTripAsPaidService.class);
+        var form = new CreateReservationForm();
+        form.setReservationId(java.util.UUID.randomUUID());
+        form.setTripCategory(TripCategory.REGULAR);
+        form.setPaymentVerified(true);
+        var saved = ManualTripWebMapper.toReservation(form);
+        org.mockito.Mockito.when(create.execute(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn(java.util.List.of(saved));
+        var response = new ManualTripApiController(create, payments).create(form);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        var captured = org.mockito.ArgumentCaptor.forClass(com.lunaris.ansenuza.domain.model.Reservation.class);
+        org.mockito.Mockito.verify(create).execute(captured.capture(), org.mockito.ArgumentMatchers.isNull());
+        assertThat(captured.getValue().getId()).isEqualTo(form.getReservationId());
+        assertThat(captured.getValue().getTripCategory()).isEqualTo(TripCategory.REGULAR);
+        assertThat(captured.getValue().getPaymentVerified()).isTrue();
+    }
 }

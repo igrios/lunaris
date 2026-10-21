@@ -36,7 +36,7 @@
                         <i class="bi bi-journal-plus fs-3"></i>
                     </div>
                     <div>
-                        <h2 class="fw-bold text-dark mb-0">Nueva Reserva Manual</h2>
+                        <h2 class="fw-bold text-dark mb-0" th:text="${reservation?.reservationId != null ? 'Editar Reserva Manual' : 'Nueva Reserva Manual'}">Reserva Manual</h2>
                         <p class="text-muted mb-0">Cargá un viaje regular o un recorrido especial con origen, destino y monto acordados.</p>
                     </div>
                 </div>
@@ -53,8 +53,19 @@
                 <form id="manualTripForm" th:action="@{/admin/bot/monitor/cargar-reserva-web}" method="post"
                       th:data-special-api-url="@{/api/admin/trips}" th:data-agenda-url="@{/agenda/view-detalle}">
 
+                    <input th:if="${sourcePhone != null}" type="hidden" name="sourcePhone" th:value="${sourcePhone}">
+                    <div class="alert alert-info small" th:if="${sourceMessage != null}">
+                        <strong>Último mensaje recibido — revisar datos sugeridos</strong>
+                        <p style="white-space: pre-wrap" th:text="${sourceMessage}"></p>
+                        <span th:if="${detectedPhone != null}">Teléfono mencionado: <span th:text="${detectedPhone}"></span></span>
+                    </div>
+                    <div th:if="${sourcePhone != null}" class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" data-save-draft class="btn btn-outline-secondary">Guardar borrador</button>
+                        <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" data-save-draft name="returnToChat" value="true" class="btn btn-outline-primary">Guardar y volver al chat</button>
+                    </div>
                     <fieldset class="mb-4">
                         <legend class="fs-5 fw-bold">Elegí el tipo de viaje</legend>
+                        <input type="hidden" name="reservationId" th:value="${reservation?.reservationId}">
                         <input id="tripCategory" name="tripCategory" type="hidden" value="REGULAR"
                                th:value="${initialTripCategory == 'SPECIAL' ? 'SPECIAL' : 'REGULAR'}">
                         <div class="row g-3">
@@ -75,11 +86,17 @@
                         </div>
                     </fieldset>
                     <div id="specialTripStatus" class="alert alert-warning d-none" role="status">
-                        <input name="paymentStatus" type="hidden" value="PENDING">
-                        <strong>Estado inicial: PENDING (Pendiente)</strong>
+                        <strong>Viaje especial: se registra el precio total acordado.</strong>
                         <p class="small mt-2 mb-0">No se emitirá factura fiscal hasta que se registre el cobro del viaje.</p>
                     </div>
 
+                    <div class="alert alert-info" th:if="${reservation?.reservationId != null}">Editando reserva existente: se conservarán su ID, código y tramos.</div>
+                    <div class="mb-3">
+                        <label><input type="checkbox" name="paymentVerified" id="paymentVerified" value="true" th:checked="${reservation?.paymentVerified}"> Pago validado por el operador</label>
+                        <label class="d-block mt-2">Comprobante de pago seleccionado (URL)
+                            <input class="form-control" name="paymentReceiptUrl" type="url" th:value="${reservation?.paymentReceiptUrl}" placeholder="Opcional">
+                        </label>
+                    </div>
                     <!-- 👤 PASAJERO -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-person-fill"></i> Datos del Pasajero</h5>
                     
@@ -120,13 +137,15 @@
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Localidad de Origen</label>
                             <select class="form-select" id="inputOrigen" name="pickupLocality" required>
-                                <option value="" disabled selected>Cargando pueblos...</option>
+                                <option th:if="${reservation?.pickupLocality != null}" th:value="${reservation.pickupLocality}" th:text="${reservation.pickupLocality}" selected></option>
+                                <option value="" disabled th:selected="${reservation?.pickupLocality == null}">Cargando pueblos...</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Localidad de Destino</label>
                             <select class="form-select" id="inputDestino" name="destination" required>
-                                <option value="" disabled selected>Cargando pueblos...</option>
+                                <option th:if="${reservation?.destination != null}" th:value="${reservation.destination}" th:text="${reservation.destination}" selected></option>
+                                <option value="" disabled th:selected="${reservation?.destination == null}">Cargando pueblos...</option>
                             </select>
                         </div>
                     </div>
@@ -163,17 +182,17 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label small fw-bold text-dark">Horario de Salida</label>
-                            <select class="form-select fw-bold" id="departureScheduleSelect" name="departureSchedule" required disabled>
+                            <select class="form-select fw-bold" id="departureScheduleSelect" name="departureSchedule" th:data-selected="${reservation?.departureSchedule}" required disabled>
                                 <option value="">Seleccioná localidad y fecha</option>
                             </select>
-                            <input id="customDepartureSchedule" name="departureSchedule" type="time" class="form-control d-none" disabled>
+                            <input id="customDepartureSchedule" name="departureSchedule" th:value="${reservation?.departureSchedule}" type="time" class="form-control d-none" disabled>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
                             <div class="form-check form-switch p-3 bg-light rounded-3 border border-dashed h-100">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="roundTrip" id="isRoundTripCheck" value="true">
+                                <input class="form-check-input ms-1 me-2" type="checkbox" name="roundTrip" th:checked="${reservation?.roundTrip}" id="isRoundTripCheck" value="true">
                                 <label class="form-check-label fw-bold text-primary" for="isRoundTripCheck">
                                     <i class="bi bi-arrow-left-right"></i> ¿Es Ida y Vuelta?
                                 </label>
@@ -181,9 +200,9 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-check form-switch p-3 bg-light rounded-3 border border-dashed h-100">
-                                <input class="form-check-input ms-1 me-2" type="checkbox" name="requiresInvoice" id="requiresInvoice" value="true">
+                                <input type="hidden" name="requiresInvoice" id="requiresInvoice" value="true">
                                 <label class="form-check-label fw-bold text-info" for="requiresInvoice">
-                                    <i class="bi bi-file-earmark-text"></i> ¿Requiere Factura?
+                                    <i class="bi bi-file-earmark-text"></i> Incluida en facturación
                                 </label>
                             </div>
                         </div>
@@ -193,28 +212,28 @@
                     <div id="sectionOpcionesRetorno" class="p-3 bg-light rounded-3 mb-4 border d-none" style="font-size: 0.95rem;">
                         <label class="form-label small fw-bold text-primary d-block mb-2">Modalidad de Regreso</label>
                         <div class="form-check form-check-inline mb-2">
-                            <input class="form-check-input" type="radio" name="retornoTipo" id="retornoAbiertoForm" value="abierto" checked>
+                            <input class="form-check-input" type="radio" name="retornoTipo" id="retornoAbiertoForm" value="abierto" th:checked="${reservation?.returnDate == null}">
                             <label class="form-check-label" for="retornoAbiertoForm">📂 Vuelta Abierta</label>
                         </div>
                         <div class="form-check form-check-inline mb-2">
-                            <input class="form-check-input" type="radio" name="retornoTipo" id="retornoProgramadoForm" value="programado">
+                            <input class="form-check-input" type="radio" name="retornoTipo" id="retornoProgramadoForm" value="programado" th:checked="${reservation?.returnDate != null}">
                             <label class="form-check-label" for="retornoProgramadoForm">📅 Fecha Programada</label>
                         </div>
 
                         <div id="sectionFechaVuelta" class="mt-2 d-none">
                             <label class="form-label small fw-bold text-dark">Fecha de Regreso (Vuelta)</label>
-                            <input type="date" name="returnDate" id="returnDateInput" class="form-control fw-bold border-primary">
+                            <input type="date" name="returnDate" th:value="${reservation?.returnDate}" id="returnDateInput" class="form-control fw-bold border-primary">
                             <label class="form-label small fw-bold text-dark mt-3">Horario de Regreso</label>
-                            <select name="returnDepartureSchedule" id="returnScheduleSelect"
+                            <select name="returnDepartureSchedule" th:value="${reservation?.returnDepartureSchedule}" th:data-selected="${reservation?.returnDepartureSchedule}" id="returnScheduleSelect"
                                 class="form-select fw-bold border-primary" disabled>
                                 <option value="">Seleccioná fecha de regreso</option>
                             </select>
-                            <input id="customReturnSchedule" name="returnDepartureSchedule" type="time" class="form-control d-none" disabled>
+                            <input id="customReturnSchedule" name="returnDepartureSchedule" th:value="${reservation?.returnDepartureSchedule}" type="time" class="form-control d-none" disabled>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <input type="hidden" id="companionNames" name="companionNames">
+                        <input type="hidden" id="companionNames" name="companionNames" th:value="${reservation?.companionNames}">
                         <fieldset id="companionFields" class="d-none">
                             <legend class="fs-6">Nombres de acompañantes</legend>
                             <div id="companionInputs" class="row g-3"></div>
@@ -237,22 +256,22 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualAmount">Monto final del viaje ($)</label>
-                            <input class="form-control" id="manualAmount" name="amount" type="number" min="0" step="0.01" placeholder="Usar tarifa calculada">
+                            <input class="form-control" id="manualAmount" name="amount" th:value="${reservation?.amount}" type="number" min="0" step="0.01" placeholder="Usar tarifa calculada">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualDiscount">Descuento incluido ($)</label>
-                            <input class="form-control" id="manualDiscount" name="discountAmount" type="number" min="0" step="0.01" value="0">
+                            <input class="form-control" id="manualDiscount" name="discountAmount" th:value="${reservation?.discountAmount}" type="number" min="0" step="0.01" value="0">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualExtra">Adicional ($)</label>
-                            <input class="form-control" id="manualExtra" name="extraAmount" type="number" min="0" step="0.01" value="0">
+                            <input class="form-control" id="manualExtra" name="extraAmount" th:value="${reservation?.extraAmount}" type="number" min="0" step="0.01" value="0">
                         </div>
                         <p id="regularPricingHelp" class="small text-muted">El monto ingresado reemplaza la tarifa y ya incluye el descuento. El adicional se suma. Para ida y vuelta, ingresá el total de ambos tramos. El alta manual conserva estos importes sin descontar saldo a favor.</p>
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label small fw-bold text-dark">Notas u Observaciones de la Oficina</label>
-                        <textarea class="form-control" name="notes" rows="3" placeholder="Ej: Viaja con equipaje grande, etc."></textarea>
+                        <textarea class="form-control" name="notes" th:text="${reservation?.notes}" rows="3" placeholder="Ej: Viaja con equipaje grande, etc."></textarea>
                     </div>
 
                     <div class="p-3 mb-4 rounded-3 d-flex justify-content-between align-items-center" style="background-color: #e8f0fe; border: 1px solid #b3cefb;">
@@ -294,6 +313,8 @@
                 })
                 .then(localidades => {
                     const origenSel = document.getElementById('inputOrigen');
+                    const selectedOrigin = origenSel.value;
+                    const selectedDestination = document.getElementById('inputDestino').value;
                     const destinoSel = document.getElementById('inputDestino');
 
                     origenSel.innerHTML = '<option value="" disabled selected>Seleccione origen...</option><option value="Córdoba">Córdoba</option>';
@@ -308,6 +329,9 @@
                         optD.value = loc; optD.textContent = loc;
                         destinoSel.appendChild(optD);
                     });
+                    origenSel.value = selectedOrigin;
+                    destinoSel.value = selectedDestination;
+                    actualizarHorariosIda();
                 })
                 .catch(err => {
                     localidadesCargadas = false;
@@ -325,7 +349,7 @@
         const companionFields = document.getElementById('companionFields');
         const companionInputs = document.getElementById('companionInputs');
         const companionNames = document.getElementById('companionNames');
-        const companionValues = [];
+        const companionValues = companionNames.value ? companionNames.value.split(',').map(name => name.trim()) : [];
         let companionControls = [];
 
         function recopilarAcompanantes() {
@@ -373,6 +397,7 @@
         const saldoSpan = document.getElementById('saldoMontoText');
 
         function cargarHorarios(select, url, placeholder) {
+            const previous = select.value || select.dataset.selected;
             select.disabled = true;
             select.innerHTML = `<option value="">${placeholder}</option>`;
 
@@ -390,6 +415,7 @@
                         option.textContent = horario.label;
                         select.appendChild(option);
                     });
+                    if (previous && Array.from(select.options).some(option => option.value === previous)) select.value = previous;
                     select.disabled = select.options.length === 0;
                     if (select.disabled) {
                         select.innerHTML = '<option value="">No hay horarios disponibles</option>';
@@ -607,6 +633,7 @@
 
         manualTripForm.addEventListener('submit', async event => {
             recopilarAcompanantes();
+            if (event.submitter?.hasAttribute('data-save-draft')) return;
             if (!isSpecialTrip() && !savingSpecialTrip) return;
             event.preventDefault();
             if (savingSpecialTrip) return;
@@ -615,7 +642,8 @@
             const roundTrip = isRoundTripCheck.checked;
             const scheduledReturn = roundTrip && retornoProgramadoForm.checked;
             const payload = {
-                tripCategory: 'SPECIAL',
+                tripCategory: tripCategory.value,
+                reservationId: fields.get('reservationId') || null,
                 firstName: fields.get('firstName'),
                 lastName: fields.get('lastName'),
                 phone: (fields.get('phone') || '').replace(/[+()\s-]/g, ''),
@@ -631,11 +659,12 @@
                 roundTrip,
                 returnDate: scheduledReturn ? fields.get('returnDate') : null,
                 returnDepartureSchedule: scheduledReturn ? fields.get('returnDepartureSchedule') : null,
-                requiresInvoice: document.getElementById('requiresInvoice').checked,
+                requiresInvoice: true,
                 companionNames: fields.get('companionNames') || null,
                 notes: fields.get('notes') || null,
-                paymentStatus: 'PENDING',
-                paymentVerified: false
+                paymentStatus: document.getElementById('paymentVerified').checked ? 'PAID' : 'PENDING',
+                paymentVerified: document.getElementById('paymentVerified').checked,
+                paymentReceiptUrl: fields.get('paymentReceiptUrl') || null
             };
 
             savingSpecialTrip = true;
@@ -666,7 +695,7 @@
             }
         });
 
-        window.addEventListener('DOMContentLoaded', () => { actualizarAcompanantes(); alternarTipoDeViaje(); });
+        window.addEventListener('DOMContentLoaded', () => { actualizarAcompanantes(); alternarTipoDeViaje(); if (isRoundTripCheck.checked) isRoundTripCheck.dispatchEvent(new Event('change')); });
     </script>
 </body>
 </html>

@@ -19,11 +19,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import java.util.List;
 
-@WebMvcTest(BotMonitorController.class)
+@WebMvcTest({BotMonitorController.class, AssistedReservationDraftController.class})
 @Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class})
 class BotMonitorWebTest {
     @MockitoBean com.lunaris.ansenuza.application.usecase.CreateManualReservationUseCase createManualReservation;
     @Autowired MockMvc mvc;
+    @MockitoBean AssistedReservationDraftService drafts;
     @MockitoBean ConversationSessionRepository sessions;
     @MockitoBean PassengerRepository passengers;
     @MockitoBean ChatMessageRepository messages;
@@ -159,4 +160,36 @@ class BotMonitorWebTest {
                 .param("id", "42")).andExpect(status().isForbidden());
     }
 
+    @Test void draftAcceptsMissingNameDateAndScheduleAndKeepsAddress() throws Exception {
+        mvc.perform(post("/reservations/draft").with(csrf()).with(user("op").roles("OPERADOR"))
+                .param("sourcePhone", "5493511234567").param("phone", "5493511234567")
+                .param("pickupAddress", "Belgrano 450").param("notes", "Portón azul")
+                .param("returnToChat", "true"))
+                .andExpect(redirectedUrl("/admin/chat/5493511234567"));
+        var form = org.mockito.ArgumentCaptor.forClass(
+                com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm.class);
+        verify(drafts).save(eq("5493511234567"), form.capture());
+        org.assertj.core.api.Assertions.assertThat(form.getValue().getPickupAddress()).isEqualTo("Belgrano 450");
+        org.assertj.core.api.Assertions.assertThat(form.getValue().getFirstName()).isNull();
+        org.assertj.core.api.Assertions.assertThat(form.getValue().getTravelDate()).isNull();
+        verifyNoInteractions(createManualReservation);
+        mvc.perform(post("/reservations/draft").with(csrf()).with(user("driver").roles("CHOFER"))
+                .param("sourcePhone", "5493511234567")).andExpect(status().isForbidden());
+    }
+    @Test void assistedEditBindsIdentityCategoryAndExplicitPayment() throws Exception {
+        String id = java.util.UUID.randomUUID().toString();
+        mvc.perform(post("/admin/bot/monitor/cargar-reserva").with(csrf()).with(user("op").roles("OPERADOR"))
+                .param("reservationId", id).param("tripCategory", "REGULAR")
+                .param("phone", "543511234567").param("firstName", "Ana").param("lastName", "Pérez")
+                .param("pickupLocality", "Morteros").param("destination", "Córdoba")
+                .param("travelDate", "2030-01-02").param("passengerCount", "2").param("departureSchedule", "08:00")
+                .param("paymentVerified", "true"))
+                .andExpect(status().is3xxRedirection());
+        var captor = org.mockito.ArgumentCaptor.forClass(com.lunaris.ansenuza.domain.model.Reservation.class);
+        verify(createManualReservation).execute(captor.capture(), isNull());
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getId()).isEqualTo(java.util.UUID.fromString(id));
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getTripCategory()).isEqualTo(com.lunaris.ansenuza.domain.model.TripCategory.REGULAR);
+        org.assertj.core.api.Assertions.assertThat(captor.getValue().getPaymentVerified()).isTrue();
+        verifyNoInteractions(messages);
+    }
 }

@@ -10,6 +10,9 @@ public final class ManualTripWebMapper {
     private ManualTripWebMapper() {}
 
     public static void applyOptions(Reservation reservation, ManualReservationOptions options) {
+        reservation.setId(options.getReservationId());
+        reservation.setPaymentVerified(Boolean.TRUE.equals(options.getPaymentVerified()));
+        if (options.getPaymentReceiptUrl() != null) reservation.setPaymentReceiptUrl(options.getPaymentReceiptUrl());
         reservation.setTripCategory(options.getTripCategory());
         reservation.setOriginCustom(options.getOriginCustom());
         reservation.setDestinationCustom(options.getDestinationCustom());

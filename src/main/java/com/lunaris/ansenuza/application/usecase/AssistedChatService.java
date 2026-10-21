@@ -25,6 +25,32 @@ public class AssistedChatService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<Reservation> editableGroup(String phone) {
+        String normalized = com.lunaris.ansenuza.shared.PhoneUtils.normalizeArgentinePhone(phone);
+        var candidates = new java.util.ArrayList<>(reservations.findByPassengerPhone(phone));
+        if (!phone.equals(normalized)) candidates.addAll(reservations.findByPassengerPhone(normalized));
+        var session = sessions.findByPhoneNumber(phone).orElse(null);
+        var selected = candidates.stream()
+                .filter(r -> r.getTravelDate() != null && !r.getTravelDate().isBefore(ArgentinaTime.now().toLocalDate()))
+                .filter(r -> !java.util.Set.of("CANCELLED", "CANCELED", "EXPIRED", "REJECTED", "COMPLETED")
+                        .contains(r.getStatus() == null ? "" : r.getStatus().toUpperCase(java.util.Locale.ROOT)))
+                .filter(r -> r.getTravelStatus() != Reservation.TravelStatus.COMPLETED
+                        && r.getTravelStatus() != Reservation.TravelStatus.REALIZED
+                        && r.getTravelStatus() != Reservation.TravelStatus.CANCELED)
+                .sorted(java.util.Comparator.comparing((Reservation r) -> session != null
+                        && java.util.Objects.equals(session.getReservationCode(), r.getReservationCode()) ? 0 : 1)
+                        .thenComparing(Reservation::getTravelDate))
+                .findFirst().orElse(null);
+        if (selected == null) return java.util.List.of();
+        var group = reservations.findReservationGroup(com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(selected));
+        if (group.isEmpty()) return java.util.List.of(selected);
+        return group.stream().sorted(java.util.Comparator.comparing(Reservation::getTravelDate,
+                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
+                .thenComparing(Reservation::getCreatedAt, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ConversationSession prefill(String phone) {
         var data = ConversationSession.builder().phoneNumber(phone).passengerCount(1).build();
         var session = sessions.findByPhoneNumber(phone).orElse(null);

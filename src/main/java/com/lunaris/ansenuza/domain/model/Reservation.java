@@ -181,6 +181,12 @@ public class Reservation {
     @Column(name = "manual_notification_waiting_reply", nullable = false)
     private boolean manualNotificationWaitingReply;
 
+    @Column(name = "manual_confirmation_sent_at")
+    private LocalDateTime manualConfirmationSentAt;
+
+    @Column(name = "manual_invoice_delivered_url", columnDefinition = "text")
+    private String manualInvoiceDeliveredUrl;
+
     @Column(name = "payment_receipt_url")
     private String paymentReceiptUrl;
 
@@ -240,8 +246,7 @@ public class Reservation {
     @PreUpdate
     void prePersist() {
         if (tripCategory == null) tripCategory = TripCategory.REGULAR;
-        // payment_verified sigue siendo la fuente de verdad de los flujos existentes.
-        paymentStatus = Boolean.TRUE.equals(paymentVerified) ? PaymentStatus.PAID : PaymentStatus.PENDING;
+        synchronizePaymentAndBilling();
         if (isSpecialTrip() && invoiceIssued && paymentStatus != PaymentStatus.PAID) {
             throw new DomainValidationException(
                     "No se puede emitir una factura de un viaje especial con pago pendiente.");
@@ -312,10 +317,8 @@ public class Reservation {
             throw new DomainValidationException(
                     "El precio personalizado debe ser positivo, con hasta ocho enteros y dos decimales.");
         }
-        if (paymentStatus != PaymentStatus.PENDING || Boolean.TRUE.equals(paymentVerified)
-                || invoiceIssued || invoiceUrl != null) {
-            throw new DomainValidationException(
-                    "El viaje especial debe crearse con pago pendiente y sin factura.");
+        if (invoiceIssued || invoiceUrl != null) {
+            throw new DomainValidationException("La factura se registra después del alta del viaje.");
         }
         if (departureSchedule == null || !departureSchedule.matches("(?:[01]\\d|2[0-3]):[0-5]\\d")) {
             throw new DomainValidationException(
@@ -328,9 +331,32 @@ public class Reservation {
         extraAmount = BigDecimal.ZERO;
         discountAmount = BigDecimal.ZERO;
         amountIsGroupTotal = false;
-        paymentVerified = false;
-        paymentConfirmedAt = null;
+        synchronizePaymentAndBilling();
         paymentExpiresAt = null;
+    }
+
+    /** Invariante común para todos los caminos de alta y verificación de pago. */
+    public void synchronizePaymentAndBilling() {
+        boolean paid = Boolean.TRUE.equals(paymentVerified) || paymentStatus == PaymentStatus.PAID;
+        paymentStatus = paid ? PaymentStatus.PAID : PaymentStatus.PENDING;
+        paymentVerified = paid;
+        if (paid) {
+            status = "CANCELLED".equalsIgnoreCase(status) || "CANCELED".equalsIgnoreCase(status)
+                    || "REJECTED".equalsIgnoreCase(status) || "EXPIRED".equalsIgnoreCase(status)
+                    || "COMPLETED".equalsIgnoreCase(status) ? status : "CONFIRMED";
+            if (paymentConfirmedAt == null) paymentConfirmedAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
+            paymentExpiresAt = null;
+        }
+        if (paid || "CONFIRMED".equalsIgnoreCase(status) || hasPaymentReceipt()) requiresInvoice = true;
+    }
+
+    public boolean isPaymentValidatedForBilling() {
+        return Boolean.TRUE.equals(paymentVerified) && !java.util.Set.of("CANCELLED", "CANCELED", "EXPIRED", "REJECTED")
+                .contains(status == null ? "" : status.toUpperCase(java.util.Locale.ROOT));
+    }
+
+    public boolean hasPaymentReceipt() {
+        return paymentReceiptUrl != null && !paymentReceiptUrl.isBlank() && !"null".equalsIgnoreCase(paymentReceiptUrl.trim());
     }
 
     private static String requiredCustomLocation(String location, String label) {

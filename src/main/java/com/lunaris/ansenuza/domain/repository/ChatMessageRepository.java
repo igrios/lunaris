@@ -11,4 +11,6 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     List<ChatMessage> findByPhoneNumberOrderByTimestampAsc(String phoneNumber);
 
     Optional<ChatMessage> findFirstByPhoneNumberAndFromOperatorFalseOrderByTimestampDesc(String phoneNumber);
+
+    Optional<ChatMessage> findFirstByPhoneNumberAndFromOperatorFalseOrderByTimestampDescIdDesc(String phoneNumber);
 }

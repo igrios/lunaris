@@ -107,6 +107,7 @@ class ConfirmPaymentUseCaseTest {
     void notifiesPassengerThroughMessagingPortWhenPaymentIsApproved() {
         UUID reservationId = UUID.randomUUID();
         Reservation reservation = reservation(reservationId, "MOR-COR-005", null, false);
+        reservation.setSource(com.lunaris.ansenuza.domain.model.ReservationSource.WHATSAPP);
         reservation.setDestination("Córdoba");
         reservation.setPassenger(Passenger.builder()
                 .firstName("Ana").phone("543511112222").build());
@@ -122,6 +123,24 @@ class ConfirmPaymentUseCaseTest {
         verify(messaging).sendText(
                 org.mockito.ArgumentMatchers.eq("543511112222"),
                 org.mockito.ArgumentMatchers.contains("Pago Verificado"));
+    }
+
+    @Test
+    void manualPaymentUsesExistingConsolidatedNotificationAndEnablesBilling() {
+        UUID id = UUID.randomUUID();
+        var reservation = reservation(id, "MANUAL-001", null, false);
+        reservation.setSource(com.lunaris.ansenuza.domain.model.ReservationSource.MANUAL);
+        reservation.setRequiresInvoice(false);
+        reservation.setManualNotificationPending(true);
+        var repository = mock(ReservationRepository.class);
+        var messaging = mock(MessagingPort.class);
+        when(repository.findById(id)).thenReturn(Optional.of(reservation));
+        when(repository.findByIdForUpdate(id)).thenReturn(Optional.of(reservation));
+        new ConfirmPaymentUseCase(repository, mock(PromotionService.class), mock(WaitingListRepository.class),
+                mock(ConversationSessionRepository.class), null, messaging).execute(id);
+        assertEquals(com.lunaris.ansenuza.domain.model.PaymentStatus.PAID, reservation.getPaymentStatus());
+        assertTrue(reservation.getRequiresInvoice());
+        org.mockito.Mockito.verifyNoInteractions(messaging);
     }
 
     private ConfirmPaymentUseCase newUseCase(

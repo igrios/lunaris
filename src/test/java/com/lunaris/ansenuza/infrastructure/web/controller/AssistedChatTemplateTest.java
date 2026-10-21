@@ -15,16 +15,27 @@ class AssistedChatTemplateTest {
         String template = Files.readString(Path.of("src/main/resources/templates/admin/chat-room.html"));
         String form = template.substring(template.indexOf("<form id=\"formReservaManual\""),
                 template.indexOf("</form>", template.indexOf("<form id=\"formReservaManual\"")) + 7)
-                .replace("th:action=\"@{/admin/bot/monitor/cargar-reserva}\"", "");
+                .replace("th:action=\"@{/admin/bot/monitor/cargar-reserva}\"", "")
+                .replace("th:formaction=\"@{/reservations/draft}\"", "");
         String composer = template.substring(template.indexOf("<input type=\"text\" id=\"messageInput\""),
                 template.indexOf("</button>", template.indexOf("<input type=\"text\" id=\"messageInput\"")) + 9);
         Context context = new Context();
         context.setVariable("phone", "5493511234567");
         context.setVariable("chatCanSend", true);
         context.setVariable("passenger", Passenger.builder().firstName("Ana").lastName("Pérez").build());
-        context.setVariable("assistedData", ConversationSession.builder().passengerCount(7)
-                .pickupLocality("Aeropuerto").destination("Miramar").pickupAddress("Puerta <norte>").travelDate(LocalDate.of(2026, 10, 10))
-                .roundTrip(true).requiresInvoice(true).companionNames("Luis & María").build());
+        var draft = new com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm();
+        draft.setPhone("5493511234567");
+        draft.setFirstName("Ana");
+        draft.setLastName("Pérez");
+        draft.setPassengerCount(7);
+        draft.setPickupLocality("Aeropuerto");
+        draft.setDestination("Miramar");
+        draft.setPickupAddress("Puerta <norte>");
+        draft.setTravelDate(LocalDate.of(2026, 10, 10));
+        draft.setRoundTrip(true);
+        draft.setRequiresInvoice(true);
+        draft.setCompanionNames("Luis & María");
+        context.setVariable("assistedForm", draft);
         String html = new SpringTemplateEngine().process(form + composer, context);
         assertTrue(html.contains("value=\"5493511234567\""));
         assertTrue(html.contains("value=\"Ana\""));

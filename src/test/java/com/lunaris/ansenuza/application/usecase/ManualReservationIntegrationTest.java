@@ -148,8 +148,8 @@ class ManualReservationIntegrationTest {
                 .extracting(Reservation::getId).doesNotContain(saved.getId());
         verifyNoInteractions(pricing, capacity, storage);
         assertThat(invoices.findByReservationId(saved.getId())).isEmpty();
-        verify(messaging).sendTemplate(eq(input.getPassenger().getPhone()), eq("contacto_pasajero"), eq(List.of("Ana")), any());
-        verify(messaging, never()).sendText(anyString(), anyString(), any());
+        verify(messaging, never()).sendTemplate(anyString(), anyString(), anyList(), any());
+        verify(messaging).sendText(anyString(), anyString(), any());
         events.publishEvent(new PassengerMessageReceived(input.getPassenger().getPhone()));
         verify(messaging).sendText(eq(input.getPassenger().getPhone()), contains("Pago: Pendiente"), any());
         verify(messaging, never()).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
@@ -308,11 +308,132 @@ class ManualReservationIntegrationTest {
     }
 
     @Test
-    void specialCreationCannotClaimPaidStatus() {
+    void specialCreationAcceptsOperatorValidatedPaymentAndIsVisibleForBilling() {
         Reservation input = specialBooking();
         input.setPaymentStatus(PaymentStatus.PAID);
-        assertThatThrownBy(() -> manual.execute(input, null))
-                .isInstanceOf(com.lunaris.ansenuza.domain.exception.DomainValidationException.class);
+        input.setRequiresInvoice(false);
+        var saved = manual.execute(input, null).getFirst();
+        assertThat(saved.getPaymentVerified()).isTrue();
+        assertThat(saved.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(saved.getRequiresInvoice()).isTrue();
+        assertThat(reservations.findPendingInvoiceReservations()).extracting(Reservation::getId).contains(saved.getId());
+    }
+
+    @Test
+    void manualReceiptAutomaticallyMakesRegularBookingPaidAndVisibleWithoutInvoiceCheckbox() {
+        var saved = manual.execute(booking(false), null).getFirst();
+        assertThat(saved.getPaymentVerified()).isTrue();
+        assertThat(saved.getPaymentStatus()).isEqualTo(PaymentStatus.PAID);
+        assertThat(saved.getRequiresInvoice()).isTrue();
+        assertThat(saved.getTripCategory()).isEqualTo(TripCategory.REGULAR);
+        assertThat(reservations.findPendingInvoiceReservations()).extracting(Reservation::getId).contains(saved.getId());
+    }
+
+    @Test
+    void editingRoundTripUpdatesSameIdsCodesAndTotalAndRepeatedSaveDoesNotNotifyAgain() {
+        var input = specialBooking();
+        input.setCustomPriceIsTotal(true);
+        input.setRoundTrip(true);
+        input.setTripType(TripType.ROUND_TRIP);
+        input.setReturnDate(input.getTravelDate().plusDays(1));
+        var legs = manual.execute(input, "18:00");
+        var ids = legs.stream().map(Reservation::getId).toList();
+        var codes = legs.stream().map(Reservation::getReservationCode).toList();
+        long count = reservations.count();
+        var edit = specialBooking();
+        edit.setPassenger(input.getPassenger());
+        edit.setId(legs.getFirst().getId());
+        edit.setRoundTrip(true);
+        edit.setTripType(TripType.ROUND_TRIP);
+        edit.setReturnDate(edit.getTravelDate().plusDays(2));
+        edit.setCustomPriceIsTotal(true);
+        edit.setCustomPrice(new BigDecimal("83000.01"));
+        edit.setPickupAddress("Dirección corregida");
+        edit.setPaymentVerified(true);
+        var updated = manual.execute(edit, "19:00");
+        assertThat(reservations.count()).isEqualTo(count);
+        assertThat(updated).extracting(Reservation::getId).containsExactlyInAnyOrderElementsOf(ids);
+        assertThat(updated).extracting(Reservation::getReservationCode).containsExactlyInAnyOrderElementsOf(codes);
+        assertThat(updated).allMatch(r -> r.getPaymentVerified() && r.getRequiresInvoice() && r.getPaymentStatus() == PaymentStatus.PAID);
+        assertThat(BookingInvoiceAmount.total(updated)).isEqualByComparingTo("83000.01");
+        long auditCount = audit.count();
+        manual.execute(edit, "19:00");
+        assertThat(audit.count()).isEqualTo(auditCount);
+        assertThat(reservations.count()).isEqualTo(count);
+    }
+
+    @Test
+    void explicitRegularSelectionUpdatesExistingSpecialWithoutDuplicatingOrKeepingFreeFields() {
+        var original = manual.execute(specialBooking(), null).getFirst();
+        long count = reservations.count();
+        String code = original.getReservationCode();
+        var edit = booking(false);
+        edit.setId(original.getId());
+        edit.setPassenger(original.getPassenger());
+        edit.setOriginCustom("Dato libre anterior");
+        var saved = manual.execute(edit, null).getFirst();
+        assertThat(saved.getId()).isEqualTo(original.getId());
+        assertThat(saved.getReservationCode()).isEqualTo(code);
+        assertThat(saved.getTripCategory()).isEqualTo(TripCategory.REGULAR);
+        assertThat(saved.getOriginCustom()).isNull();
+        assertThat(saved.getCustomPrice()).isNull();
+        assertThat(reservations.count()).isEqualTo(count);
+    }
+
+    @Test
+    void activeWindowSendsOneConfirmationAndThenOnlyTheInvoiceEvenWhenRequestedTwice() {
+        var input = specialBooking();
+        input.setPaymentVerified(true);
+        chats.saveAndFlush(ChatMessage.builder().phoneNumber(input.getPassenger().getPhone()).messageText("Hola")
+                .fromOperator(false).timestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now()).build());
+        var saved = manual.execute(input, null).getFirst();
+        commit();
+        verify(messaging, never()).sendTemplate(anyString(), anyString(), anyList(), any());
+        verify(messaging).sendText(eq(input.getPassenger().getPhone()), contains("Tu viaje"), any());
+        invoicing.issue(saved.getId(), new byte[] {37,80,68,70});
+        var url = reservations.findById(saved.getId()).orElseThrow().getInvoiceUrl();
+        notifications.invoiceReady(saved.getId(), url);
+        verify(messaging, times(1)).sendText(anyString(), anyString(), any());
+        verify(messaging, times(1)).sendDocumentUrl(anyString(), eq(url), anyString(), anyString(), any());
+    }
+
+    @Test
+    void invoiceReadyWhileConfirmationIsInFlightDoesNotDuplicateOrLoseDelivery() {
+        var input = specialBooking();
+        input.setPaymentVerified(true);
+        chats.saveAndFlush(ChatMessage.builder().phoneNumber(input.getPassenger().getPhone()).messageText("Hola")
+                .fromOperator(false).timestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now()).build());
+        var accepted = new java.util.concurrent.atomic.AtomicReference<Consumer<Boolean>>();
+        doAnswer(call -> { accepted.set(call.getArgument(2)); return null; })
+                .when(messaging).sendText(anyString(), anyString(), any());
+        var saved = manual.execute(input, null).getFirst();
+        commit();
+        var invoice = invoicing.issue(saved.getId(), new byte[] {37,80,68,70});
+        verify(messaging, never()).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+        accepted.get().accept(true);
+        verify(messaging, times(1)).sendText(anyString(), anyString(), any());
+        verify(messaging, times(1)).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+        assertThat(invoices.findById(invoice.getId()).orElseThrow().getSentViaWhatsapp()).isTrue();
+    }
+
+    @Test
+    void failedInvoiceDeliveryRetriesOnlyPdfAfterConfirmationWasAccepted() {
+        var input = specialBooking();
+        input.setPaymentVerified(true);
+        chats.saveAndFlush(ChatMessage.builder().phoneNumber(input.getPassenger().getPhone()).messageText("Hola")
+                .fromOperator(false).timestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now()).build());
+        var saved = manual.execute(input, null).getFirst();
+        commit();
+        doAnswer(call -> { call.<Consumer<Boolean>>getArgument(4).accept(false); return null; })
+                .when(messaging).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+        var invoice = invoicing.issue(saved.getId(), new byte[] {37,80,68,70});
+        assertThat(reservations.findById(saved.getId()).orElseThrow().isManualNotificationPending()).isTrue();
+        doAnswer(call -> { call.<Consumer<Boolean>>getArgument(4).accept(true); return null; })
+                .when(messaging).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+        notifications.deliver(saved.getId(), false);
+        verify(messaging, times(1)).sendText(anyString(), anyString(), any());
+        verify(messaging, times(2)).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
+        assertThat(invoices.findById(invoice.getId()).orElseThrow().getSentViaWhatsapp()).isTrue();
     }
 
     @Test
@@ -422,7 +543,7 @@ class ManualReservationIntegrationTest {
     }
 
     @Test
-    void openWindowStillStartsWithApprovedTemplateAndWaitsForReply() {
+    void openWindowSendsConsolidatedConfirmationWithoutAnExtraTemplate() {
         Reservation input = booking(false);
         chats.saveAndFlush(ChatMessage.builder().phoneNumber(input.getPassenger().getPhone())
                 .messageText("Hola").fromOperator(false)
@@ -430,9 +551,8 @@ class ManualReservationIntegrationTest {
         Reservation saved = service.saveManualReservationFlow(input, null).getFirst();
         verifyNoInteractions(messaging);
         commit();
-        verify(messaging).sendTemplate(eq(input.getPassenger().getPhone()), eq("contacto_pasajero"), eq(List.of("Ana")), any());
-        verify(messaging, never()).sendText(anyString(), anyString(), any());
-        assertThat(reservations.findById(saved.getId()).orElseThrow().isManualNotificationWaitingReply()).isTrue();
+        verify(messaging, never()).sendTemplate(anyString(), anyString(), anyList(), any());
+        assertThat(reservations.findById(saved.getId()).orElseThrow().isManualNotificationWaitingReply()).isFalse();
         events.publishEvent(new PassengerMessageReceived(input.getPassenger().getPhone()));
         verify(messaging).sendText(eq(input.getPassenger().getPhone()), contains(ManualReservationNotificationService.PROMO), any());
         verifyNoInteractions(storage);
@@ -480,8 +600,7 @@ class ManualReservationIntegrationTest {
         commit();
         clearInvocations(messaging);
         Invoice invoice = uploadManually(saved);
-        verify(messaging).sendTemplate(eq(saved.getPassenger().getPhone()),
-                eq("contacto_pasajero"), eq(List.of("Ana")), any());
+        verify(messaging, never()).sendTemplate(anyString(), anyString(), anyList(), any());
         verify(messaging, never()).sendDocumentUrl(anyString(), anyString(), anyString(), anyString(), any());
         assertThat(invoice.getAmount()).isEqualByComparingTo("12796.17");
         assertThat(reservations.findById(saved.getId()).orElseThrow().getInvoiceUrl())
@@ -525,7 +644,7 @@ class ManualReservationIntegrationTest {
         assertThat(stored.getPassenger().getPhone()).isEqualTo(canonical);
         assertThat(stored.getAmount()).isZero();
         assertThat(stored.getRouteDirection()).isEqualTo("VUELTA");
-        assertThat(stored.getRequiresInvoice()).isFalse();
+        assertThat(stored.getRequiresInvoice()).isTrue();
         verifyNoInteractions(pricing, storage);
     }
 

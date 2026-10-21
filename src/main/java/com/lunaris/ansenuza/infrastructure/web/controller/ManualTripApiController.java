@@ -24,8 +24,10 @@ public class ManualTripApiController {
     public ResponseEntity<List<AdminReservationApiController.AdminReservationResponse>> create(
             @Valid @RequestBody CreateReservationForm request) {
         var saved = create.execute(ManualTripWebMapper.toReservation(request), request.getReturnDepartureSchedule());
-        return ResponseEntity.created(URI.create("/api/admin/reservations?travelDate=" + request.getTravelDate()))
-                .body(saved.stream().map(AdminReservationApiController.AdminReservationResponse::from).toList());
+        var body = saved.stream().map(AdminReservationApiController.AdminReservationResponse::from).toList();
+        return request.getReservationId() == null
+                ? ResponseEntity.created(URI.create("/api/admin/reservations?travelDate=" + request.getTravelDate())).body(body)
+                : ResponseEntity.ok(body);
     }
 
     @PostMapping("/{id}/paid")

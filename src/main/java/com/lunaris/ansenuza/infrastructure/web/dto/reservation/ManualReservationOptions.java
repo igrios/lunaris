@@ -14,6 +14,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ManualReservationOptions {
+    private java.util.UUID reservationId;
+    private Boolean paymentVerified;
+    private String paymentReceiptUrl;
     @NotNull
     private TripCategory tripCategory =
             TripCategory.REGULAR;

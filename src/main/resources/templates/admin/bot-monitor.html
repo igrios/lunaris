@@ -111,9 +111,9 @@
                                 <span th:text="${s.botPaused ? 'Reactivar Bot' : 'Pausar Bot'}"></span>
                             </button>
                             <a th:href="@{/admin/chat(phone=${s.phoneNumber})}" class="btn btn-primary btn-sm ms-1">Chatear en Vivo</a>
-                            <a th:if="${s.tripCategory == 'SPECIAL'}"
+                            <a
                                th:href="@{/reservations/new(sessionId=${s.id})}"
-                               class="btn btn-outline-primary btn-sm mt-2">Crear reserva especial</a>
+                               class="btn btn-outline-primary btn-sm mt-2" th:text="${s.tripCategory == 'SPECIAL' ? 'Crear reserva especial' : 'Abrir reserva asistida'}">Abrir reserva asistida</a>
                             <details class="mt-2 text-start special-trip-editor">
                                 <summary class="small text-primary">Registrar / editar solicitud especial</summary>
                                 <form th:action="@{/admin/bot/monitor/special-trip}" method="post" class="border rounded p-2 mt-2">

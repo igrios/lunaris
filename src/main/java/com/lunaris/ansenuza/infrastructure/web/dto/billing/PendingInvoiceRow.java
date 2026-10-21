@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** Una reserva con pago confirmado que todavía no tiene factura emitida. */
+/** Grupo visible en facturación; la emisión requiere validar el pago de todos los tramos. */
 public record PendingInvoiceRow(
         UUID reservationId,
         String reservationCode,
@@ -14,5 +14,6 @@ public record PendingInvoiceRow(
         String suggestedCuil,
         BigDecimal amount,
         LocalDate travelDate,
-        String route
+        String route,
+        boolean paymentVerified
 ) {}

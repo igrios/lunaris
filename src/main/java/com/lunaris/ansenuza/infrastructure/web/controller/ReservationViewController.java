@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ReservationViewController {
 
     private final BotMonitorService botMonitorService;
+    private final com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService assistedDrafts;
     private final PassengerRepository passengerRepository;
     private final LocalityRepository localityRepository;
     private final ReservationService reservationService;
@@ -57,16 +58,20 @@ public class ReservationViewController {
 
     @GetMapping("/new")
     public String newReservation(
-            @RequestParam(defaultValue = "REGULAR") TripCategory tripCategory,
+            @RequestParam(required = false) TripCategory tripCategory,
             @RequestParam(required = false) Long sessionId,
+            @RequestParam(required = false) String chatPhone,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
             Model model) {
+        TripCategory requestedCategory = tripCategory;
+        if (tripCategory == null) tripCategory = TripCategory.REGULAR;
         var form = new CreateReservationForm();
         form.setTripCategory(tripCategory);
         form.setTravelDate(travelDate);
         if (sessionId != null) {
-            var session = botMonitorService.specialTrip(sessionId);
-            tripCategory = TripCategory.SPECIAL;
+            var session = botMonitorService.session(sessionId);
+            chatPhone = session.getPhoneNumber();
+            tripCategory = session.getTripCategory() == TripCategory.SPECIAL ? TripCategory.SPECIAL : TripCategory.REGULAR;
             form.setTripCategory(tripCategory);
             form.setPhone(session.getPhoneNumber());
             form.setOriginCustom(session.getOriginCustom());
@@ -86,6 +91,20 @@ public class ReservationViewController {
                 form.setFirstName(name[0]);
                 form.setLastName(name.length > 1 ? name[1] : null);
             }
+        }
+        if (chatPhone != null && !chatPhone.isBlank()) {
+            var prefill = assistedDrafts.prefill(chatPhone);
+            if (prefill != null) {
+                form = prefill.form();
+                tripCategory = form.getTripCategory();
+                model.addAttribute("sourceMessage", prefill.sourceMessage());
+                model.addAttribute("detectedPhone", prefill.detectedPhone());
+            }
+            model.addAttribute("sourcePhone", chatPhone);
+        }
+        if (requestedCategory != null) {
+            tripCategory = requestedCategory;
+            form.setTripCategory(requestedCategory);
         }
         model.addAttribute("reservation", form);
         model.addAttribute("initialTripCategory", tripCategory.name());

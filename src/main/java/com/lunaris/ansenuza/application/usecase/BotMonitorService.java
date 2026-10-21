@@ -55,6 +55,11 @@ public class BotMonitorService {
     }
 
     @Transactional(readOnly = true)
+    public ConversationSession session(long id) {
+        return findSession(id);
+    }
+
+    @Transactional(readOnly = true)
     public ConversationSession specialTrip(long id) {
         var session = findSession(id);
         if (session.getTripCategory() != TripCategory.SPECIAL) {

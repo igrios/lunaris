@@ -25,6 +25,8 @@ public class CreateManualReservationUseCase {
             throw new DomainValidationException("El nombre y apellido del pasajero son obligatorios.");
         }
         String phone = PhoneUtils.normalizeArgentinePhone(input.getPhone());
+        if (reservation.hasPaymentReceipt()) reservation.setPaymentVerified(true);
+        reservation.synchronizePaymentAndBilling();
         reservations.validateManualReservation(reservation);
         Passenger passenger = passengers.findFirstByPhone(phone).orElseGet(Passenger::new);
         passenger.setPhone(phone);
@@ -32,6 +34,8 @@ public class CreateManualReservationUseCase {
         passenger.setLastName(input.getLastName().trim());
         if (input.getCuil() != null && !input.getCuil().isBlank()) passenger.setCuil(input.getCuil().trim());
         reservation.setPassenger(passengers.saveAndFlush(passenger));
-        return reservations.saveManualReservationFlow(reservation, returnSchedule);
+        return reservation.getId() == null
+                ? reservations.saveManualReservationFlow(reservation, returnSchedule)
+                : reservations.updateManualReservationFlow(reservation, returnSchedule);
     }
 }

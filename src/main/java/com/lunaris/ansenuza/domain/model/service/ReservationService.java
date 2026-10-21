@@ -104,8 +104,99 @@ public class ReservationService {
         return saved;
     }
 
+    @Transactional
+    public List<Reservation> updateManualReservationFlow(Reservation input, String returnSchedule) {
+        String code = reservationRepository.findBillingGroupCodeById(input.getId()).orElse(null);
+        List<Reservation> group = code == null ? List.of(reservationRepository.findByIdForUpdate(input.getId())
+                .orElseThrow(() -> new DomainValidationException("Reserva no encontrada.")))
+                : reservationRepository.findReservationGroupForUpdate(code);
+        if (group.isEmpty()) group = List.of(reservationRepository.findByIdForUpdate(input.getId())
+                .orElseThrow(() -> new DomainValidationException("La reserva no existe.")));
+        Reservation primary = group.stream().filter(r -> input.getId().equals(r.getId())).findFirst()
+                .orElseThrow(() -> new DomainValidationException("La reserva no pertenece al grupo."));
+        if (group.size() != (Boolean.TRUE.equals(input.getRoundTrip()) ? 2 : 1)) {
+            throw new DomainValidationException("La edición conserva los tramos existentes. Gestioná el alta o cancelación del regreso por separado.");
+        }
+        for (Reservation leg : group) {
+            if (leg.getManualNotificationAttemptAt() != null && leg.getManualNotificationAttemptAt()
+                    .isAfter(com.lunaris.ansenuza.shared.ArgentinaTime.now().minusMinutes(5))) {
+                throw new DomainValidationException("La reserva tiene un aviso en curso. Reintentá la edición en unos segundos.");
+            }
+            assertNotCompleted(leg);
+            assertCancellationAllowed(leg, "ADMIN_PANEL");
+            if (leg.isInvoiceIssued() || leg.getInvoiceUrl() != null
+                    || List.of("CANCELLED", "CANCELED", "EXPIRED", "REJECTED").contains(leg.getStatus() == null ? "" : leg.getStatus())) {
+                throw new DomainValidationException("No se puede modificar un grupo cancelado o ya facturado desde el chat.");
+            }
+        }
+        var before = manualSnapshot(group);
+        // Validar capacidad sin contar las butacas del grupo que se está editando.
+        var excluded = group.stream().map(Reservation::getId).collect(java.util.stream.Collectors.toSet());
+        if (!input.isSpecialTrip()) {
+            lockAndValidateCapacity(input.getTravelDate(), input.getDepartureSchedule(), input.getPickupLocality(), input.getTotalSeats(), excluded);
+            if (group.size() == 2) {
+                LocalDate date = input.getReturnDate() == null ? input.getTravelDate() : input.getReturnDate();
+                if (input.getReturnDate() == null && !TripRouteCalculatorService.isCordoba(input.getPickupLocality())) {
+                    for (String block : List.of("14:00", "17:30")) lockAndValidateCapacity(date, block, input.getDestination(), input.getTotalSeats(), excluded);
+                } else lockAndValidateCapacity(date, returnSchedule, input.getDestination(), input.getTotalSeats(), excluded);
+            }
+        }
+        BigDecimal outbound = group.size() == 2 ? input.getAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP) : input.getAmount();
+        BigDecimal discount = group.size() == 2 ? input.getDiscountAmount().divide(BigDecimal.valueOf(2), 2, RoundingMode.HALF_UP) : input.getDiscountAmount();
+        boolean paid = group.stream().anyMatch(r -> Boolean.TRUE.equals(r.getPaymentVerified())) || Boolean.TRUE.equals(input.getPaymentVerified());
+        String direction = input.getRouteDirection();
+        if (direction == null || direction.isBlank()) direction = routeDirection(input.getPickupLocality(), input.getDestination());
+        if (direction == null || direction.isBlank()) direction = "IDA";
+        for (Reservation leg : group) {
+            boolean reverse = !leg.getId().equals(primary.getId());
+            leg.setRouteDirection(reverse ? oppositeDirection(direction) : direction);
+            leg.setPassenger(input.getPassenger());
+            leg.setTripCategory(input.getTripCategory());
+            leg.setOriginCustom(input.isSpecialTrip() ? (reverse ? input.getDestinationCustom() : input.getOriginCustom()) : null);
+            leg.setDestinationCustom(input.isSpecialTrip() ? (reverse ? input.getOriginCustom() : input.getDestinationCustom()) : null);
+            leg.setCustomPrice(input.isSpecialTrip() ? input.getCustomPrice() : null);
+            leg.setCustomPriceIsTotal(input.isSpecialTrip() && input.isCustomPriceIsTotal());
+            leg.setPickupLocality(reverse ? input.getDestination() : input.getPickupLocality());
+            leg.setDestination(reverse ? input.getPickupLocality() : input.getDestination());
+            if (!reverse) leg.setPickupAddress(input.getPickupAddress());
+            leg.setTravelDate(reverse ? input.getReturnDate() : input.getTravelDate());
+            leg.setReturnDate(input.getReturnDate());
+            leg.setRoundTrip(input.getRoundTrip());
+            leg.setTripType(Boolean.TRUE.equals(input.getRoundTrip()) ? (input.getReturnDate() == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP) : TripType.ONE_WAY);
+            leg.setDepartureSchedule(reverse ? returnSchedule : input.getDepartureSchedule());
+            leg.setPassengerCount(input.getPassengerCount());
+            leg.setCompanionNames(input.getCompanionNames());
+            leg.setAmount(reverse ? input.getAmount().subtract(outbound) : outbound);
+            leg.setAmountIsGroupTotal(false);
+            leg.setDiscountAmount(reverse ? input.getDiscountAmount().subtract(discount) : discount);
+            leg.setExtraAmount(reverse ? BigDecimal.ZERO : input.getExtraAmount());
+            leg.setNotes(input.getNotes());
+            leg.setRequiresInvoice(input.getRequiresInvoice());
+            if (input.hasPaymentReceipt()) leg.setPaymentReceiptUrl(input.getPaymentReceiptUrl());
+            leg.setPaymentVerified(paid);
+            leg.setStatus("CONFIRMED");
+            leg.synchronizePaymentAndBilling();
+            leg.setTravelStatus(reverse && input.getReturnDate() == null ? Reservation.TravelStatus.OPEN_RETURN : Reservation.TravelStatus.SCHEDULED);
+        }
+        if (!before.equals(manualSnapshot(group))) {
+            primary.setManualNotificationPending(true);
+            primary.setManualConfirmationSentAt(null);
+            reservationEventRepository.save(ReservationEvent.builder().reservationId(primary.getId())
+                    .eventType("RESERVATION_UPDATED").description("Edición asistida del grupo " + code).triggeredBy("ADMIN_PANEL").build());
+            reservationRepository.saveAllAndFlush(group);
+            notificationEvents.publishEvent(new com.lunaris.ansenuza.domain.model.ManualReservationCreated(primary.getId()));
+        }
+        return group;
+    }
+
+    private List<String> manualSnapshot(List<Reservation> group) {
+        return group.stream().map(r -> java.util.Arrays.asList(r.getPickupLocality(), r.getDestination(), r.getTravelDate(),
+                r.getDepartureSchedule(), r.getPickupAddress(), r.getPassengerCount(), r.getCompanionNames(), r.getAmount() == null ? null : r.getAmount().stripTrailingZeros(),
+                r.getDiscountAmount() == null ? null : r.getDiscountAmount().stripTrailingZeros(), r.getExtraAmount() == null ? null : r.getExtraAmount().stripTrailingZeros(), r.getNotes(), r.getTripCategory(), r.getRoundTrip(),
+                r.getReturnDate(), r.getPaymentVerified()).toString()).toList();
+    }
+
     public void validateManualReservation(Reservation reservation) {
-        if (reservation.getId() != null) throw new DomainValidationException("La creación manual requiere una reserva nueva.");
         reservation.prepareSpecialTripCreation();
         if (reservation.getCompanionNames() != null && reservation.getCompanionNames().length() > 500) {
             throw new DomainValidationException("Los nombres de acompañantes no pueden superar 500 caracteres.");
@@ -386,11 +477,16 @@ public class ReservationService {
 
     private void lockAndValidateCapacity(LocalDate travelDate, String departureSchedule,
             String pickupLocality, int requestedSeats) {
+        lockAndValidateCapacity(travelDate, departureSchedule, pickupLocality, requestedSeats, java.util.Set.of());
+    }
+
+    private void lockAndValidateCapacity(LocalDate travelDate, String departureSchedule,
+            String pickupLocality, int requestedSeats, java.util.Set<UUID> excluded) {
         if (capacityLockRepository == null || travelDate == null) return;
         if (TripRouteCalculatorService.isCordoba(pickupLocality)
                 && (departureSchedule == null || departureSchedule.isBlank())) {
             for (String block : List.of("14:00", "17:30")) {
-                lockAndValidateCapacity(travelDate, block, pickupLocality, requestedSeats);
+                lockAndValidateCapacity(travelDate, block, pickupLocality, requestedSeats, excluded);
             }
             return;
         }
@@ -406,8 +502,10 @@ public class ReservationService {
             throw new DomainValidationException("No se pudo bloquear la capacidad del turno.");
         }
         long available = "RETURN".equals(direction)
-                ? ReturnCapacityPolicy.availableSeats(reservationRepository, travelDate, schedule)
-                : 19 - reservationRepository.countReservedSeats(travelDate, schedule);
+                ? ReturnCapacityPolicy.availableSeats(reservationRepository, travelDate, schedule,
+                        com.lunaris.ansenuza.shared.ArgentinaTime.now(), excluded)
+                : 19 - (excluded.isEmpty() ? reservationRepository.countReservedSeats(travelDate, schedule)
+                        : reservationRepository.countReservedSeatsExcluding(travelDate, schedule, excluded));
         if (requestedSeats > available) {
             throw new com.lunaris.ansenuza.domain.exception.SeatCapacityExceededException(
                     "No hay asientos suficientes para el turno seleccionado.");
@@ -428,6 +526,7 @@ public class ReservationService {
         LocalDateTime confirmedAt = com.lunaris.ansenuza.shared.ArgentinaTime.now();
         group.forEach(reservation -> {
             reservation.setPaymentVerified(true);
+            reservation.synchronizePaymentAndBilling();
             reservation.setStatus("CONFIRMED");
             reservation.setPaymentConfirmedAt(confirmedAt);
         });
@@ -909,6 +1008,7 @@ public class ReservationService {
                     item.setPaymentVerified(reservation.getPaymentVerified());
                     item.setStatus(reservation.getStatus());
                     item.setPaymentConfirmedAt(reservation.getPaymentConfirmedAt());
+                    item.synchronizePaymentAndBilling();
                 });
                 reservationRepository.saveAllAndFlush(linked);
                 saved = linked.stream().filter(item -> id.equals(item.getId()))

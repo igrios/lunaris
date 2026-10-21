@@ -34,6 +34,8 @@ public class ChatController {
     private final TakeOverConversationUseCase takeOverConversation;
     private final com.lunaris.ansenuza.application.usecase.AssistedChatService assistedChat;
 
+    private final com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService assistedDrafts;
+
     @PostMapping("/{phoneNumber}/takeover")
     public String takeOver(@PathVariable String phoneNumber, RedirectAttributes redirectAttributes) {
         String phone = takeOverConversation.execute(phoneNumber);
@@ -55,9 +57,12 @@ public class ChatController {
         // 1. Datos del chat originales (Intactos para tu WebSocket actual)
         sessionRepository.findByPhoneNumber(phoneNumber)
                 .ifPresent(session -> model.addAttribute("session", session));
-        model.addAttribute("assistedData", assistedChat.prefill(phoneNumber));
+        var prefill = assistedDrafts.prefill(phoneNumber);
+        model.addAttribute("assistedForm", prefill.form());
+        model.addAttribute("sourceMessage", prefill.sourceMessage());
+        model.addAttribute("detectedPhone", prefill.detectedPhone());
         model.addAttribute("chatCanSend", assistedChat.canSend(phoneNumber));
-        model.addAttribute("passenger", passengerRepository.findByPhone(phoneNumber).orElse(null));
+        model.addAttribute("passenger", passengerRepository.findFirstByPhone(phoneNumber).orElse(null));
         model.addAttribute("historial", historial);
         model.addAttribute("phone", phoneNumber);
         model.addAttribute("chatWindowActive", conversationWindowService.isActive(phoneNumber));
@@ -71,10 +76,17 @@ public class ChatController {
         return "admin/chat-room";
     }
 
+    @GetMapping("/{phoneNumber}/assisted-prefill")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService.Prefill assistedPrefill(
+            @PathVariable String phoneNumber) {
+        return assistedDrafts.prefill(phoneNumber);
+    }
+
     @PostMapping("/{phoneNumber}/contactar")
     public String reopenConversation(@PathVariable String phoneNumber,
             RedirectAttributes redirectAttributes) {
-        String passengerName = passengerRepository.findByPhone(phoneNumber)
+        String passengerName = passengerRepository.findFirstByPhone(phoneNumber)
                 .map(passenger -> passenger.getFirstName())
                 .filter(name -> !name.isBlank())
                 .orElse("Pasajero");

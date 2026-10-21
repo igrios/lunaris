@@ -85,6 +85,11 @@ public class GetBillingPanelUseCase {
                 return legs;
             });
         }
+        groups.replaceAll((code, legs) -> {
+            if (code.startsWith("UUID:")) return legs;
+            var complete = reservationRepository.findReservationGroup(code);
+            return complete.isEmpty() ? legs : complete;
+        });
         return groups.values().stream()
                 .filter(legs -> combinedAmount(legs).signum() > 0)
                 .map(this::toRow)
@@ -120,7 +125,8 @@ public class GetBillingPanelUseCase {
                 CuilCalculator.suggestCuil(rawDoc),
                 combinedAmount(legs),
                 primary.getTravelDate(),
-                route
+                route,
+                legs.stream().allMatch(Reservation::isPaymentValidatedForBilling)
         );
     }
 

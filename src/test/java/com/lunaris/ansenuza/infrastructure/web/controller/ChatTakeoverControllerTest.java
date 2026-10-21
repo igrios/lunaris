@@ -12,9 +12,9 @@ class ChatTakeoverControllerTest {
         var takeOver = mock(TakeOverConversationUseCase.class);
         var passengers = mock(com.lunaris.ansenuza.domain.repository.PassengerRepository.class);
         var whatsapp = mock(com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService.class);
-        var controller = new ChatController(null, null, null, passengers, null, whatsapp, takeOver, null);
+        var controller = new ChatController(null, null, null, passengers, null, whatsapp, takeOver, null, null);
         var attributes = new RedirectAttributesModelMap();
-        when(passengers.findByPhone("123")).thenReturn(java.util.Optional.empty());
+        when(passengers.findFirstByPhone("123")).thenReturn(java.util.Optional.empty());
         assertEquals("redirect:/admin/chat/123", controller.reopenConversation("123", attributes));
         var order = inOrder(whatsapp, takeOver);
         order.verify(whatsapp).sendContactoPasajeroTemplate("123", "Pasajero");
@@ -24,12 +24,23 @@ class ChatTakeoverControllerTest {
     @Test
     void redirectsToPersistentInternalChatAfterTakeover() {
         var takeOver = mock(TakeOverConversationUseCase.class);
-        var controller = new ChatController(null, null, null, null, null, null, takeOver, null);
+        var controller = new ChatController(null, null, null, null, null, null, takeOver, null, null);
         var attributes = new RedirectAttributesModelMap();
         when(takeOver.execute("5493562123456")).thenReturn("5493562123456");
 
         assertEquals("redirect:/admin/chat/{phoneNumber}", controller.takeOver("5493562123456", attributes));
         assertEquals("5493562123456", attributes.getAttribute("phoneNumber"));
         verify(takeOver).execute("5493562123456");
+    }
+    @Test
+    void incomingMessageSuggestionsUseSharedDraftWithoutSendingMessages() {
+        var drafts = mock(com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService.class);
+        var form = new com.lunaris.ansenuza.infrastructure.web.dto.reservation.CreateReservationForm();
+        form.setPickupAddress("Belgrano 450");
+        var result = new com.lunaris.ansenuza.application.usecase.AssistedReservationDraftService.Prefill(
+                form, "Dirección: Belgrano 450", null);
+        when(drafts.prefill("5493511234567")).thenReturn(result);
+        var controller = new ChatController(null, null, null, null, null, null, null, null, drafts);
+        assertEquals(result, controller.assistedPrefill("5493511234567"));
     }
 }
