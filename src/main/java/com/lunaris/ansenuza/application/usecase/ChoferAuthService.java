@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class ChoferAuthService {
     public Authentication login(String usuario, String password) {
-        if (!"hector".equals(usuario) || !"cantor123".equals(password)) {
+        if (!"hector".equals(usuario) || !"cantorlunaris123".equals(password)) {
             throw new BadCredentialsException("Credenciales inválidas.");
         }
         return UsernamePasswordAuthenticationToken.authenticated(

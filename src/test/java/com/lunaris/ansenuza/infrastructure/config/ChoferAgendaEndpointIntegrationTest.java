@@ -101,7 +101,7 @@ class ChoferAgendaEndpointIntegrationTest {
     void loginCreatesSessionThatCanAccessAgenda() throws Exception {
         var result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .post("/api/choferes/login").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"usuario\":\"hector\",\"password\":\"cantor123\"}"))
+                        .content("{\"usuario\":\"hector\",\"password\":\"cantorlunaris123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.usuario").value("hector"))
                 .andExpect(jsonPath("$.password").doesNotExist()).andReturn();
@@ -114,9 +114,9 @@ class ChoferAgendaEndpointIntegrationTest {
     @ParameterizedTest
     @ValueSource(strings = {
             "{\"usuario\":\"hector\",\"password\":\"incorrecta\"}",
-            "{\"usuario\":\"Hector\",\"password\":\"cantor123\"}",
-            "{\"usuario\":\"hector \",\"password\":\"cantor123\"}",
-            "{\"usuario\":\"hector\",\"password\":\"Cantor123\"}",
+            "{\"usuario\":\"Hector\",\"password\":\"cantorlunaris123\"}",
+            "{\"usuario\":\"hector \",\"password\":\"cantorlunaris123\"}",
+            "{\"usuario\":\"hector\",\"password\":\"Cantorlunaris123\"}",
             "{\"usuario\":\"\",\"password\":\"\"}", "{}"})
     void rejectsInvalidLogin(String credentials) throws Exception {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
