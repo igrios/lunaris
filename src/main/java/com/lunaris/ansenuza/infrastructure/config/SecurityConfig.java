@@ -64,6 +64,7 @@ public class SecurityConfig {
                         .hasRole(Role.ADMIN.name())
                         .requestMatchers("/whatsapp/webhook").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/choferes/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/choferes/agenda").permitAll()
                         .requestMatchers("/api/choferes/agenda", "/api/choferes/agenda/**")
                         .hasAnyRole(Role.ADMIN.name(), Role.OPERADOR.name(), Role.CHOFER.name())
                         .requestMatchers("/api/drivers", "/api/drivers/**")

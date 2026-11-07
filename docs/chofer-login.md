@@ -19,3 +19,24 @@ en `SecurityConfig`, incluyendo localhost y los dominios del frontend.
 
 La agenda exige rol `CHOFER`, `ADMIN` u `OPERADOR` y conserva el listado existente
 sin filtrar por chofer.
+
+## Consulta sin cookies
+
+La agenda admite la identificación fija `hector` mediante:
+
+```http
+GET /api/choferes/agenda?fecha=2026-11-07&usuario=hector
+```
+
+O mediante `X-Chofer-Usuario: hector`, con la misma ruta y fecha.
+La coincidencia es exacta; si se envían ambos campos, ambos deben ser `hector`.
+Identificaciones desconocidas o vacías devuelven `401`. Sin identificación
+explícita se conserva el acceso con sesión/HTTP Basic y los roles permitidos.
+
+Esta modalidad permite leer la agenda con solo conocer `hector`; no verifica
+contraseña ni consulta el estado de un registro en la base de datos. Usa la
+identidad fija habilitada en `ChoferAuthService`. Los datos y el filtrado por
+fecha conservan el comportamiento existente, sin filtro adicional por chofer.
+
+CORS permite `X-Chofer-Usuario` mediante la configuración global de cabeceras.
+Los orígenes Vercel y dominios personalizados existentes están permitidos.

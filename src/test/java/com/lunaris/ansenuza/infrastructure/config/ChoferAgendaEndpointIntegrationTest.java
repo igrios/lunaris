@@ -142,4 +142,34 @@ class ChoferAgendaEndpointIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void allowsDirectUserWithoutSession() throws Exception {
+        var fecha = LocalDate.of(2026, 11, 7);
+        when(agendaService.execute(fecha)).thenReturn(List.of());
+        mockMvc.perform(get(PATH).param("fecha", fecha.toString()).param("usuario", "hector")
+                        .header("Origin", ORIGIN))
+                .andExpect(status().isOk()).andExpect(content().json("[]"))
+                .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN));
+        verify(agendaService).execute(fecha);
+    }
+
+    @Test
+    void allowsDirectHeaderWithoutSession() throws Exception {
+        when(agendaService.execute(isNull())).thenReturn(List.of());
+        mockMvc.perform(get(PATH).header("X-Chofer-Usuario", "hector"))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Hector", "hector ", "otro", ""})
+    void rejectsUnknownDirectUser(String usuario) throws Exception {
+        mockMvc.perform(get(PATH).param("usuario", usuario)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsConflictingIdentification() throws Exception {
+        mockMvc.perform(get(PATH).param("usuario", "hector").header("X-Chofer-Usuario", "otro"))
+                .andExpect(status().isUnauthorized());
+    }
+
 }
