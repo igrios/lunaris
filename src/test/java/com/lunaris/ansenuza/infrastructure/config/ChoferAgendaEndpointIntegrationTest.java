@@ -44,7 +44,8 @@ class ChoferAgendaEndpointIntegrationTest {
     void returnsJsonAgendaAtExactFrontendPath(String role) throws Exception {
         LocalDate fecha = LocalDate.of(2026, 11, 7);
         var servicio = new ServicioAgenda(UUID.randomUUID(), "RES-001", fecha,
-                "08:00", "Morteros", "Cordoba", UUID.randomUUID(), 2, "CONFIRMED", null);
+                "08:00", "Morteros", "Cordoba", UUID.randomUUID(), 2, "CONFIRMED", null,
+                "Ana Pérez", "5493511234567", "Lleva equipaje");
         when(agendaService.execute(fecha)).thenReturn(List.of(servicio));
 
         mockMvc.perform(get(PATH).param("fecha", fecha.toString())
@@ -53,6 +54,9 @@ class ChoferAgendaEndpointIntegrationTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$[0].codigo").value("RES-001"))
                 .andExpect(jsonPath("$[0].fecha").value("2026-11-07"))
+                .andExpect(jsonPath("$[0].nombrePasajero").value("Ana Pérez"))
+                .andExpect(jsonPath("$[0].telefono").value("5493511234567"))
+                .andExpect(jsonPath("$[0].comentarios").value("Lleva equipaje"))
                 .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN))
                 .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
     }

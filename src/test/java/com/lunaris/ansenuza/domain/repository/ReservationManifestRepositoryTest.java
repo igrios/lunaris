@@ -36,6 +36,30 @@ class ReservationManifestRepositoryTest {
         this.passengers = passengers;
     }
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.NullAndEmptySource
+    @org.junit.jupiter.params.provider.ValueSource(strings = "Lleva equipaje")
+    void driverAgendaFetchesPassengerAndPreservesOptionalNotes(String notes) {
+        var saved = save("Morteros", "Córdoba", "08:00", "IDA", false, "AGENDA-001",
+                DATE, "CONFIRMED", null);
+        saved.setNotes(notes);
+        reservations.saveAndFlush(saved);
+        UUID id = saved.getId();
+        String phone = saved.getPassenger().getPhone();
+        entityManager.clear();
+
+        var agenda = reservations.findDriverAgenda(DATE, DATE.plusDays(1), null);
+
+        assertThat(agenda).extracting(Reservation::getId).containsExactly(id);
+        var reservation = agenda.getFirst();
+        assertThat(org.hibernate.Hibernate.isInitialized(reservation.getPassenger())).isTrue();
+        entityManager.clear();
+        assertThat(reservation.getPassenger().getFirstName()).isEqualTo("Ana");
+        assertThat(reservation.getPassenger().getLastName()).isEqualTo("Pérez");
+        assertThat(reservation.getPassenger().getPhone()).isEqualTo(phone);
+        assertThat(reservation.getNotes()).isEqualTo(notes);
+    }
+
     @Test
     void specialAgendaQueryIncludesOnlyActiveSpecialTripsForSelectedDate() {
         var active = save("Miramar", "Córdoba", "09:00", "IDA", false, "SPECIAL-ACTIVE",

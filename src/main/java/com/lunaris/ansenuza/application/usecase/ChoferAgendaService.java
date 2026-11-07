@@ -23,13 +23,24 @@ public class ChoferAgendaService {
 
     public record ServicioAgenda(UUID id, String codigo, LocalDate fecha, String horario,
             String origen, String destino, UUID choferId, int pasajeros,
-            String estado, Reservation.TravelStatus estadoViaje) {
+            String estado, Reservation.TravelStatus estadoViaje,
+            String nombrePasajero, String telefono, String comentarios) {
         private static ServicioAgenda from(Reservation reservation) {
+            var passenger = reservation.getPassenger();
+            String nombre = passenger == null ? ""
+                    : (text(passenger.getFirstName()).strip() + " "
+                            + text(passenger.getLastName()).strip()).strip();
             return new ServicioAgenda(reservation.getId(), reservation.getReservationCode(),
                     reservation.getTravelDate(), reservation.getDepartureSchedule(),
                     reservation.getPickupLocality(), reservation.getDestination(),
                     reservation.getDriver() == null ? null : reservation.getDriver().getId(),
-                    reservation.getTotalSeats(), reservation.getStatus(), reservation.getTravelStatus());
+                    reservation.getTotalSeats(), reservation.getStatus(), reservation.getTravelStatus(),
+                    nombre, passenger == null ? "" : text(passenger.getPhone()),
+                    text(reservation.getNotes()));
+        }
+
+        private static String text(String value) {
+            return value == null ? "" : value;
         }
     }
 }

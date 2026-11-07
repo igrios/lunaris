@@ -22,6 +22,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
             SELECT r FROM Reservation r
             LEFT JOIN FETCH r.driver
+            LEFT JOIN FETCH r.passenger
             WHERE r.travelDate >= :startDate AND r.travelDate < :endDate
             AND (:driverId IS NULL OR r.driver.id = :driverId)
             ORDER BY r.departureSchedule ASC, r.routeSequence ASC NULLS LAST, r.id ASC
