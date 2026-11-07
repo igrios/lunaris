@@ -40,3 +40,9 @@ fecha conservan el comportamiento existente, sin filtro adicional por chofer.
 
 CORS permite `X-Chofer-Usuario` mediante la configuración global de cabeceras.
 Los orígenes Vercel y dominios personalizados existentes están permitidos.
+
+`GET /api/viajes` es un alias de `/api/choferes/agenda`: admite los mismos
+parámetros `fecha`, `usuario` y la cabecera `X-Chofer-Usuario`, con igual JSON.
+Los GET de `/api/viajes` y `/api/viajes/**` pasan la seguridad sin sesión;
+el controlador exige identificación válida o autenticación autorizada.
+No se agregan endpoints funcionales bajo las subrutas de `/api/viajes/**`.

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/choferes/agenda")
+@RequestMapping({"/api/choferes/agenda", "/api/viajes"})
 @RequiredArgsConstructor
 public class ChoferAgendaController {
     private final ChoferAgendaService agendaService;
@@ -28,7 +28,7 @@ public class ChoferAgendaController {
     public ResponseEntity<List<ServicioAgenda>> agenda(
             @RequestParam(name = "fecha", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
-            @RequestParam(name = "usuario", required = false) String usuario,
+            @RequestParam(value = "usuario", required = false) String usuario,
             @RequestHeader(value = "X-Chofer-Usuario", required = false) String choferHeader,
             Authentication authentication) {
         authService.validateAgendaAccess(usuario, choferHeader, authentication);

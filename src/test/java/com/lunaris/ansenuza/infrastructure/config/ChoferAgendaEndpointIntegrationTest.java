@@ -90,11 +90,12 @@ class ChoferAgendaEndpointIntegrationTest {
                 .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN));
     }
 
-    @Test
-    void rejectsAgendaWithoutSessionOrBearerToken() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/choferes/agenda", "/api/viajes"})
+    void rejectsAgendaWithoutSessionOrBearerToken(String path) throws Exception {
         LocalDate fecha = LocalDate.of(2026, 11, 7);
         when(agendaService.execute(fecha)).thenReturn(List.of());
-        mockMvc.perform(get(PATH).param("fecha", fecha.toString()))
+        mockMvc.perform(get(path).param("fecha", fecha.toString()))
                 .andExpect(status().isUnauthorized());
     }
     @Test
@@ -142,21 +143,23 @@ class ChoferAgendaEndpointIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
-    @Test
-    void allowsDirectUserWithoutSession() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/choferes/agenda", "/api/viajes"})
+    void allowsDirectUserWithoutSession(String path) throws Exception {
         var fecha = LocalDate.of(2026, 11, 7);
         when(agendaService.execute(fecha)).thenReturn(List.of());
-        mockMvc.perform(get(PATH).param("fecha", fecha.toString()).param("usuario", "hector")
+        mockMvc.perform(get(path).param("fecha", fecha.toString()).param("usuario", "hector")
                         .header("Origin", ORIGIN))
                 .andExpect(status().isOk()).andExpect(content().json("[]"))
                 .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN));
         verify(agendaService).execute(fecha);
     }
 
-    @Test
-    void allowsDirectHeaderWithoutSession() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/choferes/agenda", "/api/viajes"})
+    void allowsDirectHeaderWithoutSession(String path) throws Exception {
         when(agendaService.execute(isNull())).thenReturn(List.of());
-        mockMvc.perform(get(PATH).header("X-Chofer-Usuario", "hector"))
+        mockMvc.perform(get(path).header("X-Chofer-Usuario", "hector"))
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
     }
 
@@ -170,6 +173,28 @@ class ChoferAgendaEndpointIntegrationTest {
     void rejectsConflictingIdentification() throws Exception {
         mockMvc.perform(get(PATH).param("usuario", "hector").header("X-Chofer-Usuario", "otro"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void viajesRejectsUnknownUser() throws Exception {
+        mockMvc.perform(get("/api/viajes").param("usuario", "otro"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void viajesAllowsCorsForIdentificationHeader() throws Exception {
+        mockMvc.perform(options("/api/viajes").header("Origin", ORIGIN)
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "X-Chofer-Usuario"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN))
+                .andExpect(header().string("Access-Control-Allow-Headers", "X-Chofer-Usuario"));
+    }
+
+    @Test
+    void viajesSubpathsPassSecurityWithoutSession() throws Exception {
+        mockMvc.perform(get("/api/viajes/no-existe").param("usuario", "hector"))
+                .andExpect(status().isNotFound());
     }
 
 }
