@@ -43,6 +43,9 @@ class ReservationManifestRepositoryTest {
         var saved = save("Morteros", "Córdoba", "08:00", "IDA", false, "AGENDA-001",
                 DATE, "CONFIRMED", null);
         saved.setNotes(notes);
+        saved.setPassengerCount(3);
+        saved.setRoundTrip(true);
+        saved.setTripType(com.lunaris.ansenuza.domain.model.TripType.OPEN_RETURN);
         reservations.saveAndFlush(saved);
         UUID id = saved.getId();
         String phone = saved.getPassenger().getPhone();
@@ -58,6 +61,10 @@ class ReservationManifestRepositoryTest {
         assertThat(reservation.getPassenger().getLastName()).isEqualTo("Pérez");
         assertThat(reservation.getPassenger().getPhone()).isEqualTo(phone);
         assertThat(reservation.getNotes()).isEqualTo(notes);
+        assertThat(reservation.getTotalSeats()).isEqualTo(3);
+        assertThat(reservation.getRoundTrip()).isTrue();
+        assertThat(reservation.getTripType())
+                .isEqualTo(com.lunaris.ansenuza.domain.model.TripType.OPEN_RETURN);
     }
 
     @Test

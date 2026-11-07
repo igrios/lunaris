@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import com.lunaris.ansenuza.domain.model.Reservation;
+import com.lunaris.ansenuza.domain.model.TripType;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -24,9 +25,16 @@ public class ChoferAgendaService {
     public record ServicioAgenda(UUID id, String codigo, LocalDate fecha, String horario,
             String origen, String destino, UUID choferId, int pasajeros,
             String estado, Reservation.TravelStatus estadoViaje,
-            String nombrePasajero, String telefono, String comentarios) {
+            String nombrePasajero, String telefono, String comentarios,
+            boolean esIdaYVuelta, TripType tipoViaje) {
         private static ServicioAgenda from(Reservation reservation) {
             var passenger = reservation.getPassenger();
+            TripType tipoViaje = reservation.getTripType();
+            if (tipoViaje == null) {
+                tipoViaje = Boolean.TRUE.equals(reservation.getRoundTrip())
+                        ? (reservation.getReturnDate() == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)
+                        : TripType.ONE_WAY;
+            }
             String nombre = passenger == null ? ""
                     : (text(passenger.getFirstName()).strip() + " "
                             + text(passenger.getLastName()).strip()).strip();
@@ -36,7 +44,7 @@ public class ChoferAgendaService {
                     reservation.getDriver() == null ? null : reservation.getDriver().getId(),
                     reservation.getTotalSeats(), reservation.getStatus(), reservation.getTravelStatus(),
                     nombre, passenger == null ? "" : text(passenger.getPhone()),
-                    text(reservation.getNotes()));
+                    text(reservation.getNotes()), tipoViaje != TripType.ONE_WAY, tipoViaje);
         }
 
         private static String text(String value) {
