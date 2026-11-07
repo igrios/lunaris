@@ -1,3 +1,22 @@
+spring:
+  jpa:
+    # Flyway administra el esquema; Hibernate no vuelve a validarlo al arrancar.
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:none}
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+  datasource:
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:3}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE:0}
+
+server:
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:20}
+      min-spare: ${SERVER_TOMCAT_THREADS_MIN_SPARE:2}
+    max-connections: ${SERVER_TOMCAT_MAX_CONNECTIONS:100}
+    accept-count: ${SERVER_TOMCAT_ACCEPT_COUNT:50}
+
 lunaris:
   interurban:
     enabled: ${LUNARIS_INTERURBAN_ENABLED:false}

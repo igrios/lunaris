@@ -27,8 +27,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(ChoferAgendaController.class)
-@Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class})
+@WebMvcTest({ChoferAgendaController.class, com.lunaris.ansenuza.infrastructure.web.controller.ChoferAuthController.class})
+@Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class,
+        com.lunaris.ansenuza.application.usecase.ChoferAuthService.class})
 class ChoferAgendaEndpointIntegrationTest {
     private static final String PATH = "/api/choferes/agenda";
     private static final String ORIGIN = "https://lunaris-web-reload.vercel.app";
@@ -40,7 +41,7 @@ class ChoferAgendaEndpointIntegrationTest {
     @MockitoBean InquiryService inquiryService;
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMIN", "OPERADOR", "CHOFER", "FACTURACION"})
+    @ValueSource(strings = {"ADMIN", "OPERADOR", "CHOFER"})
     void returnsJsonAgendaAtExactFrontendPath(String role) throws Exception {
         LocalDate fecha = LocalDate.of(2026, 11, 7);
         var servicio = new ServicioAgenda(UUID.randomUUID(), "RES-001", fecha,
@@ -68,7 +69,7 @@ class ChoferAgendaEndpointIntegrationTest {
     @Test
     void acceptsMissingDate() throws Exception {
         when(agendaService.execute(isNull())).thenReturn(List.of());
-        mockMvc.perform(get(PATH))
+        mockMvc.perform(get(PATH).with(user("chofer").roles("CHOFER")))
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
         verify(agendaService).execute(isNull());
     }
@@ -90,11 +91,55 @@ class ChoferAgendaEndpointIntegrationTest {
     }
 
     @Test
-    void returnsAgendaWithoutSessionOrBearerToken() throws Exception {
+    void rejectsAgendaWithoutSessionOrBearerToken() throws Exception {
         LocalDate fecha = LocalDate.of(2026, 11, 7);
         when(agendaService.execute(fecha)).thenReturn(List.of());
         mockMvc.perform(get(PATH).param("fecha", fecha.toString()))
-                .andExpect(status().isOk()).andExpect(content().json("[]"));
-        verify(agendaService).execute(fecha);
+                .andExpect(status().isUnauthorized());
     }
+    @Test
+    void loginCreatesSessionThatCanAccessAgenda() throws Exception {
+        var result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/choferes/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"usuario\":\"hector\",\"password\":\"cantor123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.usuario").value("hector"))
+                .andExpect(jsonPath("$.password").doesNotExist()).andReturn();
+        when(agendaService.execute(isNull())).thenReturn(List.of());
+        mockMvc.perform(get(PATH).session((org.springframework.mock.web.MockHttpSession)
+                        result.getRequest().getSession(false)))
+                .andExpect(status().isOk());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{\"usuario\":\"hector\",\"password\":\"incorrecta\"}",
+            "{\"usuario\":\"Hector\",\"password\":\"cantor123\"}",
+            "{\"usuario\":\"hector \",\"password\":\"cantor123\"}",
+            "{\"usuario\":\"hector\",\"password\":\"Cantor123\"}",
+            "{\"usuario\":\"\",\"password\":\"\"}", "{}"})
+    void rejectsInvalidLogin(String credentials) throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/choferes/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Credenciales inválidas."));
+    }
+
+    @Test
+    void allowsLoginCorsPreflight() throws Exception {
+        mockMvc.perform(options("/api/choferes/login").header("Origin", ORIGIN)
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "Content-Type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN))
+                .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+    }
+
+    @Test
+    void billingCannotAccessDriverAgenda() throws Exception {
+        mockMvc.perform(get(PATH).with(user("billing").roles("FACTURACION")))
+                .andExpect(status().isForbidden());
+    }
+
 }
