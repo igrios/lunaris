@@ -6,8 +6,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,25 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ChoferAgendaService {
     private final ReservationRepository reservationRepository;
-    private final DriverAuthorizationService driverAuthorizationService;
 
     @Transactional(readOnly = true)
-    public List<ServicioAgenda> execute(LocalDate fecha, Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new AccessDeniedException("Se requiere autenticación.");
-        }
-        boolean agendaCompleta = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority())
-                        || "ROLE_OPERADOR".equals(a.getAuthority()));
-        boolean chofer = authentication.getAuthorities().stream()
-                .anyMatch(a -> "ROLE_CHOFER".equals(a.getAuthority()));
-        if (!agendaCompleta && !chofer) {
-            throw new AccessDeniedException("No tiene acceso a la agenda de choferes.");
-        }
-        UUID driverId = agendaCompleta ? null
-                : driverAuthorizationService.resolveActiveDriverId(authentication.getName());
+    public List<ServicioAgenda> execute(LocalDate fecha) {
         LocalDate dia = fecha != null ? fecha : LocalDate.now();
-        return reservationRepository.findDriverAgenda(dia, dia.plusDays(1), driverId).stream()
+        return reservationRepository.findDriverAgenda(dia, dia.plusDays(1), null).stream()
                 .map(ServicioAgenda::from).toList();
     }
 

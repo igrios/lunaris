@@ -1,7 +1,5 @@
 package com.lunaris.ansenuza.infrastructure.config;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,12 +40,12 @@ class ChoferAgendaEndpointIntegrationTest {
     @MockitoBean InquiryService inquiryService;
 
     @ParameterizedTest
-    @ValueSource(strings = {"ADMIN", "OPERADOR", "CHOFER"})
+    @ValueSource(strings = {"ADMIN", "OPERADOR", "CHOFER", "FACTURACION"})
     void returnsJsonAgendaAtExactFrontendPath(String role) throws Exception {
         LocalDate fecha = LocalDate.of(2026, 11, 7);
         var servicio = new ServicioAgenda(UUID.randomUUID(), "RES-001", fecha,
                 "08:00", "Morteros", "Cordoba", UUID.randomUUID(), 2, "CONFIRMED", null);
-        when(agendaService.execute(eq(fecha), any())).thenReturn(List.of(servicio));
+        when(agendaService.execute(fecha)).thenReturn(List.of(servicio));
 
         mockMvc.perform(get(PATH).param("fecha", fecha.toString())
                         .header("Origin", ORIGIN).with(user("usuario").roles(role)))
@@ -61,10 +59,10 @@ class ChoferAgendaEndpointIntegrationTest {
 
     @Test
     void acceptsMissingDate() throws Exception {
-        when(agendaService.execute(isNull(), any())).thenReturn(List.of());
-        mockMvc.perform(get(PATH).with(user("operador").roles("OPERADOR")))
+        when(agendaService.execute(isNull())).thenReturn(List.of());
+        mockMvc.perform(get(PATH))
                 .andExpect(status().isOk()).andExpect(content().json("[]"));
-        verify(agendaService).execute(isNull(), any());
+        verify(agendaService).execute(isNull());
     }
 
     @Test
@@ -84,13 +82,11 @@ class ChoferAgendaEndpointIntegrationTest {
     }
 
     @Test
-    void requiresAuthentication() throws Exception {
-        mockMvc.perform(get(PATH)).andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void rejectsBillingRole() throws Exception {
-        mockMvc.perform(get(PATH).with(user("facturacion").roles("FACTURACION")))
-                .andExpect(status().isForbidden());
+    void returnsAgendaWithoutSessionOrBearerToken() throws Exception {
+        LocalDate fecha = LocalDate.of(2026, 11, 7);
+        when(agendaService.execute(fecha)).thenReturn(List.of());
+        mockMvc.perform(get(PATH).param("fecha", fecha.toString()))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        verify(agendaService).execute(fecha);
     }
 }

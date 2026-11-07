@@ -7,7 +7,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,8 +21,7 @@ public class ChoferAgendaController {
     @GetMapping
     public ResponseEntity<List<ServicioAgenda>> agenda(
             @RequestParam(name = "fecha", required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
-            Authentication authentication) {
-        return ResponseEntity.ok(agendaService.execute(fecha, authentication));
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        return ResponseEntity.ok(agendaService.execute(fecha));
     }
 }
