@@ -19,6 +19,18 @@ import jakarta.persistence.LockModeType;
 
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
+    @Query("""
+            SELECT r FROM Reservation r
+            LEFT JOIN FETCH r.driver
+            WHERE r.travelDate >= :startDate AND r.travelDate < :endDate
+            AND (:driverId IS NULL OR r.driver.id = :driverId)
+            ORDER BY r.departureSchedule ASC, r.routeSequence ASC NULLS LAST, r.id ASC
+            """)
+    List<Reservation> findDriverAgenda(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("driverId") UUID driverId);
+
     /** Lee solo la clave: evita cargar un estado de pago obsoleto antes de adquirir el bloqueo. */
     @Query("""
             select case

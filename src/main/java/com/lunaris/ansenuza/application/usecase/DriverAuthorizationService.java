@@ -33,7 +33,8 @@ public class DriverAuthorizationService {
         }
     }
 
-    private UUID resolveActiveDriverId(String username) {
+    @Transactional(readOnly = true)
+    public UUID resolveActiveDriverId(String username) {
         String normalizedUsername = normalize(username);
         return driverRepository.findFirstByPhone(username)
                 .filter(Driver::isActive)
