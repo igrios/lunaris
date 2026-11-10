@@ -74,6 +74,21 @@ class ChatTakeoverSecurityIntegrationTest {
         verifyNoInteractions(sessions, whatsApp);
     }
 
+    @Test
+    void authorizedOperatorCanOpenNewConversationWithoutBadRequest() throws Exception {
+        when(sessions.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post(ENDPOINT).with(user("operador").roles("OPERADOR")).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/chat/" + PHONE));
+
+        verify(sessions).saveAndFlush(argThat(session -> PHONE.equals(session.getPhoneNumber())
+                && "START".equals(session.getCurrentStep())
+                && session.isBotPaused() && session.isManuallyPaused()
+                && session.getLastInteraction() != null));
+        verifyNoInteractions(whatsApp);
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"ADMIN", "OPERADOR"})
     void inquiryPhoneLinkRedirectsToExistingChatRoom(String role) throws Exception {

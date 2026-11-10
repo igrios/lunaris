@@ -129,6 +129,32 @@ public class Reservation {
     @Column(name = "return_date")
     private LocalDate returnDate;
 
+    @Column(name = "is_flexible_return_time", nullable = false)
+    private boolean flexibleReturnTime;
+
+    @Column(name = "return_time_preference", length = 500)
+    private String returnTimePreference;
+
+    /** La fecha de regreso es estimada mientras el horario siga pendiente. */
+    public void validateFlexibleReturn() {
+        if (!flexibleReturnTime) return;
+        if (!Boolean.TRUE.equals(roundTrip) || tripType != TripType.OPEN_RETURN) {
+            throw new DomainValidationException("El horario flexible requiere una vuelta abierta.");
+        }
+        if (returnDate == null && (returnTimePreference == null || returnTimePreference.isBlank())) {
+            throw new DomainValidationException("Indicá una fecha estimada o una preferencia para la vuelta flexible.");
+        }
+        if (returnDate != null && travelDate != null && returnDate.isBefore(travelDate)) {
+            throw new DomainValidationException("El regreso no puede ser anterior a la ida.");
+        }
+        if (returnTimePreference != null) {
+            returnTimePreference = returnTimePreference.trim();
+            if (returnTimePreference.length() > 500) {
+                throw new DomainValidationException("La preferencia de regreso admite hasta 500 caracteres.");
+            }
+        }
+    }
+
     @Column(name = "extra_amount")
     private BigDecimal extraAmount;
 

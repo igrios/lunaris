@@ -632,6 +632,63 @@ class ReservationServiceTest {
     }
 
     @Test
+    void flexibleReturnRequiresEstimateOrPreference() {
+        Reservation input = reservation("Morteros", "Córdoba");
+        input.setRoundTrip(true);
+        input.setTripType(TripType.OPEN_RETURN);
+        input.setFlexibleReturnTime(true);
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.lunaris.ansenuza.domain.exception.DomainValidationException.class,
+                input::validateFlexibleReturn);
+        input.setReturnTimePreference("Por la tarde");
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(input::validateFlexibleReturn);
+        input.setTripType(TripType.ONE_WAY);
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.lunaris.ansenuza.domain.exception.DomainValidationException.class,
+                input::validateFlexibleReturn);
+    }
+
+    @Test
+    void flexibleReturnPreservesEstimateWithoutSchedulingSeats() {
+        ReservationRepository reservations = mock(ReservationRepository.class);
+        when(reservations.countSequenceByRouteAndDate(any(), any(), any())).thenReturn(0L);
+        when(reservations.existsByReservationCode(any())).thenReturn(false);
+        when(reservations.save(any(Reservation.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        var capacityLocks = mock(com.lunaris.ansenuza.domain.repository.CapacityLockRepository.class);
+        when(capacityLocks.findForUpdate(any())).thenReturn(new com.lunaris.ansenuza.domain.model.CapacityLock("test"));
+        ReservationService service = new ReservationService(
+                reservations, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class), capacityLocks);
+        Reservation outbound = reservation("Morteros", "Córdoba");
+        outbound.setRoundTrip(true);
+        outbound.setTripType(TripType.OPEN_RETURN);
+        outbound.setFlexibleReturnTime(true);
+        outbound.setDepartureSchedule("03:00 AM");
+        outbound.setReturnDate(LocalDate.of(2027, 1, 20));
+        outbound.setTravelDate(LocalDate.of(2027, 1, 10));
+        outbound.setReturnTimePreference("  Después del mediodía  ");
+        outbound.setAmount(new BigDecimal("2000.00"));
+        outbound.setPaymentReceiptUrl("https://receipts.example/payment.jpg");
+
+        var saved = service.saveReservationFlow(outbound);
+
+        org.mockito.Mockito.verify(capacityLocks, org.mockito.Mockito.times(1)).ensureExists(any());
+        org.mockito.Mockito.verify(reservations, org.mockito.Mockito.times(1))
+                .countReservedSeats(outbound.getTravelDate(), outbound.getDepartureSchedule());
+        assertEquals(2, saved.size());
+        Reservation openReturn = saved.get(1);
+        assertNull(openReturn.getTravelDate());
+        assertNull(openReturn.getDepartureSchedule());
+        assertTrue(openReturn.isFlexibleReturnTime());
+        assertEquals(LocalDate.of(2027, 1, 20), openReturn.getReturnDate());
+        assertEquals("Después del mediodía", openReturn.getReturnTimePreference());
+        assertEquals(Reservation.TravelStatus.OPEN_RETURN, openReturn.getTravelStatus());
+        assertEquals(new BigDecimal("1000.00"), openReturn.getAmount());
+        assertEquals(outbound.getPaymentReceiptUrl(), openReturn.getPaymentReceiptUrl());
+    }
+
+    @Test
     void assigningDateToOpenReturnMovesItToPending() {
         ReservationRepository reservations = mock(ReservationRepository.class);
         ReservationEventRepository events = mock(ReservationEventRepository.class);

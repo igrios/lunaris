@@ -108,7 +108,10 @@ public class CreateReservationUseCase {
                 .destination(effectiveDestination(request))
                 .roundTrip(pairedTrip)
                 .tripType(tripType)
-                .returnDate(tripType == TripType.ROUND_TRIP ? request.returnDate() : null)
+                .returnDate(tripType == TripType.ROUND_TRIP || Boolean.TRUE.equals(request.isFlexibleReturnTime())
+                        ? request.returnDate() : null)
+                .flexibleReturnTime(Boolean.TRUE.equals(request.isFlexibleReturnTime()))
+                .returnTimePreference(request.returnTimePreference())
                 .passengerCount(safePassengerCount)
                 .companionNames(request.companionNames())
                 .paymentVerified(safePaymentVerified)
@@ -146,6 +149,9 @@ public class CreateReservationUseCase {
         if (request.tripType() != null) {
             return request.tripType();
         }
+        if (Boolean.TRUE.equals(request.roundTrip()) && Boolean.TRUE.equals(request.isFlexibleReturnTime())) {
+            return TripType.OPEN_RETURN;
+        }
         return Boolean.TRUE.equals(request.roundTrip())
                 ? (request.returnDate() == null ? TripType.OPEN_RETURN : TripType.ROUND_TRIP)
                 : TripType.ONE_WAY;
@@ -165,6 +171,12 @@ public class CreateReservationUseCase {
         if (request == null || request.travelDate() == null) {
             throw new DomainValidationException("Pasajero y fecha de viaje son obligatorios.");
         }
+        Reservation.builder()
+                .roundTrip(resolveTripType(request) != TripType.ONE_WAY)
+                .tripType(resolveTripType(request))
+                .travelDate(request.travelDate()).returnDate(request.returnDate())
+                .flexibleReturnTime(Boolean.TRUE.equals(request.isFlexibleReturnTime()))
+                .returnTimePreference(request.returnTimePreference()).build().validateFlexibleReturn();
         if (request.passengerId() == null
                 && (request.fullName() == null || request.fullName().isBlank()
                 || request.phone() == null || request.phone().isBlank())) {

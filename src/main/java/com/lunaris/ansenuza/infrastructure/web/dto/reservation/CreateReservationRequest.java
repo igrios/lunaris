@@ -27,8 +27,20 @@ public record CreateReservationRequest(
     @JsonDeserialize(using = StringOrStringListDeserializer.class) String companionNames,
     ReservationSource source,
     TripType tripType,
-    String promotionCode
+    String promotionCode,
+    @JsonAlias("is_flexible_return_time") Boolean isFlexibleReturnTime,
+    @JsonAlias("return_time_preference") String returnTimePreference
 ) {
+    public CreateReservationRequest(UUID passengerId, String fullName, String phone, String cuilDni,
+            LocalDate travelDate, String pickupLocality, String pickupAddress, String destination,
+            String departureSchedule, Boolean roundTrip, LocalDate returnDate, Boolean paymentVerified,
+            String notes, Integer passengerCount, String companionNames, ReservationSource source,
+            TripType tripType, String promotionCode) {
+        this(passengerId, fullName, phone, cuilDni, travelDate, pickupLocality, pickupAddress,
+                destination, departureSchedule, roundTrip, returnDate, paymentVerified, notes,
+                passengerCount, companionNames, source, tripType, promotionCode, false, null);
+    }
+
     public CreateReservationRequest(
             UUID passengerId,
             LocalDate travelDate,
@@ -67,6 +79,8 @@ public record CreateReservationRequest(
                 companionNames,
                 source,
                 tripType,
-                promotionCode);
+                promotionCode,
+                isFlexibleReturnTime,
+                returnTimePreference);
     }
 }

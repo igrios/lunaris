@@ -1,7 +1,9 @@
 package com.lunaris.ansenuza.application.usecase;
 
 import com.lunaris.ansenuza.domain.exception.DomainValidationException;
+import com.lunaris.ansenuza.domain.model.ConversationSession;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository;
+import com.lunaris.ansenuza.shared.ArgentinaTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +31,11 @@ public class TakeOverConversationUseCase {
             throw new DomainValidationException("El teléfono debe incluir país y área completos.");
         }
         var session = sessionRepository.findByPhoneNumber(phone)
-                .orElseThrow(() -> new DomainValidationException("No existe una conversación para ese teléfono."));
+                .orElseGet(() -> ConversationSession.builder()
+                        .phoneNumber(phone)
+                        .currentStep("START")
+                        .lastInteraction(ArgentinaTime.now())
+                        .build());
         if (!session.isBotPaused() || !session.isManuallyPaused()) {
             session.setBotPaused(true);
             session.setManuallyPaused(true);

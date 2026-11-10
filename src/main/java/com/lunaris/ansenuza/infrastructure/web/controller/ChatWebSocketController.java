@@ -1,6 +1,5 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
-import java.time.LocalDateTime;
 import java.util.Map; // 👈 Agregado para leer el ID
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -11,11 +10,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate; // 👈 Agregad
                                                                  // alerta global
 import org.springframework.stereotype.Controller;
 import com.lunaris.ansenuza.domain.model.ChatMessage;
-import com.lunaris.ansenuza.domain.repository.ChatMessageRepository;
+import com.lunaris.ansenuza.application.usecase.SendOperatorMessageUseCase;
 import com.lunaris.ansenuza.domain.repository.ConversationSessionRepository; // 👈 Agregado para el
                                                                              // monitor
-import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
-import com.lunaris.ansenuza.domain.model.service.WhatsAppConversationWindowService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,42 +21,18 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ChatWebSocketController {
 
-    private final ChatMessageRepository chatMessageRepository;
-    private final WhatsAppService whatsAppService;
+    private final SendOperatorMessageUseCase sendOperatorMessage;
     private final ConversationSessionRepository conversationSessionRepository; // 👈 Inyectado para
                                                                                // la Torre de
                                                                                // Control
     private final SimpMessagingTemplate messagingTemplate; // 👈 Inyectado para refrescar el monitor
-    private final WhatsAppConversationWindowService conversationWindowService;
-    private final com.lunaris.ansenuza.application.usecase.AssistedChatService assistedChat;
                                                            // en vivo
 
     @MessageMapping("/chat.send/{phoneNumber}")
     @SendTo("/topic/messages/{phoneNumber}")
     public ChatMessage sendMessage(@DestinationVariable String phoneNumber, ChatMessage message) {
 
-        if (!assistedChat.canSend(phoneNumber)) {
-            throw new IllegalStateException(
-                    "La ventana de WhatsApp venció. Reenviá la plantilla contacto_pasajero.");
-        }
-
-        message.setPhoneNumber(phoneNumber);
-        message.setTimestamp(com.lunaris.ansenuza.shared.ArgentinaTime.now());
-        message.setFromOperator(true);
-
-        ChatMessage savedMessage = chatMessageRepository.save(message);
-
-        try {
-            whatsAppService.sendMessage(phoneNumber, message.getMessageText());
-            log.info("[WEB CHAT] Mensaje despachado a WhatsApp con éxito hacia el número: {}",
-                    phoneNumber);
-        } catch (Exception e) {
-            log.error(
-                    "[CRÍTICO] Error al intentar enviar el mensaje de operador a la API de WhatsApp para: {}",
-                    phoneNumber, e);
-        }
-
-        return savedMessage;
+        return sendOperatorMessage.execute(phoneNumber, message == null ? null : message.getMessageText());
     }
 
     // 🎯 EL CONTROLADOR CORREGIDO PASANDO EL ID A LONG:

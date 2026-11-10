@@ -252,16 +252,23 @@ public class ReservationService {
 
     private List<Reservation> saveReservationFlow(Reservation mainReservation,
             String returnDepartureSchedule, boolean applyBalance) {
+        mainReservation.validateFlexibleReturn();
+        if (mainReservation.isFlexibleReturnTime() && returnDepartureSchedule != null
+                && !returnDepartureSchedule.isBlank()) {
+            throw new DomainValidationException("La vuelta flexible no admite un horario fijo.");
+        }
         List<Reservation> savedReservations = new ArrayList<>();
 
         if (!mainReservation.isSpecialTrip()) lockAndValidateCapacity(mainReservation);
-        if (!mainReservation.isSpecialTrip() && Boolean.TRUE.equals(mainReservation.getRoundTrip())
+        if (!mainReservation.isSpecialTrip() && !mainReservation.isFlexibleReturnTime()
+                && Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 && mainReservation.getReturnDate() != null) {
             lockAndValidateCapacity(mainReservation.getReturnDate(), returnDepartureSchedule,
                     mainReservation.getDestination(), mainReservation.getTotalSeats());
         }
 
-        if (!mainReservation.isSpecialTrip() && Boolean.TRUE.equals(mainReservation.getRoundTrip())
+        if (!mainReservation.isSpecialTrip() && !mainReservation.isFlexibleReturnTime()
+                && Boolean.TRUE.equals(mainReservation.getRoundTrip())
                 && (mainReservation.getTripType() == TripType.OPEN_RETURN || mainReservation.getReturnDate() == null)
                 && mainReservation.getTravelDate() != null
                 && com.lunaris.ansenuza.shared.ArgentinaTime.now().isBefore(mainReservation.getTravelDate().atTime(11, 0))) {
@@ -402,6 +409,11 @@ public class ReservationService {
                 returnReservation.setNotes("🛑 VUELTA ABIERTA - Pendiente confirmar fecha. Grupo " + codigoBase);
             }
 
+            returnReservation.setFlexibleReturnTime(mainReservation.isFlexibleReturnTime());
+            returnReservation.setReturnTimePreference(mainReservation.getReturnTimePreference());
+            if (mainReservation.isFlexibleReturnTime()) {
+                returnReservation.setReturnDate(mainReservation.getReturnDate());
+            }
             returnReservation.setAmount(montoVuelta);
             returnReservation.setUsedBalance(saldoVuelta);
             returnReservation.setDiscountAmount(descuentoVuelta);

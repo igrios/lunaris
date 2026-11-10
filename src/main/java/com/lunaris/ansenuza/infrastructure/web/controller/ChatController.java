@@ -86,14 +86,14 @@ public class ChatController {
     @PostMapping("/{phoneNumber}/contactar")
     public String reopenConversation(@PathVariable String phoneNumber,
             RedirectAttributes redirectAttributes) {
-        String passengerName = passengerRepository.findFirstByPhone(phoneNumber)
+        String phone = takeOverConversation.execute(phoneNumber);
+        String passengerName = passengerRepository.findFirstByPhone(phone)
                 .map(passenger -> passenger.getFirstName())
                 .filter(name -> !name.isBlank())
                 .orElse("Pasajero");
-        whatsAppService.sendContactoPasajeroTemplate(phoneNumber, passengerName);
-        takeOverConversation.execute(phoneNumber);
+        whatsAppService.sendContactoPasajeroTemplate(phone, passengerName);
         redirectAttributes.addFlashAttribute("successMessage",
                 "Plantilla contacto_pasajero enviada. Gestión manual activada para el operador.");
-        return "redirect:/admin/chat/" + phoneNumber;
+        return "redirect:/admin/chat/" + phone;
     }
 }

@@ -14,11 +14,12 @@ class ChatTakeoverControllerTest {
         var whatsapp = mock(com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService.class);
         var controller = new ChatController(null, null, null, passengers, null, whatsapp, takeOver, null, null);
         var attributes = new RedirectAttributesModelMap();
+        when(takeOver.execute("123")).thenReturn("123");
         when(passengers.findFirstByPhone("123")).thenReturn(java.util.Optional.empty());
         assertEquals("redirect:/admin/chat/123", controller.reopenConversation("123", attributes));
         var order = inOrder(whatsapp, takeOver);
-        order.verify(whatsapp).sendContactoPasajeroTemplate("123", "Pasajero");
         order.verify(takeOver).execute("123");
+        order.verify(whatsapp).sendContactoPasajeroTemplate("123", "Pasajero");
     }
 
     @Test

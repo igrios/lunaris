@@ -33,9 +33,15 @@ class TakeOverConversationUseCaseTest {
     }
 
     @Test
-    void doesNotCreateUnknownConversation() {
+    void createsUnknownConversationForHumanAttention() {
         when(repository.findByPhoneNumber("5493562123456")).thenReturn(Optional.empty());
-        assertThrows(DomainValidationException.class, () -> useCase.execute("5493562123456"));
-        verify(repository, never()).saveAndFlush(any());
+        assertEquals("5493562123456", useCase.execute("5493562123456"));
+        var session = org.mockito.ArgumentCaptor.forClass(ConversationSession.class);
+        verify(repository).saveAndFlush(session.capture());
+        assertEquals("5493562123456", session.getValue().getPhoneNumber());
+        assertEquals("START", session.getValue().getCurrentStep());
+        assertNotNull(session.getValue().getLastInteraction());
+        assertTrue(session.getValue().isBotPaused());
+        assertTrue(session.getValue().isManuallyPaused());
     }
 }
