@@ -207,6 +207,8 @@
                             th:data-companions="${r.companionNames}" th:data-reservation-id="${r.id}">
                             <div class="d-flex justify-content-between gap-2 mb-2">
                                 <span class="badge bg-primary" th:text="${r.departureSchedule ?: 'Sin horario'}"></span>
+                                <small class="d-block text-muted" th:if="${r.returnTimePreference != null}"
+                                    th:text="${r.returnTimePreference}"></small>
                                 <span class="badge passenger-status" th:classappend="${r.paymentVerified == true ? 'bg-success' : (r.status == 'CONFIRMED' ? 'bg-primary' : 'bg-warning text-dark')}"
                                     th:text="${r.paymentVerified == true ? 'Verificado' : (r.status == 'CONFIRMED' ? 'Confirmado' : 'Pendiente')}"></span>
                             </div>

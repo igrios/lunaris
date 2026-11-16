@@ -43,12 +43,16 @@ public class InvoicePersistenceService {
         // OpenEntityManagerInView puede haber cargado las reservas antes del bloqueo.
         // Refrescar con las filas ya bloqueadas evita facturar un estado de pago anterior.
         group.forEach(entityManager::refresh);
+        if (group.stream().noneMatch(r -> data.reservationId().equals(r.getId())
+                && com.lunaris.ansenuza.domain.model.service.ReservationUpdateCapacityService.active(r))) {
+            throw new DomainValidationException("No se puede facturar un tramo cancelado.");
+        }
+        group = group.stream().filter(com.lunaris.ansenuza.domain.model.service.ReservationUpdateCapacityService::active).toList();
         if (group.stream().anyMatch(r -> !r.isPaymentValidatedForBilling())) {
             throw new DomainValidationException(
                     "La factura solo puede registrarse después de confirmar el pago de todos los tramos.");
         }
-        if (group.stream().anyMatch(com.lunaris.ansenuza.domain.model.Reservation::isSpecialTrip)
-                && com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.total(group).compareTo(data.amount()) != 0) {
+        if (com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.total(group).compareTo(data.amount()) != 0) {
             throw new DomainValidationException("El precio del viaje cambió durante la emisión. Volvé a intentar.");
         }
         Invoice invoice = invoiceRepository.findByReservationIdForUpdate(data.reservationId())

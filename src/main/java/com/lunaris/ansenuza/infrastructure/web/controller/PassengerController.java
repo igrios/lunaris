@@ -1,6 +1,8 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import com.lunaris.ansenuza.application.usecase.CreatePassengerUseCase;
+import com.lunaris.ansenuza.application.usecase.PassengerDetailsService;
+import com.lunaris.ansenuza.infrastructure.web.dto.UpdatePassengerRequest;
 import com.lunaris.ansenuza.domain.model.Passenger;
 import com.lunaris.ansenuza.domain.repository.PassengerRepository;
 import com.lunaris.ansenuza.infrastructure.web.dto.CreatePassengerRequest;
@@ -17,6 +19,7 @@ import java.util.UUID;
 
 public class PassengerController {
 
+    private final PassengerDetailsService passengerDetailsService;
     private final PassengerRepository repository;
     private final CreatePassengerUseCase createPassengerUseCase;
 
@@ -28,9 +31,14 @@ public class PassengerController {
     @GetMapping("/{id}")
     public Passenger findById(@PathVariable UUID id) {
 
-        return repository.findById(id)
-                .orElseThrow();
+        return passengerDetailsService.findById(id);
     }
+@PutMapping("/{id}")
+public Passenger update(@PathVariable UUID id,
+        @RequestBody UpdatePassengerRequest request) {
+    return passengerDetailsService.update(id, request);
+}
+
 @PostMapping
 public Passenger create(
         @Valid

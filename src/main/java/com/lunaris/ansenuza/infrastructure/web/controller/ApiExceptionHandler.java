@@ -16,6 +16,21 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    @ExceptionHandler(org.springframework.dao.PessimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, Object>> reservationLockConflict(RuntimeException exception) {
+        return response(HttpStatus.CONFLICT, "La reserva está siendo modificada. Reintentá con el mismo identificador de operación.");
+    }
+
+    @ExceptionHandler(com.lunaris.ansenuza.domain.exception.ReservationUpdateConflictException.class)
+    public ResponseEntity<Map<String, Object>> reservationUpdateConflict(RuntimeException exception) {
+        return response(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    @ExceptionHandler(com.lunaris.ansenuza.domain.exception.ReservationNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> reservationNotFound(RuntimeException exception) {
+        return response(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
     @ExceptionHandler(com.lunaris.ansenuza.domain.exception.AgendaTripNotFoundException.class)
     public ResponseEntity<Map<String, Object>> agendaTripNotFound(RuntimeException exception) {
         return response(HttpStatus.NOT_FOUND, exception.getMessage());
@@ -60,6 +75,11 @@ public class ApiExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .orElse("La solicitud no es válida.");
         return response(HttpStatus.BAD_REQUEST, message);
+    }
+
+    @ExceptionHandler(com.lunaris.ansenuza.domain.exception.PassengerNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> passengerNotFound(RuntimeException exception) {
+        return response(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
     private ResponseEntity<Map<String, Object>> response(HttpStatus status, String message) {

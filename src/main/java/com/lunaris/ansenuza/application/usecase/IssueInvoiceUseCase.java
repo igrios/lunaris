@@ -50,6 +50,9 @@ public class IssueInvoiceUseCase {
     public Invoice issue(UUID reservationId, byte[] pdfBytes) {
         Reservation reservation = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada: " + reservationId));
+        if (!com.lunaris.ansenuza.domain.model.service.ReservationUpdateCapacityService.active(reservation)) {
+            throw new IllegalStateException("No se puede emitir una factura de un tramo cancelado.");
+        }
         List<Reservation> group = invoiceGroup(reservation);
         if (group.stream().anyMatch(item -> !item.isPaymentValidatedForBilling())) {
             throw new IllegalStateException("La factura solo puede emitirse después de confirmar el pago.");
@@ -141,9 +144,9 @@ public class IssueInvoiceUseCase {
 
     private List<Reservation> invoiceGroup(Reservation reservation) {
         String groupCode = com.lunaris.ansenuza.domain.model.service.BookingInvoiceAmount.groupCode(reservation);
-        if (groupCode.startsWith("UUID:")) return List.of(reservation);
         List<Reservation> group = reservationRepository.findReservationGroup(groupCode);
-        return group.isEmpty() ? List.of(reservation) : group;
+        return (group.isEmpty() ? List.of(reservation) : group).stream()
+                .filter(com.lunaris.ansenuza.domain.model.service.ReservationUpdateCapacityService::active).toList();
     }
 
     private Reservation primaryReservation(List<Reservation> group, Reservation fallback) {

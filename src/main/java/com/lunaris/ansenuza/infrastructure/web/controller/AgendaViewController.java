@@ -165,6 +165,21 @@ public class AgendaViewController {
         return "agenda";
     }
 
+    static List<String> agendaSchedules(List<String> defaults, List<Reservation> reservations, boolean returning) {
+        java.util.SortedSet<String> schedules = new java.util.TreeSet<>(defaults);
+        reservations.stream().filter(r -> isManifestReturn(r) == returning)
+                .map(Reservation::getDepartureSchedule)
+                .filter(value -> value != null && !value.isBlank())
+                .forEach(value -> {
+                    try {
+                        schedules.add(com.lunaris.ansenuza.domain.model.service.ReturnCapacityPolicy.normalizeSchedule(value));
+                    } catch (java.time.DateTimeException ignored) {
+                        // Los registros históricos sin hora válida no generan opciones de turno.
+                    }
+                });
+        return List.copyOf(schedules);
+    }
+
     static int countDistinctBookingSeats(List<Reservation> reservations) {
         return reservations.stream().collect(java.util.stream.Collectors.toMap(
                         AgendaViewController::bookingGroupKey,
@@ -225,8 +240,8 @@ public class AgendaViewController {
         model.addAttribute("choferes", choferes);
         model.addAttribute("selectedSchedule", schedule);
         model.addAttribute("selectedDirection", direction);
-        model.addAttribute("outboundSchedules", OUTBOUND_SCHEDULES);
-        model.addAttribute("returnSchedules", RETURN_SCHEDULES);
+        model.addAttribute("outboundSchedules", agendaSchedules(OUTBOUND_SCHEDULES, boardReservations, false));
+        model.addAttribute("returnSchedules", agendaSchedules(RETURN_SCHEDULES, boardReservations, true));
         model.addAttribute("specialReservationIds", activeReservations.stream()
                 .filter(AgendaViewController::isSpecialTrip)
                 .map(Reservation::getId)

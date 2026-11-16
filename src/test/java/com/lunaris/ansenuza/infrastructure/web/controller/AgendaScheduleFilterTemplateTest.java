@@ -10,6 +10,16 @@ import org.junit.jupiter.api.Test;
 class AgendaScheduleFilterTemplateTest {
 
     @Test
+    void includesManuallyScheduledReturnTimeInAgendaFilters() {
+        var reservation = com.lunaris.ansenuza.domain.model.Reservation.builder()
+                .pickupLocality("Córdoba").destination("Morteros")
+                .routeDirection("VUELTA").departureSchedule("16:45 PM").build();
+        var schedules = AgendaViewController.agendaSchedules(java.util.List.of("14:00", "17:30"),
+                java.util.List.of(reservation), true);
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("14:00", "16:45", "17:30"), schedules);
+    }
+
+    @Test
     void switchesScheduleOptionsWhenRouteDirectionChanges() throws IOException {
         String template = Files.readString(
                 Path.of("src/main/resources/templates/agenda-day.html"));

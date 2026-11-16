@@ -7,3 +7,9 @@ La API de creación admite `tripType: "OPEN_RETURN"`, `isFlexibleReturnTime: tru
 El tramo de regreso conserva la fecha estimada en `return_date`, pero mantiene `travel_date` y `departure_schedule` nulos y `travel_status = OPEN_RETURN`. Esto evita que una estimación aparezca como viaje programado o consuma cupo de un turno concreto. Los controles de capacidad de la ida siguen vigentes. El importe de ida y vuelta se calcula y distribuye con las reglas existentes.
 
 La programación posterior debe asignar fecha y horario efectivos y validar capacidad dentro de la transacción antes de sacar el regreso del estado OPEN_RETURN. La preferencia no implica disponibilidad garantizada. Esta entrega incorpora el contrato backend; no agrega controles visuales al formulario.
+
+## Programación por el operador
+
+El modal conserva los turnos habituales y ofrece «Horario personalizado». Envía `returnCustomTime` en formato `HH:mm` y `returnScheduleDescription` opcional (máximo 500 caracteres, sin caracteres de control) al endpoint existente `POST /reservations/update/{id}`. El backend prioriza la hora manual y usa `departureSchedule` como alternativa compatible con los formularios anteriores.
+
+`ReservationService.scheduleOpenReturn` bloquea la reserva, valida la cantidad pendiente y la capacidad del turno antes de modificarla. Para un regreso parcial mantiene abierto el remanente. El tramo programado guarda la hora en `departure_schedule`, la descripción en `return_time_preference`, fecha efectiva y estado `PENDING`; deja de tener horario flexible. No requiere un ID de catálogo ni una migración adicional. La agenda diaria incluye las horas programadas entre sus filtros y muestra la descripción horaria.

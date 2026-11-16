@@ -1,6 +1,7 @@
 package com.lunaris.ansenuza.infrastructure.web.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -144,10 +145,18 @@ class ReservationViewControllerTest {
         when(drivers.findById(driverId)).thenReturn(Optional.of(driver));
         when(reservations.saveAndFlush(openReturn)).thenReturn(openReturn);
 
+        when(reservationService.scheduleOpenReturn(eq(reservationId), any(), eq("Terminal"), eq(driver)))
+                .thenAnswer(invocation -> {
+                    openReturn.setTravelDate(confirmedDate);
+                    openReturn.setDepartureSchedule("08:30 AM");
+                    return openReturn;
+                });
         controller.updateFromPanel(
                 reservationId,
                 confirmedDate,
+                null,
                 "08:30",
+                "Salida por Terminal",
                 "Terminal",
                 driverId,
                 "CONFIRMED",
@@ -155,11 +164,11 @@ class ReservationViewControllerTest {
                 1,
                 "vueltas");
 
-        verify(reservations).saveAndFlush(openReturn);
-        assertEquals(confirmedDate, openReturn.getReturnDate());
-        assertEquals(confirmedDate, openReturn.getTravelDate());
-        assertEquals("08:30 AM", openReturn.getDepartureSchedule());
-        assertEquals(Reservation.TravelStatus.PENDING, openReturn.getTravelStatus());
+        var requestCaptor = ArgumentCaptor.forClass(
+                com.lunaris.ansenuza.infrastructure.web.dto.reservation.ScheduleOpenReturnRequest.class);
+        verify(reservationService).scheduleOpenReturn(eq(reservationId), requestCaptor.capture(), eq("Terminal"), eq(driver));
+        assertEquals("08:30", requestCaptor.getValue().returnCustomTime());
+        assertEquals("Salida por Terminal", requestCaptor.getValue().returnScheduleDescription());
         verify(whatsApp).sendMessage(
                 eq("5493511111111"),
                 contains("Tu vuelta quedó confirmada para el " + confirmedDate));

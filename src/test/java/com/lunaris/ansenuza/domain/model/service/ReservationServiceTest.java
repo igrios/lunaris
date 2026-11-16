@@ -2,6 +2,7 @@ package com.lunaris.ansenuza.domain.model.service;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,6 +32,64 @@ import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 
 class ReservationServiceTest {
+
+    @Test
+    void schedulesManualTimeForWholeGroupAndPartialGroup() {
+        for (int returning : new int[]{1, 2}) {
+            ReservationRepository repository = mock(ReservationRepository.class);
+            ReservationService service = new ReservationService(repository, mock(ReservationEventRepository.class),
+                    mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+            Reservation original = reservation("Córdoba", "Morteros");
+            original.setId(UUID.randomUUID());
+            original.setTravelDate(null);
+            original.setTravelStatus(Reservation.TravelStatus.OPEN_RETURN);
+            original.setPassengerCount(2);
+            original.setFlexibleReturnTime(true);
+            original.setBookingGroupCode("TEST-GROUP");
+            when(repository.findByIdForUpdate(original.getId())).thenReturn(java.util.Optional.of(original));
+            when(repository.saveAndFlush(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            var request = new com.lunaris.ansenuza.infrastructure.web.dto.reservation.ScheduleOpenReturnRequest(
+                    LocalDate.of(2027, 1, 10), "custom", "16:45", "  Salida por Terminal  ", returning);
+
+            Reservation scheduled = service.scheduleOpenReturn(original.getId(), request, "Terminal", null);
+
+            assertEquals("16:45 PM", scheduled.getDepartureSchedule());
+            assertEquals("Salida por Terminal", scheduled.getReturnTimePreference());
+            assertEquals(request.travelDate(), scheduled.getTravelDate());
+            assertEquals(Reservation.TravelStatus.PENDING, scheduled.getTravelStatus());
+            assertFalse(scheduled.isFlexibleReturnTime());
+            assertEquals(returning, scheduled.getPassengerCount());
+            if (returning == 1) {
+                assertEquals(1, original.getPassengerCount());
+                assertEquals(Reservation.TravelStatus.OPEN_RETURN, original.getTravelStatus());
+                assertNull(original.getDepartureSchedule());
+            }
+        }
+    }
+
+    @Test
+    void rejectsInvalidManualTimesAndSeatCountsBeforeWriting() {
+        for (String invalid : new String[]{"24:00", "16:99", "por la tarde", "14:00 PM texto", ""}) {
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    com.lunaris.ansenuza.domain.exception.DomainValidationException.class,
+                    () -> ReservationService.normalizeOpenReturnSchedule(invalid));
+        }
+        ReservationRepository repository = mock(ReservationRepository.class);
+        ReservationService service = new ReservationService(repository, mock(ReservationEventRepository.class),
+                mock(PassengerRepository.class), mock(OnboardPassengerUseCase.class));
+        Reservation original = reservation("Córdoba", "Morteros");
+        original.setId(UUID.randomUUID());
+        original.setTravelStatus(Reservation.TravelStatus.OPEN_RETURN);
+        when(repository.findByIdForUpdate(original.getId())).thenReturn(java.util.Optional.of(original));
+        for (int count : new int[]{0, 2}) {
+            var request = new com.lunaris.ansenuza.infrastructure.web.dto.reservation.ScheduleOpenReturnRequest(
+                    LocalDate.of(2027, 1, 10), null, "16:45", null, count);
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    com.lunaris.ansenuza.domain.exception.DomainValidationException.class,
+                    () -> service.scheduleOpenReturn(original.getId(), request, null, null));
+        }
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).saveAndFlush(any());
+    }
 
     @Test
     void manualCreationClearsCanceledStateAndAppendsAuditWithoutDeletingHistory() {

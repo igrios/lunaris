@@ -155,6 +155,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
            """)
     List<Reservation> findReservationGroup(@Param("groupCode") String groupCode);
 
+    /** Incluye la fila principal legada cuyo código todavía no tiene sufijo. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT r.id FROM Reservation r
+            WHERE r.id = :reservationId OR r.bookingGroupCode = :groupCode OR r.reservationCode = :groupCode
+               OR r.reservationCode = CONCAT(:groupCode, '-IDA')
+               OR r.reservationCode = CONCAT(:groupCode, '-VUELTA')
+            ORDER BY r.reservationCode, r.id
+            """)
+    List<UUID> findUpdateGroupIdsForUpdate(@Param("groupCode") String groupCode,
+            @Param("reservationId") UUID reservationId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM Reservation r WHERE r.id = :id")
     Optional<Reservation> findByIdForUpdate(@Param("id") UUID id);
@@ -364,8 +376,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
                (r.travelStatus = com.lunaris.ansenuza.domain.model.Reservation.TravelStatus.OPEN_RETURN
                 AND EXISTS (SELECT o.id FROM Reservation o
                     WHERE o.travelDate = :date
-                    AND o.reservationCode = CONCAT(
+                    AND (o.reservationCode = CONCAT(
                         SUBSTRING(r.reservationCode, 1, LENGTH(r.reservationCode) - 7), '-IDA')
+                        OR EXISTS (SELECT s.groupCode FROM ReservationUpdateState s
+                            WHERE s.groupCode = r.bookingGroupCode AND s.primaryReservationId = o.id))
                     AND UPPER(COALESCE(o.status, '')) NOT IN ('CANCELLED', 'CANCELED', 'EXPIRED', 'REJECTED'))))
            AND (UPPER(r.routeDirection) = 'VUELTA'
                 OR LOWER(r.pickupLocality) LIKE '%cordoba%'

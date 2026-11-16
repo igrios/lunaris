@@ -298,6 +298,8 @@ public String updateFromPanel(
         @PathVariable(value = "id") UUID id,
         @RequestParam(value = "travelDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate travelDate,
         @RequestParam(value = "departureSchedule", required = false) String departureSchedule,
+        @RequestParam(value = "returnCustomTime", required = false) String returnCustomTime,
+        @RequestParam(value = "returnScheduleDescription", required = false) String returnScheduleDescription,
         @RequestParam(value = "pickupAddress", required = false) String pickupAddress,
         @RequestParam(value = "driverId", required = false) UUID driverId,
         @RequestParam(value = "status", required = false) String status,
@@ -323,68 +325,11 @@ public String updateFromPanel(
                 || original.getTravelDate() != null && original.getTravelDate().equals(sentinelDate);
         
         if (isOpenReturn) {
-            Reservation scheduledReturn;
-            if (travelDate == null || departureSchedule == null || departureSchedule.isBlank()) {
-                throw new IllegalArgumentException(
-                        "Para programar una vuelta abierta se requieren fecha y horario.");
-            }
-            int asientosOriginales = original.getPassengerCount() != null ? original.getPassengerCount() : 1;
-            String normalizedSchedule = normalizeDepartureSchedule(departureSchedule);
-            
-            // A. Si eligen volver MENOS pasajeros de los que tiene el grupo actualmente (Split por Bloque)
-            if (cantidadVuelven < asientosOriginales) {
-                java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
-                java.math.BigDecimal valorButacaIndividual = montoTotal.divide(java.math.BigDecimal.valueOf(asientosOriginales), 2, java.math.RoundingMode.HALF_UP);
-                java.math.BigDecimal montoBloqueDesglosado = valorButacaIndividual.multiply(java.math.BigDecimal.valueOf(cantidadVuelven));
-
-                // Restamos el bloque que se va del registro base que se queda en "Vueltas Abiertas"
-                original.setPassengerCount(asientosOriginales - cantidadVuelven);
-                original.setAmount(montoTotal.subtract(montoBloqueDesglosado));
-                reservationRepository.saveAndFlush(original);
-
-                // Generamos la nueva fila física en la base de datos para los pasajeros que sí viajan
-                Reservation tramoIndependiente = new Reservation();
-                tramoIndependiente.setPassenger(original.getPassenger());
-                tramoIndependiente.setTravelDate(travelDate);
-                tramoIndependiente.setPickupLocality(original.getPickupLocality());
-                tramoIndependiente.setPickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress());
-                tramoIndependiente.setDestination(original.getDestination());
-                tramoIndependiente.setAmount(montoBloqueDesglosado);
-                tramoIndependiente.setPassengerCount(cantidadVuelven); // Cantidad exacta elegida por Martín
-                tramoIndependiente.setStatus("CONFIRMED");
-                tramoIndependiente.setRoundTrip(false); // Desactivado para evitar bucles de combo
-                tramoIndependiente.setPaymentVerified(true);
-                tramoIndependiente.setDriver(assignedDriver);
-                tramoIndependiente.setReturnDate(travelDate);
-                tramoIndependiente.setDepartureSchedule(normalizedSchedule);
-                tramoIndependiente.setTravelStatus(Reservation.TravelStatus.PENDING);
-                tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Bloque" : "Split Bloque");
-                
-                String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
-                tramoIndependiente.setReservationCode("VTA-BLK-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
-                tramoIndependiente.setBookingGroupCode(resolveBookingGroupCode(original));
-                
-                scheduledReturn = reservationRepository.saveAndFlush(tramoIndependiente);
-                sendOpenReturnConfirmation(tramoIndependiente);
-                log.info("[Split Bloque] Se procesó el regreso de {} pasajeros. Quedan {} en espera.", cantidadVuelven, original.getPassengerCount());
-            } 
-            // B. Si vuelven TODOS los pasajeros que quedaban en el grupo (Cierre definitivo)
-            else {
-                original.setTravelDate(travelDate);
-                if (pickupAddress != null && !pickupAddress.isBlank()) original.setPickupAddress(pickupAddress);
-                original.setRoundTrip(false); // Apagamos el flag de combo de raíz
-                original.setReturnDate(travelDate);
-                original.setDepartureSchedule(normalizedSchedule);
-                original.setTravelStatus(Reservation.TravelStatus.PENDING);
-                original.setStatus("CONFIRMED");
-                original.setPaymentVerified(true);
-                original.setDriver(assignedDriver);
-                if (status != null && "CONFIRMED".equals(status)) original.setStatus("CONFIRMED");
-                
-                scheduledReturn = reservationRepository.saveAndFlush(original);
-                sendOpenReturnConfirmation(original);
-                log.info("[Cierre Grupo] Volvieron los últimos {} pasajeros del grupo.", cantidadVuelven);
-            }
+            Reservation scheduledReturn = reservationService.scheduleOpenReturn(id,
+                    new com.lunaris.ansenuza.infrastructure.web.dto.reservation.ScheduleOpenReturnRequest(
+                            travelDate, departureSchedule, returnCustomTime, returnScheduleDescription, cantidadVuelven),
+                    pickupAddress, assignedDriver);
+            sendOpenReturnConfirmation(scheduledReturn);
             if (travelStatus != null) {
                 Reservation travelStatusUpdate = new Reservation();
                 travelStatusUpdate.setTravelStatus(travelStatus);
@@ -413,15 +358,7 @@ public String updateFromPanel(
     }
 
     static String normalizeDepartureSchedule(String rawSchedule) {
-        String schedule = rawSchedule.trim().toUpperCase(java.util.Locale.ROOT);
-        if (schedule.endsWith(" AM") || schedule.endsWith(" PM")) {
-            return schedule;
-        }
-        if (schedule.matches("\\d{2}:\\d{2}")) {
-            int hour = Integer.parseInt(schedule.substring(0, 2));
-            return schedule + (hour < 12 ? " AM" : " PM");
-        }
-        throw new IllegalArgumentException("Formato de horario inválido: " + rawSchedule);
+        return ReservationService.normalizeOpenReturnSchedule(rawSchedule);
     }
 
     private static String resolveBookingGroupCode(Reservation reservation) {

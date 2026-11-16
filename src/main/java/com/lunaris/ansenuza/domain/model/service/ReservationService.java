@@ -631,7 +631,8 @@ public class ReservationService {
 
                 // El dinero externo exige verificación; el saldo ya debitado siempre se restituye.
                 boolean pagoRealizado = Boolean.TRUE.equals(reservation.getPaymentVerified());
-                if (!pagoRealizado && usedBalance(reservation).signum() == 0) {
+                if (!pagoRealizado && usedBalance(reservation).signum() == 0
+                        && reservation.recognizedPayment().signum() == 0) {
                     log.warn("[CANCEL] Cancelación SIN reembolso para reserva {}. Motivo: payment_verified es FALSE (Estado actual: {})",
                             reservation.getReservationCode(), reservation.getStatus());
                 }
@@ -711,6 +712,10 @@ public class ReservationService {
         BigDecimal totalAmount = amountWithExtras(reservation);
         BigDecimal seatAmount = totalAmount.divide(
                 BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP);
+        BigDecimal paidBefore = reservation.recognizedPayment();
+        BigDecimal seatPaid = paidBefore.divide(BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP).min(paidBefore);
+        BigDecimal balanceBefore = usedBalance(reservation);
+        BigDecimal seatBalance = balanceBefore.divide(BigDecimal.valueOf(totalSeats), 2, RoundingMode.HALF_UP).min(balanceBefore);
         Passenger passenger = lockPassenger(reservation.getPassenger());
         reservation.setPassenger(passenger);
         reservation.setPassengerCount(totalSeats - 1);
@@ -720,12 +725,15 @@ public class ReservationService {
         BigDecimal remainingExtra = existingExtra.min(remainingAmount.max(BigDecimal.ZERO));
         reservation.setAmount(remainingAmount.subtract(remainingExtra));
         reservation.setExtraAmount(remainingExtra);
+        reservation.setUsedBalance(balanceBefore.subtract(seatBalance));
+        reservation.setRecognizedPaidAmount(paidBefore.subtract(seatPaid));
         if (returnedSeats > 0) {
             reservation.setTravelStatus(Reservation.TravelStatus.PARTIALLY_COMPLETED);
         }
         reservationRepository.saveAndFlush(reservation);
-        boolean refundable = isRefundEligible(reservation);
-        credit(passenger, refundable ? seatAmount : BigDecimal.ZERO);
+        BigDecimal refund = seatPaid.add(seatBalance);
+        boolean refundable = refund.signum() > 0;
+        credit(passenger, refund);
         reservationEventRepository.save(ReservationEvent.builder()
                 .reservationId(id)
                 .eventType(refundable ? "RETURN_SEAT_CANCELLED"
@@ -819,10 +827,7 @@ public class ReservationService {
     }
 
     private BigDecimal refundableAmount(Reservation reservation) {
-        BigDecimal paidAmount = usedBalance(reservation);
-        if (Boolean.TRUE.equals(reservation.getPaymentVerified())) {
-            paidAmount = paidAmount.add(amountWithExtras(reservation));
-        }
+        BigDecimal paidAmount = usedBalance(reservation).add(reservation.recognizedPayment());
         if (paidAmount.signum() == 0) {
             return BigDecimal.ZERO;
         }
@@ -862,7 +867,7 @@ public class ReservationService {
      * debitado sí es valor realizado y debe poder restituirse.
      */
     public boolean isRefundEligible(Reservation reservation) {
-        return reservation != null && (Boolean.TRUE.equals(reservation.getPaymentVerified())
+        return reservation != null && (reservation.recognizedPayment().signum() > 0
                 || usedBalance(reservation).signum() > 0);
     }
 
@@ -940,6 +945,112 @@ public class ReservationService {
             throw new IllegalStateException(
                     "No se puede cancelar la reserva porque la ruta ya fue enviada al chofer o el viaje está en curso.");
         }
+    }
+
+    public static String normalizeOpenReturnSchedule(String rawSchedule) {
+        if (rawSchedule == null || !rawSchedule.trim().toUpperCase(java.util.Locale.ROOT)
+                .matches("(?:[01]\\d|2[0-3]):[0-5]\\d(?: AM| PM)?")) {
+            throw new DomainValidationException("El horario de regreso debe tener formato HH:mm (00:00 a 23:59).");
+        }
+        String schedule = rawSchedule.trim().toUpperCase(java.util.Locale.ROOT);
+        if (schedule.endsWith(" AM") || schedule.endsWith(" PM")) return schedule;
+        return schedule + (Integer.parseInt(schedule.substring(0, 2)) < 12 ? " AM" : " PM");
+    }
+
+    @Transactional
+    public Reservation scheduleOpenReturn(UUID id,
+            com.lunaris.ansenuza.infrastructure.web.dto.reservation.ScheduleOpenReturnRequest request,
+            String pickupAddress, com.lunaris.ansenuza.domain.model.Driver assignedDriver) {
+        Reservation original = reservationRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new DomainValidationException("Reserva no encontrada."));
+        assertNotCompleted(original);
+        if (original.getTravelStatus() != Reservation.TravelStatus.OPEN_RETURN
+                && !LocalDate.of(2099, 12, 31).equals(original.getTravelDate())) {
+            throw new DomainValidationException("La vuelta ya fue programada.");
+        }
+        if (request.travelDate() == null || LocalDate.of(2099, 12, 31).equals(request.travelDate())) {
+            throw new DomainValidationException("Indicá la fecha definitiva de regreso.");
+        }
+        int cantidadVuelven = request.cantidadVuelven();
+        if (cantidadVuelven < 1 || cantidadVuelven > original.getTotalSeats()) {
+            throw new DomainValidationException("La cantidad que regresa debe estar entre 1 y los asientos pendientes.");
+        }
+        String description = request.returnScheduleDescription();
+        if (description != null) {
+            description = description.trim();
+            if (description.length() > 500 || description.chars().anyMatch(Character::isISOControl)) {
+                throw new DomainValidationException("La descripción horaria admite hasta 500 caracteres, sin caracteres de control.");
+            }
+            if (description.isBlank()) description = null;
+        }
+        LocalDate travelDate = request.travelDate();
+        Reservation scheduledReturn;
+        int asientosOriginales = original.getPassengerCount() != null ? original.getPassengerCount() : 1;
+        String normalizedSchedule = normalizeOpenReturnSchedule(request.returnCustomTime() != null && !request.returnCustomTime().isBlank()
+                ? request.returnCustomTime() : request.departureSchedule());
+
+        if (!original.isSpecialTrip()) {
+            lockAndValidateCapacity(travelDate, normalizedSchedule, original.getPickupLocality(),
+                    cantidadVuelven, java.util.Set.of(id));
+        }
+        // A. Si eligen volver MENOS pasajeros de los que tiene el grupo actualmente (Split por Bloque)
+        if (cantidadVuelven < asientosOriginales) {
+            java.math.BigDecimal montoTotal = original.getAmount() != null ? original.getAmount() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal valorButacaIndividual = montoTotal.divide(java.math.BigDecimal.valueOf(asientosOriginales), 2, java.math.RoundingMode.HALF_UP);
+            java.math.BigDecimal montoBloqueDesglosado = valorButacaIndividual.multiply(java.math.BigDecimal.valueOf(cantidadVuelven));
+
+            // Restamos el bloque que se va del registro base que se queda en "Vueltas Abiertas"
+            original.setPassengerCount(asientosOriginales - cantidadVuelven);
+            original.setAmount(montoTotal.subtract(montoBloqueDesglosado));
+            reservationRepository.saveAndFlush(original);
+
+            // Generamos la nueva fila física en la base de datos para los pasajeros que sí viajan
+            Reservation tramoIndependiente = new Reservation();
+            tramoIndependiente.setPassenger(original.getPassenger());
+            tramoIndependiente.setTravelDate(travelDate);
+            tramoIndependiente.setPickupLocality(original.getPickupLocality());
+            tramoIndependiente.setPickupAddress(pickupAddress != null && !pickupAddress.isBlank() ? pickupAddress : original.getPickupAddress());
+            tramoIndependiente.setDestination(original.getDestination());
+            tramoIndependiente.setAmount(montoBloqueDesglosado);
+            tramoIndependiente.setPassengerCount(cantidadVuelven); // Cantidad exacta elegida por Martín
+            tramoIndependiente.setStatus("CONFIRMED");
+            tramoIndependiente.setRoundTrip(false); // Desactivado para evitar bucles de combo
+            tramoIndependiente.setPaymentVerified(true);
+            tramoIndependiente.setDriver(assignedDriver);
+            tramoIndependiente.setReturnDate(travelDate);
+            tramoIndependiente.setDepartureSchedule(normalizedSchedule);
+            tramoIndependiente.setTravelStatus(Reservation.TravelStatus.PENDING);
+            tramoIndependiente.setNotes(original.getNotes() != null ? original.getNotes() + " | Split Bloque" : "Split Bloque");
+
+            String shortTimestamp = String.valueOf(System.currentTimeMillis()).substring(10);
+            tramoIndependiente.setReservationCode("VTA-BLK-" + original.getId().toString().substring(0, 4) + "-" + shortTimestamp);
+            tramoIndependiente.setBookingGroupCode(original.getBookingGroupCode() != null
+                    ? original.getBookingGroupCode() : original.getReservationCode() == null
+                    ? null : original.getReservationCode().replaceFirst("-(IDA|VUELTA)$", ""));
+            tramoIndependiente.setReturnTimePreference(description);
+            tramoIndependiente.setId(UUID.randomUUID());
+
+            scheduledReturn = reservationRepository.saveAndFlush(tramoIndependiente);
+            log.info("[Split Bloque] Se procesó el regreso de {} pasajeros. Quedan {} en espera.", cantidadVuelven, original.getPassengerCount());
+        }
+        // B. Si vuelven TODOS los pasajeros que quedaban en el grupo (Cierre definitivo)
+        else {
+            original.setFlexibleReturnTime(false);
+            if (description != null) original.setReturnTimePreference(description);
+            original.setTravelDate(travelDate);
+            if (pickupAddress != null && !pickupAddress.isBlank()) original.setPickupAddress(pickupAddress);
+            original.setRoundTrip(false); // Apagamos el flag de combo de raíz
+            original.setReturnDate(travelDate);
+            original.setDepartureSchedule(normalizedSchedule);
+            original.setTravelStatus(Reservation.TravelStatus.PENDING);
+            original.setStatus("CONFIRMED");
+            original.setPaymentVerified(true);
+            original.setDriver(assignedDriver);
+
+            scheduledReturn = reservationRepository.saveAndFlush(original);
+            log.info("[Cierre Grupo] Volvieron los últimos {} pasajeros del grupo.", cantidadVuelven);
+        }
+        return scheduledReturn;
     }
 
     @Transactional

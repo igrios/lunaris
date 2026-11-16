@@ -43,6 +43,7 @@ class InvoicePersistenceServiceTest {
         Reservation reservation = reservations.saveAndFlush(Reservation.builder()
                 .passenger(passenger).travelDate(LocalDate.of(2026, 9, 15))
                 .pickupLocality("Morteros").destination("Córdoba")
+                .amount(new BigDecimal("10000.00"))
                 .paymentVerified(true).status("CONFIRMED").build());
         InvoicePersistenceService.InvoiceData original = data(
                 reservation, "F-2026-00001", "/invoice/old.pdf");

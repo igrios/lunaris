@@ -9,7 +9,6 @@ import com.lunaris.ansenuza.domain.repository.ReservationEventRepository;
 import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.shared.ArgentinaTime;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,10 +32,10 @@ public class MarkTripAsPaidService {
         }
         Reservation selected = group.stream().filter(r -> id.equals(r.getId())).findFirst()
                 .orElseThrow(() -> new AgendaTripNotFoundException(id));
-        if (group.stream().anyMatch(r -> Set.of("CANCELLED", "CANCELED", "EXPIRED", "REJECTED")
-                .contains(r.getStatus() == null ? "" : r.getStatus().toUpperCase(java.util.Locale.ROOT)))) {
+        if (!com.lunaris.ansenuza.domain.model.service.ReservationUpdateCapacityService.active(selected)) {
             throw new DomainValidationException("No se puede registrar el pago de un viaje cancelado o vencido.");
         }
+        group = group.stream().filter(com.lunaris.ansenuza.domain.model.service.ReservationUpdateCapacityService::active).toList();
         var paidAt = ArgentinaTime.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         for (Reservation leg : group) {
             leg.setRequiresInvoice(true);

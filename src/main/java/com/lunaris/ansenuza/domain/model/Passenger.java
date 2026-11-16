@@ -51,6 +51,9 @@ public class Passenger {
 
     private String locality;
 
+    @Column(columnDefinition = "text")
+    private String notes;
+
     // 💰 BILLETERA VIRTUAL: Cuenta corriente para saldos a favor por cancelaciones o promos
     @Builder.Default
     @Column(name = "current_balance", nullable = false)

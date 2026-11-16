@@ -33,7 +33,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class Reservation {
 
     private static final LocalDate OPEN_RETURN_SENTINEL_DATE = LocalDate.of(2099, 12, 31);
@@ -83,6 +83,18 @@ public class Reservation {
 
     @Column(name = "amount")
     private BigDecimal amount;
+
+    /** Pago externo ya reconocido cuando una edición deja una diferencia pendiente. */
+    @Column(name = "recognized_paid_amount", precision = 10, scale = 2)
+    private BigDecimal recognizedPaidAmount;
+
+    public BigDecimal recognizedPayment() {
+        if (Boolean.TRUE.equals(paymentVerified) || paymentStatus == PaymentStatus.PAID) {
+            return (amount == null ? BigDecimal.ZERO : amount)
+                    .add(extraAmount == null ? BigDecimal.ZERO : extraAmount);
+        }
+        return recognizedPaidAmount == null ? BigDecimal.ZERO : recognizedPaidAmount;
+    }
 
     /** true únicamente cuando amount contiene el total del grupo repetido en cada tramo. */
     @Column(name = "amount_is_group_total", nullable = false)
@@ -239,7 +251,7 @@ public class Reservation {
     @Column(name = "reservation_code", unique = true, length = 20)
     private String reservationCode;
 
-    @Column(name = "booking_group_code", length = 40)
+    @Column(name = "booking_group_code", length = 64)
     private String bookingGroupCode;
 
     @Column(name = "route_direction", length = 16)

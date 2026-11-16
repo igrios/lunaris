@@ -149,10 +149,24 @@
                             <div class="mb-3">
                               <label class="form-label fw-bold">Horario de Salida:</label>
                               <select name="departureSchedule"
-                                class="form-select fw-bold border-success" required>
+                                class="form-select fw-bold border-success" onchange="toggleCustomReturnTime(this)" required>
                                 <option value="14:00" selected>14:00 a 15:00 hs</option>
                                 <option value="17:30">17:30 a 18:00 hs</option>
+                                <option value="custom">Horario personalizado</option>
                               </select>
+                            </div>
+
+                            <div class="mb-3 custom-return-time d-none">
+                              <label th:for="'returnCustomTime-' + ${v.id}" class="form-label fw-bold">Hora acordada:</label>
+                              <input type="time" name="returnCustomTime" th:id="'returnCustomTime-' + ${v.id}"
+                                class="form-control" step="60" disabled>
+                              <small class="text-muted">Ingresá la hora exacta de salida en formato de 24 horas.</small>
+                            </div>
+                            <div class="mb-3">
+                              <label th:for="'returnDescription-' + ${v.id}" class="form-label">Detalle del horario (opcional):</label>
+                              <input type="text" name="returnScheduleDescription" th:id="'returnDescription-' + ${v.id}"
+                                class="form-control" maxlength="500" placeholder="Ej.: salida por Terminal, esperar en boletería"
+                                th:value="${v.returnTimePreference}">
                             </div>
 
                             <input type="hidden" name="pickupAddress" th:value="${v.pickupAddress}">
@@ -181,6 +195,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    function toggleCustomReturnTime(select) {
+      const container = select.form.querySelector('.custom-return-time');
+      const input = container.querySelector('input');
+      const custom = select.value === 'custom';
+      container.classList.toggle('d-none', !custom);
+      input.disabled = !custom;
+      input.required = custom;
+      if (custom) input.focus();
+    }
+
     function localDatePlus(days) {
       const date = new Date();
       date.setHours(12, 0, 0, 0);
