@@ -44,6 +44,19 @@ public class PassengerDetailsService {
                 passenger.getLocality(), passenger.getNotes()));
     }
 
+    @Transactional(readOnly = true)
+    public Optional<PassengerLookup> findByCuil(String cuil) {
+        if (cuil == null || !cuil.matches("[0-9 .-]+") || cuil.replaceAll("[^0-9]", "").isEmpty()) {
+            throw new DomainValidationException("El DNI / CUIT / CUIL es obligatorio y debe ser numérico.");
+        }
+        String document = cuil.replaceAll("[^0-9]", "");
+        return repository.findByDocument(document, org.springframework.data.domain.PageRequest.of(0, 1))
+                .stream().findFirst().map(passenger -> new PassengerLookup(
+                        passenger.getId(), passenger.getFirstName(), passenger.getLastName(),
+                        passenger.getCuil(), passenger.getPhone(), passenger.getAddress(),
+                        passenger.getLocality(), passenger.getNotes()));
+    }
+
     public record PassengerLookup(UUID id, String firstName, String lastName, String cuil,
             String phone, String address, String locality, String notes) {}
 

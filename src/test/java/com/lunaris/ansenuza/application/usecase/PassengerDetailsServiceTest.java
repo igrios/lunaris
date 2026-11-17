@@ -40,6 +40,33 @@ class PassengerDetailsServiceTest {
     }
 
     @Test
+    void buscaDocumentoSinSeparadoresYDevuelveTodosLosDatos() {
+        var page = org.springframework.data.domain.PageRequest.of(0, 1);
+        when(repository.findByDocument("20123456789", page)).thenReturn(java.util.List.of(
+                Passenger.builder().firstName("Ana").lastName("Pérez").cuil("20-12345678-9")
+                        .phone("543511234567").address("San Martín 100").locality("Córdoba")
+                        .notes("Equipaje").build()));
+        var result = service.findByCuil(" 20-12345678-9 ").orElseThrow();
+        assertEquals("Ana", result.firstName());
+        assertEquals("Pérez", result.lastName());
+        assertEquals("543511234567", result.phone());
+        assertEquals("San Martín 100", result.address());
+        assertEquals("Córdoba", result.locality());
+        assertEquals("Equipaje", result.notes());
+        assertTrue(service.findByCuil("12.345.678").isEmpty());
+        verify(repository).findByDocument("12345678", page);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void rechazaDocumentoVacioOInvalido() {
+        for (String document : new String[]{null, "", " ", "---", "abc"}) {
+            assertThrows(DomainValidationException.class, () -> service.findByCuil(document));
+        }
+        verifyNoInteractions(repository);
+    }
+
+    @Test
     void updatesNotesAndContactWithoutChangingBalance() {
         UUID id = UUID.randomUUID();
         Passenger passenger = Passenger.builder().id(id).notes("Anterior")

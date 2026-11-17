@@ -15,6 +15,14 @@ public interface PassengerRepository extends JpaRepository<Passenger, UUID> {
 
     Optional<Passenger> findByPhone(String phoneNumber);
 
+    @Query("""
+            select p from Passenger p
+            where replace(replace(replace(trim(p.cuil), '-', ''), '.', ''), ' ', '') = :document
+            order by p.id
+            """)
+    java.util.List<Passenger> findByDocument(@Param("document") String document,
+            org.springframework.data.domain.Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Passenger p where p.id = :id")
     Optional<Passenger> findByIdForUpdate(@Param("id") UUID id);

@@ -37,6 +37,14 @@ public class PassengerController {
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
+    @GetMapping("/by-cuil")
+    public ResponseEntity<PassengerDetailsService.PassengerLookup> findByCuil(
+            @RequestParam String cuil) {
+        return passengerDetailsService.findByCuil(cuil)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @GetMapping("/{id}")
     public Passenger findById(@PathVariable UUID id) {
 

@@ -35,6 +35,28 @@ class PassengerControllerTest {
     }
 
     @Test
+    void consultaPorDocumentoDevuelveDatosONoContent() throws Exception {
+        var service = mock(PassengerDetailsService.class);
+        var mvc = MockMvcBuilders.standaloneSetup(new PassengerController(service,
+                mock(PassengerRepository.class), mock(CreatePassengerUseCase.class)))
+                .setControllerAdvice(new ApiExceptionHandler()).build();
+        when(service.findByCuil("12345678")).thenReturn(java.util.Optional.of(
+                new PassengerDetailsService.PassengerLookup(UUID.randomUUID(), "Ana", "Pérez",
+                        "12345678", "543511234567", "San Martín 100", "Morteros", "Equipaje")));
+        mvc.perform(get("/passengers/by-cuil").param("cuil", "12345678"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.firstName").value("Ana"))
+                .andExpect(jsonPath("$.lastName").value("Pérez"))
+                .andExpect(jsonPath("$.phone").value("543511234567"))
+                .andExpect(jsonPath("$.cuil").value("12345678"))
+                .andExpect(jsonPath("$.address").value("San Martín 100"))
+                .andExpect(jsonPath("$.locality").value("Morteros"))
+                .andExpect(jsonPath("$.notes").value("Equipaje"));
+        mvc.perform(get("/passengers/by-cuil").param("cuil", "99999999"))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+        mvc.perform(get("/passengers/by-cuil")).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void returnsPassengerNotesAndNotFoundStatus() throws Exception {
         var service = mock(PassengerDetailsService.class);
         var controller = new PassengerController(service, mock(PassengerRepository.class),

@@ -123,7 +123,7 @@
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-12">
-                            <label class="form-label small fw-bold text-dark">DNI / CUIL (Para Facturación)</label>
+                            <label class="form-label small fw-bold text-dark">DNI / CUIT / CUIL (Para Facturación)</label>
                             <input type="text" name="cuil" th:value="${reservation?.cuil}" id="cuilInput" class="form-control" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                         </div>
                     </div>
@@ -494,32 +494,59 @@
             }
         }
 
-        if (phoneInput) {
-            phoneInput.addEventListener('blur', () => {
-                const telefono = phoneInput.value.trim();
-                if (telefono.length >= 8) {
-                    fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(telefono)}`)
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.existe) {
-                                firstNameInput.value = data.firstName;
-                                lastNameInput.value = data.lastName;
-                                cuilInput.value = data.cuil;
+        const passengerLookupFields = {
+            firstName: firstNameInput,
+            lastName: lastNameInput,
+            phone: phoneInput,
+            cuil: cuilInput,
+            address: document.querySelector('[name="pickupAddress"]')
+        };
+        let passengerLookupVersion = 0;
 
-                                if (parseFloat(data.saldo) > 0) {
-                                    saldoSpan.innerText = parseFloat(data.saldo).toFixed(2);
-                                    alertaDiv.classList.remove('d-none');
-                                    alertaDiv.classList.add('d-flex');
-                                } else {
-                                    alertaDiv.classList.add('d-none');
-                                    alertaDiv.classList.remove('d-flex');
-                                }
-                            }
-                        })
-                        .catch(err => console.error("Error al consultar pasajero:", err));
-                }
-            });
+        function ocultarSaldoPasajero() {
+            alertaDiv.classList.add('d-none');
+            alertaDiv.classList.remove('d-flex');
         }
+
+        async function buscarPasajero(input, parameter, endpoint) {
+            const version = ++passengerLookupVersion;
+            const value = input.value.trim();
+            ocultarSaldoPasajero();
+            if (!value) return;
+            const previous = Object.fromEntries(Object.entries(passengerLookupFields)
+                .map(([key, field]) => [key, field.value]));
+            try {
+                const response = await fetch(`${endpoint}?${parameter}=${encodeURIComponent(value)}`);
+                if (version !== passengerLookupVersion || response.status === 204) return;
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const passenger = await response.json();
+                if (version !== passengerLookupVersion) return;
+                Object.entries(passengerLookupFields).forEach(([key, field]) => {
+                    if (!previous[key].trim() && field.value === previous[key]) {
+                        field.value = passenger[key] ?? '';
+                    }
+                });
+                if (!passenger.phone) return;
+                const balanceResponse = await fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(passenger.phone)}`);
+                if (!balanceResponse.ok) throw new Error(`HTTP ${balanceResponse.status}`);
+                const balance = await balanceResponse.json();
+                if (version !== passengerLookupVersion) return;
+                if (balance.existe && Number(balance.saldo) > 0) {
+                    saldoSpan.innerText = Number(balance.saldo).toFixed(2);
+                    alertaDiv.classList.remove('d-none');
+                    alertaDiv.classList.add('d-flex');
+                }
+            } catch (error) {
+                console.error('Error al consultar pasajero:', error);
+            }
+        }
+
+        [phoneInput, cuilInput].forEach(input => input.addEventListener('input', () => {
+            passengerLookupVersion++;
+            ocultarSaldoPasajero();
+        }));
+        phoneInput.addEventListener('blur', () => buscarPasajero(phoneInput, 'phone', '/passengers/by-phone'));
+        cuilInput.addEventListener('blur', () => buscarPasajero(cuilInput, 'cuil', '/passengers/by-cuil'));
 
         const isRoundTripCheck = document.getElementById('isRoundTripCheck');
         const sectionOpcionesRetorno = document.getElementById('sectionOpcionesRetorno');
