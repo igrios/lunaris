@@ -47,13 +47,15 @@ class ChoferAgendaEndpointIntegrationTest {
         var servicio = new ServicioAgenda(UUID.randomUUID(), "RES-001", fecha,
                 "08:00", "Morteros", "Cordoba", UUID.randomUUID(), 2, "CONFIRMED", null,
                 "Ana Pérez", "5493511234567", "Lleva equipaje",
-                true, com.lunaris.ansenuza.domain.model.TripType.ROUND_TRIP);
+                true, com.lunaris.ansenuza.domain.model.TripType.ROUND_TRIP, "San Martín 100", "IDA");
         when(agendaService.execute(fecha)).thenReturn(List.of(servicio));
 
         mockMvc.perform(get(PATH).param("fecha", fecha.toString())
                         .header("Origin", ORIGIN).with(user("usuario").roles(role)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[0].address").value("San Martín 100"))
+                .andExpect(jsonPath("$[0].tramo").value("IDA"))
                 .andExpect(jsonPath("$[0].codigo").value("RES-001"))
                 .andExpect(jsonPath("$[0].fecha").value("2026-11-07"))
                 .andExpect(jsonPath("$[0].nombrePasajero").value("Ana Pérez"))

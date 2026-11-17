@@ -9,6 +9,7 @@ import com.lunaris.ansenuza.infrastructure.web.dto.CreatePassengerRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +27,14 @@ public class PassengerController {
     @GetMapping
     public List<Passenger> findAll() {
         return repository.findAll();
+    }
+
+    @GetMapping("/by-phone")
+    public ResponseEntity<PassengerDetailsService.PassengerLookup> findByPhone(
+            @RequestParam String phone) {
+        return passengerDetailsService.findByPhone(phone)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/{id}")

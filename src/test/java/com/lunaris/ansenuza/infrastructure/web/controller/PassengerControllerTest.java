@@ -14,6 +14,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class PassengerControllerTest {
     @Test
+    void consultaPorTelefonoDevuelveDatosONoContent() throws Exception {
+        var service = mock(PassengerDetailsService.class);
+        var mvc = MockMvcBuilders.standaloneSetup(new PassengerController(service,
+                mock(PassengerRepository.class), mock(CreatePassengerUseCase.class)))
+                .setControllerAdvice(new ApiExceptionHandler()).build();
+        when(service.findByPhone("456")).thenReturn(java.util.Optional.of(
+                new PassengerDetailsService.PassengerLookup(UUID.randomUUID(), "Ana", "Pérez",
+                        "123", "456", "San Martín 100", "Morteros", "Equipaje")));
+        mvc.perform(get("/passengers/by-phone").param("phone", "456"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.firstName").value("Ana"))
+                .andExpect(jsonPath("$.lastName").value("Pérez"))
+                .andExpect(jsonPath("$.cuil").value("123"))
+                .andExpect(jsonPath("$.address").value("San Martín 100"))
+                .andExpect(jsonPath("$.notes").value("Equipaje"))
+                .andExpect(jsonPath("$.currentBalance").doesNotExist());
+        mvc.perform(get("/passengers/by-phone").param("phone", "789"))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+        mvc.perform(get("/passengers/by-phone")).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void returnsPassengerNotesAndNotFoundStatus() throws Exception {
         var service = mock(PassengerDetailsService.class);
         var controller = new PassengerController(service, mock(PassengerRepository.class),

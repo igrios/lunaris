@@ -26,7 +26,7 @@ public class ChoferAgendaService {
             String origen, String destino, UUID choferId, int pasajeros,
             String estado, Reservation.TravelStatus estadoViaje,
             String nombrePasajero, String telefono, String comentarios,
-            boolean esIdaYVuelta, TripType tipoViaje) {
+            boolean esIdaYVuelta, TripType tipoViaje, String address, String tramo) {
         private static ServicioAgenda from(Reservation reservation) {
             var passenger = reservation.getPassenger();
             TripType tipoViaje = reservation.getTripType();
@@ -44,7 +44,16 @@ public class ChoferAgendaService {
                     reservation.getDriver() == null ? null : reservation.getDriver().getId(),
                     reservation.getTotalSeats(), reservation.getStatus(), reservation.getTravelStatus(),
                     nombre, passenger == null ? "" : text(passenger.getPhone()),
-                    text(reservation.getNotes()), tipoViaje != TripType.ONE_WAY, tipoViaje);
+                    text(reservation.getNotes()), tipoViaje != TripType.ONE_WAY, tipoViaje,
+                    text(reservation.getPickupAddress()), tramo(reservation));
+        }
+
+        private static String tramo(Reservation reservation) {
+            String direction = text(reservation.getRouteDirection()).strip();
+            if ("IDA".equalsIgnoreCase(direction) || "VUELTA".equalsIgnoreCase(direction)) {
+                return direction.toUpperCase(java.util.Locale.ROOT);
+            }
+            return text(reservation.getReservationCode()).endsWith("-VUELTA") ? "VUELTA" : "IDA";
         }
 
         private static String text(String value) {

@@ -90,6 +90,22 @@ class ChoferAgendaServiceTest {
         assertEquals(1, servicio.pasajeros());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+            "RES-001,,IDA", "RES-001-VUELTA,,VUELTA",
+            "RES-001,VUELTA,VUELTA", "RES-001-VUELTA,IDA,IDA"
+    })
+    void exponeDireccionDelTramoYSentido(String code, String direction, String expected) {
+        LocalDate fecha = LocalDate.of(2026, 11, 7);
+        var reservation = Reservation.builder().reservationCode(code).routeDirection(direction)
+                .pickupAddress("Terminal Córdoba").passenger(Passenger.builder()
+                        .address("Domicilio del pasajero").build()).build();
+        when(repository.findDriverAgenda(fecha, fecha.plusDays(1), null)).thenReturn(List.of(reservation));
+        var servicio = service.execute(fecha).getFirst();
+        assertEquals("Terminal Córdoba", servicio.address());
+        assertEquals(expected, servicio.tramo());
+    }
+
     @Test
     void usaHoyPorDefectoSinFiltrarPorChofer() {
         LocalDate hoy = LocalDate.now();

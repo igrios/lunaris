@@ -17,6 +17,29 @@ class PassengerDetailsServiceTest {
     private final PassengerDetailsService service = new PassengerDetailsService(repository);
 
     @Test
+    void buscaTelefonoNormalizadoYDevuelveDatosParaAutocompletar() {
+        when(repository.findFirstByPhone("+54 9 351 1234567")).thenReturn(Optional.empty());
+        when(repository.findFirstByPhone("543511234567")).thenReturn(Optional.of(Passenger.builder()
+                .firstName("Ana").lastName("Pérez").cuil("123").phone("543511234567")
+                .address("San Martín 100").locality("Córdoba").notes("Equipaje").build()));
+        var result = service.findByPhone(" +54 9 351 1234567 ").orElseThrow();
+        assertEquals("Ana", result.firstName());
+        assertEquals("Pérez", result.lastName());
+        assertEquals("123", result.cuil());
+        assertEquals("San Martín 100", result.address());
+        assertEquals("Equipaje", result.notes());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void telefonoInexistenteNoCreaPasajeroYRechazaConsultaVacia() {
+        assertTrue(service.findByPhone("543511234567").isEmpty());
+        assertThrows(DomainValidationException.class, () -> service.findByPhone(" "));
+        assertThrows(DomainValidationException.class, () -> service.findByPhone(null));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void updatesNotesAndContactWithoutChangingBalance() {
         UUID id = UUID.randomUUID();
         Passenger passenger = Passenger.builder().id(id).notes("Anterior")
