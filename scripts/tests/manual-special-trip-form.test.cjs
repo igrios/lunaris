@@ -35,16 +35,26 @@ class Element {
   set innerHTML(html) { this.options = [...html.matchAll(/<option\b/g)].map(() => ({})); }
 }
 
-function setup(category = 'SPECIAL', postResponse = async () => ({ ok: true, status: 201 })) {
+function setup(category = 'SPECIAL', postResponse = async () => ({ ok: true, status: 201 }), mode = {}) {
   const elements = new Map();
   const controls = [];
-  for (const match of template.matchAll(/<([a-z][\w-]*)\b([^>]*?)>/gi)) {
-    const attributes = Object.fromEntries([...match[2].matchAll(/([\w:-]+)="([^"]*)"/g)].map(attr => [attr[1], attr[2]]));
-    for (const flag of ['disabled', 'required', 'checked']) attributes[flag] = new RegExp(`(?:^|\\s)${flag}(?:\\s|$)`).test(match[2]);
+  const fieldsets = [];
+  for (const match of template.matchAll(/<(\/?)([a-z][\w-]*)\b([^>]*?)>/gi)) {
+    const [, closing, tag, source] = match;
+    if (closing) {
+      if (tag === 'fieldset') fieldsets.pop();
+      continue;
+    }
+    const attributes = Object.fromEntries([...source.matchAll(/([\w:-]+)="([^"]*)"/g)].map(attr => [attr[1], attr[2]]));
+    for (const flag of ['disabled', 'required', 'checked']) attributes[flag] = new RegExp(`(?:^|\\s)${flag}(?:\\s|$)`).test(source);
     const element = new Element(attributes);
     element.parentElement = new Element();
     if (attributes.id) elements.set(attributes.id, element);
-    if (attributes.name && ['input', 'select', 'textarea'].includes(match[1])) controls.push(element);
+    if (tag === 'fieldset') fieldsets.push(element);
+    if (attributes.name && ['input', 'select', 'textarea'].includes(tag)) {
+      element.fieldsets = [...fieldsets];
+      controls.push(element);
+    }
   }
   const get = id => {
     assert.ok(elements.has(id), `El script requiere el elemento ${id}`);
@@ -53,19 +63,27 @@ function setup(category = 'SPECIAL', postResponse = async () => ({ ok: true, sta
   const form = get('manualTripForm');
   form.dataset.specialApiUrl = form.attributes['th:data-special-api-url'].match(/@\{([^}]+)\}/)[1];
   form.dataset.agendaUrl = form.attributes['th:data-agenda-url'].match(/@\{([^}]+)\}/)[1];
+  form.dataset.promoUrl = form.attributes['th:data-promo-url'].match(/@\{([^}]+)\}/)[1];
+  form.dataset.tripUrl = form.attributes['th:data-trip-url'].match(/@\{([^}]+)\}/)[1];
+  form.dataset.initialPromo = mode.promo ? 'true' : 'false';
+  form.dataset.promoRedemption = mode.redemption ? 'true' : 'false';
   get('tripCategory').value = category;
   const requests = [];
   const navigation = [];
   const windowEvents = {};
   const context = vm.createContext({
-    document: { getElementById: get, createElement: () => new Element() },
+    document: {
+      getElementById: get,
+      createElement: () => new Element(),
+      querySelector: selector => controls.find(control => selector === `[name="${control.attributes.name}"]`),
+    },
     window: { addEventListener: (event, callback) => { windowEvents[event] = callback; }, location: { assign: url => navigation.push(url) } },
     URLSearchParams, console,
     FormData: class {
       constructor() {
         this.fields = new Map();
         for (const control of controls) {
-          if (control.disabled) continue;
+          if (control.disabled || control.fieldsets.some(fieldset => fieldset.disabled)) continue;
           if (['radio', 'checkbox'].includes(control.attributes.type) && !control.checked) continue;
           this.fields.set(control.attributes.name, control.value);
         }
@@ -158,7 +176,7 @@ test('genera hasta ocho acompañantes, conserva nombres al cambiar cantidad y lo
   assert.equal(page.get('companionNames').value, 'Nombre 1');
   page.get('inputAsientos').value = '9';
   page.get('inputAsientos').listeners.input();
-  assert.equal(page.get('previewMonto').innerText, '747.000,00');
+  assert.equal(page.get('previewMonto').innerText, '83.000,00');
   await page.submit();
   const payload = JSON.parse(page.requests.find(request => request.options?.method === 'POST').options.body);
   assert.equal(payload.passengerCount, 9);
@@ -179,20 +197,20 @@ test('un titular solo oculta acompañantes y limpia los nombres enviados en modo
   assert.equal(page.get('companionNames').value, '');
 });
 
-test('multiplica el precio por pasajeros y mantiene el total cuando se agrega la vuelta', () => {
+test('mantiene el precio total cuando cambian pasajeros o se agrega la vuelta', () => {
   const page = setup();
   page.fillSpecial();
   page.get('customPrice').listeners.input();
-  assert.equal(page.get('previewMonto').innerText, '332.000,00');
+  assert.equal(page.get('previewMonto').innerText, '83.000,00');
   page.get('inputAsientos').value = '2';
   page.get('inputAsientos').listeners.input();
-  assert.equal(page.get('previewMonto').innerText, '166.000,00');
+  assert.equal(page.get('previewMonto').innerText, '83.000,00');
   page.get('isRoundTripCheck').checked = true;
   page.get('isRoundTripCheck').listeners.change();
-  assert.equal(page.get('previewMonto').innerText, '166.000,00');
+  assert.equal(page.get('previewMonto').innerText, '83.000,00');
 });
 
-test('envía $83.000 por persona con ruta libre y pago pendiente al API y abre la agenda de ese día', async () => {
+test('envía $83.000 como precio total con ruta libre y pago pendiente al API y abre la agenda de ese día', async () => {
   const page = setup();
   page.fillSpecial();
   assert.equal((await page.submit()).prevented, true);
@@ -201,11 +219,11 @@ test('envía $83.000 por persona con ruta libre y pago pendiente al API y abre l
   assert.equal(url, '/api/admin/trips');
   assert.equal(options.credentials, 'same-origin');
   assert.deepEqual(JSON.parse(options.body), {
-    tripCategory: 'SPECIAL', firstName: 'Ana', lastName: 'Pérez', phone: '5493511234567', cuil: null,
+    tripCategory: 'SPECIAL', reservationId: null, firstName: 'Ana', lastName: 'Pérez', phone: '5493511234567', cuil: null,
     travelDate: '2030-01-02', pickupAddress: 'Belgrano 100', originCustom: 'De Suardi', destinationCustom: 'Alta Gracia',
-    passengerCount: 4, customPrice: '83000.00', departureSchedule: '09:30', roundTrip: false,
-    returnDate: null, returnDepartureSchedule: null, requiresInvoice: false, companionNames: null,
-    notes: null, paymentStatus: 'PENDING', paymentVerified: false,
+    passengerCount: 4, customPrice: '83000.00', customPriceIsTotal: true, departureSchedule: '09:30', roundTrip: false,
+    returnDate: null, returnDepartureSchedule: null, requiresInvoice: true, companionNames: null,
+    notes: null, paymentStatus: 'PENDING', paymentVerified: false, paymentReceiptUrl: null,
   });
   assert.deepEqual(page.navigation, ['/agenda/view-detalle?date=2030-01-02']);
 });
@@ -266,4 +284,66 @@ test('volver a regular restaura localidades y conserva el envío tradicional del
   assert.equal(page.get('inputAsientos').value, '4');
   assert.equal((await page.submit()).prevented, false);
   assert.equal(page.requests.filter(request => request.options?.method === 'POST').length, 0);
+});
+
+test('Promo deshabilita el trayecto y envía el pago y pasajero por el formulario web', async () => {
+  const page = setup('SPECIAL');
+  page.fillSpecial();
+  page.get('promoTripMode').listeners.click();
+  page.get('promoPaidAmount').value = '15000.50';
+  page.get('cuilInput').value = '12345678';
+  assert.equal(page.get('promoTripMode')['aria-pressed'], 'true');
+  assert.equal(page.get('specialTripMode')['aria-pressed'], 'false');
+  assert.equal(page.get('reservationTripFields').hidden, true);
+  assert.equal(page.get('reservationPayment').disabled, true);
+  assert.equal(page.get('cuilInput').required, true);
+  const values = vm.runInContext('new FormData(manualTripForm)', page.context);
+  assert.equal(values.get('paidAmount'), '15000.50');
+  assert.equal(values.get('firstName'), 'Ana');
+  for (const field of ['travelDate', 'departureSchedule', 'pickupLocality', 'originCustom', 'passengerCount']) {
+    assert.equal(values.get(field), null);
+  }
+  assert.equal(page.get('manualTripForm').action, '/reservations/promos');
+  assert.equal(page.get('saveManualTripLabel').textContent, 'Guardar promo');
+  assert.equal((await page.submit()).prevented, false);
+  assert.equal(page.requests.filter(request => request.options?.method === 'POST').length, 0);
+  page.get('specialTripMode').listeners.click();
+  assert.equal(page.get('promoFields').disabled, true);
+  assert.equal(page.get('reservationTripFields').disabled, false);
+  assert.equal(page.get('manualTripForm').action, '/admin/bot/monitor/cargar-reserva-web');
+  assert.equal(page.get('travelDateInput').value, '2030-01-02');
+});
+
+test('un canje especial conserva la acción web y bloquea los campos de pago manual', async () => {
+  const page = setup('SPECIAL', undefined, { redemption: true });
+  page.fillSpecial();
+  assert.equal(page.get('reservationTripFields').disabled, false);
+  assert.equal(page.get('reservationPayment').disabled, true);
+  assert.equal(page.get('promoFields').disabled, true);
+  assert.equal((await page.submit()).prevented, false);
+  assert.equal(page.requests.length, 0);
+});
+
+test('el detalle permite copiar el mensaje y seleccionarlo si el portapapeles falla', async () => {
+  const detail = fs.readFileSync(path.join(__dirname, '../../src/main/resources/templates/promo-detail.html'), 'utf8');
+  const copyScript = detail.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const button = new Element();
+  const status = new Element();
+  const message = new Element({ value: 'Tu promo Lunaris fue cargada con el Nro LUN-PROMO-000001.' });
+  message.select = () => { message.selected = true; };
+  const elements = { copyPromoMessage: button, passengerMessage: message, copyPromoStatus: status };
+  const copied = [];
+  const clipboard = { writeText: async text => copied.push(text) };
+  vm.runInNewContext(copyScript, {
+    document: { getElementById: id => elements[id] },
+    navigator: { clipboard },
+  });
+  await button.listeners.click();
+  assert.deepEqual(copied, [message.value]);
+  assert.equal(status.textContent, 'Mensaje copiado.');
+
+  clipboard.writeText = async () => { throw new Error('Portapapeles bloqueado'); };
+  await button.listeners.click();
+  assert.equal(message.selected, true);
+  assert.match(status.textContent, /copiarlo/);
 });

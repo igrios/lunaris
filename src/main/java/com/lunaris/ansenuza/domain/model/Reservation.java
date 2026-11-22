@@ -204,7 +204,7 @@ public class Reservation {
     @Column(name = "travel_status", nullable = false, length = 20)
     private TravelStatus travelStatus = TravelStatus.PENDING;
 
-    @Column(name = "notes")
+    @Column(name = "notes", length = 500)
     private String notes;
 
     @Column(name = "manual_notification_attempt_at")
@@ -225,7 +225,7 @@ public class Reservation {
     @Column(name = "manual_invoice_delivered_url", columnDefinition = "text")
     private String manualInvoiceDeliveredUrl;
 
-    @Column(name = "payment_receipt_url")
+    @Column(name = "payment_receipt_url", length = 500)
     private String paymentReceiptUrl;
 
     @Column(name = "payment_expires_at")

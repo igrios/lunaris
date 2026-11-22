@@ -25,7 +25,7 @@
             <a th:href="@{/agenda}" class="btn btn-outline-secondary btn-sm fw-bold">
                 <i class="bi bi-arrow-left"></i> Volver al Calendario
             </a>
-            <span class="text-muted fw-semibold">Lunaris Ansenuza</span>
+            <a th:href="@{/reservations/promos}" class="btn btn-outline-primary btn-sm fw-bold">Ver promos</a>
         </div>
 
         <div class="card form-card shadow-lg p-4 bg-white">
@@ -36,8 +36,7 @@
                         <i class="bi bi-journal-plus fs-3"></i>
                     </div>
                     <div>
-                        <h2 class="fw-bold text-dark mb-0" th:text="${reservation?.reservationId != null ? 'Editar Reserva Manual' : 'Nueva Reserva Manual'}">Reserva Manual</h2>
-                        <p class="text-muted mb-0">Cargá un viaje regular o un recorrido especial con origen, destino y monto acordados.</p>
+                        <h2 class="fw-bold text-dark mb-0" th:text="${redemptionPromo != null ? 'Canjear promo' : (reservation?.reservationId != null ? 'Editar Reserva Manual' : 'Nueva Reserva Manual')}">Reserva Manual</h2>
                     </div>
                 </div>
 
@@ -50,7 +49,16 @@
                     </div>
                 </div>
 
-                <form id="manualTripForm" th:action="@{/admin/bot/monitor/cargar-reserva-web}" method="post"
+                <div th:if="${redemptionPromo != null}" class="alert alert-info">
+                    <strong th:text="${redemptionPromo.number}"></strong>
+                    <span th:text="| · Abonado: $${#numbers.formatDecimal(redemptionPromo.paidAmount, 1, 'POINT', 2, 'COMMA')}|"></span>
+                    <p class="mb-0 mt-1">Ingresá el importe total acordado del viaje. La seña se aplicará a ese importe.</p>
+                </div>
+                <form id="manualTripForm"
+                      th:action="${redemptionPromo != null} ? @{/reservations/promos/{number}/redeem(number=${redemptionPromo.number})} : (${initialPromo == true} ? @{/reservations/promos} : @{/admin/bot/monitor/cargar-reserva-web})"
+                      method="post" th:data-promo-redemption="${redemptionPromo != null}"
+                      th:data-initial-promo="${initialPromo == true}"
+                      th:data-promo-url="@{/reservations/promos}" th:data-trip-url="@{/admin/bot/monitor/cargar-reserva-web}"
                       th:data-special-api-url="@{/api/admin/trips}" th:data-agenda-url="@{/agenda/view-detalle}">
 
                     <input th:if="${sourcePhone != null}" type="hidden" name="sourcePhone" th:value="${sourcePhone}">
@@ -58,10 +66,6 @@
                         <strong>Último mensaje recibido — revisar datos sugeridos</strong>
                         <p style="white-space: pre-wrap" th:text="${sourceMessage}"></p>
                         <span th:if="${detectedPhone != null}">Teléfono mencionado: <span th:text="${detectedPhone}"></span></span>
-                    </div>
-                    <div th:if="${sourcePhone != null}" class="d-flex flex-wrap gap-2 mb-3">
-                        <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" data-save-draft class="btn btn-outline-secondary">Guardar borrador</button>
-                        <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" data-save-draft name="returnToChat" value="true" class="btn btn-outline-primary">Guardar y volver al chat</button>
                     </div>
                     <fieldset class="mb-4">
                         <legend class="fs-5 fw-bold">Elegí el tipo de viaje</legend>
@@ -71,7 +75,7 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <button id="regularTripMode" type="button" class="trip-mode" aria-pressed="true"
-                                        th:attr="aria-pressed=${initialTripCategory != 'SPECIAL'}">
+                                        th:attr="aria-pressed=${initialTripCategory != 'SPECIAL' and initialPromo != true}">
                                     <strong class="d-block">Viaje Regular (Fijo / Córdoba)</strong>
                                     <span class="small text-muted">Localidades, horarios y tarifas de la red habitual.</span>
                                 </button>
@@ -83,6 +87,13 @@
                                     <span class="small text-muted">Origen y destino libres, pasajeros y precio acordado. Ej.: De Suardi a Alta Gracia.</span>
                                 </button>
                             </div>
+                            <div class="col-md-6" th:if="${redemptionPromo == null and reservation?.reservationId == null}">
+                                <button id="promoTripMode" type="button" class="trip-mode" aria-pressed="false"
+                                        th:attr="aria-pressed=${initialPromo == true}">
+                                    <strong class="d-block">Promo</strong>
+                                    <span class="small text-muted">Registrá el pago de un viaje a confirmar.</span>
+                                </button>
+                            </div>
                         </div>
                     </fieldset>
                     <div id="specialTripStatus" class="alert alert-warning d-none" role="status">
@@ -91,12 +102,14 @@
                     </div>
 
                     <div class="alert alert-info" th:if="${reservation?.reservationId != null}">Editando reserva existente: se conservarán su ID, código y tramos.</div>
-                    <div class="mb-3">
+                    <fieldset id="reservationPayment" class="mb-3"
+                              th:hidden="${initialPromo == true or redemptionPromo != null}"
+                              th:disabled="${initialPromo == true or redemptionPromo != null}">
                         <label><input type="checkbox" name="paymentVerified" id="paymentVerified" value="true" th:checked="${reservation?.paymentVerified}"> Pago validado por el operador</label>
                         <label class="d-block mt-2">Comprobante de pago seleccionado (URL)
                             <input class="form-control" name="paymentReceiptUrl" type="url" th:value="${reservation?.paymentReceiptUrl}" placeholder="Opcional">
                         </label>
-                    </div>
+                    </fieldset>
                     <!-- 👤 PASAJERO -->
                     <h5 class="mb-3 text-primary fw-bold"><i class="bi bi-person-fill"></i> Datos del Pasajero</h5>
                     
@@ -105,7 +118,7 @@
                             <label class="form-label small fw-bold text-dark">Número de Teléfono (WhatsApp)</label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light">+54</span>
-                                <input type="tel" name="phone" th:value="${reservation?.phone}" id="phoneInput" class="form-control border-primary fw-bold" placeholder="Ej: 3562400111" required>
+                                <input type="tel" name="phone" th:value="${reservation?.phone}" id="phoneInput" th:readonly="${redemptionPromo != null}" class="form-control border-primary fw-bold" placeholder="Ej: 3562400111" required>
                             </div>
                         </div>
                     </div>
@@ -113,21 +126,40 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Nombre</label>
-                            <input type="text" name="firstName" th:value="${reservation?.firstName}" id="firstNameInput" class="form-control" required>
+                            <input type="text" name="firstName" th:value="${reservation?.firstName}" id="firstNameInput" th:readonly="${redemptionPromo != null}" class="form-control" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold text-dark">Apellido</label>
-                            <input type="text" name="lastName" th:value="${reservation?.lastName}" id="lastNameInput" class="form-control" required>
+                            <input type="text" name="lastName" th:value="${reservation?.lastName}" id="lastNameInput" th:readonly="${redemptionPromo != null}" class="form-control" required>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-12">
                             <label class="form-label small fw-bold text-dark">DNI / CUIT / CUIL (Para Facturación)</label>
-                            <input type="text" name="cuil" th:value="${reservation?.cuil}" id="cuilInput" class="form-control" maxlength="11" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                            <input type="text" name="cuil" th:value="${reservation?.cuil}" id="cuilInput" th:readonly="${redemptionPromo != null}" class="form-control" maxlength="11" th:required="${initialPromo == true}" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                         </div>
                     </div>
 
+                    <fieldset id="promoFields" th:hidden="${initialPromo != true}" th:disabled="${initialPromo != true}">
+                        <div class="mb-3">
+                            <label for="promoPaidAmount" class="form-label fw-semibold">Monto abonado ($)</label>
+                            <input id="promoPaidAmount" name="paidAmount" type="number" min="0.01" max="99999999.99"
+                                   step="0.01" class="form-control" th:value="${promoInput?.paidAmount}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="promoReceiptUrl" class="form-label">Comprobante de pago (URL, opcional)</label>
+                            <input id="promoReceiptUrl" name="receiptUrl" type="url" maxlength="500"
+                                   class="form-control" th:value="${promoInput?.receiptUrl}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="promoNotes" class="form-label">Observaciones (opcional)</label>
+                            <textarea id="promoNotes" name="notes" maxlength="500" rows="3"
+                                      class="form-control" th:text="${promoInput?.notes}"></textarea>
+                        </div>
+                    </fieldset>
+
+                    <fieldset id="reservationTripFields" th:hidden="${initialPromo == true}" th:disabled="${initialPromo == true}">
                     <hr class="text-muted my-4">
 
                     <!-- 📍 TRAYECTO -->
@@ -240,7 +272,7 @@
                             <p class="small text-muted mt-2">Podés dejar nombres pendientes para completarlos después por WhatsApp.</p>
                         </fieldset>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3" th:hidden="${redemptionPromo != null}">
                         <label class="form-label" for="routeDirection">Sentido</label>
                         <select class="form-select" id="routeDirection" name="routeDirection">
                             <option value="">Según origen y destino</option>
@@ -249,6 +281,7 @@
                         </select>
                     </div>
                     <div class="row g-3 mb-4">
+                        <input type="hidden" name="customPriceIsTotal" value="true" th:if="${redemptionPromo != null}">
                         <div id="specialPriceField" class="col-md-12 d-none">
                             <label class="form-label fw-bold" for="customPrice">Precio total acordado ($)</label>
                             <input id="customPrice" name="customPrice" th:value="${reservation?.customPrice}" type="number" class="form-control" min="0.01" max="99999999.99" step="0.01" placeholder="Ej: 83000" aria-describedby="specialPriceHelp" disabled>
@@ -256,7 +289,8 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualAmount">Monto final del viaje ($)</label>
-                            <input class="form-control" id="manualAmount" name="amount" th:value="${reservation?.amount}" type="number" min="0" step="0.01" placeholder="Usar tarifa calculada">
+                            <input class="form-control" id="manualAmount" name="amount" th:value="${reservation?.amount}" type="number" th:min="${redemptionPromo == null ? 0 : redemptionPromo.paidAmount}" step="0.01"
+                                   th:placeholder="${redemptionPromo == null ? 'Usar tarifa calculada' : 'Importe total acordado'}">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="manualDiscount">Descuento incluido ($)</label>
@@ -271,10 +305,12 @@
 
                     <div class="mb-4">
                         <label class="form-label small fw-bold text-dark">Notas u Observaciones de la Oficina</label>
-                        <textarea class="form-control" name="notes" th:text="${reservation?.notes}" rows="3" placeholder="Ej: Viaja con equipaje grande, etc."></textarea>
+                        <textarea class="form-control" name="notes" th:maxlength="${redemptionPromo != null ? 455 : null}" th:text="${reservation?.notes}" rows="3" placeholder="Ej: Viaja con equipaje grande, etc."></textarea>
                     </div>
 
-                    <div class="p-3 mb-4 rounded-3 d-flex justify-content-between align-items-center" style="background-color: #e8f0fe; border: 1px solid #b3cefb;">
+                    <div class="p-3 mb-4 rounded-3 d-flex justify-content-between align-items-center"
+                         th:if="${redemptionPromo == null}"
+                         style="background-color: #e8f0fe; border: 1px solid #b3cefb;">
                         <div>
                             <span class="text-secondary fw-semibold d-block" style="font-size: 0.85rem;">Código Estimado: <strong id="previewCodigo" class="text-primary">---</strong></span>
                         </div>
@@ -284,13 +320,21 @@
                         </div>
                     </div>
 
+                    </fieldset>
                     <div class="d-flex justify-content-end gap-2 pt-3 border-top">
                         <a th:href="@{/agenda}" class="btn btn-light fw-bold px-4">Cancelar</a>
                         <button id="saveManualTrip" type="submit" class="btn btn-primary fw-bold px-5 shadow-sm">
-                            <i class="bi bi-check-circle-fill me-1"></i> Confirmar y Guardar ✅
+                            <i class="bi bi-check-circle-fill me-1"></i>
+                            <span id="saveManualTripLabel"
+                                  th:text="${redemptionPromo != null ? 'Confirmar canje' : (initialPromo == true ? 'Guardar promo' : 'Confirmar y guardar')}">Confirmar y guardar</span>
                         </button>
                     </div>
-
+                    <fieldset id="reservationDraftActions" class="mt-3" th:if="${sourcePhone != null}">
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" data-save-draft class="btn btn-outline-secondary">Guardar borrador</button>
+                            <button type="submit" formnovalidate th:formaction="@{/reservations/draft}" data-save-draft name="returnToChat" value="true" class="btn btn-outline-primary">Guardar y volver al chat</button>
+                        </div>
+                    </fieldset>
                 </form>
 
             </div>
@@ -338,6 +382,13 @@
                     console.error("Error cargando pueblos:", err);
                 });
         }
+
+        const manualTripForm = document.getElementById('manualTripForm');
+        const isPromoRedemption = manualTripForm.dataset.promoRedemption === 'true';
+        const promoTripMode = document.getElementById('promoTripMode');
+        const saveButtonLabel = document.getElementById('saveManualTripLabel');
+        let promoMode = manualTripForm.dataset.initialPromo === 'true';
+        const isCordoba = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes('cordoba');
 
         const orig = document.getElementById('inputOrigen');
         const tripCategory = document.getElementById('tripCategory');
@@ -407,7 +458,7 @@
                     return response.json();
                 })
                 .then(horarios => {
-                    if (isSpecialTrip()) return;
+                    if (isSpecialTrip() || promoMode) return;
                     select.innerHTML = '';
                     horarios.filter(horario => horario.available).forEach(horario => {
                         const option = document.createElement('option');
@@ -428,7 +479,7 @@
         }
 
         function actualizarHorariosIda() {
-            if (isSpecialTrip()) return;
+            if (isSpecialTrip() || promoMode) return;
             if (!orig.value || !travelDateInput.value) {
                 departureScheduleSelect.disabled = true;
                 departureScheduleSelect.innerHTML = '<option value="">Seleccioná localidad y fecha</option>';
@@ -438,10 +489,12 @@
                 pickupLocality: orig.value,
                 travelDate: travelDateInput.value
             });
+            if (isPromoRedemption && isCordoba(orig.value)) params.set('returnTrip', 'true');
             cargarHorarios(departureScheduleSelect, `/api/v1/schedules?${params}`, 'Cargando horarios...');
         }
 
         function actualizarHorariosVuelta() {
+            if (promoMode) return;
             if (isSpecialTrip()) {
                 returnScheduleSelect.disabled = true;
                 customReturn.disabled = !isRoundTripCheck.checked || !retornoProgramadoForm.checked;
@@ -457,10 +510,15 @@
                 travelDate: returnDateInput.value,
                 returnTrip: 'true'
             });
+            if (isPromoRedemption && !isCordoba(dest.value)) {
+                params.set('returnTrip', 'false');
+                params.set('pickupLocality', dest.value);
+            }
             cargarHorarios(returnScheduleSelect, `/api/v1/schedules?${params}`, 'Cargando horarios...');
         }
 
         function actualizarCotizacion() {
+            if (promoMode || isPromoRedemption) return;
             if (isSpecialTrip()) {
                 const price = document.getElementById('customPrice').value;
                 document.getElementById('previewMonto').innerText = new Intl.NumberFormat('es-AR', {
@@ -526,11 +584,11 @@
                         field.value = passenger[key] ?? '';
                     }
                 });
-                if (!passenger.phone) return;
+                if (!passenger.phone || promoMode || isPromoRedemption) return;
                 const balanceResponse = await fetch(`/admin/bot/monitor/pasajero/saldo?phone=${encodeURIComponent(passenger.phone)}`);
                 if (!balanceResponse.ok) throw new Error(`HTTP ${balanceResponse.status}`);
                 const balance = await balanceResponse.json();
-                if (version !== passengerLookupVersion) return;
+                if (version !== passengerLookupVersion || promoMode) return;
                 if (balance.existe && Number(balance.saldo) > 0) {
                     saldoSpan.innerText = Number(balance.saldo).toFixed(2);
                     alertaDiv.classList.remove('d-none');
@@ -597,7 +655,10 @@
                 actualizarCotizacion();
                 actualizarHorariosIda();
             });
-            dest.addEventListener('change', actualizarCotizacion);
+            dest.addEventListener('change', () => {
+                actualizarCotizacion();
+                if (isPromoRedemption && isRoundTripCheck.checked) actualizarHorariosVuelta();
+            });
             asie.addEventListener('input', () => { actualizarAcompanantes(); actualizarCotizacion(); });
             asie.addEventListener('change', () => { actualizarAcompanantes(); actualizarCotizacion(); });
         }
@@ -607,10 +668,26 @@
 
         function alternarTipoDeViaje() {
             const special = isSpecialTrip();
-            document.getElementById('regularTripMode').setAttribute('aria-pressed', String(!special));
-            document.getElementById('specialTripMode').setAttribute('aria-pressed', String(special));
+            document.getElementById('regularTripMode').setAttribute('aria-pressed', String(!special && !promoMode));
+            document.getElementById('specialTripMode').setAttribute('aria-pressed', String(special && !promoMode));
+            promoTripMode?.setAttribute('aria-pressed', String(promoMode));
+
+            const promoFields = document.getElementById('promoFields');
+            const tripFields = document.getElementById('reservationTripFields');
+            const paymentFields = document.getElementById('reservationPayment');
+            const draftActions = document.getElementById('reservationDraftActions');
+            promoFields.hidden = promoFields.disabled = !promoMode;
+            tripFields.hidden = tripFields.disabled = promoMode;
+            paymentFields.hidden = paymentFields.disabled = promoMode || isPromoRedemption;
+            if (draftActions) draftActions.hidden = draftActions.disabled = promoMode;
+            if (!isPromoRedemption) {
+                manualTripForm.action = promoMode ? manualTripForm.dataset.promoUrl : manualTripForm.dataset.tripUrl;
+                saveButtonLabel.textContent = promoMode ? 'Guardar promo' : 'Confirmar y guardar';
+            }
+            cuilInput.required = promoMode;
+            if (promoMode) ocultarSaldoPasajero();
             document.getElementById('specialTripFields').classList.toggle('d-none', !special);
-            document.getElementById('specialTripStatus').classList.toggle('d-none', !special);
+            document.getElementById('specialTripStatus').classList.toggle('d-none', !special || promoMode || isPromoRedemption);
             document.getElementById('specialPriceField').classList.toggle('d-none', !special);
             [orig, dest].forEach(input => {
                 input.disabled = special;
@@ -624,10 +701,12 @@
             });
             ['manualAmount', 'manualDiscount', 'manualExtra', 'routeDirection'].forEach(id => {
                 const input = document.getElementById(id);
-                input.disabled = special;
-                input.parentElement.classList.toggle('d-none', special);
+                const hide = special || (isPromoRedemption && id !== 'manualAmount');
+                input.disabled = hide;
+                input.parentElement.classList.toggle('d-none', hide);
             });
-            document.getElementById('regularPricingHelp').classList.toggle('d-none', special);
+            document.getElementById('manualAmount').required = isPromoRedemption && !special;
+            document.getElementById('regularPricingHelp').classList.toggle('d-none', special || isPromoRedemption);
             asie.max = '9';
             departureScheduleSelect.classList.toggle('d-none', special);
             departureScheduleSelect.required = !special;
@@ -639,7 +718,7 @@
             customReturn.classList.toggle('d-none', !special);
             customReturn.disabled = !special;
             customReturn.required = false;
-            if (!special) cargarLocalidadesDropdown();
+            if (!special && !promoMode) cargarLocalidadesDropdown();
             actualizarHorariosIda();
             actualizarHorariosVuelta();
             actualizarCotizacion();
@@ -647,18 +726,26 @@
         tripCategory.addEventListener('change', alternarTipoDeViaje);
         [['regularTripMode', 'REGULAR'], ['specialTripMode', 'SPECIAL']].forEach(([id, category]) => {
             document.getElementById(id).addEventListener('click', () => {
+                promoMode = false;
                 tripCategory.value = category;
                 alternarTipoDeViaje();
             });
         });
+        promoTripMode?.addEventListener('click', () => {
+            promoMode = true;
+            alternarTipoDeViaje();
+        });
         document.getElementById('customPrice').addEventListener('input', actualizarCotizacion);
 
-        const manualTripForm = document.getElementById('manualTripForm');
         const saveButton = document.getElementById('saveManualTrip');
         const formError = document.getElementById('reservationFormError');
         let savingSpecialTrip = false;
 
         manualTripForm.addEventListener('submit', async event => {
+            if (promoMode || isPromoRedemption) {
+                if (isPromoRedemption) recopilarAcompanantes();
+                return;
+            }
             recopilarAcompanantes();
             if (event.submitter?.hasAttribute('data-save-draft')) return;
             if (!isSpecialTrip() && !savingSpecialTrip) return;
@@ -696,7 +783,7 @@
 
             savingSpecialTrip = true;
             saveButton.disabled = true;
-            saveButton.textContent = 'Guardando viaje…';
+            saveButtonLabel.textContent = 'Guardando viaje…';
             formError.classList.add('d-none');
             try {
                 const response = await fetch(manualTripForm.dataset.specialApiUrl, {
@@ -718,7 +805,7 @@
                 formError.focus();
                 savingSpecialTrip = false;
                 saveButton.disabled = false;
-                saveButton.textContent = 'Confirmar y Guardar';
+                saveButtonLabel.textContent = 'Confirmar y guardar';
             }
         });
 

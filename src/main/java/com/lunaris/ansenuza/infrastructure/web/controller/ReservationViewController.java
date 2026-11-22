@@ -56,7 +56,23 @@ public class ReservationViewController {
     private final WaitingListReengagementService waitingListReengagementService;
     private final NewsBannerService newsBannerService;
 
-    @GetMapping("/new")
+    @GetMapping(value = "/new", params = "promo=true")
+    public String newPromo(Model model) {
+        var form = new CreateReservationForm();
+        if (model.getAttribute("promoInput") instanceof
+                com.lunaris.ansenuza.application.usecase.PromoVoucherService.Registration input) {
+            form.setFirstName(input.firstName());
+            form.setLastName(input.lastName());
+            form.setPhone(input.phone());
+            form.setCuil(input.cuil());
+        }
+        model.addAttribute("reservation", form);
+        model.addAttribute("initialTripCategory", TripCategory.REGULAR.name());
+        model.addAttribute("initialPromo", true);
+        return "reservation-form";
+    }
+
+    @GetMapping(value = "/new", params = "promo!=true")
     public String newReservation(
             @RequestParam(required = false) TripCategory tripCategory,
             @RequestParam(required = false) Long sessionId,

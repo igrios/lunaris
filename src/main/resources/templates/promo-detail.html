@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Detalle de promo | Lunaris</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+</head>
+<body class="bg-light">
+<main class="container py-4" style="max-width: 720px">
+    <a th:href="@{/reservations/promos}" class="btn btn-outline-secondary btn-sm mb-3">Volver a Promos</a>
+    <p class="alert alert-success" role="status" th:if="${successMessage}" th:text="${successMessage}"></p>
+    <p class="alert alert-danger" role="alert" th:if="${errorMessage}" th:text="${errorMessage}"></p>
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <h1 class="h3" th:text="${promo.number}"></h1>
+            <dl class="row">
+                <dt class="col-sm-4">Estado</dt><dd class="col-sm-8" th:text="${promo.status}"></dd>
+                <dt class="col-sm-4">Pasajero</dt><dd class="col-sm-8" th:text="${promo.passengerName}"></dd>
+                <dt class="col-sm-4">Teléfono</dt><dd class="col-sm-8" th:text="${promo.phone}"></dd>
+                <dt class="col-sm-4">DNI/CUIL</dt><dd class="col-sm-8" th:text="${promo.cuil}"></dd>
+                <dt class="col-sm-4">Monto abonado</dt>
+                <dd class="col-sm-8" th:text="|$${#numbers.formatDecimal(promo.paidAmount, 1, 'POINT', 2, 'COMMA')}|"></dd>
+                <dt class="col-sm-4">Fecha de carga</dt>
+                <dd class="col-sm-8" th:text="${#temporals.format(promo.createdAt, 'dd/MM/yyyy HH:mm')}"></dd>
+                <dt class="col-sm-4" th:if="${promo.redeemedAt}">Fecha de canje</dt>
+                <dd class="col-sm-8" th:if="${promo.redeemedAt}" th:text="${#temporals.format(promo.redeemedAt, 'dd/MM/yyyy HH:mm')}"></dd>
+                <dt class="col-sm-4" th:if="${promo.receiptUrl}">Comprobante</dt>
+                <dd class="col-sm-8" th:if="${promo.receiptUrl}"><a th:href="${promo.receiptUrl}" target="_blank" rel="noopener noreferrer">Ver comprobante</a></dd>
+                <dt class="col-sm-4" th:if="${promo.notes}">Observaciones</dt>
+                <dd class="col-sm-8" th:if="${promo.notes}" th:text="${promo.notes}"></dd>
+            </dl>
+            <div th:if="${promo.status.name() == 'DISPONIBLE'}">
+                <label for="passengerMessage" class="form-label fw-semibold">Mensaje para el pasajero</label>
+                <textarea id="passengerMessage" class="form-control mb-2" rows="3" readonly th:text="${promo.passengerMessage}"></textarea>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button id="copyPromoMessage" type="button" class="btn btn-outline-secondary">Copiar mensaje</button>
+                    <a th:href="${whatsAppUrl}" class="btn btn-outline-success" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>
+                </div>
+                <p id="copyPromoStatus" class="small text-muted my-2" role="status"></p>
+                <div class="d-flex gap-2 border-top pt-3">
+                    <a class="btn btn-primary" th:href="@{/reservations/promos/{number}/redeem(number=${promo.number})}">Canjear promo</a>
+                    <form th:action="@{/reservations/promos/{number}/cancel(number=${promo.number})}" method="post"
+                          onsubmit="return confirm('¿Querés anular esta promo?');">
+                        <button type="submit" class="btn btn-outline-danger">Anular promo</button>
+                    </form>
+                </div>
+            </div>
+            <div th:if="${linkedReservation}" class="border-top pt-3">
+                <a th:href="@{/agenda/view-detalle(date=${linkedReservation.travelDate},schedule=${linkedReservation.departureSchedule},direction=${linkedReservation.routeDirection == 'VUELTA' ? 'RETURN' : 'OUTBOUND'})}"
+                   class="btn btn-outline-primary" th:text="|Ver en agenda · ${linkedReservation.reservationCode}|"></a>
+            </div>
+        </div>
+    </div>
+</main>
+<script>
+    document.getElementById('copyPromoMessage')?.addEventListener('click', async () => {
+        const message = document.getElementById('passengerMessage');
+        const status = document.getElementById('copyPromoStatus');
+        try {
+            await navigator.clipboard.writeText(message.value);
+            status.textContent = 'Mensaje copiado.';
+        } catch {
+            message.select();
+            status.textContent = 'Seleccionamos el mensaje para que puedas copiarlo.';
+        }
+    });
+</script>
+</body>
+</html>
