@@ -30,3 +30,15 @@ if (returnAction) {
     updateReturnFields();
     updatePricing();
 }
+
+for (const [fieldId, summaryId] of [
+    ['segmentOrigin', 'originSummary'],
+    ['segmentDestination', 'destinationSummary'],
+]) {
+    const field = document.getElementById(fieldId);
+    if (!field) continue;
+    const summary = document.getElementById(summaryId);
+    field.addEventListener('input', () => {
+        summary.textContent = field.value.trim() || '—';
+    });
+}

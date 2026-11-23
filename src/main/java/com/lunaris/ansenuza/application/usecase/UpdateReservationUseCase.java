@@ -56,7 +56,7 @@ public class UpdateReservationUseCase {
                 !isOpenReturn(selected) || restricted && canScheduleOpen(selected, primary),
                 ReservationUpdatePricingService.grossTotal(active),
                 active.stream().map(Reservation::recognizedPayment).reduce(BigDecimal.ZERO, BigDecimal::add),
-                restricted || primary.isSpecialTrip() ? List.of() : activeLocalities());
+                selected.isSpecialTrip() ? List.of() : activeLocalities());
     }
 
     public UpdateReservationResult editFromPanel(UUID reservationId, PanelReservationEdit edit, String operator) {
@@ -114,7 +114,7 @@ public class UpdateReservationUseCase {
             }
         }
         if (restricted && edit.changesCommercialFields()) {
-            throw new DomainValidationException("Esta reserva admite únicamente correcciones de fecha, hora, dirección y observaciones.");
+            throw new DomainValidationException("Esta reserva admite únicamente correcciones de origen, fecha, hora, dirección y observaciones.");
         }
         List<Reservation> proposed = new ArrayList<>(before.stream().map(r -> r.toBuilder().build()).toList());
         Reservation proposedPrimary = leg(proposed, primary.getId());
@@ -403,7 +403,11 @@ public class UpdateReservationUseCase {
         }
         if (edit.pickupAddress() != null) selected.setPickupAddress(blankToNull(edit.pickupAddress()));
         if (edit.notes() != null) selected.setNotes(blankToNull(edit.notes()));
-        if (!restricted) applyCommercialFields(edit, group, primary);
+        if (restricted) {
+            applyOperationalOrigin(edit.origin(), selected);
+        } else {
+            applyCommercialFields(edit, group, primary, selected);
+        }
         return scheduleChanged;
     }
 
@@ -430,9 +434,29 @@ public class UpdateReservationUseCase {
         }
     }
 
-    private void applyCommercialFields(PanelReservationEdit edit, List<Reservation> group, Reservation primary) {
-        String origin = edit.origin() == null ? primary.getPickupLocality() : edit.origin().strip();
-        String destination = edit.destination() == null ? primary.getDestination() : edit.destination().strip();
+    private void applyOperationalOrigin(String input, Reservation selected) {
+        if (input == null) return;
+        String origin = input.strip();
+        if (Objects.equals(origin, selected.getPickupLocality())) return;
+        if (origin.isBlank() || origin.equalsIgnoreCase(selected.getDestination())
+                || !selected.isSpecialTrip() && !activeLocalities().contains(origin)) {
+            throw new DomainValidationException("Elegí un origen habilitado y distinto del destino.");
+        }
+        boolean fromCordoba = TripRouteCalculatorService.isCordoba(origin);
+        if (fromCordoba != TripRouteCalculatorService.isCordoba(selected.getPickupLocality())) {
+            selected.setRouteDirection(fromCordoba ? "VUELTA" : "IDA");
+        }
+        selected.setPickupLocality(origin);
+        if (selected.isSpecialTrip()) selected.setOriginCustom(origin);
+    }
+
+    private void applyCommercialFields(PanelReservationEdit edit, List<Reservation> group, Reservation primary,
+            Reservation selected) {
+        boolean returningSelection = selected != primary;
+        String requestedOrigin = returningSelection ? edit.destination() : edit.origin();
+        String requestedDestination = returningSelection ? edit.origin() : edit.destination();
+        String origin = requestedOrigin == null ? primary.getPickupLocality() : requestedOrigin.strip();
+        String destination = requestedDestination == null ? primary.getDestination() : requestedDestination.strip();
         boolean routeChanged = !Objects.equals(origin, primary.getPickupLocality())
                 || !Objects.equals(destination, primary.getDestination());
         if (routeChanged) {

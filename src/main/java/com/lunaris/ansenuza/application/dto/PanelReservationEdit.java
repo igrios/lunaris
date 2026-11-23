@@ -40,7 +40,7 @@ public record PanelReservationEdit(
     }
 
     public boolean changesCommercialFields() {
-        return origin != null || destination != null || seats != null || companionNames != null
+        return destination != null || seats != null || companionNames != null
                 || paidAmount != null || request().returnChange() != null || pricingMode != null || agreedAmount != null;
     }
 }

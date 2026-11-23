@@ -63,3 +63,17 @@ test('el regreso y el monto acordado envían solo los campos de su modalidad', (
 test('el editor de una reserva cerrada funciona sin controles comerciales', () => {
     assert.doesNotThrow(() => vm.runInNewContext(script, { document: { getElementById: () => null } }));
 });
+
+test('el origen precargado del tramo se envía y actualiza el resumen en corrección operativa', () => {
+    const form = fs.readFileSync(path.join(resources, 'templates/reservation-panel-edit.html'), 'utf8');
+    const operationalFields = form.split('<legend class="h5">Datos de este tramo</legend>')[1].split('</fieldset>')[0];
+    assert.match(operationalFields, /id="segmentOrigin" name="origin"[^>]*th:value="\$\{state\.selected\.pickupLocality\}"/);
+    assert.match(form, /id="originSummary" th:text="\$\{state\.selected\.pickupLocality\}"/);
+
+    const fields = { segmentOrigin: element('Morteros'), originSummary: { textContent: 'Morteros' } };
+    vm.runInNewContext(script, { document: { getElementById: id => fields[id] } });
+    fields.segmentOrigin.value = 'Brinkmann';
+    fields.segmentOrigin.input();
+    assert.equal(fields.originSummary.textContent, 'Brinkmann');
+    assert.equal(fields.segmentOrigin.disabled, false);
+});

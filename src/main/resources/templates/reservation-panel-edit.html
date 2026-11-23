@@ -11,7 +11,14 @@
 <main class="container py-4" style="max-width: 840px">
     <a th:href="@{/reservas-panel}" class="btn btn-outline-secondary mb-3">Volver a Reservas</a>
     <h1 class="h3" th:text="|Editar reserva ${state.selected.reservationCode ?: ''}|"></h1>
-    <p th:text="|${state.selected.passenger.firstName} ${state.selected.passenger.lastName} · ${state.selected.pickupLocality} → ${state.selected.destination}|"></p>
+    <p>
+        <span th:text="|${state.selected.passenger.firstName} ${state.selected.passenger.lastName}|"></span>
+        · <span id="routeSummary" aria-live="polite">
+            <span id="originSummary" th:text="${state.selected.pickupLocality}"></span>
+            →
+            <span id="destinationSummary" th:text="${state.selected.destination}"></span>
+        </span>
+    </p>
     <p th:if="${errorMessage}" th:text="${errorMessage}" class="alert alert-danger" role="alert"></p>
     <p th:if="${state.operationalOnly}" class="alert alert-info">
         Esta reserva admite correcciones operativas. Se conservan el estado, los importes y los documentos asociados.
@@ -21,7 +28,18 @@
         <input type="hidden" name="operationId" th:value="${operationId}">
         <fieldset class="mb-4">
             <legend class="h5">Datos de este tramo</legend>
+            <datalist id="activeLocalities" th:unless="${state.localities.empty}">
+                <option th:each="locality : ${state.localities}" th:value="${locality}"></option>
+            </datalist>
             <div class="row g-3">
+                <label class="col-md-6">Origen del tramo
+                    <input id="segmentOrigin" name="origin" class="form-control" maxlength="100" required
+                           th:attr="list=${state.localities.empty ? null : 'activeLocalities'}" th:value="${state.selected.pickupLocality}">
+                </label>
+                <label th:unless="${state.operationalOnly}" class="col-md-6">Destino del tramo
+                    <input id="segmentDestination" name="destination" class="form-control" maxlength="100" required
+                           th:attr="list=${state.localities.empty ? null : 'activeLocalities'}" th:value="${state.selected.destination}">
+                </label>
                 <label th:if="${state.showDirectSchedule}" class="col-md-6">
                     Fecha <input type="date" name="travelDate" class="form-control" th:value="${#strings.equals(state.selected.travelDate, '2099-12-31') ? null : state.selected.travelDate}">
                 </label>
@@ -38,17 +56,8 @@
         </fieldset>
         <th:block th:unless="${state.operationalOnly}">
             <fieldset class="mb-4 border-top pt-3">
-                <legend class="h5">Trayecto y pasajeros</legend>
-                <datalist id="activeLocalities" th:unless="${state.localities.empty}">
-                    <option th:each="locality : ${state.localities}" th:value="${locality}"></option>
-                </datalist>
+                <legend class="h5">Pasajeros</legend>
                 <div class="row g-3">
-                    <label class="col-md-6">Origen de la ida
-                        <input name="origin" class="form-control" maxlength="100" required th:attr="list=${state.localities.empty ? null : 'activeLocalities'}" th:value="${state.primary.pickupLocality}">
-                    </label>
-                    <label class="col-md-6">Destino de la ida
-                        <input name="destination" class="form-control" maxlength="100" required th:attr="list=${state.localities.empty ? null : 'activeLocalities'}" th:value="${state.primary.destination}">
-                    </label>
                     <label class="col-md-4">Cantidad total de pasajeros
                         <input type="number" name="seats" class="form-control" min="1" max="9" required th:value="${state.primary.totalSeats}">
                     </label>

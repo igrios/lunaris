@@ -16,6 +16,14 @@ class PanelReservationEditTest {
     }
 
     @Test
+    void originChangeIsAnOperationalCorrection() {
+        var edit = new PanelReservationEdit(0, "panel-origin", null, null, null, null,
+                "Brinkmann", null, null, null, null, null, null, null, null, null, null, null, null);
+        assertThat(edit.origin()).isEqualTo("Brinkmann");
+        assertThat(edit.changesCommercialFields()).isFalse();
+    }
+
+    @Test
     void flexibleReturnDoesNotForwardHiddenFixedTime() {
         var edit = edit(ReturnAction.UPDATE, ReturnMode.FLEXIBLE, "10:40");
         var change = edit.request().returnChange();

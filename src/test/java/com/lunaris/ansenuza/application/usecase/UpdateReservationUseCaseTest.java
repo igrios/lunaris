@@ -351,6 +351,8 @@ class UpdateReservationUseCaseTest {
         root.setPaymentReceiptUrl("https://example.test/comprobante.pdf");
         root.setNotes("Original");
         reservations.saveAndFlush(root);
+        localities.save(Locality.builder().name("Brinkmann").build());
+        fares.save(Fare.builder().localityName("Brinkmann").amount(new BigDecimal("70")).build());
         var invoice = invoices.saveAndFlush(Invoice.builder().reservationId(root.getId())
                 .invoiceNumber("0001-00000123").amount(new BigDecimal("140"))
                 .pdfUrl(root.getInvoiceUrl()).sentViaWhatsapp(true).build());
@@ -360,12 +362,13 @@ class UpdateReservationUseCaseTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         assertThat(form).contains("action=\"" + path + "\"", "name=\"travelDate\"", "name=\"departureSchedule\"")
+                .contains("name=\"origin\"", "value=\"Morteros\"", "<option value=\"Brinkmann\">")
                 .doesNotContain("name=\"agreedAmount\"", "/admin/chat");
 
         mvc.perform(post(path)
                         .principal(() -> "operador.test").param("expectedRevision", "0").param("operationId", "panel-closed")
                         .param("travelDate", date.minusDays(1).toString()).param("departureSchedule", "10:45")
-                        .param("notes", "Corrección de agenda"))
+                        .param("origin", "Brinkmann").param("notes", "Corrección de agenda"))
                 .andExpect(redirectedUrl("/reservas-panel"));
 
         em.flush();
@@ -374,6 +377,9 @@ class UpdateReservationUseCaseTest {
         assertThat(saved.getTravelDate()).isEqualTo(date.minusDays(1));
         assertThat(saved.getDepartureSchedule()).isEqualTo("10:45");
         assertThat(saved.getNotes()).isEqualTo("Corrección de agenda");
+        assertThat(saved.getPickupLocality()).isEqualTo("Brinkmann");
+        assertThat(saved.getAmount()).isEqualByComparingTo("140");
+        assertThat(saved.getPaymentVerified()).isTrue();
         assertThat(saved.getStatus()).isEqualTo("COMPLETED");
         assertThat(saved.getTravelStatus()).isEqualTo(Reservation.TravelStatus.COMPLETED);
         assertThat(saved.getPaymentReceiptUrl()).isEqualTo(root.getPaymentReceiptUrl());
@@ -386,7 +392,8 @@ class UpdateReservationUseCaseTest {
         });
         assertThat(operations.findAll()).singleElement().satisfies(operation -> {
             assertThat(operation.getTriggeredBy()).isEqualTo("operador.test");
-            assertThat(operation.getBeforeJson()).contains("Original");
+            assertThat(operation.getBeforeJson()).contains("Original", "\"origin\":\"Morteros\"");
+            assertThat(operation.getResultJson()).contains("\"origin\":\"Brinkmann\"");
         });
         assertThat(saved.isManualNotificationPending()).isFalse();
         TestTransaction.flagForCommit();
@@ -460,6 +467,41 @@ class UpdateReservationUseCaseTest {
             assertThat(leg.getDepartureSchedule()).isEqualTo("14:00");
             assertThat(leg.isManualNotificationPending()).isFalse();
         });
+    }
+
+    @Test
+    void panelUsesSelectedReturnOriginAndKeepsActiveOppositeLegConsistent() throws Exception {
+        var root = root(1, "70", false);
+        var trip = update.execute(root.getId(), request(0, change(ReturnAction.ADD, null, ReturnMode.SCHEDULED,
+                date.plusDays(1), "14:00", null), null));
+        UUID returningId = returnId(root, trip);
+        localities.save(Locality.builder().name("Morteros").build());
+        fares.save(Fare.builder().localityName("Morteros").amount(BigDecimal.TEN).build());
+        localities.save(Locality.builder().name("Marull").build());
+        fares.save(Fare.builder().localityName("Marull").amount(BigDecimal.TEN).build());
+
+        String path = "/reservas-panel/" + returningId + "/editar";
+        panelMvc().perform(post(path).principal(() -> "operador.test")
+                        .param("expectedRevision", String.valueOf(trip.revision())).param("operationId", "return-origin")
+                        .param("origin", "Marull").param("destination", "Morteros"))
+                .andExpect(redirectedUrl("/reservas-panel"));
+        em.flush();
+        em.clear();
+        assertThat(reservations.findById(returningId)).hasValueSatisfying(leg -> {
+            assertThat(leg.getPickupLocality()).isEqualTo("Marull");
+            assertThat(leg.getDestination()).isEqualTo("Morteros");
+            assertThat(leg.getAmount()).isEqualByComparingTo("50");
+            assertThat(leg.isManualNotificationPending()).isFalse();
+        });
+        assertThat(reservations.findById(root.getId()).orElseThrow().getDestination()).isEqualTo("Marull");
+        assertThat(operations.findAll()).anySatisfy(operation -> {
+            assertThat(operation.getTriggeredBy()).isEqualTo("operador.test");
+            assertThat(operation.getBeforeJson()).contains("\"origin\":\"Córdoba\"");
+            assertThat(operation.getResultJson()).contains("\"origin\":\"Marull\"");
+        });
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        assertThat(observer.passengerNotifications).isEmpty();
     }
 
     private MockMvc panelMvc() {
