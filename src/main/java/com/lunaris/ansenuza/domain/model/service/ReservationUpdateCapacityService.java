@@ -26,9 +26,15 @@ public class ReservationUpdateCapacityService {
     @Transactional
     public void validateReplacement(List<Reservation> before, List<Reservation> after,
             LocalDate outboundDate) {
+        validateReplacement(before, after, outboundDate, outboundDate);
+    }
+
+    @Transactional
+    public void validateReplacement(List<Reservation> before, List<Reservation> after,
+            LocalDate oldOutboundDate, LocalDate newOutboundDate) {
         var now = ArgentinaTime.now();
-        Map<Slot, Integer> oldDemand = demand(before, outboundDate, now);
-        Map<Slot, Integer> newDemand = demand(after, outboundDate, now);
+        Map<Slot, Integer> oldDemand = demand(before, oldOutboundDate, now);
+        Map<Slot, Integer> newDemand = demand(after, newOutboundDate, now);
         var keys = new TreeSet<String>();
         oldDemand.keySet().forEach(slot -> keys.add(slot.key()));
         newDemand.keySet().forEach(slot -> keys.add(slot.key()));

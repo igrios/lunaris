@@ -101,7 +101,9 @@ public class DashboardViewController {
             
             if (status != null && !status.isBlank() && !"ALL".equals(status)) {
                 reservations = reservations.stream()
-                        .filter(r -> status.equals(r.getStatus()))
+                        .filter(r -> status.equals(r.getStatus()) || "COMPLETED".equals(status)
+                                && (r.getTravelStatus() == Reservation.TravelStatus.COMPLETED
+                                    || r.getTravelStatus() == Reservation.TravelStatus.REALIZED))
                         .collect(Collectors.toList());
             }
         }

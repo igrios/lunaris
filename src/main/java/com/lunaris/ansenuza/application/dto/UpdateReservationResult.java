@@ -16,5 +16,6 @@ public record UpdateReservationResult(String bookingGroupCode, int revision, Str
             LocalDate returnDate, String departureSchedule, boolean flexibleReturnTime,
             String timePreference, Reservation.TravelStatus travelStatus, int seats,
             BigDecimal amount, BigDecimal extraAmount, BigDecimal usedBalance,
-            BigDecimal recognizedPaidAmount, boolean paymentVerified) {}
+            BigDecimal recognizedPaidAmount, boolean paymentVerified,
+            String origin, String destination, String pickupAddress, String notes, String companionNames) {}
 }

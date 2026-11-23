@@ -1,6 +1,8 @@
 package com.lunaris.ansenuza.infrastructure.config;
 
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,6 +15,7 @@ import com.lunaris.ansenuza.application.usecase.DriverAuthorizationService;
 import com.lunaris.ansenuza.application.usecase.DriverManagementService;
 import com.lunaris.ansenuza.application.usecase.OnboardPassengerUseCase;
 import com.lunaris.ansenuza.application.usecase.PassengerOtpService;
+import com.lunaris.ansenuza.application.usecase.UpdateReservationUseCase;
 import com.lunaris.ansenuza.domain.model.Driver;
 import com.lunaris.ansenuza.domain.model.Reservation;
 import com.lunaris.ansenuza.domain.model.service.DriverRouteService;
@@ -25,6 +28,7 @@ import com.lunaris.ansenuza.domain.repository.ReservationRepository;
 import com.lunaris.ansenuza.domain.repository.WaitingListRepository;
 import com.lunaris.ansenuza.infrastructure.web.controller.AgendaViewController;
 import com.lunaris.ansenuza.infrastructure.web.controller.DriverController;
+import com.lunaris.ansenuza.infrastructure.web.controller.ReservationPanelEditController;
 import com.lunaris.ansenuza.infrastructure.web.controller.WhatsAppController;
 import com.lunaris.ansenuza.infrastructure.whatsapp.WhatsAppService;
 import java.time.LocalDate;
@@ -38,7 +42,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest({AgendaViewController.class, DriverController.class, WhatsAppController.class})
+@WebMvcTest({AgendaViewController.class, DriverController.class, WhatsAppController.class,
+        ReservationPanelEditController.class})
 @Import({SecurityConfig.class, PassengerBearerAuthenticationFilter.class,
         DriverAuthorizationService.class})
 class CriticalEndpointSecurityIntegrationTest {
@@ -50,6 +55,7 @@ class CriticalEndpointSecurityIntegrationTest {
     @MockitoBean AccountRepository accounts;
     @MockitoBean PassengerOtpService passengerOtpService;
     @MockitoBean ReservationRepository reservations;
+    @MockitoBean UpdateReservationUseCase reservationEdits;
     @MockitoBean DriverRepository drivers;
     @MockitoBean OnboardPassengerUseCase onboardPassengerUseCase;
     @MockitoBean DriverManagementService driverManagementService;
@@ -61,6 +67,21 @@ class CriticalEndpointSecurityIntegrationTest {
     @MockitoBean SystemConfigurationService systemConfigurationService;
     @MockitoBean ResolveEffectiveTripOriginUseCase originResolver;
     @MockitoBean MessagingPort messagingPort;
+
+    @Test
+    void editingFromReservationsRequiresOperatorOrAdminAndCsrf() throws Exception {
+        String route = "/reservas-panel/" + UUID.randomUUID() + "/editar";
+        mockMvc.perform(get(route).with(user("chofer").roles("CHOFER")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post(route).with(user("facturacion").roles("FACTURACION")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post(route).with(user("operador").roles("OPERADOR")))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(reservationEdits);
+        mockMvc.perform(post(route).with(user("operador").roles("OPERADOR")).with(csrf())
+                        .param("expectedRevision", "0").param("operationId", "panel"))
+                .andExpect(status().is3xxRedirection());
+    }
 
     @Test
     void routeSheetRequiresAuthentication() throws Exception {

@@ -3,6 +3,10 @@ package com.lunaris.ansenuza.application.usecase;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -11,6 +15,7 @@ import com.lunaris.ansenuza.domain.exception.*;
 import com.lunaris.ansenuza.domain.model.*;
 import com.lunaris.ansenuza.domain.model.service.*;
 import com.lunaris.ansenuza.domain.repository.*;
+import com.lunaris.ansenuza.infrastructure.web.controller.ReservationPanelEditController;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -28,6 +33,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.transaction.TestTransaction;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.spring6.view.ThymeleafViewResolver;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 @DataJpaTest
@@ -47,6 +57,9 @@ class UpdateReservationUseCaseTest {
         @Bean CommitObserver observer() { return new CommitObserver(); }
     }
     static class CommitObserver {
+        final List<ManualReservationCreated> passengerNotifications = new ArrayList<>();
+        @TransactionalEventListener
+        public void receive(ManualReservationCreated event) { passengerNotifications.add(event); }
         final List<OperatorNotification> notifications = new ArrayList<>();
         @TransactionalEventListener
         public void receive(OperatorNotification event) { notifications.add(event); }
@@ -58,6 +71,8 @@ class UpdateReservationUseCaseTest {
     @Autowired ReservationUpdateOperationRepository operations;
     @Autowired ReservationUpdateStateRepository states;
     @Autowired InvoiceRepository invoices;
+    @Autowired LocalityRepository localities;
+    @Autowired FareRepository fares;
     @Autowired EntityManager em;
     @Autowired CommitObserver observer;
     @MockitoBean CapacityLockRepository locks;
@@ -78,6 +93,7 @@ class UpdateReservationUseCaseTest {
                 .thenAnswer(inv -> new BigDecimal(inv.<Boolean>getArgument(2) ? "100" : "70")
                         .multiply(BigDecimal.valueOf(inv.<Integer>getArgument(3))));
         observer.notifications.clear();
+        observer.passengerNotifications.clear();
     }
 
     @Test
@@ -323,6 +339,140 @@ class UpdateReservationUseCaseTest {
         UUID returnId = returnId(root, created);
         assertThat(update.getState(returnId).legs()).hasSize(2);
         assertThat(update.getState(root.getId()).revision()).isEqualTo(created.revision());
+    }
+
+    @Test
+    void panelCorrectsClosedInvoicedReservationAndKeepsDocumentsAndLifecycle() throws Exception {
+        Reservation root = root(2, "140", true);
+        root.setStatus("COMPLETED");
+        root.setTravelStatus(Reservation.TravelStatus.COMPLETED);
+        root.setInvoiceIssued(true);
+        root.setInvoiceUrl("https://example.test/factura.pdf");
+        root.setPaymentReceiptUrl("https://example.test/comprobante.pdf");
+        root.setNotes("Original");
+        reservations.saveAndFlush(root);
+        var invoice = invoices.saveAndFlush(Invoice.builder().reservationId(root.getId())
+                .invoiceNumber("0001-00000123").amount(new BigDecimal("140"))
+                .pdfUrl(root.getInvoiceUrl()).sentViaWhatsapp(true).build());
+        String path = "/reservas-panel/" + root.getId() + "/editar";
+        var mvc = panelMvc();
+        var form = mvc.perform(get(path))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(form).contains("action=\"" + path + "\"", "name=\"travelDate\"", "name=\"departureSchedule\"")
+                .doesNotContain("name=\"agreedAmount\"", "/admin/chat");
+
+        mvc.perform(post(path)
+                        .principal(() -> "operador.test").param("expectedRevision", "0").param("operationId", "panel-closed")
+                        .param("travelDate", date.minusDays(1).toString()).param("departureSchedule", "10:45")
+                        .param("notes", "Corrección de agenda"))
+                .andExpect(redirectedUrl("/reservas-panel"));
+
+        em.flush();
+        em.clear();
+        var saved = reservations.findById(root.getId()).orElseThrow();
+        assertThat(saved.getTravelDate()).isEqualTo(date.minusDays(1));
+        assertThat(saved.getDepartureSchedule()).isEqualTo("10:45");
+        assertThat(saved.getNotes()).isEqualTo("Corrección de agenda");
+        assertThat(saved.getStatus()).isEqualTo("COMPLETED");
+        assertThat(saved.getTravelStatus()).isEqualTo(Reservation.TravelStatus.COMPLETED);
+        assertThat(saved.getPaymentReceiptUrl()).isEqualTo(root.getPaymentReceiptUrl());
+        assertThat(saved.isInvoiceIssued()).isTrue();
+        assertThat(invoices.findById(invoice.getId())).hasValueSatisfying(current -> {
+            assertThat(current.getInvoiceNumber()).isEqualTo(invoice.getInvoiceNumber());
+            assertThat(current.getAmount()).isEqualByComparingTo("140");
+            assertThat(current.getPdfUrl()).isEqualTo(saved.getInvoiceUrl());
+            assertThat(current.getSentViaWhatsapp()).isTrue();
+        });
+        assertThat(operations.findAll()).singleElement().satisfies(operation -> {
+            assertThat(operation.getTriggeredBy()).isEqualTo("operador.test");
+            assertThat(operation.getBeforeJson()).contains("Original");
+        });
+        assertThat(saved.isManualNotificationPending()).isFalse();
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        assertThat(observer.passengerNotifications).isEmpty();
+        assertThat(observer.notifications).isEmpty();
+    }
+
+    @Test
+    void panelEditsActiveTripAndRecognizesPartialPaymentWithoutNotification() throws Exception {
+        var root = root(1, "70", false);
+        String path = "/reservas-panel/" + root.getId() + "/editar";
+        panelMvc().perform(post(path)
+                        .principal(() -> "operador.test").param("expectedRevision", "0").param("operationId", "panel-active")
+                        .param("travelDate", date.plusDays(2).toString()).param("departureSchedule", "13:30")
+                        .param("seats", "2").param("companionNames", "Juan").param("notes", "Retiro acordado")
+                        .param("pricingMode", "AGREED_TOTAL").param("agreedAmount", "120").param("paidAmount", "45"))
+                .andExpect(redirectedUrl("/reservas-panel"));
+        em.flush();
+        em.clear();
+        assertThat(reservations.findById(root.getId())).hasValueSatisfying(saved -> {
+            assertThat(saved.getTravelDate()).isEqualTo(date.plusDays(2));
+            assertThat(saved.getDepartureSchedule()).isEqualTo("13:30");
+            assertThat(saved.getTotalSeats()).isEqualTo(2);
+            assertThat(saved.getCompanionNames()).isEqualTo("Juan");
+            assertThat(saved.getAmount()).isEqualByComparingTo("120");
+            assertThat(saved.recognizedPayment()).isEqualByComparingTo("45");
+            assertThat(saved.getPaymentVerified()).isFalse();
+            assertThat(saved.isManualNotificationPending()).isFalse();
+        });
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        assertThat(observer.passengerNotifications).isEmpty();
+        assertThat(observer.notifications).isEmpty();
+    }
+
+    @Test
+    void panelProtectsCommercialFieldsWhenInvoiceExistsOnlyInLedger() throws Exception {
+        var root = root(1, "70", true);
+        invoices.saveAndFlush(Invoice.builder().reservationId(root.getId())
+                .invoiceNumber("F-1").amount(new BigDecimal("70")).sentViaWhatsapp(false).build());
+        assertThatThrownBy(() -> update.editFromPanel(root.getId(), new PanelReservationEdit(
+                0, "panel-locked", null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, PricingMode.AGREED_TOTAL, new BigDecimal("99"), null),
+                "operador.test")).isInstanceOf(DomainValidationException.class)
+                .hasMessageContaining("únicamente correcciones");
+        assertThat(reservations.findById(root.getId()).orElseThrow().getAmount()).isEqualByComparingTo("70");
+    }
+
+    @Test
+    void panelChangesRouteAndAddsScheduledReturnInTheSameOperation() throws Exception {
+        var root = root(1, "70", false);
+        localities.save(Locality.builder().name("Suardi").build());
+        fares.save(Fare.builder().localityName("Suardi").amount(new BigDecimal("70")).build());
+        String path = "/reservas-panel/" + root.getId() + "/editar";
+        panelMvc().perform(post(path).principal(() -> "operador.test")
+                        .param("expectedRevision", "0").param("operationId", "panel-route")
+                        .param("origin", "Suardi").param("destination", "Córdoba")
+                        .param("returnAction", "ADD").param("returnMode", "SCHEDULED")
+                        .param("returnDate", date.plusDays(1).toString()).param("returnTime", "14:00"))
+                .andExpect(redirectedUrl("/reservas-panel"));
+        em.flush();
+        em.clear();
+        var group = reservations.findReservationGroup(root.getBookingGroupCode());
+        assertThat(group).hasSize(2).anySatisfy(leg -> {
+            assertThat(leg.getId()).isEqualTo(root.getId());
+            assertThat(leg.getPickupLocality()).isEqualTo("Suardi");
+        }).anySatisfy(leg -> {
+            assertThat(leg.getPickupLocality()).isEqualTo("Córdoba");
+            assertThat(leg.getDestination()).isEqualTo("Suardi");
+            assertThat(leg.getDepartureSchedule()).isEqualTo("14:00");
+            assertThat(leg.isManualNotificationPending()).isFalse();
+        });
+    }
+
+    private MockMvc panelMvc() {
+        var templates = new ClassLoaderTemplateResolver();
+        templates.setPrefix("templates/");
+        templates.setSuffix(".html");
+        templates.setTemplateMode("HTML");
+        var engine = new SpringTemplateEngine();
+        engine.setTemplateResolver(templates);
+        var resolver = new ThymeleafViewResolver();
+        resolver.setTemplateEngine(engine);
+        return MockMvcBuilders.standaloneSetup(new ReservationPanelEditController(update))
+                .setViewResolvers(resolver).build();
     }
 
     private Reservation root(int seats, String amount, boolean paid) {

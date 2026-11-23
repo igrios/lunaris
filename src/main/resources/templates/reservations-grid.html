@@ -109,6 +109,7 @@
             <option value="PAYMENT_RECEIVED" th:selected="${currentStatus == 'PAYMENT_RECEIVED'}">📩 Comprobante
               Recibido</option>
             <option value="CONFIRMED" th:selected="${currentStatus == 'CONFIRMED'}">✅ Viaje Confirmado</option>
+            <option value="COMPLETED" th:selected="${currentStatus == 'COMPLETED'}">Viajes cerrados</option>
             <option value="CANCELLED" th:selected="${currentStatus == 'CANCELLED'}">❌ Cancelado / Debaja</option>
           </select>
         </div>
@@ -127,6 +128,8 @@
     <!-- Tabla Principal de Gestión -->
     <div class="card card-table overflow-hidden bg-white">
       <div class="table-responsive">
+        <p th:if="${successMessage}" th:text="${successMessage}" class="alert alert-success" role="status"></p>
+        <p th:if="${errorMessage}" th:text="${errorMessage}" class="alert alert-danger" role="alert"></p>
         <table class="table table-hover align-middle mb-0">
           <thead class="table-dark text-uppercase" style="font-size: 0.8rem; letter-spacing: 0.5px;">
             <tr>
@@ -190,8 +193,10 @@
                 <span class="badge bg-secondary rounded-pill px-2.5" th:text="${r.passengerCount ?: 1}"></span>
               </td>
               <!-- 🏷️ Visualización Limpia y Amigable de Estados -->
-              <td class="text-center">
-                <span class="badge-status" th:classappend="${r.status == 'PENDING_PAYMENT' ? 'bg-pending' : 
+              <td class="text-center"
+                  th:with="closed=${r.status == 'COMPLETED' or r.travelStatus?.name() == 'COMPLETED' or r.travelStatus?.name() == 'REALIZED'}">
+                <span th:if="${closed}" class="badge bg-secondary">Cerrada</span>
+                <span th:unless="${closed}" class="badge-status" th:classappend="${r.status == 'PENDING_PAYMENT' ? 'bg-pending' :
                                                        (r.status == 'PAYMENT_RECEIVED' ? 'bg-received' : 
                                                        (r.status == 'CONFIRMED' ? 'bg-confirmed' : 'bg-cancelled'))}"
                   th:text="${r.status == 'PENDING_PAYMENT' ? '⏳ Esperando Pago' : 
@@ -201,6 +206,9 @@
               </td>
               <td class="pe-4 text-end">
                 <div class="d-flex justify-content-end gap-1">
+                  <a th:href="@{/reservas-panel/{id}/editar(id=${r.id})}" class="btn btn-outline-primary btn-sm">
+                    Editar
+                  </a>
 
                   <a th:if="${r.paymentReceiptUrl != null and !#strings.isEmpty(r.paymentReceiptUrl)}"
                     th:href="${r.paymentReceiptUrl}" target="_blank" rel="noopener noreferrer"

@@ -14,6 +14,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     boolean existsByReservationId(UUID reservationId);
 
+    boolean existsByReservationIdIn(List<UUID> reservationIds);
+
     Optional<Invoice> findByReservationId(UUID reservationId);
 
     Optional<Invoice> findFirstByReservationIdIn(java.util.List<UUID> reservationIds);

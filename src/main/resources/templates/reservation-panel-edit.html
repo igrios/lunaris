@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Editar reserva | Lunaris</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <style>[hidden] { display: none !important; }</style>
+</head>
+<body class="bg-light">
+<main class="container py-4" style="max-width: 840px">
+    <a th:href="@{/reservas-panel}" class="btn btn-outline-secondary mb-3">Volver a Reservas</a>
+    <h1 class="h3" th:text="|Editar reserva ${state.selected.reservationCode ?: ''}|"></h1>
+    <p th:text="|${state.selected.passenger.firstName} ${state.selected.passenger.lastName} · ${state.selected.pickupLocality} → ${state.selected.destination}|"></p>
+    <p th:if="${errorMessage}" th:text="${errorMessage}" class="alert alert-danger" role="alert"></p>
+    <p th:if="${state.operationalOnly}" class="alert alert-info">
+        Esta reserva admite correcciones operativas. Se conservan el estado, los importes y los documentos asociados.
+    </p>
+    <form method="post" th:action="@{/reservas-panel/{id}/editar(id=${state.selected.id})}" class="card card-body shadow-sm">
+        <input type="hidden" name="expectedRevision" th:value="${state.revision}">
+        <input type="hidden" name="operationId" th:value="${operationId}">
+        <fieldset class="mb-4">
+            <legend class="h5">Datos de este tramo</legend>
+            <div class="row g-3">
+                <label th:if="${state.showDirectSchedule}" class="col-md-6">
+                    Fecha <input type="date" name="travelDate" class="form-control" th:value="${#strings.equals(state.selected.travelDate, '2099-12-31') ? null : state.selected.travelDate}">
+                </label>
+                <label th:if="${state.showDirectSchedule}" class="col-md-6">
+                    Horario <input type="time" name="departureSchedule" class="form-control" th:value="${schedule}">
+                </label>
+                <label class="col-12">Dirección de retiro
+                    <input name="pickupAddress" class="form-control" th:value="${state.selected.pickupAddress}" maxlength="255">
+                </label>
+                <label class="col-12">Observaciones
+                    <textarea name="notes" class="form-control" maxlength="500" rows="3" th:text="${state.selected.notes}"></textarea>
+                </label>
+            </div>
+        </fieldset>
+        <th:block th:unless="${state.operationalOnly}">
+            <fieldset class="mb-4 border-top pt-3">
+                <legend class="h5">Trayecto y pasajeros</legend>
+                <datalist id="activeLocalities" th:unless="${state.localities.empty}">
+                    <option th:each="locality : ${state.localities}" th:value="${locality}"></option>
+                </datalist>
+                <div class="row g-3">
+                    <label class="col-md-6">Origen de la ida
+                        <input name="origin" class="form-control" maxlength="100" required th:attr="list=${state.localities.empty ? null : 'activeLocalities'}" th:value="${state.primary.pickupLocality}">
+                    </label>
+                    <label class="col-md-6">Destino de la ida
+                        <input name="destination" class="form-control" maxlength="100" required th:attr="list=${state.localities.empty ? null : 'activeLocalities'}" th:value="${state.primary.destination}">
+                    </label>
+                    <label class="col-md-4">Cantidad total de pasajeros
+                        <input type="number" name="seats" class="form-control" min="1" max="9" required th:value="${state.primary.totalSeats}">
+                    </label>
+                    <label class="col-md-8">Nombres de acompañantes
+                        <input name="companionNames" class="form-control" maxlength="500" th:value="${state.primary.companionNames}">
+                    </label>
+                </div>
+            </fieldset>
+            <fieldset class="mb-4 border-top pt-3">
+                <legend class="h5">Regreso</legend>
+                <div class="row g-3">
+                    <label class="col-md-5">Acción
+                        <select id="returnAction" name="returnAction" class="form-select">
+                            <option value="KEEP">Conservar</option>
+                            <option value="ADD" th:if="${state.returns.empty}">Agregar regreso</option>
+                            <option value="UPDATE" th:unless="${state.returns.empty}">Modificar regreso</option>
+                            <option value="REMOVE" th:unless="${state.returns.empty}">Dar de baja regreso</option>
+                        </select>
+                    </label>
+                    <label id="returnTargetFields" class="col-md-7" hidden>Tramo de regreso
+                        <select name="returnLegId" class="form-select" disabled>
+                            <option th:each="leg : ${state.returns}" th:value="${leg.id}"
+                                    th:text="|${leg.reservationCode} · ${leg.travelDate ?: 'Abierto'}|"></option>
+                        </select>
+                    </label>
+                </div>
+                <fieldset id="returnPlanFields" class="row g-3 mt-1" hidden disabled>
+                    <label class="col-md-4">Modalidad
+                        <select id="returnMode" name="returnMode" class="form-select">
+                            <option value="SCHEDULED">Programada</option>
+                            <option value="OPEN">Abierta</option>
+                            <option value="FLEXIBLE">Flexible</option>
+                        </select>
+                    </label>
+                    <label id="returnDateField" class="col-md-4">Fecha de regreso
+                        <input type="date" name="returnDate" class="form-control">
+                    </label>
+                    <label id="returnTimeField" class="col-md-4">Hora de regreso
+                        <input type="time" name="returnTime" class="form-control">
+                    </label>
+                    <label id="returnPreferenceField" class="col-12" hidden>Preferencia horaria
+                        <input name="returnPreference" class="form-control" maxlength="500">
+                    </label>
+                </fieldset>
+            </fieldset>
+            <fieldset class="mb-4 border-top pt-3">
+                <legend class="h5">Montos y pagos</legend>
+                <p class="text-muted small" th:text="|Total actual: $${#numbers.formatDecimal(state.total, 1, 'POINT', 2, 'COMMA')} · Cobrado: $${#numbers.formatDecimal(state.paidAmount, 1, 'POINT', 2, 'COMMA')}|"></p>
+                <div class="row g-3">
+                    <label class="col-md-6">Tarifa
+                        <select id="pricingMode" name="pricingMode" class="form-select">
+                            <option value="">Conservar importes</option>
+                            <option value="RECALCULATE">Recalcular tarifa</option>
+                            <option value="AGREED_TOTAL">Ingresar total acordado</option>
+                        </select>
+                    </label>
+                    <label id="agreedAmountField" class="col-md-6" hidden>Total acordado ($)
+                        <input type="number" name="agreedAmount" class="form-control" min="0" max="99999999.99" step="0.01" disabled>
+                    </label>
+                    <label class="col-md-6">Total acumulado cobrado ($)
+                        <input type="number" name="paidAmount" class="form-control" min="0" max="99999999.99" step="0.01" placeholder="Conservar pago registrado">
+                    </label>
+                </div>
+            </fieldset>
+        </th:block>
+        <div><button type="submit" class="btn btn-primary">Guardar cambios</button></div>
+    </form>
+</main>
+<script th:src="@{/js/reservation-panel-edit.js}" defer></script>
+</body>
+</html>

@@ -124,6 +124,31 @@ public class ReservationUpdatePricingService {
                 pending(active), credited);
     }
 
+    public Outcome recordPayment(List<Reservation> group, BigDecimal submitted, Outcome price) {
+        List<Reservation> active = group.stream().filter(ReservationUpdateCapacityService::active).toList();
+        if (active.stream().anyMatch(Reservation::isAmountIsGroupTotal)) {
+            throw new DomainValidationException("Normalizá los importes legados del grupo antes de registrar el cobro.");
+        }
+        BigDecimal recorded = active.stream().map(Reservation::recognizedPayment)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal additional = submitted.subtract(recorded);
+        if (additional.signum() < 0 || additional.compareTo(pending(active)) > 0) {
+            throw new DomainValidationException("El pago acumulado debe estar entre lo ya cobrado y el total a cobrar después del saldo a favor.");
+        }
+        for (Reservation leg : active) {
+            if (additional.signum() == 0) break;
+            BigDecimal current = leg.recognizedPayment();
+            BigDecimal net = zero(leg.getAmount()).add(zero(leg.getExtraAmount()));
+            BigDecimal applied = additional.min(net.subtract(current).max(BigDecimal.ZERO));
+            if (applied.signum() == 0) continue;
+            leg.setRecognizedPaidAmount(current.add(applied));
+            leg.setPaymentVerified(current.add(applied).compareTo(net) == 0);
+            leg.synchronizePaymentAndBilling();
+            additional = additional.subtract(applied);
+        }
+        return new Outcome(price.total(), price.invoiceTotal(), price.difference(), pending(active), price.credited());
+    }
+
     private BigDecimal calculateBase(List<Reservation> active, Reservation primary) {
         if (primary.isSpecialTrip()) {
             if (primary.getCustomPrice() == null || primary.getCustomPrice().signum() <= 0) {

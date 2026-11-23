@@ -36,6 +36,33 @@ public class UpdateReservationUseCase {
     private final Validator validator;
     private final ObjectMapper json;
     private final ApplicationEventPublisher events;
+    private final InvoiceRepository invoices;
+    private final LocalityRepository localities;
+
+    public record PanelState(Reservation selected, Reservation primary, List<Reservation> returns,
+            int revision, boolean operationalOnly, boolean showDirectSchedule,
+            BigDecimal total, BigDecimal paidAmount, List<String> localities) {}
+
+    public PanelState getPanelState(UUID reservationId) {
+        LockedGroup group = lockGroup(reservationId);
+        synchronizeRevision(group);
+        Reservation primary = primary(group);
+        Reservation selected = leg(group.legs(), reservationId);
+        var active = group.legs().stream().filter(ReservationUpdateCapacityService::active).toList();
+        boolean restricted = operationalOnly(group.legs(), primary, selected);
+        return new PanelState(selected, primary,
+                active.stream().filter(r -> r != primary).toList(),
+                group.state().getRevision(), restricted,
+                !isOpenReturn(selected) || restricted && canScheduleOpen(selected, primary),
+                ReservationUpdatePricingService.grossTotal(active),
+                active.stream().map(Reservation::recognizedPayment).reduce(BigDecimal.ZERO, BigDecimal::add),
+                restricted || primary.isSpecialTrip() ? List.of() : activeLocalities());
+    }
+
+    public UpdateReservationResult editFromPanel(UUID reservationId, PanelReservationEdit edit, String operator) {
+        validate(edit);
+        return execute(reservationId, edit.request(), operator, edit);
+    }
 
     /** Inicializa/sincroniza la revisión incluso para escritores legados que no usan este caso de uso. */
     public UpdateReservationResult getState(UUID reservationId) {
@@ -52,10 +79,16 @@ public class UpdateReservationUseCase {
     }
 
     public UpdateReservationResult execute(UUID reservationId, UpdateReservationRequest request, String triggeredBy) {
+        return execute(reservationId, request, triggeredBy, null);
+    }
+
+    private UpdateReservationResult execute(UUID reservationId, UpdateReservationRequest request, String triggeredBy,
+            PanelReservationEdit edit) {
         validateRequest(request, triggeredBy);
         LockedGroup locked = lockGroup(reservationId);
         String operationKey = hash(locked.code() + "\n" + request.operationId());
-        String requestHash = hash(serialize(request));
+        String requestHash = hash(edit == null ? serialize(request)
+                : serialize(List.of(reservationId, edit)));
         var replay = operations.findById(operationKey);
         if (replay.isPresent()) {
             if (!replay.get().getRequestHash().equals(requestHash)) {
@@ -72,21 +105,43 @@ public class UpdateReservationUseCase {
         String beforeJson = serialize(result(locked, null, new ReservationUpdatePricingService.Outcome(
                 ReservationUpdatePricingService.grossTotal(oldActive), BookingInvoiceAmount.total(oldActive),
                 BigDecimal.ZERO, ReservationUpdatePricingService.pending(oldActive), BigDecimal.ZERO)));
-        assertEditable(before);
-        Reservation primary = before.stream().filter(r -> r.getId().equals(locked.state().getPrimaryReservationId()))
-                .findFirst().orElseThrow(() -> new ReservationUpdateConflictException("El grupo perdió su tramo principal."));
-        if (!ReservationUpdateCapacityService.active(primary)) {
-            throw new DomainValidationException("No se puede editar un grupo con el tramo principal cancelado.");
+        Reservation primary = primary(locked);
+        boolean restricted = edit != null && operationalOnly(before, primary, leg(before, reservationId));
+        if (edit == null) {
+            assertEditable(before);
+            if (!ReservationUpdateCapacityService.active(primary)) {
+                throw new DomainValidationException("No se puede editar un grupo con el tramo principal cancelado.");
+            }
+        }
+        if (restricted && edit.changesCommercialFields()) {
+            throw new DomainValidationException("Esta reserva admite únicamente correcciones de fecha, hora, dirección y observaciones.");
         }
         List<Reservation> proposed = new ArrayList<>(before.stream().map(r -> r.toBuilder().build()).toList());
-        Reservation proposedPrimary = proposed.stream().filter(r -> r.getId().equals(primary.getId())).findFirst().orElseThrow();
+        Reservation proposedPrimary = leg(proposed, primary.getId());
+        boolean scheduleChanged = edit != null && applyPanelEdit(edit, proposed, proposedPrimary, reservationId, restricted);
         ReturnAction action = request.returnChange() == null ? ReturnAction.KEEP : request.returnChange().action();
+        if (edit != null && request.returnChange() != null && request.returnChange().date() != null
+                && request.returnChange().date().isBefore(ArgentinaTime.today())) {
+            throw new DomainValidationException("Indicá una fecha vigente para el regreso.");
+        }
         Reservation added = planReturn(proposed, proposedPrimary, request.returnChange(), locked.code());
-        validateTopology(proposed, proposedPrimary);
-        if (action != ReturnAction.KEEP) synchronizeTripType(proposed, proposedPrimary);
-        if (action != ReturnAction.KEEP) capacity.validateReplacement(before, proposed, primary.getTravelDate());
+        if (!restricted) validateTopology(proposed, proposedPrimary);
+        if (edit != null && !restricted && (action != ReturnAction.KEEP || scheduleChanged)) {
+            validatePanelDates(proposed, proposedPrimary);
+        }
+        if (action != ReturnAction.KEEP) {
+            synchronizeTripType(proposed, proposedPrimary);
+        }
+        if (edit == null && action != ReturnAction.KEEP) {
+            capacity.validateReplacement(before, proposed, primary.getTravelDate());
+        } else if (edit != null && capacityChanged(before, proposed)) {
+            capacity.validateReplacement(before.stream().filter(this::occupiesCapacity).toList(),
+                    proposed.stream().filter(this::occupiesCapacity).toList(),
+                    primary.getTravelDate(), proposedPrimary.getTravelDate());
+        }
         var price = pricing.apply(before, proposed, proposedPrimary, request.pricing(),
                 action == ReturnAction.ADD || action == ReturnAction.REMOVE);
+        if (edit != null && edit.paidAmount() != null) price = pricing.recordPayment(proposed, edit.paidAmount(), price);
         String oldFingerprint = fingerprint(before);
         String plannedFingerprint = fingerprint(proposed);
         boolean changed = !oldFingerprint.equals(plannedFingerprint);
@@ -119,7 +174,7 @@ public class UpdateReservationUseCase {
                     .reservationId(primary.getId()).eventType("RESERVATION_UPDATED")
                     .description("Operación " + request.operationId() + "; acción " + action
                             + "; tramo " + (added != null ? added.getId() : request.returnChange() == null
-                                    ? "-" : request.returnChange().targetLegId())
+                                    ? reservationId : request.returnChange().targetLegId())
                             + "; revisión " + result.revision() + "; total " + price.total()
                             + "; diferencia " + price.difference() + "; crédito " + price.credited()
                             + "; pendiente " + price.pending())
@@ -127,8 +182,7 @@ public class UpdateReservationUseCase {
             entityManager.persist(event);
             if (event.getId() == null) throw new IllegalStateException("No se generó la identidad del evento.");
             audit.save(event);
-            // OperatorNotificationService ya despacha este snapshot con AFTER_COMMIT.
-            events.publishEvent(new OperatorNotification("🚌 RESERVA ACTUALIZADA: " + locked.code()
+            if (edit == null) events.publishEvent(new OperatorNotification("🚌 RESERVA ACTUALIZADA: " + locked.code()
                     + "\nOperación: " + request.operationId() + "\nAcción: " + action
                     + "\nTotal: $" + price.total() + "\nPendiente: $" + price.pending()));
         }
@@ -283,20 +337,201 @@ public class UpdateReservationUseCase {
         primary.setReturnTimePreference(returns.size() == 1 ? returns.getFirst().getReturnTimePreference() : null);
     }
 
+    private Reservation primary(LockedGroup group) {
+        return leg(group.legs(), group.state().getPrimaryReservationId());
+    }
+
+    private Reservation leg(List<Reservation> group, UUID id) {
+        return group.stream().filter(r -> id.equals(r.getId())).findFirst()
+                .orElseThrow(() -> new ReservationUpdateConflictException("El tramo ya no pertenece al grupo."));
+    }
+
+    private boolean operationalOnly(List<Reservation> group, Reservation primary, Reservation selected) {
+        return !ReservationUpdateCapacityService.active(primary) || !ReservationUpdateCapacityService.active(selected)
+                || group.stream().anyMatch(r -> r.isInvoiceIssued() || r.getInvoiceUrl() != null
+                        || ReservationUpdateCapacityService.active(r) && usedOrDispatched(r))
+                || invoices.existsByReservationIdIn(group.stream().map(Reservation::getId).toList());
+    }
+
+    private boolean usedOrDispatched(Reservation leg) {
+        return leg.getDriver() != null || "COMPLETED".equalsIgnoreCase(leg.getStatus())
+                || leg.getTravelStatus() != null && switch (leg.getTravelStatus()) {
+                    case COMPLETED, REALIZED, PARTIALLY_COMPLETED, IN_PROGRESS, ONBOARD, BOARDED, ONBOARDED, ROUTE_SENT -> true;
+                    default -> false;
+                }
+                || leg.getTravelDate() != null && leg.getTravelDate().isBefore(ArgentinaTime.today())
+                || leg.getReturnedPassengerCount() != null && leg.getReturnedPassengerCount() > 0;
+    }
+
+    private boolean occupiesCapacity(Reservation leg) {
+        return ReservationUpdateCapacityService.active(leg)
+                && !"COMPLETED".equalsIgnoreCase(leg.getStatus())
+                && leg.getTravelStatus() != Reservation.TravelStatus.COMPLETED
+                && leg.getTravelStatus() != Reservation.TravelStatus.REALIZED;
+    }
+
+    private boolean capacityChanged(List<Reservation> before, List<Reservation> proposed) {
+        return !capacitySignature(before).equals(capacitySignature(proposed));
+    }
+
+    private List<List<Object>> capacitySignature(List<Reservation> legs) {
+        return legs.stream().filter(this::occupiesCapacity).filter(r -> !r.isSpecialTrip())
+                .map(r -> canonicalValues(r.getId(), r.getTravelDate(), r.getDepartureSchedule(),
+                        r.getPickupLocality(), r.getTotalSeats(), r.getTravelStatus(), r.isFlexibleReturnTime()))
+                .toList();
+    }
+
+    private boolean applyPanelEdit(PanelReservationEdit edit, List<Reservation> group, Reservation primary,
+            UUID selectedId, boolean restricted) {
+        Reservation selected = leg(group, selectedId);
+        boolean scheduleChanged = edit.travelDate() != null && !edit.travelDate().equals(selected.getTravelDate())
+                || edit.departureSchedule() != null && !edit.departureSchedule().equals(normalizedSchedule(selected));
+        if (scheduleChanged) {
+            if (isOpenReturn(selected)) {
+                if (!restricted || !canScheduleOpen(selected, primary)) {
+                    throw new DomainValidationException("Usá la modalidad de regreso para programar una vuelta abierta.");
+                }
+                if (edit.travelDate() == null || edit.travelDate().isBefore(ArgentinaTime.today())) {
+                    throw new DomainValidationException("Indicá una fecha vigente y una hora para el regreso.");
+                }
+                planReturn(group, primary, new ReturnChangeRequest(ReturnAction.UPDATE, selected.getId().toString(),
+                        ReturnMode.SCHEDULED, edit.travelDate(), edit.departureSchedule(), null), primary.getBookingGroupCode());
+                synchronizeTripType(group, primary);
+            } else {
+                applyScheduleCorrection(edit, group, selected, primary, restricted);
+            }
+        }
+        if (edit.pickupAddress() != null) selected.setPickupAddress(blankToNull(edit.pickupAddress()));
+        if (edit.notes() != null) selected.setNotes(blankToNull(edit.notes()));
+        if (!restricted) applyCommercialFields(edit, group, primary);
+        return scheduleChanged;
+    }
+
+    private void applyScheduleCorrection(PanelReservationEdit edit, List<Reservation> group,
+            Reservation selected, Reservation primary, boolean restricted) {
+        if (edit.travelDate() != null) {
+            if (LocalDate.of(2099, 12, 31).equals(edit.travelDate())
+                    || !restricted && edit.travelDate().isBefore(ArgentinaTime.today())) {
+                throw new DomainValidationException("La fecha del viaje es inválida.");
+            }
+            if (!edit.travelDate().equals(selected.getTravelDate())) selected.setRouteSequence(null);
+            selected.setTravelDate(edit.travelDate());
+            if (selected != primary) {
+                selected.setReturnDate(edit.travelDate());
+                if (group.stream().filter(r -> r != primary)
+                        .filter(ReservationUpdateCapacityService::active).count() == 1
+                        && ReservationUpdateCapacityService.active(selected)) {
+                    primary.setReturnDate(edit.travelDate());
+                }
+            }
+        }
+        if (edit.departureSchedule() != null && !edit.departureSchedule().equals(normalizedSchedule(selected))) {
+            selected.setDepartureSchedule(edit.departureSchedule());
+        }
+    }
+
+    private void applyCommercialFields(PanelReservationEdit edit, List<Reservation> group, Reservation primary) {
+        String origin = edit.origin() == null ? primary.getPickupLocality() : edit.origin().strip();
+        String destination = edit.destination() == null ? primary.getDestination() : edit.destination().strip();
+        boolean routeChanged = !Objects.equals(origin, primary.getPickupLocality())
+                || !Objects.equals(destination, primary.getDestination());
+        if (routeChanged) {
+            if (origin.isBlank() || destination.isBlank() || origin.equalsIgnoreCase(destination)
+                    || !primary.isSpecialTrip() && !activeRoute(origin, destination)) {
+                throw new DomainValidationException("Elegí un origen y un destino distintos y habilitados.");
+            }
+            boolean reverse = TripRouteCalculatorService.isCordoba(origin);
+            for (Reservation leg : group) {
+                if (!ReservationUpdateCapacityService.active(leg)) continue;
+                boolean returning = leg != primary;
+                leg.setPickupLocality(returning ? destination : origin);
+                leg.setDestination(returning ? origin : destination);
+                leg.setRouteDirection(reverse == returning ? "IDA" : "VUELTA");
+                leg.setRouteSequence(null);
+                if (leg.isSpecialTrip()) {
+                    leg.setOriginCustom(leg.getPickupLocality());
+                    leg.setDestinationCustom(leg.getDestination());
+                }
+            }
+        }
+        if (edit.seats() != null && edit.seats() != primary.getTotalSeats()) {
+            if (edit.seats() < 1 || edit.seats() > 9) {
+                throw new DomainValidationException("La cantidad de pasajeros debe estar entre 1 y 9.");
+            }
+            int previousSeats = primary.getTotalSeats();
+            primary.setPassengerCount(edit.seats());
+            var returns = group.stream().filter(r -> r != primary)
+                    .filter(ReservationUpdateCapacityService::active).toList();
+            if (returns.size() == 1 && returns.getFirst().getTotalSeats() == previousSeats) {
+                returns.getFirst().setPassengerCount(edit.seats());
+            }
+        }
+        if (edit.companionNames() != null) {
+            String companions = blankToNull(edit.companionNames());
+            if (!Objects.equals(companions, primary.getCompanionNames())) {
+                group.stream().filter(ReservationUpdateCapacityService::active)
+                        .forEach(leg -> leg.setCompanionNames(companions));
+            }
+        }
+    }
+
+    private boolean isOpenReturn(Reservation leg) {
+        return leg.getTravelStatus() == Reservation.TravelStatus.OPEN_RETURN
+                || LocalDate.of(2099, 12, 31).equals(leg.getTravelDate());
+    }
+
+    private boolean canScheduleOpen(Reservation selected, Reservation primary) {
+        return selected != primary && ReservationUpdateCapacityService.active(selected) && !usedOrDispatched(selected);
+    }
+
+    private void validatePanelDates(List<Reservation> group, Reservation primary) {
+        if (primary.getTravelDate() == null) return;
+        String departure = normalizedSchedule(primary);
+        for (Reservation leg : group) {
+            if (leg == primary || !ReservationUpdateCapacityService.active(leg)) continue;
+            LocalDate date = leg.getTravelDate();
+            if (date == null || LocalDate.of(2099, 12, 31).equals(date)) date = leg.getReturnDate();
+            if (date == null || LocalDate.of(2099, 12, 31).equals(date)) continue;
+            String time = normalizedSchedule(leg);
+            if (date.isBefore(primary.getTravelDate()) || date.equals(primary.getTravelDate())
+                    && departure != null && time != null && time.compareTo(departure) < 0) {
+                throw new DomainValidationException("El regreso no puede salir antes de la ida.");
+            }
+        }
+    }
+
+    private static String blankToNull(String value) {
+        return value.isBlank() ? null : value.strip();
+    }
+
+    private boolean activeRoute(String origin, String destination) {
+        var names = activeLocalities();
+        return names.contains(origin) && names.contains(destination);
+    }
+
+    private List<String> activeLocalities() {
+        var names = new LinkedHashSet<String>();
+        names.add("Córdoba");
+        localities.findAllWithActiveFare().forEach(locality -> names.add(locality.getName()));
+        return List.copyOf(names);
+    }
+
+    public static String normalizedSchedule(Reservation leg) {
+        if (leg.getDepartureSchedule() == null || leg.getDepartureSchedule().isBlank()) return null;
+        try {
+            return ReturnCapacityPolicy.normalizeSchedule(leg.getDepartureSchedule());
+        } catch (java.time.format.DateTimeParseException invalidLegacySchedule) {
+            return null;
+        }
+    }
+
     private void assertEditable(List<Reservation> group) {
         for (Reservation leg : group) {
             if (leg.isInvoiceIssued() || leg.getInvoiceUrl() != null) {
                 throw new DomainValidationException("No se puede editar un grupo facturado.");
             }
             if (!ReservationUpdateCapacityService.active(leg)) continue;
-            if (leg.getDriver() != null || Set.of(Reservation.TravelStatus.COMPLETED, Reservation.TravelStatus.REALIZED,
-                    Reservation.TravelStatus.IN_PROGRESS, Reservation.TravelStatus.ONBOARD, Reservation.TravelStatus.BOARDED,
-                    Reservation.TravelStatus.ONBOARDED, Reservation.TravelStatus.ROUTE_SENT,
-                    Reservation.TravelStatus.PARTIALLY_COMPLETED).contains(leg.getTravelStatus() == null
-                            ? Reservation.TravelStatus.PENDING : leg.getTravelStatus())
-                    || "COMPLETED".equalsIgnoreCase(leg.getStatus())
-                    || leg.getTravelDate() != null && leg.getTravelDate().isBefore(ArgentinaTime.today())
-                    || leg.getReturnedPassengerCount() != null && leg.getReturnedPassengerCount() > 0) {
+            if (usedOrDispatched(leg)) {
                 throw new DomainValidationException("El grupo tiene tramos asignados, utilizados o en curso.");
             }
             if (leg.getManualNotificationAttemptAt() != null && leg.getManualNotificationAttemptAt()
@@ -307,20 +542,25 @@ public class UpdateReservationUseCase {
     }
 
     private void validateRequest(UpdateReservationRequest request, String actor) {
+        validate(request);
+        if (request.operationId().length() > 128 || actor == null || actor.isBlank() || actor.length() > 100) {
+            throw new DomainValidationException("El identificador de operación o el operador son inválidos.");
+        }
+    }
+
+    private void validate(Object request) {
         if (request == null) throw new DomainValidationException("La solicitud es obligatoria.");
         var violations = validator.validate(request);
         if (!violations.isEmpty()) throw new DomainValidationException(violations.stream()
                 .map(v -> v.getPropertyPath() + ": " + v.getMessage()).sorted().findFirst().orElseThrow());
-        if (request.operationId().length() > 128 || actor == null || actor.isBlank() || actor.length() > 100) {
-            throw new DomainValidationException("El identificador de operación o el operador son inválidos.");
-        }
     }
 
     private UpdateReservationResult result(LockedGroup group, String operationId, ReservationUpdatePricingService.Outcome price) {
         var legs = group.legs().stream().map(r -> new UpdateReservationResult.Leg(r.getId(), r.getReservationCode(),
                 ReservationUpdateCapacityService.active(r), r.getTravelDate(), r.getReturnDate(), r.getDepartureSchedule(),
                 r.isFlexibleReturnTime(), r.getReturnTimePreference(), r.getTravelStatus(), r.getTotalSeats(), r.getAmount(),
-                r.getExtraAmount(), r.getUsedBalance(), r.recognizedPayment(), Boolean.TRUE.equals(r.getPaymentVerified()))).toList();
+                r.getExtraAmount(), r.getUsedBalance(), r.recognizedPayment(), Boolean.TRUE.equals(r.getPaymentVerified()),
+                r.getPickupLocality(), r.getDestination(), r.getPickupAddress(), r.getNotes(), r.getCompanionNames())).toList();
         return new UpdateReservationResult(group.code(), group.state().getRevision(), operationId, legs,
                 price.total(), price.invoiceTotal(), price.difference(), price.pending(), price.credited());
     }
