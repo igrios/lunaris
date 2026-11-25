@@ -69,23 +69,23 @@ public class AgendaViewController {
     @Value("${lunaris.trips.capacity:12}")
     private int vehicleCapacity = 4;
 
-    // 📅 1. Vista resumen de los próximos 7 días (Semana Completa) BLINDADA CONTRA VUELTAS ABIERTAS Y CANCELADOS
     @GetMapping("/agenda")
     public String agenda(
+            @RequestParam(name = "from", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(defaultValue = "7") int days,
             Model model) {
         LocalDate today = com.lunaris.ansenuza.shared.ArgentinaTime.today();
         LocalDate fechaCentinela = LocalDate.of(2099, 12, 31);
-        int displayedDays = Math.max(7, Math.min(days, 56));
+        AgendaDateRange range = new AgendaDateRange(from == null ? today : from, days);
+        LocalDate through = range.through();
         java.util.Map<LocalDate, List<Reservation>> reservationsByDate =
-                reservationRepository.findAgendaBetween(
-                                today, today.plusDays(displayedDays - 1L)).stream()
+                reservationRepository.findAgendaBetween(range.from(), through).stream()
                         .collect(java.util.stream.Collectors.groupingBy(
                                 Reservation::getTravelDate));
 
         List<AgendaDayView> agenda =
-                java.util.stream.IntStream.range(0, displayedDays)
-                        .mapToObj(today::plusDays).map(date -> {
+                range.from().datesUntil(through.plusDays(1)).map(date -> {
                     List<Reservation> reservations = reservationsByDate.getOrDefault(date, List.of());
 
                     // 🌟 FILTRO: Excluimos registros con fecha centinela, CANCELLED o passengerCount <= 0
@@ -161,7 +161,8 @@ public class AgendaViewController {
                 }).toList();
 
         model.addAttribute("agenda", agenda);
-        model.addAttribute("displayedDays", displayedDays);
+        model.addAttribute("range", range);
+        model.addAttribute("today", today);
         return "agenda";
     }
 

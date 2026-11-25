@@ -60,6 +60,42 @@
             </div>
         </div>
 
+        <nav aria-label="Fechas de la agenda" class="card shadow-sm">
+            <div class="card-body">
+                <p class="fw-semibold mb-2">
+                    Del <time th:datetime="${range.from()}" th:text="${#temporals.format(range.from(), 'dd/MM/yyyy')}"></time>
+                    al <time th:datetime="${range.through()}" th:text="${#temporals.format(range.through(), 'dd/MM/yyyy')}"></time>
+                </p>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="d-flex flex-wrap gap-2">
+                        <a th:if="${range.from() != range.firstDate()}"
+                            th:href="@{/agenda(from=${range.shifted(-7)},days=${range.days()})}"
+                            class="btn btn-sm btn-outline-secondary" aria-label="Semana anterior">← 7 días</a>
+                        <a th:if="${range.from() != range.firstDate()}"
+                            th:href="@{/agenda(from=${range.shifted(-1)},days=${range.days()})}"
+                            class="btn btn-sm btn-outline-secondary" aria-label="Día anterior">← 1 día</a>
+                        <a th:href="@{/agenda(days=${range.days()})}" th:if="${range.from() != today}"
+                            class="btn btn-sm btn-primary">Hoy</a>
+                        <span th:if="${range.from() == today}" class="btn btn-sm btn-primary disabled"
+                            aria-current="date">Hoy</span>
+                        <a th:if="${range.from() != range.lastDate()}"
+                            th:href="@{/agenda(from=${range.shifted(1)},days=${range.days()})}"
+                            class="btn btn-sm btn-outline-secondary" aria-label="Día siguiente">1 día →</a>
+                        <a th:if="${range.from() != range.lastDate()}"
+                            th:href="@{/agenda(from=${range.shifted(7)},days=${range.days()})}"
+                            class="btn btn-sm btn-outline-secondary" aria-label="Semana siguiente">7 días →</a>
+                    </div>
+                    <form th:action="@{/agenda}" method="get" class="d-flex flex-wrap gap-2 align-items-center">
+                        <label for="agenda-from" class="small">Fecha de inicio</label>
+                        <input id="agenda-from" name="from" type="date" required class="form-control form-control-sm w-auto"
+                            th:value="${range.from()}" th:min="${range.firstDate()}" th:max="${range.lastDate()}">
+                        <input type="hidden" name="days" th:value="${range.days()}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Ir a fecha</button>
+                    </form>
+                </div>
+            </div>
+        </nav>
+
         <div class="row">
             <div th:each="day : ${agenda}" class="col-md-12">
                 <div class="card shadow-sm hover-shadow">
@@ -90,8 +126,8 @@
             </div>
         </div>
 
-        <div class="d-grid mt-4">
-            <a th:href="@{/agenda(days=${displayedDays + 7})}"
+        <div th:if="${range.canExpand()}" class="d-grid mt-4">
+            <a th:href="@{/agenda(from=${range.from()},days=${range.days() + 7})}"
                 class="btn btn-outline-primary btn-lg fw-bold">
                 📅 Ver más días
             </a>
