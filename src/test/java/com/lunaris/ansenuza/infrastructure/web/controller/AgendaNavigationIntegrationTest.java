@@ -24,6 +24,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -106,9 +108,10 @@ class AgendaNavigationIntegrationTest {
         assertRange(mvc.perform(get("/agenda?days=7")).andExpect(status().isOk()).andReturn(), today, 7);
     }
 
-    @Test
-    void includesAllDailyMetricsInAHistoricalRange() throws Exception {
-        LocalDate from = ArgentinaTime.today().minusMonths(2);
+    @ParameterizedTest
+    @ValueSource(ints = {-2, 2})
+    void includesAllDailyMetricsInPastAndFutureRanges(int monthOffset) throws Exception {
+        LocalDate from = ArgentinaTime.today().plusMonths(monthOffset);
         LocalDate date = from.plusDays(6);
         var confirmed = Reservation.builder().travelDate(date).reservationCode("CONF")
                 .passengerCount(2).status("CONFIRMED").paymentVerified(true).build();
@@ -121,7 +124,11 @@ class AgendaNavigationIntegrationTest {
         var result = mvc.perform(get("/agenda").param("from", from.toString()))
                 .andExpect(status().isOk()).andReturn();
 
+        assertRange(result, from, 7);
         var days = (List<?>) result.getModelAndView().getModel().get("agenda");
+        var firstDay = (AgendaDayView) days.getFirst();
+        assertThat(firstDay.totalPassengers()).isZero();
+        assertThat(firstDay.waitingListPassengers()).isZero();
         var summary = (AgendaDayView) days.getLast();
         assertThat(summary.date()).isEqualTo(date);
         assertThat(summary.totalPassengers()).isEqualTo(5);
